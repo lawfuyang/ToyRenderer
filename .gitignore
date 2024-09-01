@@ -1,0 +1,6 @@
+/.vs
+/projects
+/bin
+*.lnk
+*.ipch
+ipch

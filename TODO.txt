@@ -1,0 +1,102 @@
+• fix GPU occlusion culling causing wrong results
+• Render Graph: D3D12_Research\Graphics\RenderGraph
+	• Transient resource allocation
+		• Validation of resource dependencies
+		• Resource pooling
+	• Culling of unused resources and passes in the graph
+	• Visualization of the graph structure and memory lifetimes
+	• Resource States handling 
+		• disable 'keepInitialState' in nvrhi Texture & Buffer Descs, & 'setEnableAutomaticBarriers' to false for command lists in IRenderers
+	• Resource Aliasing
+		• requires custom memory management of nvrhi::HeapHandle, & usage of bindTextureMemory & bindBufferMemory
+		• resource lifetime management & tracking
+	• Scheduling of asynchronous compute fences
+• local lights
+	• light volumes w/ point, spot lights
+	• local light shadows
+	• local light grid
+	• auto local light shadowmap size based on screen radius
+    • https://simoncoenen.com/blog/programming/graphics/SpotlightCulling
+    • https://wickedengine.net/2018/01/optimizing-tile-based-light-culling/
+	• clustered deferred lighting: Adria\Rendering\ClusteredDeferredLightingPass.cpp
+• RenderCaptureInterface::FScopedCapture
+• GPU Driven Base Pass Renderer
+	• support batching of meshes via binning
+	• discard empty indirect draw arguments
+• support KHR_mesh_quantization (?)
+• support EXT_meshopt_compression (?)
+• auto cull overly small primitives in CSM pass
+• integrate MTuner
+• DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+• GLTF AlphaBlendModeTest
+	• implement binning of opaque/transparent instances after gpuculling
+	• OIT: https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
+• nvidia aftermath
+• snap shadow projector area to texel
+	• see D3D12_Research shadows
+	• or "moveLightTexelSize" brach in 'LightComponent::CalculateCascadeShadowProjection' in FFX Samples
+• inverse Z for shadow maps (?)
+• separate top mip streaming
+    • integrate D3DX12Residency into nvrhi
+• volumetric clouds
+• convert RawVertexFormat into Array of Structs: https://wickedengine.net/2023/11/16/dynamic-vertex-formats/ (?)
+• Static Animations
+• Shadows: Penumbra + cascade blending: https://github.com/GPUOpen-Effects/Hybrid-Shadows/blob/master/src/Shaders/CustomShadowResolve.hlsl
+• Skinning:
+	• https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
+    • https://wickedengine.net/2017/09/skinning-in-compute-shader/
+• Terrain: https://learnopengl.com/Guest-Articles/2021/Tessellation/Height-map
+• Compute Queue
+    • async XeGTAO with CSM
+    • async GPU Culling
+	• async buffer clears (?)
+• Screenspace Shadows: https://github.com/bkaradzic/bgfx/tree/master/examples/44-sss
+• Ambient Occlusion: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/combined-adaptive-compute-ambient-occlusion.md
+• Area Lights: https://learnopengl.com/Guest-Articles/2022/Area-Lights
+• Lens Flare
+• Volumetric Lighting
+  • https://github.com/NVIDIAGameWorks/VolumetricLighting
+  • https://github.com/GameTechDev/OutdoorLightScattering
+• volumetric fog: "D3D12_Research\Graphics\Techniques\VolumetricFog.cpp"
+• Forward Plus Renderer: "D3D12_Research\Graphics\Techniques\ForwardRenderer.cpp"
+• Meshlet drawing pipeline: https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12MeshShaders/readme.md
+    • implement clustered rendering (non-meshlet pipeline first)
+        • generate meshlets using meshoptimizer
+        • meshlet virtual buffer
+        • gpuculling via meshlet aabb
+        • meshlet backface culling
+	• legit meshlet pipeline via Mesh Shaders
+• VSM: https://ktstephano.github.io/rendering/stratusgfx/svsm
+• Visibility Rendering
+    • http://filmicworlds.com/blog/visibility-buffer-rendering-with-material-graphs/
+    • \D3D12_Research\Resources\Shaders\Visibility*
+• AMD Stochastic Screen-Space Reflections: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/stochastic-screen-space-reflections.md
+• TAA: https://github.com/GameTechDev/TAA
+• Microsoft DirectSR
+	• AMD FSR 2.0: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/super-resolution-temporal.md
+		• FSR 3.1: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/super-resolution-upscaler.md
+		• Frame Interpolation: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/frame-interpolation.md
+	• DLSS: https://github.com/NVIDIA/DLSS
+	• Intel XeSS: https://github.com/intel/xess
+• VRS
+  • https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12VariableRateShading/readme.md
+  • https://github.com/GameTechDev/VALAR-API
+  • https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/variable-shading.md
+• Depth of Field: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/depth-of-field.md
+• Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
+• Utilize Bent Normals from XeGTAO to further attenuate lighting
+• AMD Brixelizer GI: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/brixelizer-gi.md
+• AMD Breadcrumbs: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/breadcrumbs.md
+• Workgraphs
+    • convert tiled deferred lighting first
+
+
+Raytracing
+• d3d12 basic samples: https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Raytracing/readme.md
+• Ambient Occlusion: https://github.com/microsoft/DirectX-Graphics-Samples/tree/master/Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion
+• Lighting
+  • https://github.com/NVIDIAGameWorks/RTXGI
+  • https://github.com/NVIDIAGameWorks/RTXDI
+  • https://github.com/NVIDIAGameWorks/RTXMU
+• Hybrid Stochastic Reflections: https://github.com/GPUOpen-Effects/Hybrid-Stochastic-Reflections
+• Hybrid RT Shadows: https://github.com/GPUOpen-Effects/Hybrid-Shadows

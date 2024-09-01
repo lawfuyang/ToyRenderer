@@ -1,0 +1,225 @@
+#include "Graphic.h"
+
+#include "extern/xegtao/XeGTAO.h"
+
+#include "CommonResources.h"
+#include "Engine.h"
+#include "GraphicPropertyGrid.h"
+#include "Scene.h"
+#include "RenderGraph.h"
+
+#include "shaders/shared/AmbientOcclusionStructs.h"
+
+RenderGraph::ResourceHandle g_SSAORDGTextureHandle;
+extern RenderGraph::ResourceHandle g_GBufferBRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
+
+class AmbientOcclusionRenderer : public IRenderer
+{
+    static const nvrhi::Format kWorkingDepthBufferFormat = nvrhi::Format::R16_FLOAT;
+
+    RenderGraph::ResourceHandle m_WorkingDepthBufferRDGTextureHandle;
+    RenderGraph::ResourceHandle m_WorkingSSAORDGTextureHandle;
+    RenderGraph::ResourceHandle m_WorkingEdgesRDGTextureHandle;
+    RenderGraph::ResourceHandle m_DebugOutputRDGTextureHandle;
+
+    nvrhi::TextureHandle m_HilbertLUT;
+
+public:
+    AmbientOcclusionRenderer() : IRenderer("AmbientOcclusionRenderer") {}
+
+    void Initialize() override
+    {
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "AmbientOcclusionRenderer Init");
+
+		const uint32_t kTexDim = 64;
+
+		nvrhi::TextureDesc desc;
+		desc.width = kTexDim;
+		desc.height = kTexDim;
+		desc.format = nvrhi::Format::R16_UINT;
+		desc.debugName = "Hilbert LUT";
+		desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+		std::vector<uint16_t> data;
+		data.resize(kTexDim * kTexDim);
+
+		for (int x = 0; x < kTexDim; x++)
+		{
+			for (int y = 0; y < kTexDim; y++)
+			{
+				uint32_t r2index = XeGTAO::HilbertIndex(x, y);
+				assert(r2index < 65536);
+				data[x + 64 * y] = (uint16_t)r2index;
+			}
+		}
+
+		m_HilbertLUT = device->createTexture(desc);
+
+		commandList->writeTexture(m_HilbertLUT, 0, 0, data.data(), kTexDim * BytesPerPixel(desc.format));
+		commandList->setPermanentTextureState(m_HilbertLUT, nvrhi::ResourceStates::ShaderResource);
+		commandList->commitBarriers();
+	}
+
+    bool Setup(RenderGraph& renderGraph) override
+	{
+        const GraphicPropertyGrid::AmbientOcclusionControllables& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
+
+        if (!AOControllables.m_bEnabled)
+        {
+            return false;
+		}
+
+		nvrhi::TextureDesc desc;
+		desc.width = g_Graphic.m_RenderResolution.x;
+		desc.height = g_Graphic.m_RenderResolution.y;
+		desc.mipLevels = XE_GTAO_DEPTH_MIP_LEVELS;
+		desc.format = kWorkingDepthBufferFormat;
+		desc.debugName = "XeGTAO Working Depth Buffer";
+		desc.isUAV = true;
+		desc.initialState = nvrhi::ResourceStates::ShaderResource;
+		renderGraph.CreateTransientResource(m_WorkingDepthBufferRDGTextureHandle, desc);
+
+		desc.mipLevels = 1;
+		desc.format = Graphic::kSSAOOutputFormat;
+		desc.debugName = "SSAO Buffer";
+		renderGraph.CreateTransientResource(g_SSAORDGTextureHandle, desc);
+
+		desc.format = Graphic::kSSAOOutputFormat;
+		desc.debugName = "Working SSAO Texture";
+		renderGraph.CreateTransientResource(m_WorkingSSAORDGTextureHandle, desc);
+
+		desc.format = nvrhi::Format::R8_UNORM;
+		desc.debugName = "Working Edges Texture";
+		renderGraph.CreateTransientResource(m_WorkingEdgesRDGTextureHandle,desc);
+
+        if (AOControllables.m_DebugOutputMode != 0)
+        {
+            desc.format = nvrhi::Format::RGBA16_SNORM;
+            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+            desc.debugName = "Debug Output Texture";
+            renderGraph.CreateTransientResource(m_DebugOutputRDGTextureHandle, desc);
+        }
+
+		renderGraph.AddReadDependency(g_GBufferBRDGTextureHandle);
+        renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
+
+		return true;
+	}
+
+    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
+    {
+        const GraphicPropertyGrid::AmbientOcclusionControllables& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
+
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+        Scene* scene = g_Graphic.m_Scene.get();
+        View& mainView = scene->m_Views[Scene::EView::Main];
+
+        XeGTAO::GTAOConstants GTAOconsts{};
+        const bool bRowMajor = true;
+
+        // TODO
+        const bool bTAAEnabled = false;
+        const uint32_t frameCounter = bTAAEnabled ? (g_Graphic.m_FrameCounter % 256) : 0;
+
+        XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, AOControllables.m_XeGTAOSettings, (const float*)&mainView.m_ProjectionMatrix.m, bRowMajor, frameCounter);
+
+        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateVolatileConstantBuffer(commandList, GTAOconsts);
+
+        nvrhi::TextureHandle workingDepthBuffer = renderGraph.GetTexture(m_WorkingDepthBufferRDGTextureHandle);
+        nvrhi::TextureHandle workingSSAOTexture = renderGraph.GetTexture(m_WorkingSSAORDGTextureHandle);
+        nvrhi::TextureHandle workingEdgesTexture = renderGraph.GetTexture(m_WorkingEdgesRDGTextureHandle);
+        nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
+
+        // generate depth mips
+        {
+            nvrhi::BindingSetDesc bindingSetDesc;
+            bindingSetDesc.bindings = {
+                nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+                nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopyTexture),
+                nvrhi::BindingSetItem::Texture_UAV(0, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 0, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
+                nvrhi::BindingSetItem::Texture_UAV(1, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 1, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
+                nvrhi::BindingSetItem::Texture_UAV(2, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 2, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
+                nvrhi::BindingSetItem::Texture_UAV(3, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 3, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
+                nvrhi::BindingSetItem::Texture_UAV(4, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 4, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
+            };
+
+            const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ workingDepthBuffer->getDesc().width, workingDepthBuffer->getDesc().height }, Vector2U{ 16, 16 });
+            g_Graphic.AddComputePass(commandList, "ambientocclusion_CS_XeGTAO_PrefilterDepths", bindingSetDesc, dispatchGroupSize);
+        }
+
+        // main pass
+        {
+            XeGTAOMainPassConstantBuffer mainPassConsts{};
+            mainPassConsts.m_ViewMatrixNoTranslate = mainView.m_ViewMatrix;
+            mainPassConsts.m_ViewMatrixNoTranslate.Translation(Vector3::Zero);
+
+            mainPassConsts.m_Quality = AOControllables.m_XeGTAOSettings.QualityLevel;
+
+            nvrhi::TextureHandle debugOutputTexture = g_CommonResources.DummyUAV2DTexture.m_NVRHITextureHandle;
+            if (AOControllables.m_DebugOutputMode != 0)
+            {
+                debugOutputTexture = renderGraph.GetTexture(m_DebugOutputRDGTextureHandle);
+
+                commandList->clearTextureFloat(debugOutputTexture, nvrhi::AllSubresources, nvrhi::Color{});
+            }
+
+            nvrhi::TextureHandle GBufferBTexture = renderGraph.GetTexture(g_GBufferBRDGTextureHandle);
+
+            nvrhi::BindingSetDesc bindingSetDesc;
+            bindingSetDesc.bindings = {
+                nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+                nvrhi::BindingSetItem::PushConstants(1, sizeof(mainPassConsts)),
+                nvrhi::BindingSetItem::Texture_SRV(0, workingDepthBuffer),
+                nvrhi::BindingSetItem::Texture_SRV(1, m_HilbertLUT),
+                nvrhi::BindingSetItem::Texture_SRV(2, GBufferBTexture),
+                nvrhi::BindingSetItem::Texture_UAV(0, workingSSAOTexture),
+                nvrhi::BindingSetItem::Texture_UAV(1, workingEdgesTexture),
+                nvrhi::BindingSetItem::Texture_UAV(2, debugOutputTexture),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
+            };
+
+            const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ workingSSAOTexture->getDesc().width, workingSSAOTexture->getDesc().height}, Vector2U{XE_GTAO_NUMTHREADS_X, XE_GTAO_NUMTHREADS_Y});
+            g_Graphic.AddComputePass(commandList, StringFormat("ambientocclusion_CS_XeGTAO_MainPass DEBUG_OUTPUT_MODE=%d", AOControllables.m_DebugOutputMode), bindingSetDesc, dispatchGroupSize, &mainPassConsts, sizeof(mainPassConsts));
+        }
+
+        nvrhi::TextureHandle ssaoTexture = renderGraph.GetTexture(g_SSAORDGTextureHandle);
+
+        nvrhi::TextureHandle pingPongTextures[2] = { workingSSAOTexture, ssaoTexture };
+
+        // denoise
+        const uint32_t nbPasses = std::max(1, AOControllables.m_XeGTAOSettings.DenoisePasses); // even without denoising we have to run a single last pass to output correct term into the external output texture
+        for (size_t i = 0; i < nbPasses; i++)
+        {
+            const bool bLastPass = (i == nbPasses - 1);
+
+            XeGTAODenoiseConstants denoiseConsts{};
+            denoiseConsts.m_FinalApply = bLastPass;
+
+            nvrhi::TextureHandle srcTexture = pingPongTextures[0];
+            nvrhi::TextureHandle dstTexture = pingPongTextures[1];
+            
+            nvrhi::BindingSetDesc bindingSetDesc;
+            bindingSetDesc.bindings = {
+                nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+                nvrhi::BindingSetItem::PushConstants(1, sizeof(denoiseConsts)),
+                nvrhi::BindingSetItem::Texture_SRV(0, srcTexture),
+                nvrhi::BindingSetItem::Texture_SRV(1, workingEdgesTexture),
+                nvrhi::BindingSetItem::Texture_UAV(0, dstTexture),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
+            };
+
+            const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ srcTexture->getDesc().width, srcTexture->getDesc().height }, Vector2U{ XE_GTAO_NUMTHREADS_X * 2, XE_GTAO_NUMTHREADS_Y });
+            g_Graphic.AddComputePass(commandList, "ambientocclusion_CS_XeGTAO_Denoise", bindingSetDesc, dispatchGroupSize, &denoiseConsts, sizeof(denoiseConsts));
+
+            std::swap(pingPongTextures[0], pingPongTextures[1]);
+        }
+    }
+};
+
+static AmbientOcclusionRenderer gs_AmbientOcclusionRenderer;
+IRenderer* g_AmbientOcclusionRenderer = &gs_AmbientOcclusionRenderer;

@@ -1,0 +1,35 @@
+imgui.hlsl -T vs -E VS_Main
+imgui.hlsl -T ps -E PS_Main
+basepass.hlsl -T vs -E VS_Main
+basepass.hlsl -T ps -E PS_Main_GBuffer
+basepass.hlsl -T ps -E PS_Main_Forward
+basepass.hlsl -T ps -E PS_NodeID
+debugdraw.hlsl -T vs -E VS_LinePoint
+debugdraw.hlsl -T ps -E PS_LinePoint
+debugdraw.hlsl -T vs -E VS_TextGlyph
+debugdraw.hlsl -T ps -E PS_TextGlyph
+fullscreen.hlsl -T vs -E VS_FullScreenTriangle
+fullscreen.hlsl -T vs -E VS_FullScreenCube
+fullscreen.hlsl -T ps -E PS_Passthrough
+sky.hlsl -T ps -E PS_HosekWilkieSky
+adaptluminance.hlsl -T cs -E CS_GenerateLuminanceHistogram
+adaptluminance.hlsl -T cs -E CS_AdaptExposure
+postprocess.hlsl -T ps -E PS_PostProcess
+ambientocclusion.hlsl -T cs -E CS_XeGTAO_PrefilterDepths
+ambientocclusion.hlsl -T cs -E CS_XeGTAO_MainPass -D DEBUG_OUTPUT_MODE={0,1,2,3}
+ambientocclusion.hlsl -T cs -E CS_XeGTAO_Denoise
+gpuculling.hlsl -T cs -E CS_GPUCulling
+gpuculling.hlsl -T cs -E CS_BuildPhaseTwoIndirectArgs
+../../extern/amd/FidelityFX/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
+minmaxdownsample.hlsl -T cs -E CS_Main
+deferredlighting.hlsl -T cs -E CS_Main
+deferredlighting.hlsl -T ps -E PS_Main
+deferredlighting.hlsl -T ps -E PS_Main_Debug
+deferredlighting.hlsl -T cs -E CS_TileClassification
+deferredlighting.hlsl -T cs -E CS_TileClassificationDebug
+deferredlighting.hlsl -T ps -E PS_TileClassificationDebug
+tilerenderingutils.hlsl -T cs -E CS_ClearIndirectParams
+tilerenderingutils.hlsl -T vs -E VS_Main
+shadowmask.hlsl -T ps -E PS_Main
+bloom.hlsl -T ps -E PS_Downsample
+bloom.hlsl -T ps -E PS_Upsample
