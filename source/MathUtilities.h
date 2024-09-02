@@ -139,8 +139,6 @@ template <typename T> constexpr bool IsDivisible(T value, T divisor)
     return (value / divisor) * divisor == value;
 }
 
-uint8_t Log2(uint64_t value);
-
 template <typename T> constexpr T AlignPowerOfTwo(T value)
 {
     return value == 0 ? 0 : 1 << Log2(value);

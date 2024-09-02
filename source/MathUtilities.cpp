@@ -1,18 +1,5 @@
 #include "MathUtilities.h"
 
-uint8_t Log2(uint64_t value)
-{
-    unsigned long mssb; // most significant set bit
-    unsigned long lssb; // least significant set bit
-
-    // If perfect power of two (only one set bit), return index of bit.  Otherwise round up
-    // fractional log by adding 1 to most signicant set bit's index.
-    if (_BitScanReverse64(&mssb, value) > 0 && _BitScanForward64(&lssb, value) > 0)
-        return uint8_t(mssb + (mssb == lssb ? 0 : 1));
-    else
-        return 0;
-}
-
 void ModifyPerspectiveMatrix(Matrix& mat, float nearPlane, float farPlane, bool bReverseZ, bool bInfiniteZ)
 {
     // ReverseZ puts far plane at Z=0 and near plane at Z=1. Redistributes precision more evenly across the entire range
