@@ -73,9 +73,6 @@ public:
 
     Primitive UnitCube;
     Primitive UnitSphere;
-    Primitive Cylinder;
-    Primitive Cone;
-    Primitive Torus;
 
 private:
     void Initialize();

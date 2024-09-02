@@ -256,7 +256,7 @@ public:
         drawLabel(frustumOrigin, "frustum + axes");
 
         // The frustum will depict a fake camera:
-        const Matrix proj = Matrix::CreatePerspectiveFieldOfView(Rad45, 800.0f / 600.0f, 0.5f, 4.0f);
+        const Matrix proj = Matrix::CreatePerspectiveFieldOfView(ConvertToRadians(45.0f), 800.0f / 600.0f, 0.5f, 4.0f);
         const Matrix view = Matrix::CreateLookAt(Vector3(-8.0f, 0.5f, 14.0f), Vector3(-8.0f, 0.5f, -14.0f), Vector3::UnitY);
         const Matrix invClipMatrix = (view * proj).Invert();
         dd::frustum((float*)&invClipMatrix, color);
@@ -265,7 +265,7 @@ public:
         dd::point(frustumOrigin, dd::colors::White, 15.0f);
 
         // A set of arrows at the camera's origin/eye:
-        const Matrix transform = Matrix::CreateRotationZ(Rad60) * Matrix::CreateTranslation(Vector3(-8.0f, 0.5f, 14.0f));
+        const Matrix transform = Matrix::CreateRotationZ(ConvertToRadians(60.0f)) * Matrix::CreateTranslation(Vector3(-8.0f, 0.5f, 14.0f));
         dd::axisTriad((float*)&transform, 0.3f, 2.0f);
 
         // HUD text:

@@ -450,8 +450,9 @@ void Scene::UpdateMainViewCameraControls()
         m_Yaw -= s_MouseRotationSpeed * mouseDeltaVec.x;
         m_Pitch -= s_MouseRotationSpeed * mouseDeltaVec.y;
 
+        const float PIBy2 = std::numbers::pi * 0.5f;
+
         // Prevent looking too far up or down.
-        PI;
         m_Pitch = std::clamp(m_Pitch, -PIBy2, PIBy2);
 
         const float r = std::cos(m_Pitch);

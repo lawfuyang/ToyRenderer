@@ -379,7 +379,7 @@ static void CreateUnitSphereMesh()
         const float v = 1 - float(i) / float(verticalSegments);
 
         float dy, dxz;
-        const float latitude = (float(i) * PI / float(verticalSegments)) - PIBy2;
+        const float latitude = (float(i) * std::numbers::pi / float(verticalSegments)) - (std::numbers::pi * 0.5f);
         ScalarSinCos(dy, dxz, latitude);
 
         // Create a single ring of vertices at this latitude.
@@ -388,7 +388,7 @@ static void CreateUnitSphereMesh()
             const float u = float(j) / float(horizontalSegments);
 
             float dx, dz;
-            const float longitude = float(j) * (PI * 2) / float(horizontalSegments);
+            const float longitude = float(j) * (std::numbers::pi * 2) / float(horizontalSegments);
             ScalarSinCos(dx, dz, longitude);
 
             dx *= dxz;
@@ -433,237 +433,6 @@ static void CreateUnitSphereMesh()
     g_CommonResources.UnitSphere.m_Mesh->Initialize(vertices, indices, "Default UnitSphere Mesh");
 }
 
-// Helper computes a point on a unit circle, aligned to the x/z plane and centered on the origin.
-static Vector3 GetCircleVector(uint32_t i, uint32_t tessellation)
-{
-    const float angle = float(i) * (PI * 2) / float(tessellation);
-    float dx, dz;
-
-    ScalarSinCos(dx, dz, angle);
-
-    return Vector3{ dx, 0, dz };
-}
-
-static Vector3 GetCircleTangent(uint32_t i, uint32_t tessellation)
-{
-    const float angle = (float(i) * (PI * 2) / float(tessellation)) + PIBy2;
-    float dx, dz;
-
-    ScalarSinCos(dx, dz, angle);
-
-    return Vector3{ dx, 0, dz };
-}
-
-// Helper creates a triangle fan to close the end of a cylinder / cone
-static void CreateCylinderCap(std::vector<RawVertexFormat>& vertices, std::vector<Graphic::IndexBufferFormat_t>& indices, uint32_t tessellation, float height, float radius, bool isTop)
-{
-    // Create cap indices.
-    for (uint32_t i = 0; i < tessellation - 2; i++)
-    {
-        uint32_t i1 = (i + 1) % tessellation;
-        uint32_t i2 = (i + 2) % tessellation;
-
-        if (isTop)
-        {
-            std::swap(i1, i2);
-        }
-
-        const uint32_t vbase = vertices.size();
-        indices.push_back(vbase);
-        indices.push_back(vbase + i1);
-        indices.push_back(vbase + i2);
-    }
-
-    // Which end of the cylinder is this?
-    Vector3 normal = Vector3::UnitY;
-    Vector2 textureScale = -0.5f * Vector2::One;
-
-    if (!isTop)
-    {
-        normal *= -1.0f;
-        textureScale.x *= -1.0f;
-    }
-
-    // Create cap vertices.
-    for (uint32_t i = 0; i < tessellation; i++)
-    {
-        const Vector3 circleVector = GetCircleVector(i, tessellation);
-
-        const Vector3 position = (circleVector * radius) + (normal * height);
-
-        const Vector2 textureCoordinate = Vector2{ circleVector.x, circleVector.z } *textureScale + (0.5f * Vector2::One);
-
-        vertices.push_back({ position, normal, textureCoordinate });
-    }
-}
-
-static void CreateCylinderMesh()
-{
-    PROFILE_FUNCTION();
-
-    const float height = 0.5f;
-    const float diameter = 1.0f;
-    const uint32_t tessellation = 32;
-    const Vector3 topOffset = Vector3::UnitY * height;
-    const float radius = diameter / 2;
-    const uint32_t stride = tessellation + 1;
-
-    std::vector<RawVertexFormat> vertices;
-    std::vector<Graphic::IndexBufferFormat_t> indices;
-
-    // Create a ring of triangles around the outside of the cylinder.
-    for (uint32_t i = 0; i <= tessellation; i++)
-    {
-        const Vector3 normal = GetCircleVector(i, tessellation);
-
-        const Vector3 sideOffset = normal * radius;
-
-        const float u = float(i) / float(tessellation);
-
-        const Vector2 textureCoordinate{ u, 0.0f };
-
-        vertices.push_back({ (sideOffset + topOffset), normal, textureCoordinate });
-        vertices.push_back({ (sideOffset - topOffset), normal, textureCoordinate + Vector2::UnitY });
-
-        indices.push_back(i * 2);
-        indices.push_back((i * 2 + 2) % (stride * 2));
-        indices.push_back(i * 2 + 1);
-
-        indices.push_back(i * 2 + 1);
-        indices.push_back((i * 2 + 2) % (stride * 2));
-        indices.push_back((i * 2 + 3) % (stride * 2));
-    }
-
-    // Create flat triangle fan caps to seal the top and bottom.
-    CreateCylinderCap(vertices, indices, tessellation, height, radius, true);
-    CreateCylinderCap(vertices, indices, tessellation, height, radius, false);
-
-    // Build RH above
-    ReverseWinding(indices, vertices);
-
-    bool bRetrievedFromCache = false;
-    g_CommonResources.Cylinder.m_Mesh = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
-    assert(!bRetrievedFromCache);
-    g_CommonResources.Cylinder.m_Mesh->Initialize(vertices, indices, "Default Cylinder Mesh");
-}
-
-static void CreateConeMesh()
-{
-    PROFILE_FUNCTION();
-
-    const float diameter = 1.0f;
-    const float height = 0.5f;
-    const uint32_t tessellation = 32;
-    const Vector3 topOffset = Vector3::UnitY * height;
-    const float radius = diameter / 2.0f;
-    const uint32_t stride = tessellation + 1;
-
-    std::vector<RawVertexFormat> vertices;
-    std::vector<Graphic::IndexBufferFormat_t> indices;
-
-    // Create a ring of triangles around the outside of the cone.
-    for (uint32_t i = 0; i <= tessellation; i++)
-    {
-        const Vector3 circlevec = GetCircleVector(i, tessellation);
-
-        const Vector3 sideOffset = XMVectorScale(circlevec, radius);
-
-        const float u = float(i) / float(tessellation);
-
-        const Vector2 textureCoordinate{ u, 0.0f };
-
-        const Vector3 pt = XMVectorSubtract(sideOffset, topOffset);
-
-        Vector3 normal = XMVector3Cross(
-            GetCircleTangent(i, tessellation),
-            XMVectorSubtract(topOffset, pt));
-        normal = XMVector3Normalize(normal);
-
-        // Duplicate the top vertex for distinct normals
-        vertices.push_back({ topOffset, normal, Vector2::Zero });
-        vertices.push_back({ pt, normal, textureCoordinate + Vector3::UnitY });
-
-        indices.push_back(i * 2);
-        indices.push_back((i * 2 + 3) % (stride * 2));
-        indices.push_back((i * 2 + 1) % (stride * 2));
-    }
-
-    // Create flat triangle fan caps to seal the bottom.
-    CreateCylinderCap(vertices, indices, tessellation, height, radius, false);
-
-    // Build RH above
-    ReverseWinding(indices, vertices);
-
-    bool bRetrievedFromCache = false;
-    g_CommonResources.Cone.m_Mesh = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
-    assert(!bRetrievedFromCache);
-    g_CommonResources.Cone.m_Mesh->Initialize(vertices, indices, "Default Cone Mesh");
-}
-
-static void CreateTorusMesh()
-{
-    PROFILE_FUNCTION();
-
-    const float diameter = 1.0f;
-    const float thickness = 0.333f;
-    const uint32_t tessellation = 32;
-    const uint32_t stride = tessellation + 1;
-
-    std::vector<RawVertexFormat> vertices;
-    std::vector<Graphic::IndexBufferFormat_t> indices;
-
-    // First we loop around the main ring of the torus.
-    for (uint32_t i = 0; i <= tessellation; i++)
-    {
-        const float u = float(i) / float(tessellation);
-
-        const float outerAngle = float(i) * (PI * 2) / float(tessellation) - PIBy2;
-
-        // Create a transform matrix that will align geometry to slice perpendicularly though the current ring position.
-        const Matrix transform = Matrix::CreateTranslation(diameter / 2, 0, 0) * Matrix::CreateRotationY(outerAngle);
-
-        // Now we loop along the other axis, around the side of the tube.
-        for (uint32_t j = 0; j <= tessellation; j++)
-        {
-            const float v = 1 - float(j) / float(tessellation);
-
-            const float innerAngle = float(j) * (PI * 2) / float(tessellation) + PI;
-            float dx, dy;
-
-            ScalarSinCos(dy, dx, innerAngle);
-
-            // Create a vertex.
-            Vector3 normal{ dx, dy, 0 };
-            Vector3 position = normal * thickness / 2;
-
-            position = Vector3::Transform(position, transform);
-            normal = Vector3::TransformNormal(normal, transform);
-
-            vertices.push_back({ position, normal, { u, v } });
-
-            // And create indices for two triangles.
-            const uint32_t nextI = (i + 1) % stride;
-            const uint32_t nextJ = (j + 1) % stride;
-
-            indices.push_back(i * stride + j);
-            indices.push_back(i * stride + nextJ);
-            indices.push_back(nextI * stride + j);
-
-            indices.push_back(i * stride + nextJ);
-            indices.push_back(nextI * stride + nextJ);
-            indices.push_back(nextI * stride + j);
-        }
-    }
-
-    // Build RH above
-    ReverseWinding(indices, vertices);
-
-    bool bRetrievedFromCache = false;
-    g_CommonResources.Torus.m_Mesh = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
-    assert(!bRetrievedFromCache);
-    g_CommonResources.Torus.m_Mesh->Initialize(vertices, indices, "Default Torus Mesh");
-}
-
 static void CreateDefaultMaterial()
 {
     MaterialData materialData{};
@@ -696,9 +465,6 @@ void CommonResources::Initialize()
 
     tf.emplace([] { CreateUnitCubeMesh(); });
     tf.emplace([] { CreateUnitSphereMesh(); });
-    tf.emplace([] { CreateCylinderMesh(); });
-    tf.emplace([] { CreateConeMesh(); });
-    tf.emplace([] { CreateTorusMesh(); });
 
     tf.emplace([] { CreateDefaultSamplers(); });
     tf.emplace([] { CreateDefaultInputLayouts(); });

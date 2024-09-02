@@ -37,7 +37,7 @@ public:
     float m_ZFarP = 100.0f;
 
     bool m_bIsPerspective = true;
-    float m_FOV = Rad45;
+    float m_FOV = ConvertToRadians(45.0f);
     float m_AspectRatio = 16.0f / 9.0f;
     float m_Width = 100.0f;
     float m_Height = 100.0f;

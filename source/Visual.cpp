@@ -302,7 +302,7 @@ void Node::UpdateIMGUI()
     bTransformDirty |= ImGui::InputFloat3("Position", (float*)&m_Position, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
     bTransformDirty |= ImGui::InputFloat3("Scale", (float*)&m_Scale, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
     //ImGui::SliderFloat3("World Rotation (yaw, pitch, roll)", (float*)&m_Rotation, 0.0f, PI, "%.2f");
-    if (ImGui::SliderFloat4("World Rotation (Quaternion)", (float*)&m_Rotation, 0.0f, PI, "%.2f"))
+    if (ImGui::SliderFloat4("World Rotation (Quaternion)", (float*)&m_Rotation, 0.0f, std::numbers::pi, "%.2f"))
     {
         bTransformDirty = true;
         m_Rotation.Normalize();

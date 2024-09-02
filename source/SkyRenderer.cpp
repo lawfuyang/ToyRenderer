@@ -51,7 +51,7 @@ namespace HosekWilkieHelper
     double Evaluate(double const* dataset, size_t stride, float turbidity, float albedo, float sun_theta)
     {
         // splines are functions of elevation^1/3
-        double elevationK = pow(std::max<float>(0.f, 1.f - sun_theta / PIBy2), 1.f / 3.0f);
+        double elevationK = pow(std::max<float>(0.f, 1.f - sun_theta / (std::numbers::pi * 0.5f)), 1.f / 3.0f);
 
         // table has values for turbidity 1..10
         int turbidity0 = std::clamp(static_cast<int>(turbidity), 1, 10);
