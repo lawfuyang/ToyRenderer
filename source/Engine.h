@@ -6,7 +6,6 @@
 
 #include "CriticalSection.h"
 
-class World;
 class Graphic;
 class IMGUIManager;
 
@@ -42,7 +41,6 @@ public:
     std::shared_ptr<spdlog::logger> m_Logger;
     std::shared_ptr<tf::Executor> m_Executor;
     std::shared_ptr<IMGUIManager> m_IMGUIManager;
-    std::shared_ptr<World> m_World;
 
 private:
     static ::LRESULT CALLBACK ProcessWindowsMessagePump(::HWND hWnd, ::UINT message, ::WPARAM wParam, ::LPARAM lParam);

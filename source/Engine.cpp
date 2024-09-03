@@ -10,7 +10,6 @@
 #include "Keyboard.h"
 #include "Mouse.h"
 #include "Utilities.h"
-#include "World.h"
 
 CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", {1600, 900} };
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
@@ -91,7 +90,6 @@ void Engine::Initialize()
     tf::Taskflow tf;
     tf.emplace([this] { m_Graphic = std::make_shared<Graphic>(); m_Graphic->Initialize(); });
     tf.emplace([this] { m_IMGUIManager = std::make_shared<IMGUIManager>(); m_IMGUIManager->Initialize(); });
-    tf.emplace([this] { m_World = std::make_shared<World>(); m_World->Initialize(); });
 
     // MT init & wait
     m_Executor->run(tf).wait();
@@ -155,8 +153,6 @@ void Engine::Shutdown()
             ConsumeCommands();
         }
 
-        m_World->Shutdown();
-        m_World.reset();
         m_IMGUIManager->ShutDown();
         m_IMGUIManager.reset();
         m_Graphic->Shutdown();
@@ -208,22 +204,13 @@ void Engine::MainLoop()
             // consume commands first at the very beginning of the frame
             ConsumeCommands();
 
-            tf::Taskflow tf;
-            tf.emplace([this] { m_Graphic->Update(); });
-            tf.emplace([this] { m_World->Update(); });
-            m_Executor->run(tf).wait();
+            m_Graphic->Update();
 
-            // for the sake of UI & property-editing stability, IMGUI shall be the last item to be updated in isolation
-            // NOTE: runs as a worker thread due to potential MT calls via 'corun'
-            tf.clear();
-            tf.emplace([this]
-                {
-                    m_IMGUIManager->Update();
+            // for the sake of UI & property-editing stability, IMGUI must be the last item to be updated in isolation
+            m_IMGUIManager->Update();
 
-                    // must execute all command lists to resolve gpu queries due to gpu profiling macros
-                    m_Graphic->ExecuteAllCommandLists();
-                });
-            m_Executor->run(tf).wait();
+            // must execute all command lists to resolve gpu queries due to gpu profiling macros in any scene loading triggered from IMGUIManager
+            m_Graphic->ExecuteAllCommandLists();
 
             if (Keyboard::IsKeyPressed(Keyboard::KEY_CTRL) && Keyboard::IsKeyPressed(Keyboard::KEY_SHIFT) && Keyboard::WasKeyPressed(Keyboard::KEY_COMMA))
             {

@@ -140,6 +140,7 @@ private:
     void UpdateMainViewCameraControls();
     void UpdateCSMViews();
     void RenderOctTreeDebug();
+    void UpdatePicking();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;

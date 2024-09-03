@@ -189,7 +189,7 @@ struct GLTFSceneLoader
         // Multi-thread IO load & init textures
         if (!taskflow.empty())
         {
-            g_Engine.m_Executor->corun(taskflow);
+            g_Engine.m_Executor->run(taskflow).wait();
         }
 
         for (DeferLoadTexture& deferLoadTex : deferLoadTextures)
@@ -348,7 +348,7 @@ struct GLTFSceneLoader
         }
 
         // Multi-thread load IO init mesh
-        g_Engine.m_Executor->corun(taskflow);
+        g_Engine.m_Executor->run(taskflow).wait();
     }
 
     // convert into array of floats, then shoves it into vector/matrix

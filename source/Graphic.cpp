@@ -981,7 +981,7 @@ void Graphic::Update()
     m_Scene->ScheduleRenderers(sceneUpdateTask);
 
     // MT execute all graphic update tasks
-    g_Engine.m_Executor->corun(tf);
+    g_Engine.m_Executor->run(tf).wait();
 
     m_Scene->PostRender();
 
