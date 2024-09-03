@@ -186,7 +186,7 @@ void RenderGraph::DrawIMGUI()
 	}
 }
 
-void RenderGraph::CompileAndExecute()
+void RenderGraph::Compile()
 {
 	PROFILE_FUNCTION();
 
@@ -284,12 +284,6 @@ void RenderGraph::CompileAndExecute()
 		// set resource debug name to desc debug name
 		Graphic::UpdateResourceDebugName(resource.m_Resource, resourceDebugName);
     }
-
-	const auto& renderGraphControllables = g_GraphicPropertyGrid.m_RenderGraphControllables;
-	if (renderGraphControllables.m_bUpdateIMGUI)
-	{
-
-	}
 }
 
 void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)

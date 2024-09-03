@@ -321,66 +321,6 @@ void Scene::Initialize()
     CalculateCSMSplitDistances();
 }
 
-void Scene::ScheduleRenderers(tf::Task sceneUpdateTask)
-{
-    PROFILE_FUNCTION();
-
-    extern IRenderer* g_ClearBuffersRenderer;
-    extern IRenderer* g_GPUCullingRenderer[EnumUtils::Count<Scene::EView>()];
-    extern IRenderer* g_OpaqueBasePassRenderer;
-    extern IRenderer* g_ShadowMaskRenderer;
-    extern IRenderer* g_TileClassificationRenderer;
-    extern IRenderer* g_DeferredLightingRenderer;
-    extern IRenderer* g_TileClassificationDebugRenderer;
-    extern IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
-    extern IRenderer* g_TransparentBasePassRenderer;
-    extern IRenderer* g_DebugDrawRenderer;
-    extern IRenderer* g_IMGUIRenderer;
-    extern IRenderer* g_PickingRenderer;
-    extern IRenderer* g_SkyRenderer;
-    extern IRenderer* g_PostProcessRenderer;
-    extern IRenderer* g_AdaptLuminanceRenderer;
-    extern IRenderer* g_AmbientOcclusionRenderer;
-    extern IRenderer* g_BloomRenderer;
-
-    m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
-
-    m_RenderGraph->AddRenderer(g_GPUCullingRenderer[Scene::EView::Main], &sceneUpdateTask);
-    for (size_t i = Scene::EView::CSM0; i < EnumUtils::Count<Scene::EView>(); i++)
-    {
-        m_RenderGraph->AddRenderer(g_GPUCullingRenderer[i], &sceneUpdateTask);
-    }
-
-    m_RenderGraph->AddRenderer(g_OpaqueBasePassRenderer, &sceneUpdateTask);
-    m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
-
-    for (uint32_t i = 0; i < Graphic::kNbCSMCascades; i++)
-    {
-        m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i], &sceneUpdateTask);
-    }
-
-    m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
-    m_RenderGraph->AddRenderer(g_TileClassificationRenderer);
-    m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
-    m_RenderGraph->AddRenderer(g_SkyRenderer);
-    m_RenderGraph->AddRenderer(g_BloomRenderer);
-    // m_RenderGraph->AddRenderer(g_TransparentBasePassRenderer).succeed(sceneUpdateTask); // TODO: support transparent
-    m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
-
-    // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet
-    // RenderResolution Debug passes
-    m_RenderGraph->AddRenderer(g_TileClassificationDebugRenderer);
-
-    m_RenderGraph->AddRenderer(g_PostProcessRenderer);
-
-    // DisplayResolution Debug Passes
-    m_RenderGraph->AddRenderer(g_PickingRenderer, &sceneUpdateTask);
-    m_RenderGraph->AddRenderer(g_DebugDrawRenderer, &sceneUpdateTask);
-    m_RenderGraph->AddRenderer(g_IMGUIRenderer);
-
-    m_RenderGraph->CompileAndExecute();
-}
-
 void Scene::PostRender()
 {
     PROFILE_FUNCTION();
@@ -534,29 +474,31 @@ void Scene::UpdateCSMViews()
 
 void Scene::RenderOctTreeDebug()
 {
-    PROFILE_FUNCTION();
-
-    if (g_GraphicPropertyGrid.m_DebugControllables.m_bRenderSceneOctTree)
+    if (!g_GraphicPropertyGrid.m_DebugControllables.m_bRenderSceneOctTree)
     {
-        auto DebugDrawOctTree = [](const OctTree& OctTree)
-            {
-                View& mainView = g_Graphic.m_Scene->m_Views[EView::Main];
-
-                const AABB& aabb = OctTree.m_AABB;
-                const ddVec3 center{ aabb.Center.x, aabb.Center.y, aabb.Center.z };
-
-                const bool bDepthEnabled = false;
-                dd::box(center, dd::colors::White, aabb.Extents.x * 2, aabb.Extents.y * 2, aabb.Extents.z * 2, 0, bDepthEnabled);
-
-                const Vector2 strViewportPos = ProjectWorldPositionToViewport(aabb.Center, mainView.m_ViewProjectionMatrix, g_Graphic.m_DisplayResolution);
-                const ddVec3 textScreenCenter{ strViewportPos.x, strViewportPos.y, 0.0f };
-
-                // Level : Nb Primitives
-                dd::screenText(StringFormat("[%d]:[%d]", OctTree.m_Level, OctTree.m_Objects.size()), textScreenCenter, dd::colors::White);
-            };
-
-        m_OctTree.ForEachOctTree(DebugDrawOctTree);
+        return;
     }
+
+	PROFILE_FUNCTION();
+
+    auto DebugDrawOctTree = [](const OctTree& OctTree)
+        {
+            View& mainView = g_Graphic.m_Scene->m_Views[EView::Main];
+
+            const AABB& aabb = OctTree.m_AABB;
+            const ddVec3 center{ aabb.Center.x, aabb.Center.y, aabb.Center.z };
+
+            const bool bDepthEnabled = false;
+            dd::box(center, dd::colors::White, aabb.Extents.x * 2, aabb.Extents.y * 2, aabb.Extents.z * 2, 0, bDepthEnabled);
+
+            const Vector2 strViewportPos = ProjectWorldPositionToViewport(aabb.Center, mainView.m_ViewProjectionMatrix, g_Graphic.m_DisplayResolution);
+            const ddVec3 textScreenCenter{ strViewportPos.x, strViewportPos.y, 0.0f };
+
+            // Level : Nb Primitives
+            dd::screenText(StringFormat("[%d]:[%d]", OctTree.m_Level, OctTree.m_Objects.size()), textScreenCenter, dd::colors::White);
+        };
+
+    m_OctTree.ForEachOctTree(DebugDrawOctTree);
 }
 
 void Scene::UpdatePicking()
@@ -597,18 +539,9 @@ void Scene::UpdatePicking()
     }
 }
 
-void Scene::Update()
+void Scene::CullAndPrepareInstanceDataForViews()
 {
     PROFILE_FUNCTION();
-
-    UpdatePicking();
-
-    UpdateMainViewCameraControls();
-
-    View& mainView = m_Views[EView::Main];
-    mainView.Update();
-
-    UpdateCSMViews();
 
     // MT gather visible proxies
     for (View& view : m_Views)
@@ -617,10 +550,10 @@ void Scene::Update()
     }
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Scene Update");
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "CullAndPrepareInstanceDataForViews");
 
     {
-        PROFILE_GPU_SCOPED(commandList, "Clear GPU Culling Indirect Buffers");
+        PROFILE_GPU_SCOPED(commandList, "Update Visual Proxies Buffers");
 
         for (View& view : m_Views)
         {
@@ -646,8 +579,84 @@ void Scene::Update()
     }
 
     UpdateInstanceConstsBuffer(commandList);
-    
+}
+
+void Scene::Update()
+{
+    PROFILE_FUNCTION();
+
+    UpdatePicking();
+
+    UpdateMainViewCameraControls();
+
+    m_Views[EView::Main].Update();
+
+    UpdateCSMViews();
+
     RenderOctTreeDebug();
+
+    tf::Taskflow tf;
+
+    tf::Task prepareInstancesDataTask = tf.emplace([this] { CullAndPrepareInstanceDataForViews(); });
+    
+    extern IRenderer* g_ClearBuffersRenderer;
+    extern IRenderer* g_GPUCullingRenderer[EnumUtils::Count<Scene::EView>()];
+    extern IRenderer* g_OpaqueBasePassRenderer;
+    extern IRenderer* g_ShadowMaskRenderer;
+    extern IRenderer* g_TileClassificationRenderer;
+    extern IRenderer* g_DeferredLightingRenderer;
+    extern IRenderer* g_TileClassificationDebugRenderer;
+    extern IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
+    extern IRenderer* g_TransparentBasePassRenderer;
+    extern IRenderer* g_DebugDrawRenderer;
+    extern IRenderer* g_IMGUIRenderer;
+    extern IRenderer* g_PickingRenderer;
+    extern IRenderer* g_SkyRenderer;
+    extern IRenderer* g_PostProcessRenderer;
+    extern IRenderer* g_AdaptLuminanceRenderer;
+    extern IRenderer* g_AmbientOcclusionRenderer;
+    extern IRenderer* g_BloomRenderer;
+
+    m_RenderGraph->InitializeForFrame(tf);
+
+    m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
+
+    m_RenderGraph->AddRenderer(g_GPUCullingRenderer[Scene::EView::Main], &prepareInstancesDataTask);
+    for (size_t i = Scene::EView::CSM0; i < EnumUtils::Count<Scene::EView>(); i++)
+    {
+        m_RenderGraph->AddRenderer(g_GPUCullingRenderer[i], &prepareInstancesDataTask);
+    }
+
+    m_RenderGraph->AddRenderer(g_OpaqueBasePassRenderer, &prepareInstancesDataTask);
+    m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
+
+    for (uint32_t i = 0; i < Graphic::kNbCSMCascades; i++)
+    {
+        m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i], &prepareInstancesDataTask);
+    }
+
+    m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
+    m_RenderGraph->AddRenderer(g_TileClassificationRenderer);
+    m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
+    m_RenderGraph->AddRenderer(g_SkyRenderer);
+    m_RenderGraph->AddRenderer(g_BloomRenderer);
+    // m_RenderGraph->AddRenderer(g_TransparentBasePassRenderer).succeed(prepareInstancesDataTask); // TODO: support transparent
+    m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
+
+    // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet
+    // RenderResolution Debug passes
+    m_RenderGraph->AddRenderer(g_TileClassificationDebugRenderer);
+
+    m_RenderGraph->AddRenderer(g_PostProcessRenderer);
+
+    // DisplayResolution Debug Passes
+    m_RenderGraph->AddRenderer(g_PickingRenderer, &prepareInstancesDataTask);
+    m_RenderGraph->AddRenderer(g_DebugDrawRenderer);
+    m_RenderGraph->AddRenderer(g_IMGUIRenderer);
+
+    m_RenderGraph->Compile();
+
+    g_Engine.m_Executor->corun(tf);
 }
 
 uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)

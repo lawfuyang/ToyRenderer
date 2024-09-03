@@ -59,7 +59,7 @@ public:
 	void PostRender();
 	void DrawIMGUI();
 
-	void CompileAndExecute();
+	void Compile();
 	void AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed = nullptr);
 
 	// Setup Phase funcs

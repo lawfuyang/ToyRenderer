@@ -975,10 +975,7 @@ void Graphic::Update()
             m_NVRHIDevice->runGarbageCollection();
         });
 
-    tf::Task sceneUpdateTask = tf.emplace([this] { m_Scene->Update(); });
-
-    m_Scene->m_RenderGraph->InitializeForFrame(tf);
-    m_Scene->ScheduleRenderers(sceneUpdateTask);
+    tf.emplace([this] { m_Scene->Update(); });
 
     // MT execute all graphic update tasks
     g_Engine.m_Executor->run(tf).wait();

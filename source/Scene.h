@@ -93,9 +93,6 @@ public:
     uint32_t InsertPrimitive(Primitive* p, const Matrix& worldMatrix);
     void UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t proxyIdx);
     void CalculateCSMSplitDistances();
-    void UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList);
-
-    void ScheduleRenderers(tf::Task sceneUpdateTask);
     void PostRender();
 
     std::shared_ptr<RenderGraph> m_RenderGraph;
@@ -141,6 +138,8 @@ private:
     void UpdateCSMViews();
     void RenderOctTreeDebug();
     void UpdatePicking();
+    void CullAndPrepareInstanceDataForViews();
+    void UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList);
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;
