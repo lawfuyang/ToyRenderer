@@ -73,13 +73,6 @@ void IMGUIManager::UpdateMainMenuBar()
             s_bToggleOpenMapFileDialog = true;
         }
 
-        if (ImGui::MenuItem("Close & Clear Map"))
-        {
-            // defined in World.cpp
-            extern void CloseMap();
-            CloseMap();
-        }
-
         ImGui::Separator();
 
         if (ImGui::MenuItem("Toggle Node Editor"))
@@ -149,8 +142,8 @@ void IMGUIManager::Update()
     }
 
     // defined in World.cpp
-    extern void UpdateWorldIMGUI();
-    UpdateWorldIMGUI();
+    extern void UpdateSceneIMGUI();
+    UpdateSceneIMGUI();
 
     if (ImGui::BeginMainMenuBar())
     {

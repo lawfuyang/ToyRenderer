@@ -18,38 +18,12 @@ void World::Shutdown()
 {
 }
 
-void World::CloseMap()
-{
-    g_Graphic.m_Scene->Shutdown();
-}
-
 void World::LoadMap()
 {
-    SCOPED_TIMER_FUNCTION();
-
-    extern void LoadScene(std::string_view filePath);
-    LoadScene(m_CurrentMapFileName);
-
-    g_Graphic.m_Scene->OnSceneLoad();
 }
-
-// referenced in imguimanager
-bool s_bToggleOpenMapFileDialog = false;
 
 void World::UpdateIMGUI()
 {
-    if (s_bToggleOpenMapFileDialog)
-    {
-        std::vector<std::string> result = pfd::open_file("Select a map file", GetResourceDirectory(), { "All Files", "*" }, pfd::opt::force_path).result();
-        if (!result.empty())
-        {
-            m_CurrentMapFileName = result[0];
-
-            CloseMap();
-            LoadMap();
-        }
-        s_bToggleOpenMapFileDialog = false;
-    }
 }
 
 void World::Update()
@@ -87,17 +61,4 @@ void World::Update()
                 //LOG_DEBUG("Requested Picking: [%d, %d]", clickPos.x, clickPos.y);
             });
     }
-}
-
-// referenced in imguimanager
-void UpdateWorldIMGUI()
-{
-    g_World.UpdateIMGUI();
-}
-
-// referenced in imguimanager
-void CloseMap()
-{
-    g_World.CloseMap();
-    g_World.m_CurrentMapFileName.clear();
 }

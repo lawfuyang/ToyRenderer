@@ -10,7 +10,6 @@ public:
     void UpdateIMGUI();
     void Update();
 
-    void CloseMap();
     void LoadMap();
 
     std::string m_CurrentMapFileName;

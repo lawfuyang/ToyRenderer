@@ -2,6 +2,7 @@
 
 #include "extern/debug_draw/debug_draw.hpp"
 #include "extern/imgui/imgui.h"
+#include "extern/portable-file-dialogs/portable-file-dialogs.h"
 
 #include "CommonResources.h"
 #include "Engine.h"
@@ -802,6 +803,7 @@ void Scene::UpdateIMGUIPropertyGrid()
 void Scene::OnSceneLoad()
 {
     PROFILE_FUNCTION();
+    SCOPED_TIMER_FUNCTION();
 
     View& mainView = m_Views[EView::Main];
 
@@ -828,4 +830,23 @@ void Scene::OnSceneLoad()
     LOG_DEBUG("Scene Bounding Sphere: [%f, %f, %f][r: %f]", m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius);
     LOG_DEBUG("CSM Split Distances: [%f, %f, %f, %f]", m_CSMSplitDistances[0], m_CSMSplitDistances[1], m_CSMSplitDistances[2], m_CSMSplitDistances[3]);
     LOG_DEBUG("Camera Near Plane: %f", mainView.m_ZNearP);
+}
+
+// referenced in imguimanager
+bool s_bToggleOpenMapFileDialog = false;
+
+void UpdateSceneIMGUI()
+{
+    if (s_bToggleOpenMapFileDialog)
+    {
+        std::vector<std::string> result = pfd::open_file{ "Select a map file", GetResourceDirectory(), { "All Files", "*" }, pfd::opt::force_path }.result();
+        if (!result.empty())
+        {
+			extern void LoadScene(std::string_view filePath);
+			LoadScene(result[0]);
+
+			g_Graphic.m_Scene->OnSceneLoad();
+		}
+        s_bToggleOpenMapFileDialog = false;
+    }
 }
