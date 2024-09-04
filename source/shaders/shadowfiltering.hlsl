@@ -43,6 +43,11 @@ struct ShadowFilteringParams
     SamplerComparisonState m_LinearComparisonLessSampler;
 };
 
+float CubicBezierCurve(float v1, float v2, float v3, float v4, float t)
+{
+    return (1.0 - t) * (1.0 - t) * (1.0 - t) * v1 + 3.0f * (1.0 - t) * (1.0 - t) * t * v2 + 3.0f * t * t * (1.0 - t) * v3 + t * t * t * v4;
+}
+
 float PercentageCloserSoftShadows(float depth, float blockerDepth)
 {
     static const float kSunArea = 8.0f;
