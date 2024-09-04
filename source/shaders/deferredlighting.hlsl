@@ -1,9 +1,9 @@
-#include "common.h"
+#include "common.hlsli"
 
 #include "shadowfiltering.hlsl"
-#include "lightingcommon.h"
-#include "hzb.h"
-#include "random.h"
+#include "lightingcommon.hlsli"
+#include "hzb.hlsli"
+#include "random.hlsli"
 
 #include "shared/CommonConsts.h"
 #include "shared/DeferredLightingStructs.h"

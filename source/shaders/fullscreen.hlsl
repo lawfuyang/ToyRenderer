@@ -1,4 +1,4 @@
-#include "common.h"
+#include "common.hlsli"
 	
 void VS_FullScreenTriangle(
     in uint inVertexID : SV_VertexID,

@@ -1,7 +1,7 @@
 #ifndef _HZB_H_
 #define _HZB_H_
 
-#include "common.h"
+#include "common.hlsli"
 
 float4x4 Get4x4HZBKernel(float4 rectMinMaxUV, Texture2D<float> HZBTexture, float2 hzbDimensions, SamplerState pointClampSampler)
 {

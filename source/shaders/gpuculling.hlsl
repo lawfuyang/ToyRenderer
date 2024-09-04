@@ -1,6 +1,6 @@
-#include "common.h"
+#include "common.hlsli"
 
-#include "hzb.h"
+#include "hzb.hlsli"
 
 #include "shared/MeshData.h"
 #include "shared/BasePassStructs.h"

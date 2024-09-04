@@ -1,7 +1,7 @@
 #ifndef _LIGHTING_COMMON_H_
 #define _LIGHTING_COMMON_H_
 
-#include "common.h"
+#include "common.hlsli"
 
 struct GBufferParams
 {

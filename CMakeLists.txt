@@ -154,7 +154,7 @@ message (STATUS "Setting 'DXC_PATH' to '${DXC_PATH}'")
 ################################################################################
 
 ################################################################################
-file(GLOB_RECURSE SHADER_SRC "${SRC_DIR}/*.hlsl")
+file(GLOB_RECURSE SHADER_SRC "${SRC_DIR}/*.hlsl" "${SRC_DIR}/*.hlsli")
 set(SHADER_SRC_FILES ${SHADER_SRC})
 add_custom_target(ShaderSourceFiles SOURCES ${SHADER_SRC_FILES})
 

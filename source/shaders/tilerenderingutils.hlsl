@@ -1,4 +1,4 @@
-#include "common.h"
+#include "common.hlsli"
 
 #include "shared/IndirectArguments.h"
 #include "shared/TileRenderingStructs.h"

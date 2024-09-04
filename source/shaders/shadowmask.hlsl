@@ -1,4 +1,4 @@
-#include "common.h"
+#include "common.hlsli"
 #include "shadowfiltering.hlsl"
 
 #include "shared/ShadowMaskStructs.h"

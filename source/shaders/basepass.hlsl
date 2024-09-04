@@ -1,7 +1,7 @@
-#include "common.h"
+#include "common.hlsli"
 #include "shadowfiltering.hlsl"
-#include "lightingcommon.h"
-#include "random.h"
+#include "lightingcommon.hlsli"
+#include "random.hlsli"
 
 #include "shared/MeshData.h"
 #include "shared/BasePassStructs.h"
