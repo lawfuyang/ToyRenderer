@@ -83,6 +83,7 @@ struct Options
     vector<fs::path> relaxedIncludes;
     vector<string> defines;
     vector<string> spirvExtensions = {"SPV_EXT_descriptor_indexing", "KHR"};
+    vector<string> compilerOptions;
     fs::path configFile;
     const char* platformName = nullptr;
     const char* outputDir = nullptr;
@@ -118,6 +119,7 @@ struct Options
     bool colorize = false;
     bool useAPI = false;
     bool slang = false;
+    bool slangHlsl = false;
     bool noRegShifts = false;
     int retryCount = 10; // default 10 retries for compilation task sub-process failures
 
@@ -134,6 +136,8 @@ struct ConfigLine
     const char* entryPoint = "main";
     const char* profile = nullptr;
     const char* outputDir = nullptr;
+    const char* outputSuffix = nullptr;
+
     uint32_t optimizationLevel = USE_GLOBAL_OPTIMIZATION_LEVEL;
 
     bool Parse(int32_t argc, const char** argv);
@@ -167,7 +171,6 @@ atomic<bool> g_Terminate = false;
 atomic<uint32_t> g_FailedTaskCount = 0;
 uint32_t g_OriginalTaskCount;
 const char* g_OutputExt = nullptr;
-bool g_UseSlang = false;
 
 static const char* g_PlatformNames[] = {
     "DXBC",
@@ -577,6 +580,9 @@ int AddRelaxedInclude(struct argparse* self, const struct argparse_option* optio
 int AddSpirvExtension(struct argparse* self, const struct argparse_option* option)
 { ((Options*)(option->data))->spirvExtensions.push_back(*(const char**)option->value); UNUSED(self); return 0; }
 
+int AddCompilerOptions(struct argparse* self, const struct argparse_option* option)
+{ ((Options*)(option->data))->compilerOptions.push_back(*(const char**)option->value); UNUSED(self); return 0; }
+
 bool Options::Parse(int32_t argc, const char** argv)
 {
     const char* config = nullptr;
@@ -605,6 +611,8 @@ bool Options::Parse(int32_t argc, const char** argv)
             OPT_BOOLEAN(0, "matrixRowMajor", &matrixRowMajor, "Maps to '-Zpr' DXC/FXC option: pack matrices in row-major order", nullptr, 0, 0),
             OPT_BOOLEAN(0, "hlsl2021", &hlsl2021, "Maps to '-HV 2021' DXC option: enable HLSL 2021 standard", nullptr, 0, 0),
             OPT_STRING(0, "vulkanMemoryLayout", &vulkanMemoryLayout, "Maps to '-fvk-use-<VALUE>-layout' DXC options: dx, gl, scalar", nullptr, 0, 0),
+            OPT_BOOLEAN(0, "slangHLSL", &slangHlsl, "Use HLSL compatibility mode when compiler is Slang", nullptr, 0, 0),
+            OPT_STRING('X', "compilerOptions", &unused, "Custom command line options for the compiler, separated by spaces", AddCompilerOptions, (intptr_t)this, 0),
         OPT_GROUP("Defines & include directories:"),
             OPT_STRING('I', "include", &unused, "Include directory(s)", AddInclude, (intptr_t)this, 0),
             OPT_STRING('D', "define", &unused, "Macro definition(s) in forms 'M=value' or 'M'", AddGlobalDefine, (intptr_t)this, 0),
@@ -612,7 +620,7 @@ bool Options::Parse(int32_t argc, const char** argv)
             OPT_BOOLEAN('f', "force", &force, "Treat all source files as modified", nullptr, 0, 0),
             OPT_STRING(0, "sourceDir", &sourceDir, "Source code directory", nullptr, 0, 0),
             OPT_STRING(0, "relaxedInclude", &unused, "Include file(s) not invoking re-compilation", AddRelaxedInclude, (intptr_t)this, 0),
-            OPT_STRING(0, "outputExt", &outputExt, "Extension for output files, default is one of .dxbc, .dxil, .spirv", AddRelaxedInclude, (intptr_t)this, 0),
+            OPT_STRING(0, "outputExt", &outputExt, "Extension for output files, default is one of .dxbc, .dxil, .spirv", nullptr, 0, 0),
             OPT_BOOLEAN(0, "serial", &serial, "Disable multi-threading", nullptr, 0, 0),
             OPT_BOOLEAN(0, "flatten", &flatten, "Flatten source directory structure in the output directory", nullptr, 0, 0),
             OPT_BOOLEAN(0, "continue", &continueOnError, "Continue compilation if an error is occured", nullptr, 0, 0),
@@ -691,6 +699,7 @@ bool Options::Parse(int32_t argc, const char** argv)
     if (slang && useAPI)
     {
         Printf(RED "ERROR: Use of Slang with --useAPI is not implemented.\n");
+        return false;
     }
 
     if (strlen(shaderModel) != 3 || strstr(shaderModel, "."))
@@ -731,8 +740,21 @@ bool Options::Parse(int32_t argc, const char** argv)
         strcmp(g_Options.vulkanMemoryLayout, "gl") != 0 && 
         strcmp(g_Options.vulkanMemoryLayout, "scalar") != 0)
     {
-        Printf(RED "ERROR: Unsupported value '%s' for --vulkanMemoryLayout! Only 'dx', 'gl' and 'scalar' are supported.\n",
-            g_Options.vulkanMemoryLayout);
+        if (g_Options.slang && (strcmp(g_Options.vulkanMemoryLayout, "dx") == 0)) 
+        {
+            Printf(RED "ERROR: Unsupported value '%s' for --vulkanMemoryLayout! Only 'gl' and 'scalar' are supported for Slang.\n",
+                g_Options.vulkanMemoryLayout);
+        }
+        else {
+            Printf(RED "ERROR: Unsupported value '%s' for --vulkanMemoryLayout! Only 'dx', 'gl' and 'scalar' are supported.\n",
+                g_Options.vulkanMemoryLayout);
+        }
+        return false;
+    }
+
+    if (!g_Options.compilerOptions.empty() && g_Options.useAPI && g_Options.platform == Platform::DXBC)
+    {
+        Printf(RED "ERROR: --compilerOptions is not compatible with '--platform DXBC --useAPI'!\n");
         return false;
     }
 
@@ -777,11 +799,12 @@ bool ConfigLine::Parse(int32_t argc, const char** argv)
         OPT_STRING('D', "define", &unused, "(Optional) define(s) in forms 'M=value' or 'M'", AddLocalDefine, (intptr_t)this, 0),
         OPT_STRING('o', "output", &outputDir, "(Optional) output subdirectory", nullptr, 0, 0),
         OPT_INTEGER('O', "optimization", &optimizationLevel, "(Optional) optimization level", nullptr, 0, 0),
+        OPT_STRING(0, "outputSuffix", &outputSuffix, "(Optional) Suffix to add before extension after filename", nullptr, 0, 0),
         OPT_END(),
     };
 
     static const char* usages[] = {
-        "path/to/shader -T profile [-E entry -O{0|1|2|3} -o \"output/subdirectory\" -D DEF1={0,1} -D DEF2={0,1,2} -D DEF3 ...]",
+        "path/to/shader -T profile [-E entry -O{0|1|2|3} -o \"output/subdirectory\" --outputSuffix \"suffix\" -D DEF1={0,1} -D DEF2={0,1,2} -D DEF3 ...]",
         nullptr
     };
 
@@ -824,6 +847,48 @@ void TokenizeDefineStrings(vector<string>& in, vector<D3D_SHADER_MACRO>& out)
         define.Name = strtok(s, "=");
         define.Definition = strtok(nullptr, "=");
     }
+}
+
+// Parses a string with command line options into a vector of wstring, one wstring per option.
+// Options are separated by spaces and may be quoted with "double quotes".
+// Backslash (\) means the next character is inserted literally into the output.
+void TokenizeCompilerOptions(const char* in, vector<wstring>& out)
+{
+    wstring current;
+    bool quotes = false;
+    bool escape = false;
+    const char* ptr = in;
+    while (char ch = *ptr++)
+    {
+        if (escape)
+        {
+            current.push_back(wchar_t(ch));
+            escape = false;
+            continue;
+        }
+
+        if (ch == ' ' && !quotes)
+        {
+            if (!current.empty())
+                out.push_back(current);
+            current.clear();
+        }
+        else if (ch == '\\')
+        {
+            escape = true;
+        }
+        else if (ch == '"')
+        {
+            quotes = !quotes;
+        }
+        else
+        {
+            current.push_back(wchar_t(ch));
+        }
+    }
+
+    if (!current.empty())
+        out.push_back(current);
 }
 
 class FxcIncluder : public ID3DInclude
@@ -1208,6 +1273,11 @@ void DxcCompile()
                     args.push_back(L"-Qstrip_reflect");
             }
 
+            for (string const& options : g_Options.compilerOptions)
+            {
+                TokenizeCompilerOptions(options.c_str(), args);
+            }
+
             // Debug output
             if (g_Options.verbose)
             {
@@ -1355,7 +1425,19 @@ void ExeCompile()
             {
                 if (g_Options.header || (g_Options.headerBlob && taskData.combinedDefines.empty()))
                     convertBinaryOutputToHeader = true;
-                
+
+                // Slang defaults to slang language mode unless -lang <other language> sets something else.
+                // For HLSL compatibility mode:
+                //    - use -lang hlsl to set language mode to HLSL
+                //    - use -unscoped-enums so Slang doesn't require all enums to be scoped                
+                if (g_Options.slangHlsl) {              
+                    // Language mode: hlsl
+                    cmd << " -lang hlsl";
+
+                    // Treat enums as unscoped
+                    cmd << " -unscoped-enum";
+                }
+
                 // Profile
                 cmd << " -profile " << taskData.profile << "_" << g_Options.shaderModel;
                 
@@ -1366,7 +1448,10 @@ void ExeCompile()
                 cmd << " -o " << EscapePath(outputFile);
 
                 // Entry point
-                cmd << " -entry " << taskData.entryPoint;
+                if (taskData.profile != "lib") {
+                    // Don't specify entry if profile is lib_*, Slang will use the entry point currently
+                    cmd << " -entry " << taskData.entryPoint;
+                }
 
                 // Defines
                 for (const string& define : taskData.defines)
@@ -1394,6 +1479,9 @@ void ExeCompile()
 
                 if (g_Options.platform == SPIRV)
                 {
+                    // Uses the entrypoint name from the source instead of 'main' in the SPIRV output
+                    cmd << " -fvk-use-entrypoint-name";
+
                     if (g_Options.vulkanMemoryLayout)
                     {   
                         if (strcmp(g_Options.vulkanMemoryLayout, "scalar") == 0)
@@ -1413,6 +1501,10 @@ void ExeCompile()
                         }
                     }
                 }
+
+                // Custom options
+                for (string const& options : g_Options.compilerOptions)
+                    cmd << " " << options;
             }
             else
             {
@@ -1510,6 +1602,10 @@ void ExeCompile()
                         cmd << " -Fd " << EscapePath(pdbPath.string() + "/"); // only binary code affects hash
                     }
                 }
+
+                // Custom options
+                for (string const& options : g_Options.compilerOptions)
+                    cmd << " " << options;
             }
 
             // Source file
@@ -1711,6 +1807,8 @@ bool ProcessConfigLine(uint32_t lineIndex, const string& line, const fs::file_ti
         shaderName = shaderName.filename();
     if (strcmp(configLine.entryPoint, "main"))
         shaderName += "_" + string(configLine.entryPoint);
+    if(configLine.outputSuffix)
+        shaderName += string(configLine.outputSuffix);
 
     // Compiled permutation name
     fs::path permutationName = shaderName;

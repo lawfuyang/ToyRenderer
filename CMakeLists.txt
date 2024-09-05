@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.21)
 option(ENABLE_UNITY_BUILD "" OFF)
 option(ENABLE_IPO "" OFF)
 option(ENABLE_ADDRESS_SANITIZER "" OFF)
-option(GENERATE_SHADERMAKE "" OFF)
 
 # Set available build types
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
@@ -162,19 +161,16 @@ add_custom_target(ShaderSourceFiles SOURCES ${SHADER_SRC_FILES})
 
 ################################################################################
 # SHADER MAKE
-if (GENERATE_SHADERMAKE)
-    file(GLOB_RECURSE SHADER_MAKE_SRC "${EXTERN_DIR}/ShaderMake/src/*.cpp" "${EXTERN_DIR}/ShaderMake/src/*.h")
+file(GLOB_RECURSE SHADER_MAKE_SRC "${EXTERN_DIR}/ShaderMake/src/*.cpp" "${EXTERN_DIR}/ShaderMake/src/*.h")
 
-	add_executable(ShaderMake ${SHADER_MAKE_SRC})
+add_executable(ShaderMake ${SHADER_MAKE_SRC})
 
-	target_include_directories(ShaderMake PUBLIC "${EXTERN_DIR}/ShaderMake/include")
+target_include_directories(ShaderMake PUBLIC "${EXTERN_DIR}/ShaderMake/include")
 
-	target_compile_definitions (ShaderMake PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
-	target_link_options (ShaderMake PRIVATE "/DELAYLOAD:dxcompiler.dll")
-	target_link_libraries (ShaderMake d3dcompiler dxcompiler delayimp)
-endif()
+target_compile_definitions (ShaderMake PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
+target_link_options (ShaderMake PRIVATE "/DELAYLOAD:dxcompiler.dll")
+target_link_libraries (ShaderMake d3dcompiler dxcompiler delayimp)
 ################################################################################
-
 
 ################################################################################
 # SHADER COMPILATION

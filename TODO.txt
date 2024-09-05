@@ -1,4 +1,5 @@
 • fix GPU occlusion culling causing wrong results
+• fix all -Wconversion Shader warnings
 • Render Graph: D3D12_Research\Graphics\RenderGraph
 	• Transient resource allocation
 		• Validation of resource dependencies
