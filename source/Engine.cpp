@@ -32,7 +32,7 @@ void DumpProfilingCapture()
     assert(!g_DumpProfilingCaptureFileName.empty());
 
     const std::string fileName = (std::filesystem::path{ GetExecutableDirectory() } / g_DumpProfilingCaptureFileName.c_str()).string() + ".html";
-    LOG_TO_CONSOLE("Dumping profiler log: %s", fileName.c_str());
+    LOG_DEBUG("Dumping profiler log: %s", fileName.c_str());
 
     static uint32_t s_ProfilercaptureFrames = 30;
     MicroProfileDumpFileImmediately(fileName.c_str(), nullptr, nullptr, s_ProfilercaptureFrames);
@@ -46,9 +46,9 @@ void Engine::Initialize()
     SCOPED_TIMER_FUNCTION();
     PROFILE_FUNCTION();
 
-    LOG_TO_CONSOLE("Executable Directory: %s", GetExecutableDirectory());
-    LOG_TO_CONSOLE("Application Directory: %s", GetApplicationDirectory());
-    LOG_TO_CONSOLE("Resources Directory: %s", GetResourceDirectory());
+    LOG_DEBUG("Executable Directory: %s", GetExecutableDirectory());
+    LOG_DEBUG("Application Directory: %s", GetApplicationDirectory());
+    LOG_DEBUG("Resources Directory: %s", GetResourceDirectory());
 
     // Look in the Windows Registry to determine if Developer Mode is enabled
     {
@@ -62,7 +62,7 @@ void Engine::Initialize()
             RegCloseKey(hKey);
         }
 
-        LOG_TO_CONSOLE("Windows Developer Mode: [%d]", m_bDeveloperModeEnabled);
+        LOG_DEBUG("Windows Developer Mode: [%d]", m_bDeveloperModeEnabled);
     }
     
     ParseCommandlineArguments();
@@ -78,7 +78,7 @@ void Engine::Initialize()
 
     // create threadpool executor
     m_Executor = std::make_shared<tf::Executor>(nbWorkerThreads);
-    LOG_TO_CONSOLE("%d Worker Threads initialized", m_Executor->num_workers());
+    LOG_DEBUG("%d Worker Threads initialized", m_Executor->num_workers());
 
     // MT init tasks
     tf::Taskflow tf;
@@ -122,7 +122,7 @@ void Engine::ParseCommandlineArguments()
     {
         printArgsStr += StringFormat("{%s : %s} ", arg.key().c_str(), arg.value().c_str());
     }
-    LOG_TO_CONSOLE(printArgsStr.c_str());
+    LOG_DEBUG(printArgsStr.c_str());
 
     if (!parseResult.unmatched().empty())
     {
@@ -132,7 +132,7 @@ void Engine::ParseCommandlineArguments()
             printArgsStr += StringFormat("%s ", s.data());
         }
         printArgsStr += "}";
-        LOG_TO_CONSOLE(printArgsStr.c_str());
+        LOG_DEBUG(printArgsStr.c_str());
     }
 }
 
@@ -178,7 +178,7 @@ static void BusyWaitUntilFPSLimit(Timer& timer)
 
 void Engine::MainLoop()
 {
-    LOG_TO_CONSOLE("Entering main loop");
+    LOG_DEBUG("Entering main loop");
 
     SCOPED_TIMER_FUNCTION();
 
@@ -231,7 +231,7 @@ void Engine::MainLoop()
         MicroProfileFlip(nullptr);
     } while (!m_Exit);
 
-    LOG_TO_CONSOLE("Exiting main loop");
+    LOG_DEBUG("Exiting main loop");
 }
 
 bool Engine::IsMainThread()
@@ -313,7 +313,7 @@ void Engine::RunEngineWindowThread()
 
     if (FAILED(RegisterClass(&wc)))
     {
-        LOG_TO_CONSOLE("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
+        LOG_DEBUG("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
         assert(false);
     }
 
@@ -337,7 +337,7 @@ void Engine::RunEngineWindowThread()
 
     if (engineWindowHandle == 0)
     {
-        LOG_TO_CONSOLE("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
+        LOG_DEBUG("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
         assert(false);
     }
 
@@ -352,7 +352,7 @@ void Engine::RunEngineWindowThread()
     {
         if (bRet == -1)
         {
-            LOG_TO_CONSOLE("Can't get new message: %s", GetLastErrorAsString());
+            LOG_DEBUG("Can't get new message: %s", GetLastErrorAsString());
             assert(false);
         }
         else
@@ -362,10 +362,10 @@ void Engine::RunEngineWindowThread()
         }
     }
 
-    LOG_TO_CONSOLE("Leaving Engine Window Thread");
+    LOG_DEBUG("Leaving Engine Window Thread");
 }
 
-int main()
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
     Engine e;
     e.Initialize();

@@ -62,7 +62,7 @@ void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, bool bIsKTX2
     m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
 
     const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
-    LOG_TO_CONSOLE("Texture: [%s][%d x %d][%s]", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
+    LOG_DEBUG("Texture: [%s][%d x %d][%s]", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
 }
 
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)

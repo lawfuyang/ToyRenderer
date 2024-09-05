@@ -95,7 +95,8 @@
 #define BASISU_STRINGIZE2(x) BASISU_STRINGIZE(x)
 
 #if BASISU_FORCE_DEVEL_MESSAGES
-	#define BASISU_DEVEL_ERROR(...) do { basisu::debug_printf(__VA_ARGS__); } while(0)
+	//#define BASISU_DEVEL_ERROR(...) do { basisu::debug_printf(__VA_ARGS__); } while(0)
+	#define BASISU_DEVEL_ERROR(...) do { OutputDebugString(__VA_ARGS__); } while(0)
 #else
 	#define BASISU_DEVEL_ERROR(...)
 #endif

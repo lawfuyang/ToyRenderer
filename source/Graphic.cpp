@@ -27,7 +27,7 @@ CommandLineOption<bool> g_EnableGPUStablePowerState{ "enablegpustablepowerstate"
 PRAGMA_OPTIMIZE_OFF;
 void DeviceRemovedHandler()
 {
-    LOG_TO_CONSOLE("Device removed!");
+    LOG_DEBUG("Device removed!");
     
     // TODO:
     //D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 DredAutoBreadcrumbsOutput{};
@@ -48,14 +48,14 @@ class NVRHIMessageCallback : public nvrhi::IMessageCallback
         {
             // just print info messages
         case nvrhi::MessageSeverity::Info:
-            LOG_TO_CONSOLE("[NVRHI]: %s", messageText);
+            LOG_DEBUG("[NVRHI]: %s", messageText);
             break;
 
             // treat everything else critically
         case nvrhi::MessageSeverity::Warning:
         case nvrhi::MessageSeverity::Error:
         case nvrhi::MessageSeverity::Fatal:
-            LOG_TO_CONSOLE("[NVRHI]: %s", messageText);
+            LOG_DEBUG("[NVRHI]: %s", messageText);
             assert(false);
             break;
         }
@@ -90,7 +90,7 @@ void Graphic::InitDevice()
             }
 
             const char* gpuName = StringUtils::WideToUtf8(desc.Description);
-            LOG_TO_CONSOLE("Graphic Adapter: %s", gpuName);
+            LOG_DEBUG("Graphic Adapter: %s", gpuName);
             break;
         }
         assert(m_DXGIAdapter);
@@ -112,12 +112,12 @@ void Graphic::InitDevice()
         pDredSettings->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 
         debugInterface->EnableDebugLayer();
-        LOG_TO_CONSOLE("D3D12 Debug Layer enabled");
+        LOG_DEBUG("D3D12 Debug Layer enabled");
 
         if (g_EnableGPUValidation.Get())
         {
             debugInterface->SetEnableGPUBasedValidation(true);
-            LOG_TO_CONSOLE("D3D12 GPU Based Validation enabled");
+            LOG_DEBUG("D3D12 GPU Based Validation enabled");
         }
     }
 
@@ -143,7 +143,7 @@ void Graphic::InitDevice()
             CreateDevice(m_DeviceFeatures.MaxSupportedFeatureLevel());
         }
         
-        LOG_TO_CONSOLE("Initialized D3D12 Device with feature level: 0x%X", m_DeviceFeatures.MaxSupportedFeatureLevel());
+        LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", m_DeviceFeatures.MaxSupportedFeatureLevel());
 
         // disables 'dynamic frequency scaling' on GPU for reliable profiling
         if (g_EnableGPUStablePowerState.Get())
@@ -403,7 +403,7 @@ void Graphic::InitShaders()
                             allShaders.push_back({ shaderHash, newShader });
                         }
 
-                        LOG_TO_CONSOLE("Init %s Shader: %s", nvrhi::utils::ShaderStageToString(shaderDesc.shaderType), shaderDebugName.data());
+                        LOG_DEBUG("Init %s Shader: %s", nvrhi::utils::ShaderStageToString(shaderDesc.shaderType), shaderDebugName.data());
                     };
 
                 // no permutations
@@ -445,7 +445,7 @@ void Graphic::InitShaders()
                         size_t binarySize = 0;
                         if (!ShaderMake::FindPermutationInBlob(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants, &pBinary, &binarySize))
                         {
-                            LOG_TO_CONSOLE("%s", ShaderMake::FormatShaderNotFoundMessage(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants).c_str());
+                            LOG_DEBUG("%s", ShaderMake::FormatShaderNotFoundMessage(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants).c_str());
                             assert(false);
                         }
 
@@ -559,7 +559,7 @@ nvrhi::BindingLayoutHandle Graphic::GetOrCreateBindingLayout(const nvrhi::Bindin
     if (!bindingLayout)
     {
         bindingLayout = m_NVRHIDevice->createBindingLayout(layoutDesc);
-        //LOG_TO_CONSOLE("New Binding Layout: [%zx]", layoutHash);
+        //LOG_DEBUG("New Binding Layout: [%zx]", layoutHash);
     }
     return bindingLayout;
 }
@@ -575,7 +575,7 @@ nvrhi::BindingLayoutHandle Graphic::GetOrCreateBindingLayout(const nvrhi::Bindle
     if (!bindingLayout)
     {
         bindingLayout = m_NVRHIDevice->createBindlessLayout(layoutDesc);
-        //LOG_TO_CONSOLE("New Bindless Layout: [%zx]", layoutHash);
+        //LOG_DEBUG("New Bindless Layout: [%zx]", layoutHash);
     }
     return bindingLayout;
 }
@@ -648,7 +648,7 @@ nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipel
     if (!graphicsPipeline)
     {
         PROFILE_SCOPED("createGraphicsPipeline");
-        //LOG_TO_CONSOLE("New Graphic PSO: [%zx]", psoHash);
+        //LOG_DEBUG("New Graphic PSO: [%zx]", psoHash);
         graphicsPipeline = m_NVRHIDevice->createGraphicsPipeline(psoDesc, frameBuffer);
     }
     return graphicsPipeline;
@@ -671,7 +671,7 @@ nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelin
     if (!computePipeline)
     {
         PROFILE_SCOPED("createComputePipeline");
-        //LOG_TO_CONSOLE("New Compute PSO: [%zx]", psoHash);
+        //LOG_DEBUG("New Compute PSO: [%zx]", psoHash);
         computePipeline = m_NVRHIDevice->createComputePipeline(psoDesc);
     }
     return computePipeline;
@@ -862,7 +862,7 @@ void Graphic::Initialize()
             tf.emplace([this, renderer]
                 {
                     PROFILE_SCOPED(renderer->m_Name.c_str());
-                    LOG_TO_CONSOLE("Init Renderer: %s", renderer->m_Name.c_str());
+                    LOG_DEBUG("Init Renderer: %s", renderer->m_Name.c_str());
                     renderer->Initialize();
                 });
         }
@@ -922,7 +922,7 @@ void Graphic::Update()
     {
         PROFILE_SCOPED("Reload Shaders");
 
-        LOG_TO_CONSOLE("Reloading all Shaders...");
+        LOG_DEBUG("Reloading all Shaders...");
 
         m_NVRHIDevice->waitForIdle();
         m_NVRHIDevice->runGarbageCollection();

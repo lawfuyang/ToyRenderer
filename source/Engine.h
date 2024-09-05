@@ -66,7 +66,12 @@ inline thread_local HRESULT tl_HResult;
 #define PROFILE_SCOPED(NAME) MICROPROFILE_SCOPE_CSTR(NAME)
 #define PROFILE_FUNCTION() PROFILE_SCOPED(__FUNCTION__)
 
-#define LOG_TO_CONSOLE(FORMAT, ...) printf("%s\n", StringFormat(FORMAT, __VA_ARGS__));
+#define LOG_DEBUG(FORMAT, ...)                                    \
+{                                                                 \
+    const char* formattedStr = StringFormat(FORMAT, __VA_ARGS__); \
+    const char* finalStr = StringFormat("%s\n", formattedStr);    \
+    OutputDebugString(finalStr);                                  \
+}
 
 template <typename T>
 class CommandLineOption

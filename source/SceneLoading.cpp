@@ -53,12 +53,12 @@ struct GLTFSceneLoader
 
         if (!err.empty())
         {
-            LOG_TO_CONSOLE("GLTF Load Error: %s", err.c_str());
+            LOG_DEBUG("GLTF Load Error: %s", err.c_str());
         }
 
         if (!warn.empty())
         {
-            LOG_TO_CONSOLE("GLTF Load Warning: %s", err.c_str());
+            LOG_DEBUG("GLTF Load Warning: %s", err.c_str());
         }
 
         if (!ret)

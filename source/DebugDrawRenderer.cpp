@@ -47,7 +47,7 @@ public:
         commandList->setPermanentTextureState(m_GlyphTexture.m_TextureHandle, nvrhi::ResourceStates::ShaderResource);
         commandList->commitBarriers();
 
-        LOG_TO_CONSOLE("Initialized DebugDraw Glyph Texture");
+        LOG_DEBUG("Initialized DebugDraw Glyph Texture");
 
         return &m_GlyphTexture;
     }
@@ -424,7 +424,7 @@ public:
 
                     m_VertexBuffer[category] = device->createBuffer(desc);
 
-                    LOG_TO_CONSOLE("DebugDraw vertex buffer [%s]: [%f] MB", EnumUtils::ToString(category), BYTES_TO_MB(nbBytes));
+                    LOG_DEBUG("DebugDraw vertex buffer [%s]: [%f] MB", EnumUtils::ToString(category), BYTES_TO_MB(nbBytes));
                 }
 
                 commandList->writeBuffer(m_VertexBuffer[category], vertices.data(), nbBytes);

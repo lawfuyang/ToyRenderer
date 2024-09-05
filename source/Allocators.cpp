@@ -51,7 +51,7 @@ void GrowableGPUVirtualBuffer::CommitPendingUploads()
         const uint64_t kSrcOffsetBytes = 0;
         commandList->copyBuffer(newBuffer, kDestOffsetBytes, m_Buffer, kSrcOffsetBytes, bufferDesc.byteSize);
 
-        LOG_TO_CONSOLE("Virtual Buffer: [%s], Grow: [%f -> %f] MB", bufferDesc.debugName.c_str(), BYTES_TO_MB((float)bufferDesc.byteSize), BYTES_TO_MB((float)newSizeInBytes));
+        LOG_DEBUG("Virtual Buffer: [%s], Grow: [%f -> %f] MB", bufferDesc.debugName.c_str(), BYTES_TO_MB((float)bufferDesc.byteSize), BYTES_TO_MB((float)newSizeInBytes));
 
         m_Buffer = newBuffer;
     }
@@ -63,7 +63,7 @@ void GrowableGPUVirtualBuffer::CommitPendingUploads()
         m_UploadedBytesOffset += uploadBatch.size();
     }
 
-    LOG_TO_CONSOLE("Virtual Buffer: [%s], Commit: [%f] MB", bufferDesc.debugName.c_str(), BYTES_TO_MB(m_UploadedBytesOffset - offsetStart));
+    LOG_DEBUG("Virtual Buffer: [%s], Commit: [%f] MB", bufferDesc.debugName.c_str(), BYTES_TO_MB(m_UploadedBytesOffset - offsetStart));
 
     AUTO_LOCK(m_QueuedUploadBatchesLck);
     m_QueuedUploadBatches.clear();
