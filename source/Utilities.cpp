@@ -266,5 +266,5 @@ uint32_t RandomUInt(uint32_t range)
 
 ScopedTimer::~ScopedTimer()
 {
-    LOG_DEBUG("ScopedTimer: [%s] took %f seconds", m_Name, m_Timer.GetElapsedSeconds());
+    LOG_TO_CONSOLE("ScopedTimer: [%s] took %f seconds", m_Name, m_Timer.GetElapsedSeconds());
 }

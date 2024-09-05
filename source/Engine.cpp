@@ -3,7 +3,6 @@
 #include <dxgidebug.h>
 
 #include "extern/cxxopts/cxxopts.hpp"
-#include "spdlog/sinks/basic_file_sink.h"
 
 #include "Graphic.h"
 #include "ImguiManager.h"
@@ -33,7 +32,7 @@ void DumpProfilingCapture()
     assert(!g_DumpProfilingCaptureFileName.empty());
 
     const std::string fileName = (std::filesystem::path{ GetExecutableDirectory() } / g_DumpProfilingCaptureFileName.c_str()).string() + ".html";
-    LOG_DEBUG("Dumping profiler log: %s", fileName.c_str());
+    LOG_TO_CONSOLE("Dumping profiler log: %s", fileName.c_str());
 
     static uint32_t s_ProfilercaptureFrames = 30;
     MicroProfileDumpFileImmediately(fileName.c_str(), nullptr, nullptr, s_ProfilercaptureFrames);
@@ -47,14 +46,9 @@ void Engine::Initialize()
     SCOPED_TIMER_FUNCTION();
     PROFILE_FUNCTION();
 
-    // init loggers first, with immediate flushing to output txt
-    m_Logger = spdlog::basic_logger_mt("file_logger", StringFormat("%s/debug_output.txt", GetExecutableDirectory()), true);
-    m_Logger->flush_on(spdlog::level::level_enum::trace);
-    spdlog::set_pattern("[%H:%M:%S] %v");
-
-    LOG_DEBUG("Executable Directory: %s", GetExecutableDirectory());
-    LOG_DEBUG("Application Directory: %s", GetApplicationDirectory());
-    LOG_DEBUG("Resources Directory: %s", GetResourceDirectory());
+    LOG_TO_CONSOLE("Executable Directory: %s", GetExecutableDirectory());
+    LOG_TO_CONSOLE("Application Directory: %s", GetApplicationDirectory());
+    LOG_TO_CONSOLE("Resources Directory: %s", GetResourceDirectory());
 
     // Look in the Windows Registry to determine if Developer Mode is enabled
     {
@@ -68,7 +62,7 @@ void Engine::Initialize()
             RegCloseKey(hKey);
         }
 
-        LOG_DEBUG("Windows Developer Mode: [%d]", m_bDeveloperModeEnabled);
+        LOG_TO_CONSOLE("Windows Developer Mode: [%d]", m_bDeveloperModeEnabled);
     }
     
     ParseCommandlineArguments();
@@ -84,7 +78,7 @@ void Engine::Initialize()
 
     // create threadpool executor
     m_Executor = std::make_shared<tf::Executor>(nbWorkerThreads);
-    LOG_DEBUG("%d Worker Threads initialized", m_Executor->num_workers());
+    LOG_TO_CONSOLE("%d Worker Threads initialized", m_Executor->num_workers());
 
     // MT init tasks
     tf::Taskflow tf;
@@ -128,7 +122,7 @@ void Engine::ParseCommandlineArguments()
     {
         printArgsStr += StringFormat("{%s : %s} ", arg.key().c_str(), arg.value().c_str());
     }
-    LOG_DEBUG(printArgsStr.c_str());
+    LOG_TO_CONSOLE(printArgsStr.c_str());
 
     if (!parseResult.unmatched().empty())
     {
@@ -138,39 +132,35 @@ void Engine::ParseCommandlineArguments()
             printArgsStr += StringFormat("%s ", s.data());
         }
         printArgsStr += "}";
-        LOG_DEBUG(printArgsStr.c_str());
+        LOG_TO_CONSOLE(printArgsStr.c_str());
     }
 }
 
 void Engine::Shutdown()
 {
-    {
-        SCOPED_TIMER_FUNCTION();
-        
-        // recurssive consume all commands until empty
-        while (!m_PendingCommands.empty())
-        {
-            ConsumeCommands();
-        }
+	SCOPED_TIMER_FUNCTION();
 
-        m_IMGUIManager->ShutDown();
-        m_IMGUIManager.reset();
-        m_Graphic->Shutdown();
-        m_Graphic.reset();
+	// recurssive consume all commands until empty
+	while (!m_PendingCommands.empty())
+	{
+		ConsumeCommands();
+	}
 
-        m_EngineWindowThread.join();
+	m_IMGUIManager->ShutDown();
+	m_IMGUIManager.reset();
+	m_Graphic->Shutdown();
+	m_Graphic.reset();
 
-        MicroProfileShutdown();
+	m_EngineWindowThread.join();
 
-        // check for any leftover dxgi stuff
-        ComPtr<IDXGIDebug1> dxgiDebug;
-        if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
-        {
-            HRESULT_CALL(dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL | DXGI_DEBUG_RLO_IGNORE_INTERNAL)));
-        }
-    }
+	MicroProfileShutdown();
 
-    spdlog::shutdown();
+	// check for any leftover dxgi stuff
+	ComPtr<IDXGIDebug1> dxgiDebug;
+	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
+	{
+		HRESULT_CALL(dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL | DXGI_DEBUG_RLO_IGNORE_INTERNAL)));
+	}
 }
 
 static void BusyWaitUntilFPSLimit(Timer& timer)
@@ -188,7 +178,7 @@ static void BusyWaitUntilFPSLimit(Timer& timer)
 
 void Engine::MainLoop()
 {
-    LOG_DEBUG("Entering main loop");
+    LOG_TO_CONSOLE("Entering main loop");
 
     SCOPED_TIMER_FUNCTION();
 
@@ -241,7 +231,7 @@ void Engine::MainLoop()
         MicroProfileFlip(nullptr);
     } while (!m_Exit);
 
-    LOG_DEBUG("Exiting main loop");
+    LOG_TO_CONSOLE("Exiting main loop");
 }
 
 bool Engine::IsMainThread()
@@ -267,23 +257,6 @@ void Engine::ConsumeCommands()
         PROFILE_SCOPED("Engine Command");
         cmd();
     }
-}
-
-void Engine::PushLog(LogLevel logLevel, std::string_view s)
-{
-    thread_local std::string tl_FinalFormattedString;
-    tl_FinalFormattedString.clear();
-
-    switch (logLevel)
-    {
-    case LogLevel::Debug:   tl_FinalFormattedString = "[DBG ]: "; break;
-    case LogLevel::Warning: tl_FinalFormattedString = "[WARN]: "; break;
-    case LogLevel::Error:   tl_FinalFormattedString = "[ERR ]: "; break;
-    }
-
-    tl_FinalFormattedString += s;
-
-    m_Logger->info(tl_FinalFormattedString);
 }
 
 ::LRESULT CALLBACK Engine::ProcessWindowsMessagePump(::HWND hWnd, ::UINT message, ::WPARAM wParam, ::LPARAM lParam)
@@ -340,7 +313,7 @@ void Engine::RunEngineWindowThread()
 
     if (FAILED(RegisterClass(&wc)))
     {
-        LOG_DEBUG("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
+        LOG_TO_CONSOLE("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
         assert(false);
     }
 
@@ -364,7 +337,7 @@ void Engine::RunEngineWindowThread()
 
     if (engineWindowHandle == 0)
     {
-        LOG_DEBUG("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
+        LOG_TO_CONSOLE("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
         assert(false);
     }
 
@@ -379,7 +352,7 @@ void Engine::RunEngineWindowThread()
     {
         if (bRet == -1)
         {
-            LOG_DEBUG("Can't get new message: %s", GetLastErrorAsString());
+            LOG_TO_CONSOLE("Can't get new message: %s", GetLastErrorAsString());
             assert(false);
         }
         else
@@ -389,7 +362,7 @@ void Engine::RunEngineWindowThread()
         }
     }
 
-    LOG_DEBUG("Leaving Engine Window Thread");
+    LOG_TO_CONSOLE("Leaving Engine Window Thread");
 }
 
 int main()

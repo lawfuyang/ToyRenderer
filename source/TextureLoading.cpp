@@ -84,7 +84,7 @@ nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle comman
 
     if (!stbi_info_from_memory((const stbi_uc*)data, (int)nbBytes, &width, &height, &originalChannels))
     {
-        LOG_ERROR("STBI error: [%s]", stbi_failure_reason());
+        LOG_TO_CONSOLE("STBI error: [%s]", stbi_failure_reason());
         assert(0);
     }
 
@@ -106,7 +106,7 @@ nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle comman
 
     if (!bitmap)
     {
-        LOG_ERROR("STBI error: [%s]", stbi_failure_reason());
+        LOG_TO_CONSOLE("STBI error: [%s]", stbi_failure_reason());
         assert(0);
     }
 
@@ -123,7 +123,7 @@ nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle comman
         format = bIsHDR ? nvrhi::Format::RGBA32_FLOAT : (forceSRGB ? nvrhi::Format::SRGBA8_UNORM : nvrhi::Format::RGBA8_UNORM);
         break;
     default:
-        LOG_ERROR("Unsupported number of components (%d) for texture", channels);
+        LOG_TO_CONSOLE("Unsupported number of components (%d) for texture", channels);
         assert(0);
     }
 

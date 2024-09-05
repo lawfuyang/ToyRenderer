@@ -37,7 +37,7 @@ void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const
     byteOffset = g_Graphic.m_VirtualMeshDataBuffer.QueueAppend(&meshData, sizeof(MeshData));
     m_MeshDataBufferIdx = (uint32_t)byteOffset / sizeof(MeshData);
 
-    LOG_DEBUG("Mesh: [%s][V: %d][I: %d]", meshName.data(), m_NbVertices, m_NbIndices);
+    LOG_TO_CONSOLE("Mesh: [%s][V: %d][I: %d]", meshName.data(), m_NbVertices, m_NbIndices);
 }
 
 std::size_t Mesh::HashVertices(std::span<const RawVertexFormat> vertices)

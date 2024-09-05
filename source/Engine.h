@@ -2,7 +2,6 @@
 
 #include "extern/microprofile/microprofile.h"
 #include "extern/taskflow/taskflow.hpp"
-#include "spdlog/spdlog.h"
 
 #include "CriticalSection.h"
 
@@ -26,8 +25,6 @@ public:
     static bool IsMainThread();
     static uint32_t GetThreadID();
 
-    void PushLog(LogLevel logLevel, std::string_view s);
-
     template <typename Lambda> void AddCommand(Lambda&& lambda) { AUTO_LOCK(m_CommandsLock); m_PendingCommands.push_back(lambda); }
     template <typename Lambda> void AddCommand(Lambda& lambda) { static_assert(sizeof(Lambda) == 0); /* enforce use of rvalue and therefore move to avoid an extra copy of the Lambda */ }
 
@@ -38,7 +35,6 @@ public:
     float m_GPUTimeMs = 0.0f;
 
     ::HWND m_WindowHandle = nullptr;
-    std::shared_ptr<spdlog::logger> m_Logger;
     std::shared_ptr<tf::Executor> m_Executor;
     std::shared_ptr<IMGUIManager> m_IMGUIManager;
 
@@ -70,9 +66,7 @@ inline thread_local HRESULT tl_HResult;
 #define PROFILE_SCOPED(NAME) MICROPROFILE_SCOPE_CSTR(NAME)
 #define PROFILE_FUNCTION() PROFILE_SCOPED(__FUNCTION__)
 
-#define LOG_DEBUG(FORMAT, ...) g_Engine.PushLog(LogLevel::Debug, StringFormat(FORMAT, __VA_ARGS__));
-#define LOG_WARN(FORMAT, ...) g_Engine.PushLog(LogLevel::Warning, StringFormat(FORMAT, __VA_ARGS__));
-#define LOG_ERROR(FORMAT, ...) g_Engine.PushLog(LogLevel::Error, StringFormat(FORMAT, __VA_ARGS__));
+#define LOG_TO_CONSOLE(FORMAT, ...) printf("%s\n", StringFormat(FORMAT, __VA_ARGS__));
 
 template <typename T>
 class CommandLineOption

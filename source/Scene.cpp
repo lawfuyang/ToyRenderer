@@ -344,7 +344,7 @@ void Scene::UpdateMainViewCameraControls()
     {
         s_CameraMoveSpeed *= (Mouse::GetWheel() > 0.0f) ? 2.0f : 0.5f;
         s_CameraMoveSpeed = std::max(KINDA_SMALL_NUMBER, s_CameraMoveSpeed);
-        LOG_DEBUG("CameraMoveSpeed is now: %f", s_CameraMoveSpeed);
+        LOG_TO_CONSOLE("CameraMoveSpeed is now: %f", s_CameraMoveSpeed);
     }
 
     m_MouseLastPos = m_CurrentMousePos;
@@ -534,7 +534,7 @@ void Scene::UpdatePicking()
                 context.m_PickingLocation = clickPos;
                 context.m_State = Graphic::PickingContext::REQUESTED;
 
-                //LOG_DEBUG("Requested Picking: [%d, %d]", clickPos.x, clickPos.y);
+                //LOG_TO_CONSOLE("Requested Picking: [%d, %d]", clickPos.x, clickPos.y);
             });
     }
 }
@@ -874,10 +874,10 @@ void Scene::OnSceneLoad()
     // empirically set camera near plane based on scene BS radius
     mainView.m_ZNearP = std::max(0.1f, std::min(m_BoundingSphere.Radius * 0.01f, 0.1f));
 
-    LOG_DEBUG("Scene AABB: c:[%f, %f, %f] e:[%f, %f, %f]", m_AABB.Center.x, m_AABB.Center.y, m_AABB.Center.z, m_AABB.Extents.x, m_AABB.Extents.y, m_AABB.Extents.z);
-    LOG_DEBUG("Scene Bounding Sphere: [%f, %f, %f][r: %f]", m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius);
-    LOG_DEBUG("CSM Split Distances: [%f, %f, %f, %f]", m_CSMSplitDistances[0], m_CSMSplitDistances[1], m_CSMSplitDistances[2], m_CSMSplitDistances[3]);
-    LOG_DEBUG("Camera Near Plane: %f", mainView.m_ZNearP);
+    LOG_TO_CONSOLE("Scene AABB: c:[%f, %f, %f] e:[%f, %f, %f]", m_AABB.Center.x, m_AABB.Center.y, m_AABB.Center.z, m_AABB.Extents.x, m_AABB.Extents.y, m_AABB.Extents.z);
+    LOG_TO_CONSOLE("Scene Bounding Sphere: [%f, %f, %f][r: %f]", m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius);
+    LOG_TO_CONSOLE("CSM Split Distances: [%f, %f, %f, %f]", m_CSMSplitDistances[0], m_CSMSplitDistances[1], m_CSMSplitDistances[2], m_CSMSplitDistances[3]);
+    LOG_TO_CONSOLE("Camera Near Plane: %f", mainView.m_ZNearP);
 }
 
 // referenced in imguimanager
