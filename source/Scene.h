@@ -118,6 +118,8 @@ public:
 
     OctTree m_OctTree;
     DynamicObjectPool<OctTree> m_OctTreeAllocator;
+
+    std::vector<OctTree::Node*> m_OctTreeNodes;
     DynamicObjectPool<OctTree::Node> m_OctTreeNodeAllocator;
 
     std::vector<VisualProxy> m_VisualProxies;

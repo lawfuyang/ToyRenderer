@@ -53,7 +53,7 @@ public:
 
     uint32_t m_VisualIdx = UINT_MAX;
 	uint32_t m_MeshIdx = UINT_MAX;
-    OctTree::Node* m_SceneOctTreeNode = nullptr;
+    uint32_t m_SceneOctTreeNodeIdx = UINT_MAX;
     Material m_Material;
     uint32_t m_ScenePrimitiveIndex = UINT_MAX;
 };

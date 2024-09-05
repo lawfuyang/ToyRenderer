@@ -661,7 +661,7 @@ void Scene::Update()
 
 uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
 {
-    assert(p->m_SceneOctTreeNode == nullptr);
+    assert(p->m_SceneOctTreeNodeIdx == UINT_MAX);
 
     const uint32_t proxyIdx = (uint32_t)m_VisualProxies.size();
     VisualProxy& newProxy = m_VisualProxies.emplace_back();
@@ -671,11 +671,15 @@ uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
     newProxy.m_WorldMatrix = worldMatrix;
     newProxy.m_PrevFrameWorldMatrix = worldMatrix;
 
-    p->m_SceneOctTreeNode = m_OctTreeNodeAllocator.NewObject();
-    p->m_SceneOctTreeNode->m_Data = (void*)proxyIdx;
-    p->m_SceneOctTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx)->m_AABB, worldMatrix);
+    const uint32_t nodeIdx = m_OctTreeNodes.size();
+    OctTree::Node* newOctTreeNode = m_OctTreeNodeAllocator.NewObject();
+	m_OctTreeNodes.push_back(newOctTreeNode);
+    p->m_SceneOctTreeNodeIdx = nodeIdx;
 
-    m_OctTree.Insert(p->m_SceneOctTreeNode);
+    newOctTreeNode->m_Data = (void*)proxyIdx;
+    newOctTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx)->m_AABB, worldMatrix);
+
+    m_OctTree.Insert(newOctTreeNode);
 
     return proxyIdx;
 }
@@ -685,9 +689,11 @@ void Scene::UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t pr
     VisualProxy& visualProxy = m_VisualProxies.at(proxyIdx);
     visualProxy.m_WorldMatrix = worldMatrix;
 
-    p->m_SceneOctTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx)->m_AABB, worldMatrix);
+	OctTree::Node* octTreeNode = m_OctTreeNodes.at(p->m_SceneOctTreeNodeIdx);
 
-    m_OctTree.Update(p->m_SceneOctTreeNode);
+    octTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx)->m_AABB, worldMatrix);
+
+    m_OctTree.Update(octTreeNode);
 }
 
 void Scene::CalculateCSMSplitDistances()
