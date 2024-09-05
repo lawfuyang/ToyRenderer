@@ -692,7 +692,7 @@ uint32_t Graphic::AppendOrRetrieveMaterialDataIndex(const MaterialData& material
     return m_CachedMaterialDataIndices.at(materialDataHash);
 }
 
-Mesh* Graphic::GetOrCreateMesh(size_t hash, bool& bRetrievedFromCache)
+uint32_t Graphic::GetOrCreateMesh(size_t hash, bool& bRetrievedFromCache)
 {
     Mesh* ret = nullptr;
     bRetrievedFromCache = true;
@@ -707,14 +707,16 @@ Mesh* Graphic::GetOrCreateMesh(size_t hash, bool& bRetrievedFromCache)
 
         m_MeshCache[hash] = ret;
         bRetrievedFromCache = false;
+
+        ret->m_Idx = m_Meshes.size();
+		m_Meshes.push_back(ret);
     }
     else
     {
         ret = it->second;
     }
 
-    // NOTE: since the Mesh ptrs are stored in the DynamicObjectPool instead of the Map, we can safely return the raw ptr, even if the map rebucketizes 
-    return ret;
+	return ret->m_Idx;
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)

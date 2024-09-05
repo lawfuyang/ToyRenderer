@@ -353,9 +353,11 @@ static void CreateUnitCubeMesh()
     ReverseWinding(indices, vertices);
 
     bool bRetrievedFromCache = false;
-    g_CommonResources.UnitCube.m_Mesh = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
+    g_CommonResources.UnitCube.m_MeshIdx = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
     assert(!bRetrievedFromCache);
-    g_CommonResources.UnitCube.m_Mesh->Initialize(vertices, indices, "Default Unit Cube Mesh");
+
+    Mesh* mesh = g_Graphic.m_Meshes.at(g_CommonResources.UnitCube.m_MeshIdx);
+    mesh->Initialize(vertices, indices, "Default Unit Cube Mesh");
 
 }
 
@@ -428,9 +430,11 @@ static void CreateUnitSphereMesh()
     //    InvertNormals(vertices);
 
     bool bRetrievedFromCache = false;
-    g_CommonResources.UnitSphere.m_Mesh = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
+    g_CommonResources.UnitSphere.m_MeshIdx = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
     assert(!bRetrievedFromCache);
-    g_CommonResources.UnitSphere.m_Mesh->Initialize(vertices, indices, "Default UnitSphere Mesh");
+
+    Mesh* mesh = g_Graphic.m_Meshes.at(g_CommonResources.UnitSphere.m_MeshIdx);
+    mesh->Initialize(vertices, indices, "Default UnitSphere Mesh");
 }
 
 static void CreateDefaultMaterial()

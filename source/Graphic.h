@@ -76,7 +76,7 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
     uint32_t AppendOrRetrieveMaterialDataIndex(const MaterialData& materialData);
 
-    Mesh* GetOrCreateMesh(size_t hash, bool& bRetrievedFromCache);
+    uint32_t GetOrCreateMesh(size_t hash, bool& bRetrievedFromCache);
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle);
 
@@ -181,6 +181,7 @@ public:
 
     std::mutex m_MeshCacheLock;
     std::unordered_map<size_t, Mesh*> m_MeshCache;
+    std::vector<Mesh*> m_Meshes;
     DynamicObjectPool<Mesh> m_MeshPool;
 
     GrowableGPUVirtualBuffer m_VirtualVertexBuffer;

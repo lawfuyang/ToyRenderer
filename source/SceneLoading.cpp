@@ -288,14 +288,14 @@ struct GLTFSceneLoader
         tf::Taskflow taskflow;
         
         m_SceneMeshPrimitives.resize(m_Model.meshes.size());
-        for (uint32_t meshIdx = 0; meshIdx < m_Model.meshes.size(); ++meshIdx)
+        for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_Model.meshes.size(); ++modelMeshIdx)
         {
-            const tinygltf::Mesh& mesh = m_Model.meshes.at(meshIdx);
+            const tinygltf::Mesh& mesh = m_Model.meshes.at(modelMeshIdx);
 
-            m_SceneMeshPrimitives[meshIdx].resize(mesh.primitives.size());
+            m_SceneMeshPrimitives[modelMeshIdx].resize(mesh.primitives.size());
             for (uint32_t primitiveIdx = 0; primitiveIdx < mesh.primitives.size(); ++primitiveIdx)
             {
-                taskflow.emplace([&, meshIdx, primitiveIdx]
+                taskflow.emplace([&, modelMeshIdx, primitiveIdx]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
@@ -330,19 +330,21 @@ struct GLTFSceneLoader
                         PROFILE_FUNCTION();
 
                         bool bRetrievedFromCache = false;
-                        Mesh* sceneMesh = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
+                        const uint32_t meshIdx = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
+
+                        Mesh* sceneMesh = g_Graphic.m_Meshes.at(meshIdx);
 
                         if (!bRetrievedFromCache)
                         {
                             sceneMesh->Initialize(vertices, indices, mesh.name);
                         }
 
-                        Primitive& primitive = m_SceneMeshPrimitives[meshIdx][primitiveIdx];
+                        Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
 
                         primitive.m_Material = m_SceneMaterials[gltfPrimitive.material];
                         assert(primitive.m_Material.IsValid());
 
-                        primitive.m_Mesh = sceneMesh;
+                        primitive.m_MeshIdx = meshIdx;
                     });
             }
         }
@@ -393,7 +395,6 @@ struct GLTFSceneLoader
 
         Node* newNode = scene->m_NodeAllocator.NewObject();
         newNode->m_ID = newNodeID;
-        newNode->m_Parent = parent;
         newNode->m_Name = gltfNode.name;
         newNode->m_Position = translation;
         newNode->m_Rotation = rotation;
@@ -401,7 +402,8 @@ struct GLTFSceneLoader
 
         if (parent)
         {
-            parent->m_Children.push_back(newNode);
+            newNode->m_ParentNodeID = parent->m_ID;
+            parent->m_ChildrenNodeIDs.push_back(newNodeID);
         }
 
         scene->m_Nodes.push_back(newNode);
@@ -413,15 +415,18 @@ struct GLTFSceneLoader
             newVisual->m_Node = newNode;
             newVisual->m_Name = gltfNode.name;
 
+            const uint32_t visualIdx = scene->m_Visuals.size();
             scene->m_Visuals.push_back(newVisual);
 
             for (const Primitive& primitive : m_SceneMeshPrimitives.at(gltfNode.mesh))
             {
                 newVisual->m_Primitives.push_back(primitive);
-                newVisual->m_Primitives.back().m_Visual = newVisual;
+                newVisual->m_Primitives.back().m_VisualIdx = visualIdx;
 
-                AABB::CreateMerged(newNode->m_AABB, newNode->m_AABB, primitive.m_Mesh->m_AABB);
-                Sphere::CreateMerged(newNode->m_BoundingSphere, newNode->m_BoundingSphere, primitive.m_Mesh->m_BoundingSphere);
+				Mesh* primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+
+                AABB::CreateMerged(newNode->m_AABB, newNode->m_AABB, primitiveMesh->m_AABB);
+                Sphere::CreateMerged(newNode->m_BoundingSphere, newNode->m_BoundingSphere, primitiveMesh->m_BoundingSphere);
             }
 
             // update scene BS too
@@ -433,7 +438,7 @@ struct GLTFSceneLoader
             const Sphere nodeBS = MakeLocalToWorldSphere(newNode->m_BoundingSphere, nodeWorldMatrix);
             Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, nodeBS);
 
-            newNode->m_Visual = newVisual;
+            newNode->m_VisualIdx = visualIdx;
         }
 
         if (gltfNode.camera != -1)

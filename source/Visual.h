@@ -51,8 +51,8 @@ class Primitive
 public:
     bool IsValid() const;
 
-    class Visual* m_Visual = nullptr;
-    Mesh* m_Mesh = nullptr;
+    uint32_t m_VisualIdx = UINT32_MAX;
+	uint32_t m_MeshIdx = UINT32_MAX;
     OctTree::Node* m_SceneOctTreeNode = nullptr;
     Material m_Material;
     uint32_t m_ScenePrimitiveIndex = UINT_MAX;
@@ -91,8 +91,8 @@ public:
 
     std::string m_Name = "Un-named Node";
 
-    Visual* m_Visual = nullptr;
+    uint32_t m_VisualIdx = UINT32_MAX;
 
-    Node* m_Parent = nullptr;
-    std::vector<Node*> m_Children;
+	uint32_t m_ParentNodeID = UINT32_MAX;
+    std::vector<uint32_t> m_ChildrenNodeIDs;
 };

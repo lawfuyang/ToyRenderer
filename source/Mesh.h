@@ -14,6 +14,7 @@ public:
     bool IsValid() const;
 
     std::size_t m_Hash = 0;
+    uint32_t m_Idx = UINT_MAX;
 
     uint32_t m_NbVertices = 0;
     uint32_t m_NbIndices = 0;

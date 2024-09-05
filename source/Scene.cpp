@@ -666,14 +666,14 @@ uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
     const uint32_t proxyIdx = (uint32_t)m_VisualProxies.size();
     VisualProxy& newProxy = m_VisualProxies.emplace_back();
 
-    newProxy.m_NodeID = p->m_Visual->m_Node->m_ID;
+    newProxy.m_NodeID = m_Visuals.at(p->m_VisualIdx)->m_Node->m_ID;
     newProxy.m_Primitive = p;
     newProxy.m_WorldMatrix = worldMatrix;
     newProxy.m_PrevFrameWorldMatrix = worldMatrix;
 
     p->m_SceneOctTreeNode = m_OctTreeNodeAllocator.NewObject();
     p->m_SceneOctTreeNode->m_Data = (void*)proxyIdx;
-    p->m_SceneOctTreeNode->m_AABB = MakeLocalToWorldAABB(p->m_Mesh->m_AABB, worldMatrix);
+    p->m_SceneOctTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx)->m_AABB, worldMatrix);
 
     m_OctTree.Insert(p->m_SceneOctTreeNode);
 
@@ -685,7 +685,7 @@ void Scene::UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t pr
     VisualProxy& visualProxy = m_VisualProxies.at(proxyIdx);
     visualProxy.m_WorldMatrix = worldMatrix;
 
-    p->m_SceneOctTreeNode->m_AABB = MakeLocalToWorldAABB(p->m_Mesh->m_AABB, worldMatrix);
+    p->m_SceneOctTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx)->m_AABB, worldMatrix);
 
     m_OctTree.Update(p->m_SceneOctTreeNode);
 }
@@ -734,9 +734,12 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
             visualProxy.m_PrevFrameWorldMatrix = visualProxy.m_WorldMatrix;
 
             const Primitive* primitive = visualProxy.m_Primitive;
-            const Material& material = primitive->m_Material;
+            assert(primitive->IsValid());
 
+            const Material& material = primitive->m_Material;
             assert(material.IsValid());
+
+            const Mesh* mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
 
             Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
             inverseTransposeMatrix.Translation(Vector3::Zero);
@@ -748,7 +751,7 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
             instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
             instanceConsts.m_PrevFrameWorldMatrix = visualProxy.m_PrevFrameWorldMatrix;
             instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
-            instanceConsts.m_MeshDataIdx = primitive->m_Mesh->m_MeshDataBufferIdx;
+            instanceConsts.m_MeshDataIdx = mesh->m_MeshDataBufferIdx;
             instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
 
             instanceConstsBytes.push_back(instanceConsts);
@@ -861,9 +864,9 @@ void Scene::OnSceneLoad()
 
     for (Node* node : m_Nodes)
     {
-        if (node->m_Visual)
+        if (node->m_VisualIdx != UINT32_MAX)
         {
-            node->m_Visual->OnSceneLoad();
+            m_Visuals.at(node->m_VisualIdx)->OnSceneLoad();
         }
     }
 

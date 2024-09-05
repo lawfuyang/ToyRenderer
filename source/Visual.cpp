@@ -175,7 +175,7 @@ bool Texture::LoadFromCache(bool bInsertEmptyTextureHandleIfNotFound, bool* bOut
 
 bool Primitive::IsValid() const
 {
-    return m_Mesh != 0 && m_Mesh->IsValid();
+    return m_MeshIdx != UINT32_MAX && g_Graphic.m_Meshes.at(m_MeshIdx)->IsValid();
 }
 
 void Visual::UpdateIMGUI()
@@ -320,18 +320,21 @@ void Node::UpdateIMGUI()
     ImGui::Text("BS Center: [%f, %f, %f]", bs.Center.x, bs.Center.y, bs.Center.z);
     ImGui::Text("BS Radius: [%f]", bs.Radius);
 
-    if (bTransformDirty && m_Visual)
+    if (bTransformDirty && m_VisualIdx != UINT32_MAX)
     {
-        m_Visual->UpdatePrimitivesInScene();
+        Scene* scene = g_Graphic.m_Scene.get();
+        scene->m_Visuals.at(m_VisualIdx)->UpdatePrimitivesInScene();
 
-        for (Node* child : m_Children)
+        for (uint32_t childrenNodeID : m_ChildrenNodeIDs)
         {
-            if (!child->m_Visual)
+			Node* child = scene->m_Nodes.at(childrenNodeID);
+
+            if (child->m_VisualIdx == UINT32_MAX)
             {
                 continue;
             }
 
-            child->m_Visual->UpdatePrimitivesInScene();
+            scene->m_Visuals.at(child->m_VisualIdx)->UpdatePrimitivesInScene();
         }
     }
 }
@@ -345,9 +348,9 @@ Matrix Node::MakeLocalToWorldMatrix() const
 
     Matrix worldMatrix = rotationMat * scaleMat * translateMat;
 
-    if (m_Parent)
+    if (m_ParentNodeID != UINT32_MAX)
     {
-        worldMatrix *= m_Parent->MakeLocalToWorldMatrix();
+        worldMatrix *= g_Graphic.m_Scene->m_Nodes.at(m_ParentNodeID)->MakeLocalToWorldMatrix();
     }
 
     return worldMatrix;
@@ -459,11 +462,11 @@ static void RenderEditorForCurrentlySelectedNode()
 
     ImGui::PushID(g_CurrentlySelectedNodeID);
 
-    if (currentlySelectedNode->m_Visual)
+    if (currentlySelectedNode->m_VisualIdx != UINT32_MAX)
     {
         ImGui::Indent(30.f);
         ImGui::PushID("Widget");
-        currentlySelectedNode->m_Visual->UpdateIMGUI();
+		scene->m_Visuals.at(currentlySelectedNode->m_VisualIdx)->UpdateIMGUI();
         ImGui::PopID();
         ImGui::Unindent(30.f);
     }
