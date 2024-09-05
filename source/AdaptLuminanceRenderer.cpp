@@ -96,7 +96,7 @@ public:
         // AdaptExposure
         {
             AdaptExposureParameters passParameters{};
-            passParameters.m_AdaptationSpeed = Saturate(controllables.m_AutoExposureSpeed * g_Engine.m_CPUCappedFrameTimeMs);
+            passParameters.m_AdaptationSpeed = std::clamp(controllables.m_AutoExposureSpeed * g_Engine.m_CPUCappedFrameTimeMs, 0.0f, 1.0f);
             passParameters.m_MinLogLuminance = minLogLum;
             passParameters.m_LogLuminanceRange = maxLogLum - minLogLum;
             passParameters.m_NbPixels = g_Graphic.m_RenderResolution.x * g_Graphic.m_RenderResolution.y;
