@@ -4,10 +4,10 @@ This is a personal toy renderer meant as a playground for experimenting with ide
 
 ## Building
 
-Please Don't. But if you wish to: 
+Please don't. But if you wish to: 
 
 - Run `generateprojects.bat` to generate VS project files
-- Open `ShaderMake.sln` and Compile/Run
+- Open `ShaderMake.sln` and Compile. ShaderMake.exe is used to compile Shaders.
 - Open `ToyRenderer.sln` and Compile/Run
 
 Top menu -> Engine -> Open Map
