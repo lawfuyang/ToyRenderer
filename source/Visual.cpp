@@ -175,7 +175,7 @@ bool Texture::LoadFromCache(bool bInsertEmptyTextureHandleIfNotFound, bool* bOut
 
 bool Primitive::IsValid() const
 {
-    return m_MeshIdx != UINT32_MAX && g_Graphic.m_Meshes.at(m_MeshIdx)->IsValid();
+    return m_MeshIdx != UINT_MAX && g_Graphic.m_Meshes.at(m_MeshIdx)->IsValid();
 }
 
 void Visual::UpdateIMGUI()
@@ -320,7 +320,7 @@ void Node::UpdateIMGUI()
     ImGui::Text("BS Center: [%f, %f, %f]", bs.Center.x, bs.Center.y, bs.Center.z);
     ImGui::Text("BS Radius: [%f]", bs.Radius);
 
-    if (bTransformDirty && m_VisualIdx != UINT32_MAX)
+    if (bTransformDirty && m_VisualIdx != UINT_MAX)
     {
         Scene* scene = g_Graphic.m_Scene.get();
         scene->m_Visuals.at(m_VisualIdx)->UpdatePrimitivesInScene();
@@ -329,7 +329,7 @@ void Node::UpdateIMGUI()
         {
 			Node* child = scene->m_Nodes.at(childrenNodeID);
 
-            if (child->m_VisualIdx == UINT32_MAX)
+            if (child->m_VisualIdx == UINT_MAX)
             {
                 continue;
             }
@@ -348,7 +348,7 @@ Matrix Node::MakeLocalToWorldMatrix() const
 
     Matrix worldMatrix = rotationMat * scaleMat * translateMat;
 
-    if (m_ParentNodeID != UINT32_MAX)
+    if (m_ParentNodeID != UINT_MAX)
     {
         worldMatrix *= g_Graphic.m_Scene->m_Nodes.at(m_ParentNodeID)->MakeLocalToWorldMatrix();
     }
@@ -361,7 +361,7 @@ uint32_t g_CurrentlySelectedNodeID = UINT_MAX;
 static void NodeIMGUIWidget(Node* node, bool bIsNodeList)
 {
     assert(node);
-    assert(node->m_ID != UINT32_MAX);
+    assert(node->m_ID != UINT_MAX);
 
     ImGui::PushID(node->m_ID);
 
@@ -437,7 +437,7 @@ static void RenderIMGUINodeList()
 
 static void RenderEditorForCurrentlySelectedNode()
 {
-    if (g_CurrentlySelectedNodeID == UINT32_MAX)
+    if (g_CurrentlySelectedNodeID == UINT_MAX)
     {
         return;
     }
@@ -462,7 +462,7 @@ static void RenderEditorForCurrentlySelectedNode()
 
     ImGui::PushID(g_CurrentlySelectedNodeID);
 
-    if (currentlySelectedNode->m_VisualIdx != UINT32_MAX)
+    if (currentlySelectedNode->m_VisualIdx != UINT_MAX)
     {
         ImGui::Indent(30.f);
         ImGui::PushID("Widget");

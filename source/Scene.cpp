@@ -864,7 +864,7 @@ void Scene::OnSceneLoad()
 
     for (Node* node : m_Nodes)
     {
-        if (node->m_VisualIdx != UINT32_MAX)
+        if (node->m_VisualIdx != UINT_MAX)
         {
             m_Visuals.at(node->m_VisualIdx)->OnSceneLoad();
         }

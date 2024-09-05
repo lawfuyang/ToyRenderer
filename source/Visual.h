@@ -51,8 +51,8 @@ class Primitive
 public:
     bool IsValid() const;
 
-    uint32_t m_VisualIdx = UINT32_MAX;
-	uint32_t m_MeshIdx = UINT32_MAX;
+    uint32_t m_VisualIdx = UINT_MAX;
+	uint32_t m_MeshIdx = UINT_MAX;
     OctTree::Node* m_SceneOctTreeNode = nullptr;
     Material m_Material;
     uint32_t m_ScenePrimitiveIndex = UINT_MAX;
@@ -79,7 +79,7 @@ public:
 
     Matrix MakeLocalToWorldMatrix() const;
 
-    uint32_t m_ID = UINT32_MAX;
+    uint32_t m_ID = UINT_MAX;
 
     Vector3 m_Position;
     Vector3 m_Scale = Vector3::One;
@@ -91,8 +91,8 @@ public:
 
     std::string m_Name = "Un-named Node";
 
-    uint32_t m_VisualIdx = UINT32_MAX;
+    uint32_t m_VisualIdx = UINT_MAX;
 
-	uint32_t m_ParentNodeID = UINT32_MAX;
+	uint32_t m_ParentNodeID = UINT_MAX;
     std::vector<uint32_t> m_ChildrenNodeIDs;
 };

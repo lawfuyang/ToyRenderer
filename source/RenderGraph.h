@@ -12,7 +12,7 @@ class RenderGraph
 public:
 	using PassID = uint8_t;
 
-	static const uint32_t kInvalidResourceHandle = UINT32_MAX;
+	static const uint32_t kInvalidResourceHandle = UINT_MAX;
 	static const PassID kInvalidPassID = UINT8_MAX;
 
 	enum class Phase { Setup, Execute };
