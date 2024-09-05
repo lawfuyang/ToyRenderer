@@ -13,7 +13,7 @@ cd /d "%~dp0"
 rem TODO: -Wconversion
 rem TODO: -Wdouble-promotion -Whlsl-legacy-literal
 
-set cache_file="%cd%\\projects\\CMakeCache.txt"
+set cache_file="%cd%\\projects\\ToyRenderer\\CMakeCache.txt"
 set DXC_PATH_VAR=DXC_PATH:FILEPATH
 
 for /f "tokens=2 delims==" %%a in ('findstr "^%DXC_PATH_VAR%=" %cache_file%') do (

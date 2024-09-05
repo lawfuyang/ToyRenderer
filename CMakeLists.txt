@@ -160,19 +160,6 @@ add_custom_target(ShaderSourceFiles SOURCES ${SHADER_SRC_FILES})
 ################################################################################
 
 ################################################################################
-# SHADER MAKE
-file(GLOB_RECURSE SHADER_MAKE_SRC "${EXTERN_DIR}/ShaderMake/src/*.cpp" "${EXTERN_DIR}/ShaderMake/src/*.h")
-
-add_executable(ShaderMake ${SHADER_MAKE_SRC})
-
-target_include_directories(ShaderMake PUBLIC "${EXTERN_DIR}/ShaderMake/include")
-
-target_compile_definitions (ShaderMake PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
-target_link_options (ShaderMake PRIVATE "/DELAYLOAD:dxcompiler.dll")
-target_link_libraries (ShaderMake d3dcompiler dxcompiler delayimp)
-################################################################################
-
-################################################################################
 # SHADER COMPILATION
 
 # compile shaders first before running the app, to ensure latest and proper Shader binaries
