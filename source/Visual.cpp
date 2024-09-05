@@ -353,7 +353,7 @@ Matrix Node::MakeLocalToWorldMatrix() const
     return worldMatrix;
 }
 
-uint32_t g_CurrentlySelectedNodeID;
+uint32_t g_CurrentlySelectedNodeID = UINT_MAX;
 
 static void NodeIMGUIWidget(Node* node, bool bIsNodeList)
 {
@@ -434,6 +434,11 @@ static void RenderIMGUINodeList()
 
 static void RenderEditorForCurrentlySelectedNode()
 {
+    if (g_CurrentlySelectedNodeID == UINT32_MAX)
+    {
+        return;
+    }
+
     ImGui::TextUnformatted("Editing:");
     ImGui::SameLine();
 
