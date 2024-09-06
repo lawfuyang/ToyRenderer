@@ -18,12 +18,11 @@ public:
     bool Setup(RenderGraph& renderGraph) override
 	{
         const auto& bloomControllables = g_GraphicPropertyGrid.m_BloomControllables;
-        if (!bloomControllables.m_bEnabled)
+        if (bloomControllables.m_bEnabled)
         {
-            return false;
+            renderGraph.AddReadDependency(g_BloomRDGTextureHandle);
         }
 
-        renderGraph.AddReadDependency(g_BloomRDGTextureHandle);
         renderGraph.AddReadDependency(g_LightingOutputRDGTextureHandle);
 
 		return true;
@@ -49,7 +48,7 @@ public:
         passParameters.m_BloomStrength = bloomControllables.m_bEnabled ? bloomControllables.m_BloomStrength : 0.0f;
 
         nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
-        nvrhi::TextureHandle bloomTexture = renderGraph.GetTexture(g_BloomRDGTextureHandle);
+        nvrhi::TextureHandle bloomTexture = bloomControllables.m_bEnabled ? renderGraph.GetTexture(g_BloomRDGTextureHandle) : g_CommonResources.BlackTexture.m_NVRHITextureHandle;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
