@@ -81,10 +81,7 @@ void IMGUIManager::UpdateMainMenuBar()
         }
         if (ImGui::MenuItem("Take Profiling Capture"))
         {
-            extern bool g_TriggerDumpProfilingCapture;
-            extern std::string g_DumpProfilingCaptureFileName;
-            g_DumpProfilingCaptureFileName = "Frames";
-            g_TriggerDumpProfilingCapture = true;
+            Engine::TriggerDumpProfilingCapture("Frames");
         }
         ImGui::EndMenu();
     }

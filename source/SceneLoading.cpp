@@ -482,9 +482,6 @@ void LoadScene(std::string_view filePath)
 
     if (g_ProfileSceneLoading.Get())
     {
-        extern bool g_TriggerDumpProfilingCapture;
-        extern std::string g_DumpProfilingCaptureFileName;
-        g_DumpProfilingCaptureFileName = "SceneLoad";
-        g_TriggerDumpProfilingCapture = true;
+        Engine::TriggerDumpProfilingCapture("SceneLoad");
     }
 }

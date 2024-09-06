@@ -20,7 +20,9 @@ class Engine
 public:
     void Initialize();
     void Shutdown();
+
     void MainLoop();
+    static void TriggerDumpProfilingCapture(std::string_view fileName);
 
     static bool IsMainThread();
     static uint32_t GetThreadID();

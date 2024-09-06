@@ -24,21 +24,27 @@ void OnThreadCreateCB()
 	MicroProfileOnThreadCreate(StringFormat("Thread: [%d]", tl_ThreadID));
 };
 
-bool g_TriggerDumpProfilingCapture = false;
-std::string g_DumpProfilingCaptureFileName;
+static bool gs_TriggerDumpProfilingCapture = false;
+static std::string gs_DumpProfilingCaptureFileName;
 
-void DumpProfilingCapture()
+static void DumpProfilingCapture()
 {
-    assert(!g_DumpProfilingCaptureFileName.empty());
+    assert(!gs_DumpProfilingCaptureFileName.empty());
 
-    const std::string fileName = (std::filesystem::path{ GetExecutableDirectory() } / g_DumpProfilingCaptureFileName.c_str()).string() + ".html";
+    const std::string fileName = (std::filesystem::path{ GetExecutableDirectory() } / gs_DumpProfilingCaptureFileName.c_str()).string() + ".html";
     LOG_DEBUG("Dumping profiler log: %s", fileName.c_str());
 
     static uint32_t s_ProfilercaptureFrames = 30;
     MicroProfileDumpFileImmediately(fileName.c_str(), nullptr, nullptr, s_ProfilercaptureFrames);
 
-    g_DumpProfilingCaptureFileName.clear();
-    g_TriggerDumpProfilingCapture = false;
+    gs_DumpProfilingCaptureFileName.clear();
+    gs_TriggerDumpProfilingCapture = false;
+}
+
+void Engine::TriggerDumpProfilingCapture(std::string_view fileName)
+{
+    gs_DumpProfilingCaptureFileName = fileName;
+    gs_TriggerDumpProfilingCapture = true;
 }
 
 void Engine::Initialize()
@@ -90,8 +96,7 @@ void Engine::Initialize()
 
     if (g_ProfileStartup.Get())
     {
-        g_DumpProfilingCaptureFileName = "EngineInit";
-        DumpProfilingCapture();
+        TriggerDumpProfilingCapture("EngineInit");
     }
 }
 
@@ -203,8 +208,7 @@ void Engine::MainLoop()
 
             if (Keyboard::IsKeyPressed(Keyboard::KEY_CTRL) && Keyboard::IsKeyPressed(Keyboard::KEY_SHIFT) && Keyboard::WasKeyPressed(Keyboard::KEY_COMMA))
             {
-                g_DumpProfilingCaptureFileName = "Frames";
-                g_TriggerDumpProfilingCapture = true;
+                TriggerDumpProfilingCapture("Frames");
             }
 
             // make sure I/O ticks happen last
@@ -219,7 +223,7 @@ void Engine::MainLoop()
 
         BusyWaitUntilFPSLimit(frameTimer);
 
-        if (g_TriggerDumpProfilingCapture)
+        if (gs_TriggerDumpProfilingCapture)
         {
             DumpProfilingCapture();
         }
