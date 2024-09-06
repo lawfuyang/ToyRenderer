@@ -6,6 +6,7 @@
 #include "extern/d3dx12/d3dx12.h"
 #include "extern/microprofile/microprofile.h"
 #include "nvrhi/nvrhi.h"
+#include "nvrhi/utils.h"
 
 #include "Allocators.h"
 #include "CriticalSection.h"
@@ -80,12 +81,12 @@ public:
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle);
 
-    [[nodiscard]]  nvrhi::BufferHandle CreateVolatileConstantBuffer(nvrhi::CommandListHandle commandList, std::string_view debugName, void* srcData, uint32_t sizeOfBuffer);
-
     template <typename T>
-    [[nodiscard]]  nvrhi::BufferHandle CreateVolatileConstantBuffer(nvrhi::CommandListHandle commandList, const T& srcData)
+    [[nodiscard]] nvrhi::BufferHandle CreateConstantBuffer(nvrhi::CommandListHandle commandList, const T& srcData)
     {
-        return CreateVolatileConstantBuffer(commandList, std::type_index(typeid(T)).name(), (void*)&srcData, sizeof(T));
+        nvrhi::BufferHandle buffer = m_NVRHIDevice->createBuffer(nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(T), std::type_index{ typeid(T) }.name(), 1));
+        commandList->writeBuffer(buffer, &srcData, sizeof(T));
+        return buffer;
     }
 
     [[nodiscard]]  nvrhi::CommandListHandle AllocateCommandList(nvrhi::CommandQueue queueType = nvrhi::CommandQueue::Graphics);

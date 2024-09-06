@@ -104,7 +104,7 @@ public:
 		{
 			passConstants.m_TileID = tileID;
 
-			nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateVolatileConstantBuffer(commandList, passConstants);
+			nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 			nvrhi::BindingSetDesc bindingSetDesc;
 			bindingSetDesc.bindings = {

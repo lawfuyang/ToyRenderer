@@ -118,7 +118,7 @@ void TileRenderingHelper::DrawTiles(
     tileRenderingConsts.m_NbTiles = m_NbTiles;
     tileRenderingConsts.m_TileID = tileID;
 
-    nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateVolatileConstantBuffer(commandList, tileRenderingConsts);
+    nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, tileRenderingConsts);
     nvrhi::BufferHandle tileCounterBuffer = renderGraph.GetBuffer(m_TileCounterRDGBufferHandle);
     nvrhi::BufferHandle drawIndirectArgsBuffer = renderGraph.GetBuffer(m_DrawIndirectArgsRDGBufferHandle);
     nvrhi::BufferHandle tileOffsetsBuffer = renderGraph.GetBuffer(m_TileOffsetsRDGBufferHandle);

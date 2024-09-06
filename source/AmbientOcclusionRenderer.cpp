@@ -127,7 +127,7 @@ public:
 
         XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, AOControllables.m_XeGTAOSettings, (const float*)&mainView.m_ProjectionMatrix.m, bRowMajor, frameCounter);
 
-        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateVolatileConstantBuffer(commandList, GTAOconsts);
+        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, GTAOconsts);
 
         nvrhi::TextureHandle workingDepthBuffer = renderGraph.GetTexture(m_WorkingDepthBufferRDGTextureHandle);
         nvrhi::TextureHandle workingSSAOTexture = renderGraph.GetTexture(m_WorkingSSAORDGTextureHandle);

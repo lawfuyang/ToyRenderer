@@ -174,7 +174,7 @@ public:
             skyPassParameters.m_HosekParams.m_Params[i] = Vector4{ Vector3{ skyParams[i] } };
         }
 
-        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateVolatileConstantBuffer(commandList, skyPassParameters);
+        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, skyPassParameters);
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = 

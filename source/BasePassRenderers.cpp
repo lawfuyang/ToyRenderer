@@ -79,7 +79,7 @@ public:
             basePassConstants.m_DirLightViewProj[i] = scene->m_Views[Scene::EView::CSM0 + i].m_ViewProjectionMatrix;
         }
 
-        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateVolatileConstantBuffer(commandList, basePassConstants);
+        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
 
         // bind and set root signature
         nvrhi::BindingSetDesc bindingSetDesc;
@@ -650,7 +650,7 @@ public:
                 passParameters.m_HZBDimensions = Vector2U{ HZBDesc.width, HZBDesc.height };
                 passParameters.m_HZBMipCount = HZBDesc.mipLevels;
 
-                nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateVolatileConstantBuffer(commandList, passParameters);
+                nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
                 nvrhi::BindingSetDesc bindingSetDesc;
                 bindingSetDesc.bindings = {

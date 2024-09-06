@@ -4,7 +4,6 @@
 #include "extern/ktx_transcoder/basisu_transcoder.h"
 #include "extern/ShaderMake/src/argparse.h"
 #include "nvrhi/d3d12.h"
-#include "nvrhi/utils.h"
 #include "nvrhi/validation.h"
 #include "ShaderMake/ShaderBlob.h"
 
@@ -747,13 +746,6 @@ void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetD
 
     outBindingSetHandle = m_NVRHIDevice->createBindingSet(bindingSetDesc, outLayoutHandle);
     assert(outBindingSetHandle);
-}
-
-nvrhi::BufferHandle Graphic::CreateVolatileConstantBuffer(nvrhi::CommandListHandle commandList, std::string_view debugName, void* srcData, uint32_t sizeOfBuffer)
-{
-    nvrhi::BufferHandle buffer = m_NVRHIDevice->createBuffer(nvrhi::utils::CreateVolatileConstantBufferDesc(sizeOfBuffer, debugName.data(), 1));
-    commandList->writeBuffer(buffer, srcData, sizeOfBuffer);
-    return buffer;
 }
 
 nvrhi::CommandListHandle Graphic::AllocateCommandList(nvrhi::CommandQueue queueType)
