@@ -89,6 +89,8 @@ void GraphicPropertyGrid::UpdateIMGUI()
     if (ImGui::TreeNode("Debug"))
     {
         DebugControllables& params = m_DebugControllables;
+
+        ImGui::SliderInt("FPS Limit", (int*)&params.m_FPSLimit, 0, 240);
         ImGui::Checkbox("Render Debug Draw", &params.m_bRenderDebugDraw);
         ImGui::Checkbox("Render Grid", &params.m_bRenderGrid);
         ImGui::Checkbox("Draw Scene AABB", &params.m_bRenderSceneAABB);

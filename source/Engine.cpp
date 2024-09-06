@@ -5,6 +5,7 @@
 #include "extern/cxxopts/cxxopts.hpp"
 
 #include "Graphic.h"
+#include "GraphicPropertyGrid.h"
 #include "ImguiManager.h"
 #include "Keyboard.h"
 #include "Mouse.h"
@@ -13,7 +14,6 @@
 CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", {1600, 900} };
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
 CommandLineOption<int> g_MaxWorkerThreads{ "maxworkerthreads", 12 };
-CommandLineOption<int> g_FPSLimit{ "fpslimit", 60 };
 
 thread_local uint32_t tl_ThreadID = 0;
 
@@ -165,7 +165,9 @@ void Engine::Shutdown()
 
 static void BusyWaitUntilFPSLimit(Timer& timer)
 {
-    const int fpsLimit = g_FPSLimit.Get();
+    const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
+
+    const uint32_t fpsLimit = debugControllables.m_FPSLimit;
     if (fpsLimit == 0)
         return;
 
@@ -194,13 +196,10 @@ void Engine::MainLoop()
             // consume commands first at the very beginning of the frame
             ConsumeCommands();
 
-            m_Graphic->Update();
-
-            // for the sake of UI & property-editing stability, IMGUI must be the last item to be updated in isolation
+            // for the sake of UI & property-editing stability, IMGUI must be updated in isolation single-threaded
             m_IMGUIManager->Update();
 
-            // must execute all command lists to resolve gpu queries due to gpu profiling macros in any scene loading triggered from IMGUIManager
-            m_Graphic->ExecuteAllCommandLists();
+            m_Graphic->Update();
 
             if (Keyboard::IsKeyPressed(Keyboard::KEY_CTRL) && Keyboard::IsKeyPressed(Keyboard::KEY_SHIFT) && Keyboard::WasKeyPressed(Keyboard::KEY_COMMA))
             {

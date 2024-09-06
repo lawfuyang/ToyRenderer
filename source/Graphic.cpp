@@ -996,7 +996,7 @@ void Graphic::Present()
 {
     PROFILE_FUNCTION();
 
-    const UINT kSyncInterval = 0; // Need to sync CPU frame to this function if we want V-SYNC
+    const UINT kSyncInterval = 0; // 0: no vsync, 1: vsync
 
     // When using sync interval 0, it is recommended to always pass the tearing flag when it is supported.
     const UINT kFlags = (kSyncInterval == 0 && m_bTearingSupported) ? DXGI_PRESENT_ALLOW_TEARING : 0;

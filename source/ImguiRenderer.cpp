@@ -61,26 +61,14 @@ public:
         io.Fonts->TexID = m_FontTexture;
     }
 
-    bool Setup(RenderGraph& renderGraph) override
-    {
-        // return if nothing to draw
-        const IMGUIManager::IMGUIDrawData& drawData = g_IMGUIManager.m_PendingDrawData;
-        if (drawData.m_DrawList.empty())
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    void UploadVertexAndIndexBuffers(nvrhi::CommandListHandle commandList, const IMGUIManager::IMGUIDrawData& drawData)
+    void UploadVertexAndIndexBuffers(nvrhi::CommandListHandle commandList, ImDrawData* drawData)
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
         // VB
         {
-            const uint32_t requiredSize = drawData.m_VtxCount * sizeof(ImDrawVert);
-            const uint32_t reallocateSize = (drawData.m_VtxCount + 5000) * sizeof(ImDrawVert);
+            const uint32_t requiredSize = drawData->TotalVtxCount * sizeof(ImDrawVert);
+            const uint32_t reallocateSize = (drawData->TotalVtxCount + 5000) * sizeof(ImDrawVert);
             if (!m_VertexBuffer || (m_VertexBuffer->getDesc().byteSize < requiredSize))
             {
                 PROFILE_SCOPED("Create Vertex Buffer");
@@ -96,8 +84,8 @@ public:
 
         // IB
         {
-            const uint32_t requiredSize = drawData.m_IdxCount * sizeof(ImDrawIdx);
-            const uint32_t reallocateSize = (drawData.m_IdxCount + 5000) * sizeof(ImDrawIdx);
+            const uint32_t requiredSize = drawData->TotalIdxCount * sizeof(ImDrawIdx);
+            const uint32_t reallocateSize = (drawData->TotalIdxCount + 5000) * sizeof(ImDrawIdx);
 
             if (!m_IndexBuffer || (m_IndexBuffer->getDesc().byteSize < requiredSize))
             {
@@ -115,10 +103,11 @@ public:
         // prep data into linear buffers for upload
         m_Vertices.clear();
         m_Indices.clear();
-        for (const IMGUIManager::IMGUICmdList& cmd_list : drawData.m_DrawList)
+
+        for (ImDrawList* drawList : drawData->CmdLists)
         {
-            m_Vertices.insert(m_Vertices.end(), cmd_list.m_VB.begin(), cmd_list.m_VB.end());
-            m_Indices.insert(m_Indices.end(), cmd_list.m_IB.begin(), cmd_list.m_IB.end());
+            m_Vertices.insert(m_Vertices.end(), drawList->VtxBuffer.begin(), drawList->VtxBuffer.end());
+            m_Indices.insert(m_Indices.end(), drawList->IdxBuffer.begin(), drawList->IdxBuffer.end());
         }
 
         PROFILE_SCOPED("Write Buffers");
@@ -129,7 +118,17 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        const IMGUIManager::IMGUIDrawData& drawData = g_IMGUIManager.m_PendingDrawData;
+        {
+            PROFILE_SCOPED("ImGui::Render");
+            ImGui::Render();
+        }
+
+        ImDrawData* drawData = ImGui::GetDrawData();
+
+        if (drawData->CmdListsCount == 0)
+        {
+            return;
+        }
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
@@ -152,10 +151,10 @@ public:
         // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right).
         IMGUIPassParameters passParameters;
 
-        const float L = drawData.m_Pos.x;
-        const float R = drawData.m_Pos.x + drawData.m_Size.x;
-        const float T = drawData.m_Pos.y;
-        const float B = drawData.m_Pos.y + drawData.m_Size.y;
+        const float L = drawData->DisplayPos.x;
+        const float R = drawData->DisplayPos.x + drawData->DisplaySize.x;
+        const float T = drawData->DisplayPos.y;
+        const float B = drawData->DisplayPos.y + drawData->DisplaySize.y;
 
         Matrix projMatrix
         {
@@ -186,9 +185,9 @@ public:
         // (Because we merged all buffers into a single one, we maintain our own offset into them)
         uint32_t global_vtx_offset = 0;
         uint32_t global_idx_offset = 0;
-        for (const IMGUIManager::IMGUICmdList& cmd_list : drawData.m_DrawList)
+        for (const ImDrawList* drawList : drawData->CmdLists)
         {
-            for (const ImDrawCmd& cmd : cmd_list.m_DrawCmd)
+            for (const ImDrawCmd& cmd : drawList->CmdBuffer)
             {
                 // Apply Scissor, Bind texture, Draw
                 nvrhi::Rect& r = drawState.viewport.scissorRects[0];
@@ -223,8 +222,8 @@ public:
                 commandList->drawIndexed(drawArguments);
 
             }
-            global_idx_offset += (uint32_t)cmd_list.m_IB.size();
-            global_vtx_offset += (uint32_t)cmd_list.m_VB.size();
+            global_idx_offset += (uint32_t)drawList->IdxBuffer.size();
+            global_vtx_offset += (uint32_t)drawList->VtxBuffer.size();
         }
     }
 };

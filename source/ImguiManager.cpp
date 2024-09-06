@@ -163,41 +163,4 @@ void IMGUIManager::Update()
 
         ImGui::EndMainMenuBar();
     }
-
-    // This will back up the render data until the next imgui draw call
-    SaveDrawData();
-}
-
-void IMGUIManager::SaveDrawData()
-{
-    PROFILE_FUNCTION();
-
-    ImGui::Render();
-
-    ImDrawData* imguiDrawData = ImGui::GetDrawData();
-    assert(imguiDrawData);
-
-    IMGUIDrawData newDrawData;
-    newDrawData.m_VtxCount = imguiDrawData->TotalVtxCount;
-    newDrawData.m_IdxCount = imguiDrawData->TotalIdxCount;
-    newDrawData.m_Pos = Vector2{ imguiDrawData->DisplayPos.x, imguiDrawData->DisplayPos.y };
-    newDrawData.m_Size = Vector2{ imguiDrawData->DisplaySize.x, imguiDrawData->DisplaySize.y };
-
-    newDrawData.m_DrawList.resize(imguiDrawData->CmdListsCount);
-    for (int n = 0; n < imguiDrawData->CmdListsCount; n++)
-    {
-        const ImDrawList* cmd_list = imguiDrawData->CmdLists[n];
-
-        // Copy VB and IB
-        newDrawData.m_DrawList[n].m_VB.resize(cmd_list->VtxBuffer.size());
-        memcpy(newDrawData.m_DrawList[n].m_VB.data(), &cmd_list->VtxBuffer[0], cmd_list->VtxBuffer.size() * sizeof(ImDrawVert));
-        newDrawData.m_DrawList[n].m_IB.resize(cmd_list->IdxBuffer.size());
-        memcpy(newDrawData.m_DrawList[n].m_IB.data(), &cmd_list->IdxBuffer[0], cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx));
-
-        // Copy cmdlist params
-        newDrawData.m_DrawList[n].m_DrawCmd.resize(cmd_list->CmdBuffer.size());
-        memcpy(newDrawData.m_DrawList[n].m_DrawCmd.data(), &cmd_list->CmdBuffer[0], cmd_list->CmdBuffer.size() * sizeof(ImDrawCmd));
-    }
-
-    m_PendingDrawData = std::move(newDrawData);
 }
