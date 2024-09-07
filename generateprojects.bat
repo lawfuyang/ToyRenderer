@@ -6,12 +6,6 @@ set start_time=%time%
 rem Change to the directory containing the batch file
 cd /d "%~dp0"
 
-@SET PATH_TO_SRC="%cd%"
-@SET PATH_TO_BUILD="%cd%\projects\ToyRenderer"
-
-@SET PATH_TO_SHADERMAKE_SRC=%PATH_TO_SRC%\extern\ShaderMake
-@SET PATH_TO_SHADERMAKE_BUILD="%cd%\projects\ShaderMake"
-
 rem Search for cmake.exe in the system's PATH
 for /f "delims=" %%a in ('where cmake.exe 2^>nul') do (
     set "CMAKE_PATH="%%a""
@@ -25,20 +19,28 @@ exit /b 1
 :found
 echo Found cmake.exe at %CMAKE_PATH%
 echo:
-
-echo Generating ToyRenderer...
-%CMAKE_PATH% -S %PATH_TO_SRC% -B %PATH_TO_BUILD%
-
-echo:
 echo:
 
-echo Generating ShaderMake...
-%CMAKE_PATH% -S %PATH_TO_SHADERMAKE_SRC% -B %PATH_TO_SHADERMAKE_BUILD%
+rem generate projects
+call :CreateProject "%cd%" "%cd%\projects\ToyRenderer"
+call :CreateProject "%cd%\extern\ShaderMake" "%cd%\projects\ShaderMake"
+goto :AfterGenerateProjects
+
+:CreateProject
+set SRC_PATH="%~1"
+set BUILD_PATH="%~2"
+echo Generating %SRC_PATH%...
+%CMAKE_PATH% -S %SRC_PATH% -B %BUILD_PATH%
+echo:
+echo:
+goto :eof
+
+:AfterGenerateProjects
 
 rem create shortcuts to VS solutions in root folder
 call :CreateSlnShortcut "%cd%\projects\ToyRenderer\ToyRenderer.sln" "%cd%\ToyRenderer.sln.lnk"
 call :CreateSlnShortcut "%cd%\projects\ShaderMake\ShaderMake.sln" "%cd%\ShaderMake.sln.lnk"
-goto :EndOfScript
+goto :AfterCreateSlnShortcuts
 
 :CreateSlnShortcut
 set TargetPath="%~1"
@@ -51,19 +53,15 @@ cscript //nologo CreateShortcut.vbs
 del CreateShortcut.vbs
 goto :eof
 
-:EndOfScript
+:AfterCreateSlnShortcuts
 
 rem Get end time
 set end_time=%time%
 
 rem Calculate elapsed time
-set /a hours=(%end_time:~0,2% - %start_time:~0,2% + 24) %% 24
-set /a minutes=(%end_time:~3,2% - %start_time:~3,2% + 60) %% 60
 set /a seconds=(%end_time:~6,2% - %start_time:~6,2% + 60) %% 60
 set /a milliseconds=(%end_time:~9,2% - %start_time:~9,2% + 100) %% 1000
 
-echo:
-echo:
 echo Elapsed time: %seconds%.%milliseconds% seconds
 
 pause
