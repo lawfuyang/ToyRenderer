@@ -246,7 +246,7 @@ void Visual::InsertPrimitivesToScene()
 {
     Scene* scene = g_Graphic.m_Scene.get();
 
-    const Matrix worldMatrix = m_Node->MakeLocalToWorldMatrix();
+    const Matrix worldMatrix = scene->m_Nodes.at(m_NodeID)->MakeLocalToWorldMatrix();
 
     for (Primitive& p : m_Primitives)
     {
@@ -261,7 +261,7 @@ void Visual::UpdatePrimitivesInScene()
 {
     Scene* scene = g_Graphic.m_Scene.get();
 
-    const Matrix worldMatrix = m_Node->MakeLocalToWorldMatrix();
+    const Matrix worldMatrix = scene->m_Nodes.at(m_NodeID)->MakeLocalToWorldMatrix();
 
     for (Primitive& p : m_Primitives)
     {

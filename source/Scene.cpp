@@ -666,7 +666,7 @@ uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
     const uint32_t proxyIdx = (uint32_t)m_VisualProxies.size();
     VisualProxy& newProxy = m_VisualProxies.emplace_back();
 
-    newProxy.m_NodeID = m_Visuals.at(p->m_VisualIdx)->m_Node->m_ID;
+    newProxy.m_NodeID = m_Visuals.at(p->m_VisualIdx)->m_NodeID;
     newProxy.m_Primitive = p;
     newProxy.m_WorldMatrix = worldMatrix;
     newProxy.m_PrevFrameWorldMatrix = worldMatrix;

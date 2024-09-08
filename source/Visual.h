@@ -68,7 +68,7 @@ public:
     void UpdatePrimitivesInScene();
 
     std::string m_Name = "Un-named Visual";
-    class Node* m_Node = nullptr;
+    uint32_t m_NodeID = UINT_MAX;
     std::vector<Primitive> m_Primitives;
 };
 

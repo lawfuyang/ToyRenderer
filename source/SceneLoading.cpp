@@ -412,7 +412,7 @@ struct GLTFSceneLoader
         if (gltfNode.mesh != -1)
         {
             Visual* newVisual = scene->m_VisualAllocator.NewObject();
-            newVisual->m_Node = newNode;
+            newVisual->m_NodeID = newNodeID;
             newVisual->m_Name = gltfNode.name;
 
             const uint32_t visualIdx = scene->m_Visuals.size();
