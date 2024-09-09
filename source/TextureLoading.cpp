@@ -31,6 +31,12 @@ nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle command
     const uint32_t nbMips = transcoder.get_levels();
     assert(nbMips < basist::KTX2_MAX_SUPPORTED_LEVEL_COUNT);
 
+    // TODO: no ETC support. this ain't mobile :)
+    assert(transcoder.is_uastc());
+
+    // TODO: alpha support
+    const bool bHasAlpha = transcoder.get_has_alpha();
+
     nvrhi::TextureDesc textureDesc;
     textureDesc.format = transcoder.get_dfd_transfer_func() == basist::KTX2_KHR_DF_TRANSFER_LINEAR ? nvrhi::Format::BC7_UNORM : nvrhi::Format::BC7_UNORM_SRGB;
     textureDesc.width = transcoder.get_width();
@@ -43,7 +49,7 @@ nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle command
 
     for (uint32_t mip = 0; mip < nbMips; ++mip)
     {
-        // just whack BC7 for everything according to: https://github.com/KhronosGroup/3D-Formats-Guidelines/blob/main/KTXDeveloperGuide.md
+        // just whack BC7 for everything according to: https://github.com/KhronosGroup/3D-Formats-Guidelines/blob/main/KTXDeveloperGuide.md#primary-transcode-targets
         const basist::transcoder_texture_format kRequestedFormat = basist::transcoder_texture_format::cTFBC7_RGBA;
 
         basist::ktx2_image_level_info levelInfo;
