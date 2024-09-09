@@ -473,10 +473,6 @@ void LoadScene(std::string_view filePath)
 {
     SCOPED_TIMER_FUNCTION();
 
-    // super special path for glb files, because Assimp just doesn't like .glb for some reason
-    std::string fileExt = GetFileExtensionFromPath(filePath);
-    StringUtils::ToLower(fileExt);
-
     GLTFSceneLoader loader;
     loader.LoadScene(filePath);
 
