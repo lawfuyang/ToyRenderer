@@ -24,6 +24,7 @@
 • RenderCaptureInterface::FScopedCapture
 • GPU Driven Base Pass Renderer
 	• support batching of meshes via binning
+        • procedurally spawn random shapes to test
 	• discard empty indirect draw arguments
 • support KHR_mesh_quantization (?)
 • support EXT_meshopt_compression (?)
