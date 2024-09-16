@@ -129,20 +129,27 @@ static void stblkck_internal_print(const char *reason, stb_leakcheck_malloc_info
 
 void stb_leakcheck_dumpmem(void)
 {
-   stb_leakcheck_malloc_info *mi = mi_head;
-   while (mi) {
-      if ((ptrdiff_t) mi->size >= 0)
-         stblkck_internal_print("LEAKED", mi);
-      mi = mi->next;
-   }
-   #ifdef STB_LEAKCHECK_SHOWALL
-   mi = mi_head;
-   while (mi) {
-      if ((ptrdiff_t) mi->size < 0)
-         stblkck_internal_print("FREED ", mi);
-      mi = mi->next;
-   }
-   #endif
+    int nbLeaks = 0;
+
+    stb_leakcheck_malloc_info* mi = mi_head;
+    while (mi) {
+        if ((ptrdiff_t)mi->size >= 0)
+        {
+            stblkck_internal_print("LEAKED", mi);
+            ++nbLeaks;
+        }
+        mi = mi->next;
+    }
+
+    assert(nbLeaks == 0);
+#ifdef STB_LEAKCHECK_SHOWALL
+    mi = mi_head;
+    while (mi) {
+        if ((ptrdiff_t)mi->size < 0)
+            stblkck_internal_print("FREED ", mi);
+        mi = mi->next;
+    }
+#endif
 }
 #endif // STB_LEAKCHECK_IMPLEMENTATION
 
