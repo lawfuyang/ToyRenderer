@@ -51,6 +51,7 @@ void IMGUIManager::ShutDown()
     ::CloseHandle(g_IMGUIContextCreatedEvent);
 
     ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 }
 
 void IMGUIManager::ProcessWindowsMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
