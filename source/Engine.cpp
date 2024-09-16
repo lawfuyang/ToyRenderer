@@ -160,11 +160,6 @@ void Engine::Shutdown()
 
 	MicroProfileShutdown();
 
-    CommandLineOption<bool>::ms_CachedArgs.clear();
-    CommandLineOption<int>::ms_CachedArgs.clear();
-    CommandLineOption<float>::ms_CachedArgs.clear();
-    CommandLineOption<std::vector<int>>::ms_CachedArgs.clear();
-
 	// check for any leftover dxgi stuff
 	ComPtr<IDXGIDebug1> dxgiDebug;
 	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
@@ -378,6 +373,8 @@ void Engine::RunEngineWindowThread()
 
 struct LeakDetector
 {
+    inline static long ms_BreakAllocValue = -1;
+
     LeakDetector()
     {
         int flag = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
@@ -387,7 +384,7 @@ struct LeakDetector
         _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
         _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
         // Change this to leaking allocation's number to break there
-        _CrtSetBreakAlloc(-1);
+        _CrtSetBreakAlloc(ms_BreakAllocValue);
     }
 
 	~LeakDetector()
@@ -395,11 +392,20 @@ struct LeakDetector
 		_CrtDumpMemoryLeaks();
 	}
 };
-static LeakDetector gs_LeakDetector;
-#endif
+#endif // _DEBUG
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
+#if _DEBUG
+    {
+        cxxopts::Options options{ __argv[0], "Argument Parser" };
+        options.allow_unrecognised_options();
+        options.add_options() ("breakallocvalue", "", cxxopts::value(LeakDetector::ms_BreakAllocValue));
+        options.parse(__argc, (const char**)__argv);
+    }
+    LeakDetector leakDetector;
+#endif // _DEBUG
+
     Engine e;
     e.Initialize();
     e.MainLoop();

@@ -45,49 +45,27 @@ const char* GetLastErrorAsString()
 
 const char* GetExecutableDirectory()
 {
-    static char path[512];
-
-    static bool bInitializePath = [&]()
+    static std::string path = []
         {
-            GetModuleFileNameA(NULL, path, sizeof(path));
-            std::filesystem::path tmp{ path };
-            tmp = tmp.parent_path().string();
-            strcpy_s(path, sizeof(path), tmp.string().c_str());
+            char buffer[512];
+            GetModuleFileNameA(NULL, buffer, sizeof(buffer));
 
-            return true;
+            std::filesystem::path path = buffer;
+            return path.parent_path().string();
         }();
-
-    return path;
+    return path.c_str();
 }
 
 const char* GetApplicationDirectory()
 {
-    static char path[512];
-
-    static bool bInitializePath = [&]()
-        {
-            std::string s = std::filesystem::current_path().string();
-            strcpy_s(path, sizeof(path), s.c_str());
-
-            return true;
-        }();
-
-    return path;
+    static std::string s = std::filesystem::current_path().string();
+    return s.c_str();
 }
 
 const char* GetResourceDirectory()
 {
-    static char path[512];
-
-    static bool bInitializePath = [&]()
-        {
-            std::string s = (std::filesystem::path{ GetApplicationDirectory() }.parent_path() / "resources").string();
-            strcpy_s(path, sizeof(path), s.c_str());
-
-            return true;
-        }();
-
-    return path;
+    static std::string s = (std::filesystem::path{ GetApplicationDirectory() }.parent_path() / "resources").string();
+    return s.c_str();
 }
 
 void GetFilesInDirectory(std::vector<std::string>& out, std::string_view directory, const char* extFilter)
