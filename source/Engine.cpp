@@ -70,7 +70,7 @@ void Engine::Initialize()
 
         LOG_DEBUG("Windows Developer Mode: [%d]", m_bDeveloperModeEnabled);
     }
-    
+
     ParseCommandlineArguments();
 
     // init background engine window thread for message windows pump
@@ -159,6 +159,11 @@ void Engine::Shutdown()
 	m_EngineWindowThread.join();
 
 	MicroProfileShutdown();
+
+    CommandLineOption<bool>::ms_CachedArgs.clear();
+    CommandLineOption<int>::ms_CachedArgs.clear();
+    CommandLineOption<float>::ms_CachedArgs.clear();
+    CommandLineOption<std::vector<int>>::ms_CachedArgs.clear();
 
 	// check for any leftover dxgi stuff
 	ComPtr<IDXGIDebug1> dxgiDebug;
@@ -367,6 +372,31 @@ void Engine::RunEngineWindowThread()
 
     LOG_DEBUG("Leaving Engine Window Thread");
 }
+
+#if _DEBUG
+#include <crtdbg.h>
+
+struct LeakDetector
+{
+    LeakDetector()
+    {
+        int flag = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
+        flag |= _CRTDBG_LEAK_CHECK_DF;
+        flag |= _CRTDBG_ALLOC_MEM_DF;
+        _CrtSetDbgFlag(flag);
+        _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+        _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+        // Change this to leaking allocation's number to break there
+        _CrtSetBreakAlloc(-1);
+    }
+
+	~LeakDetector()
+    {
+		_CrtDumpMemoryLeaks();
+	}
+};
+static LeakDetector gs_LeakDetector;
+#endif
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
