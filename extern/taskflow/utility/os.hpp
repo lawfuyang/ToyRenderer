@@ -145,7 +145,7 @@ inline std::string get_env(const std::string& str) {
 
   if(_dupenv_s(&ptr, &len, str.c_str()) == 0 && ptr != nullptr) {
     std::string res(ptr, len);
-    std::free(ptr);
+    free(ptr); // [rlaw] 'std::'
     return res;
   }
   return "";
@@ -164,7 +164,7 @@ inline bool has_env(const std::string& str) {
 
   if(_dupenv_s(&ptr, &len, str.c_str()) == 0 && ptr != nullptr) {
     std::string res(ptr, len);
-    std::free(ptr);
+    free(ptr); // [rlaw]: remove 'std::'
     return true;
   }
   return false;

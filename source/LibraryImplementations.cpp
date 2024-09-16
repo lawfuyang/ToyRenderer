@@ -4,9 +4,6 @@
     #include "extern/stb/stb_image.h"
 #pragma warning(pop)
 
-#define DEBUG_DRAW_IMPLEMENTATION
-#include "extern/debug_draw/debug_draw.hpp"
-
 // NOTE: must include this before tiny_gltf, due to 'TINYGLTF_IMPLEMENTATION'
 #include "extern/json/json.hpp"
 

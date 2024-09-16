@@ -119,12 +119,14 @@ void OctTree::Clear()
 {
     m_Objects.clear();
 
-    for (OctTree* child : m_Children)
+    for (OctTree*& child : m_Children)
     {
         if (child)
         {
             child->Clear();
         }
+
+        child = nullptr;
     }
 }
 

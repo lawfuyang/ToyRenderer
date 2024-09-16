@@ -24,12 +24,15 @@
 #include <stddef.h>
 typedef struct malloc_info stb_leakcheck_malloc_info;
 
+#include "Callstack.h" // [rlaw]
+
 struct malloc_info
 {
    const char *file;
    int line;
    size_t size;
    stb_leakcheck_malloc_info *next,*prev;
+   Callstack<6> callstack; // [rlaw]
 };
 
 static stb_leakcheck_malloc_info *mi_head;
@@ -46,6 +49,9 @@ void *stb_leakcheck_malloc(size_t sz, const char *file, int line)
    mi->prev = NULL;
    mi->size = (int) sz;
    mi_head = mi;
+
+   mi->callstack.Trace(); // [rlaw]
+
    return mi+1;
 }
 
@@ -95,6 +101,8 @@ void *stb_leakcheck_realloc(void *ptr, size_t sz, const char *file, int line)
 
 static void stblkck_internal_print(const char *reason, stb_leakcheck_malloc_info *mi)
 {
+    mi->callstack.Resolve(); // [rlaw]
+
 #if defined(_MSC_VER) && _MSC_VER < 1900 // 1900=VS 2015
    // Compilers that use the old MS C runtime library don't have %zd
    // and the older ones don't even have %lld either... however, the old compilers
@@ -110,7 +118,11 @@ static void stblkck_internal_print(const char *reason, stb_leakcheck_malloc_info
    #ifdef __MINGW32__
       __mingw_fprintf(STB_LEAKCHECK_OUTPUT_PIPE, "%s: %s (%4d): %zd bytes at %p\n", reason, mi->file, mi->line, mi->size, (void*)(mi+1));
    #else
-      fprintf(STB_LEAKCHECK_OUTPUT_PIPE, "%s: %s (%4d): %zd bytes at %p\n", reason, mi->file, mi->line, mi->size, (void*)(mi+1));
+      //fprintf(STB_LEAKCHECK_OUTPUT_PIPE, "%s: %s (%4d): %zd bytes at %p\n", reason, mi->file, mi->line, mi->size, (void*)(mi+1));
+
+    // [rlaw] - Output to OutputDebugString
+    std::string buffer = StringFormatBig("%s: %s (%4d): %zd bytes at %p\nCallstack:%s\n", reason, mi->file, mi->line, mi->size, (void*)(mi + 1), mi->callstack.ToString().c_str());
+    OutputDebugString(buffer.c_str());
    #endif
 #endif
 }

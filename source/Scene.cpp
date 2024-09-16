@@ -769,16 +769,8 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
 
 void Scene::Shutdown()
 {
+    // must explicitly clear octtree before m_OctTreeAllocator destructs
     m_OctTree.Clear();
-
-    m_OctTreeAllocator.DeleteAll();
-    m_OctTreeNodeAllocator.DeleteAll();
-
-    m_Nodes.clear();
-    m_Visuals.clear();
-    
-    m_VisualAllocator.DeleteAll();
-    m_NodeAllocator.DeleteAll();
 }
 
 void Scene::UpdateIMGUIPropertyGrid()

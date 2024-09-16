@@ -33,6 +33,12 @@
 #include <windowsx.h>
 #include <wrl.h>
 
+#define ENABLE_MEM_LEAK_DETECTION _DEBUG && 1
+
+#if ENABLE_MEM_LEAK_DETECTION
+#include "extern/stb/stb_leakcheck.h"
+#endif
+
 #define PRAGMA_OPTIMIZE_OFF __pragma(optimize("",off))
 #define PRAGMA_OPTIMIZE_ON  __pragma(optimize("", on))
 

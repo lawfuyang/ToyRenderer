@@ -227,10 +227,11 @@ namespace astc_helpers
 
 	struct dequant_table
 	{
-		basisu::vector<uint8_t> m_val_to_ise;	// [0-255] or [0-64] value to nearest ISE symbol, array size is [256] or [65]
-		basisu::vector<uint8_t> m_ISE_to_val;	// ASTC encoded ISE symbol to [0,255] or [0,64] value, [levels]
-		basisu::vector<uint8_t> m_ISE_to_rank;	// returns the level rank index given an ISE symbol, [levels]
-		basisu::vector<uint8_t> m_rank_to_ISE;  // returns the ISE symbol given a level rank, inverse of pISE_to_rank, [levels]		
+		// [rlaw]: change from basisu::vector to std::vector due to memory leaks
+		std::vector<uint8_t> m_val_to_ise;	// [0-255] or [0-64] value to nearest ISE symbol, array size is [256] or [65]
+		std::vector<uint8_t> m_ISE_to_val;	// ASTC encoded ISE symbol to [0,255] or [0,64] value, [levels]
+		std::vector<uint8_t> m_ISE_to_rank;	// returns the level rank index given an ISE symbol, [levels]
+		std::vector<uint8_t> m_rank_to_ISE;  // returns the ISE symbol given a level rank, inverse of pISE_to_rank, [levels]		
 
 		void init(bool weight_flag, uint32_t num_levels, bool init_rank_tabs)
 		{

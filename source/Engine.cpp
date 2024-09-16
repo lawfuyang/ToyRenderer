@@ -368,49 +368,27 @@ void Engine::RunEngineWindowThread()
     LOG_DEBUG("Leaving Engine Window Thread");
 }
 
-#define ENABLE_CRT_LEAK_DETECTION _DEBUG && 0
+#if ENABLE_MEM_LEAK_DETECTION
 
-#if ENABLE_CRT_LEAK_DETECTION
-#include <crtdbg.h>
+#define STB_LEAKCHECK_IMPLEMENTATION
+#include "extern/stb/stb_leakcheck.h"
 
 struct LeakDetector
 {
-    inline static long ms_BreakAllocValue = -1;
-
-    LeakDetector()
-    {
-        int flag = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
-        flag |= _CRTDBG_LEAK_CHECK_DF;
-        flag |= _CRTDBG_ALLOC_MEM_DF;
-        _CrtSetDbgFlag(flag);
-        _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-        _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-        // Change this to leaking allocation's number to break there
-        _CrtSetBreakAlloc(ms_BreakAllocValue);
-    }
-
 	~LeakDetector()
     {
-		_CrtDumpMemoryLeaks();
+        stb_leakcheck_dumpmem();
 	}
 };
-#endif // ENABLE_CRT_LEAK_DETECTION
+static LeakDetector gs_LeakDetector;
+#endif // ENABLE_MEM_LEAK_DETECTION
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
-#if ENABLE_CRT_LEAK_DETECTION
-    {
-        cxxopts::Options options{ __argv[0], "Argument Parser" };
-        options.allow_unrecognised_options();
-        options.add_options() ("breakallocvalue", "", cxxopts::value(LeakDetector::ms_BreakAllocValue));
-        options.parse(__argc, (const char**)__argv);
-    }
-    static LeakDetector leakDetector;
-#endif // ENABLE_CRT_LEAK_DETECTION
-
     Engine e;
     e.Initialize();
     e.MainLoop();
     e.Shutdown();
+
     return 0;
 }

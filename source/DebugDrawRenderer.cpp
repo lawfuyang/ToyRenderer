@@ -1,5 +1,8 @@
 #include "Graphic.h"
 
+#define DD_MALLOC malloc
+#define DD_MFREE  free
+#define DEBUG_DRAW_IMPLEMENTATION
 #include "extern/debug_draw/debug_draw.hpp"
 
 #include "CommonResources.h"
