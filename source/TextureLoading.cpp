@@ -1,4 +1,6 @@
 #include "extern/ktx_transcoder/basisu_transcoder.h"
+
+#define STB_IMAGE_IMPLEMENTATION
 #include "extern/stb/stb_image.h"
 
 #include "Engine.h"

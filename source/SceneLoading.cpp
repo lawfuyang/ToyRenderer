@@ -1,4 +1,7 @@
+// NOTE: must include this before tiny_gltf, due to 'TINYGLTF_IMPLEMENTATION'
 #include "extern/json/json.hpp"
+
+#define TINYGLTF_IMPLEMENTATION
 #include "extern/json/tiny_gltf.h"
 
 #include "CommonResources.h"
