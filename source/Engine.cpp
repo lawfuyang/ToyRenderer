@@ -368,7 +368,9 @@ void Engine::RunEngineWindowThread()
     LOG_DEBUG("Leaving Engine Window Thread");
 }
 
-#if _DEBUG
+#define ENABLE_CRT_LEAK_DETECTION _DEBUG && 0
+
+#if ENABLE_CRT_LEAK_DETECTION
 #include <crtdbg.h>
 
 struct LeakDetector
@@ -392,19 +394,19 @@ struct LeakDetector
 		_CrtDumpMemoryLeaks();
 	}
 };
-#endif // _DEBUG
+#endif // ENABLE_CRT_LEAK_DETECTION
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
-#if _DEBUG
+#if ENABLE_CRT_LEAK_DETECTION
     {
         cxxopts::Options options{ __argv[0], "Argument Parser" };
         options.allow_unrecognised_options();
         options.add_options() ("breakallocvalue", "", cxxopts::value(LeakDetector::ms_BreakAllocValue));
         options.parse(__argc, (const char**)__argv);
     }
-    LeakDetector leakDetector;
-#endif // _DEBUG
+    static LeakDetector leakDetector;
+#endif // ENABLE_CRT_LEAK_DETECTION
 
     Engine e;
     e.Initialize();
