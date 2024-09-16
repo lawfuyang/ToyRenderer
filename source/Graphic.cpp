@@ -896,11 +896,13 @@ void Graphic::Shutdown()
     for (uint32_t i = 0; i < (uint32_t)nvrhi::CommandQueue::Count; i++)
     {
         m_AllCommandLists[i].clear();
+		m_FreeCommandLists[i].clear();
     }
 
     m_FrameTimerQuery.Reset();
 
     // Make sure that all frames have finished rendering & garbage collect
+    m_NVRHIDevice->waitForIdle();
     m_NVRHIDevice->runGarbageCollection();
 
     MicroProfileGpuShutdown();
