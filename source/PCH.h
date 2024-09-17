@@ -33,7 +33,7 @@
 #include <windowsx.h>
 #include <wrl.h>
 
-#define ENABLE_MEM_LEAK_DETECTION _DEBUG && 1
+#define ENABLE_MEM_LEAK_DETECTION _DEBUG && 0
 
 #if ENABLE_MEM_LEAK_DETECTION
 #include "extern/stb/stb_leakcheck.h"
