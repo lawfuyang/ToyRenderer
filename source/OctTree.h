@@ -1,7 +1,6 @@
 #pragma once
 
 #include "MathUtilities.h"
-#include "ObjectPool.h"
 #include "CriticalSection.h"
 
 class OctTree
@@ -16,8 +15,6 @@ public:
 
         uint32_t m_ArrayIdx = (uint32_t)-1;
     };
-
-    ~OctTree() { Clear(); }
 
     void Insert(Node* obj);
     void Remove(Node* obj);
@@ -40,8 +37,6 @@ public:
 
     MultithreadDetector m_MultithreadDetector;
 
-    DynamicObjectPool<OctTree>* m_Allocator = nullptr;
-
     AABB m_AABB;
     uint32_t m_Level = 0;
     OctTree* m_Parent = nullptr;
@@ -55,7 +50,7 @@ public:
         // +x, -y, +z
         // +x, +y, -z
         // +x, +y, +z
-    OctTree* m_Children[kNbChildren]{};
+    std::shared_ptr<OctTree> m_Children[kNbChildren];
 
     std::vector<Node*> m_Objects;
 };

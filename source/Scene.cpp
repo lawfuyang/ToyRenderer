@@ -314,8 +314,6 @@ void Scene::Initialize()
 
     g_Engine.m_Executor->corun(tf);
 
-    m_OctTree.m_Allocator = &m_OctTreeAllocator;
-
     m_RenderGraph = std::make_shared<RenderGraph>();
 
     CalculateCSMSplitDistances();
@@ -769,8 +767,6 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
 
 void Scene::Shutdown()
 {
-    // must explicitly clear octtree before m_OctTreeAllocator destructs
-    m_OctTree.Clear();
 }
 
 void Scene::UpdateIMGUIPropertyGrid()

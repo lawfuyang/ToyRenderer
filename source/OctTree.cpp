@@ -82,7 +82,7 @@ static void GetObjectsInBoundInternal(const OctTree& octTree, const BoundingVolu
         foundObjects.insert(foundObjects.end(), octTree.m_Objects.begin(), octTree.m_Objects.end());
     }
 
-    for (OctTree* leaf : octTree.m_Children)
+    for (const std::shared_ptr<OctTree>& leaf : octTree.m_Children)
     {
         if (!leaf)
         {
@@ -107,7 +107,7 @@ uint32_t OctTree::TotalObjects() const
 {
     uint32_t total = (uint32_t)m_Objects.size();
 
-    for (OctTree* child : m_Children)
+    for (const std::shared_ptr<OctTree>& child : m_Children)
     {
         total += child ? child->TotalObjects() : 0;
     }
@@ -119,7 +119,7 @@ void OctTree::Clear()
 {
     m_Objects.clear();
 
-    for (OctTree*& child : m_Children)
+    for (std::shared_ptr<OctTree>& child : m_Children)
     {
         if (child)
         {
@@ -132,8 +132,6 @@ void OctTree::Clear()
 
 void OctTree::Subdivide()
 {
-    assert(m_Allocator);
-
     for (uint32_t i = 0; i < kNbChildren; ++i)
     {
         static const Vector3 kOctExtentsMultiplier[kNbChildren] =
@@ -151,8 +149,7 @@ void OctTree::Subdivide()
         Vector3 newOctExtents = m_AABB.Extents * Vector3{ 0.5f };
         Vector3 newOctCenter = m_AABB.Center + newOctExtents * Vector3{ kOctExtentsMultiplier[i] };
 
-        m_Children[i] = m_Allocator->NewObject();
-        m_Children[i]->m_Allocator = m_Allocator;
+        m_Children[i] = std::make_shared<OctTree>();
         m_Children[i]->m_AABB = AABB{ newOctCenter, newOctExtents };
         m_Children[i]->m_Level = m_Level + 1;
         m_Children[i]->m_Parent = this;
@@ -166,7 +163,7 @@ void OctTree::DiscardEmptyBuckets()
         return;
     }
 
-    for (OctTree* child : m_Children)
+    for (const std::shared_ptr<OctTree>& child : m_Children)
     {
         if (child && (!child->IsLeaf() || !child->m_Objects.empty()))
         {
@@ -184,11 +181,11 @@ void OctTree::DiscardEmptyBuckets()
 
 OctTree* OctTree::GetChild(const AABB& bound) const
 {
-    for (OctTree* child : m_Children)
+    for (const std::shared_ptr<OctTree>& child : m_Children)
     {
         if (child && child->m_AABB.Contains(bound) == DirectX::ContainmentType::CONTAINS)
         {
-            return child;
+            return child.get();
         }
     }
 
@@ -198,7 +195,7 @@ OctTree* OctTree::GetChild(const AABB& bound) const
 bool OctTree::IsLeaf() const
 {
     bool bIsLeaf = true;
-    for (OctTree* leaf : m_Children)
+    for (const std::shared_ptr<OctTree>& leaf : m_Children)
     {
         if (leaf)
         {
@@ -213,7 +210,7 @@ void OctTree::ForEachOctTree(void(*func)(const OctTree&))
 {
     func(*this);
 
-    for (OctTree* leaf : m_Children)
+    for (const std::shared_ptr<OctTree>& leaf : m_Children)
     {
         if (leaf)
         {

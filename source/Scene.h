@@ -8,6 +8,7 @@
 #include "TileRenderingHelper.h"
 #include "Utilities.h"
 #include "Visual.h"
+#include "ObjectPool.h"
 
 class Primitive;
 class RenderGraph;
@@ -113,7 +114,6 @@ public:
     std::vector<Visual> m_Visuals;
 
     OctTree m_OctTree;
-    DynamicObjectPool<OctTree> m_OctTreeAllocator;
 
     std::vector<OctTree::Node*> m_OctTreeNodes;
     DynamicObjectPool<OctTree::Node> m_OctTreeNodeAllocator;

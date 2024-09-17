@@ -455,17 +455,7 @@ DynamicObjectPool<T>::DynamicObjectPool(index_t entries_per_block)
 template <typename T>
 DynamicObjectPool<T>::~DynamicObjectPool()
 {
-    // [rlaw]: destruct & free all blocks. Why the fuck didnt it do that?
-
     //assert(CalcStats().num_allocations == 0);
-
-    DeleteAll();
-
-    for (BlockInfo* p_info = block_info_, *p_end = block_info_ + num_blocks_; p_info != p_end; ++p_info)
-    {
-        Block::destroy(p_info->block_);
-        free(p_info);
-    }
 }
 
 template <typename T>
