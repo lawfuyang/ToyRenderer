@@ -246,7 +246,7 @@ void Visual::InsertPrimitivesToScene()
 {
     Scene* scene = g_Graphic.m_Scene.get();
 
-    const Matrix worldMatrix = scene->m_Nodes.at(m_NodeID)->MakeLocalToWorldMatrix();
+    const Matrix worldMatrix = scene->m_Nodes.at(m_NodeID).MakeLocalToWorldMatrix();
 
     for (Primitive& p : m_Primitives)
     {
@@ -261,7 +261,7 @@ void Visual::UpdatePrimitivesInScene()
 {
     Scene* scene = g_Graphic.m_Scene.get();
 
-    const Matrix worldMatrix = scene->m_Nodes.at(m_NodeID)->MakeLocalToWorldMatrix();
+    const Matrix worldMatrix = scene->m_Nodes.at(m_NodeID).MakeLocalToWorldMatrix();
 
     for (Primitive& p : m_Primitives)
     {
@@ -327,14 +327,14 @@ void Node::UpdateIMGUI()
 
         for (uint32_t childrenNodeID : m_ChildrenNodeIDs)
         {
-			Node* child = scene->m_Nodes.at(childrenNodeID);
+			Node& child = scene->m_Nodes.at(childrenNodeID);
 
-            if (child->m_VisualIdx == UINT_MAX)
+            if (child.m_VisualIdx == UINT_MAX)
             {
                 continue;
             }
 
-            scene->m_Visuals.at(child->m_VisualIdx)->UpdatePrimitivesInScene();
+            scene->m_Visuals.at(child.m_VisualIdx)->UpdatePrimitivesInScene();
         }
     }
 }
@@ -350,7 +350,7 @@ Matrix Node::MakeLocalToWorldMatrix() const
 
     if (m_ParentNodeID != UINT_MAX)
     {
-        worldMatrix *= g_Graphic.m_Scene->m_Nodes.at(m_ParentNodeID)->MakeLocalToWorldMatrix();
+        worldMatrix *= g_Graphic.m_Scene->m_Nodes.at(m_ParentNodeID).MakeLocalToWorldMatrix();
     }
 
     return worldMatrix;
@@ -358,14 +358,13 @@ Matrix Node::MakeLocalToWorldMatrix() const
 
 uint32_t g_CurrentlySelectedNodeID = UINT_MAX;
 
-static void NodeIMGUIWidget(Node* node, bool bIsNodeList)
+static void NodeIMGUIWidget(Node& node, bool bIsNodeList)
 {
-    assert(node);
-    assert(node->m_ID != UINT_MAX);
+    assert(node.m_ID != UINT_MAX);
 
-    ImGui::PushID(node->m_ID);
+    ImGui::PushID(node.m_ID);
 
-    const char* nodeName = StringFormat("%s (ID: %d)", node->m_Name.c_str(), node->m_ID);
+    const char* nodeName = StringFormat("%s (ID: %d)", node.m_Name.c_str(), node.m_ID);
 
     // only print node name on "top bar"
     if (!bIsNodeList)
@@ -374,9 +373,9 @@ static void NodeIMGUIWidget(Node* node, bool bIsNodeList)
     }
 
     // selectable text button
-    else if (ImGui::Selectable(nodeName, g_CurrentlySelectedNodeID == node->m_ID))
+    else if (ImGui::Selectable(nodeName, g_CurrentlySelectedNodeID == node.m_ID))
     {
-        g_CurrentlySelectedNodeID = node->m_ID;
+        g_CurrentlySelectedNodeID = node.m_ID;
     }
 
     ImGui::PopID();
@@ -392,9 +391,9 @@ static void RenderIMGUINodeList()
 
     std::vector<Node*> s_FinalFilteredNodes;
 
-    std::vector<Node*> allNodes = g_Graphic.m_Scene->m_Nodes;
+    std::vector<Node>& allNodes = g_Graphic.m_Scene->m_Nodes;
 
-    for (Node* node : allNodes)
+    for (Node& node : allNodes)
     {
         bool bPassFilter = false;
 
@@ -404,7 +403,7 @@ static void RenderIMGUINodeList()
             std::string loweredSearchTxt = s_NodeNameSearchText;
             StringUtils::ToLower(loweredSearchTxt);
 
-            std::string nodeNameLowered = node->m_Name;
+            std::string nodeNameLowered = node.m_Name;
             StringUtils::ToLower(nodeNameLowered);
 
             if (nodeNameLowered.find(loweredSearchTxt.c_str()) != std::string::npos)
@@ -419,7 +418,7 @@ static void RenderIMGUINodeList()
 
         if (bPassFilter)
         {
-            s_FinalFilteredNodes.push_back(node);
+            s_FinalFilteredNodes.push_back(&node);
         }
     }
 
@@ -429,7 +428,7 @@ static void RenderIMGUINodeList()
     {
         for (Node* node : s_FinalFilteredNodes)
         {
-            NodeIMGUIWidget(node, true);
+            NodeIMGUIWidget(*node, true);
         }
     }
     ImGui::EndChild();
@@ -447,13 +446,13 @@ static void RenderEditorForCurrentlySelectedNode()
 
     Scene* scene = g_Graphic.m_Scene.get();
 
-    Node* currentlySelectedNode = scene->m_Nodes.at(g_CurrentlySelectedNodeID);
+    Node& currentlySelectedNode = scene->m_Nodes.at(g_CurrentlySelectedNodeID);
 
     NodeIMGUIWidget(currentlySelectedNode, false);
 
-    const Matrix worldMatrix = currentlySelectedNode->MakeLocalToWorldMatrix();
+    const Matrix worldMatrix = currentlySelectedNode.MakeLocalToWorldMatrix();
 
-    const AABB& aabb = MakeLocalToWorldAABB(currentlySelectedNode->m_AABB, worldMatrix);
+    const AABB& aabb = MakeLocalToWorldAABB(currentlySelectedNode.m_AABB, worldMatrix);
 
     //We not need to divise scale because it's based on the half extention of the AABB
     const Vector3 aabbMins = Vector3{ aabb.Center } - Vector3{ aabb.Extents };
@@ -462,11 +461,11 @@ static void RenderEditorForCurrentlySelectedNode()
 
     ImGui::PushID(g_CurrentlySelectedNodeID);
 
-    if (currentlySelectedNode->m_VisualIdx != UINT_MAX)
+    if (currentlySelectedNode.m_VisualIdx != UINT_MAX)
     {
         ImGui::Indent(30.f);
         ImGui::PushID("Widget");
-		scene->m_Visuals.at(currentlySelectedNode->m_VisualIdx)->UpdateIMGUI();
+		scene->m_Visuals.at(currentlySelectedNode.m_VisualIdx)->UpdateIMGUI();
         ImGui::PopID();
         ImGui::Unindent(30.f);
     }

@@ -860,11 +860,11 @@ void Scene::OnSceneLoad()
     m_OctTree.m_AABB.Center = m_AABB.Center;
     m_OctTree.m_AABB.Extents = m_AABB.Extents;
 
-    for (Node* node : m_Nodes)
+    for (Node& node : m_Nodes)
     {
-        if (node->m_VisualIdx != UINT_MAX)
+        if (node.m_VisualIdx != UINT_MAX)
         {
-            m_Visuals.at(node->m_VisualIdx)->OnSceneLoad();
+            m_Visuals.at(node.m_VisualIdx)->OnSceneLoad();
         }
     }
 

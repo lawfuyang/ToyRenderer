@@ -111,8 +111,7 @@ public:
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
 
-    std::vector<Node*> m_Nodes;
-    DynamicObjectPool<Node> m_NodeAllocator;
+    std::vector<Node> m_Nodes;
 
     std::vector<Visual*> m_Visuals;
     DynamicObjectPool<Visual> m_VisualAllocator;

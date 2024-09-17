@@ -396,7 +396,7 @@ struct GLTFSceneLoader
         Scene* scene = g_Graphic.m_Scene.get();
         const uint32_t newNodeID = scene->m_Nodes.size();
 
-        Node* newNode = scene->m_NodeAllocator.NewObject();
+        Node* newNode = &scene->m_Nodes.emplace_back();
         newNode->m_ID = newNodeID;
         newNode->m_Name = gltfNode.name;
         newNode->m_Position = translation;
@@ -408,8 +408,6 @@ struct GLTFSceneLoader
             newNode->m_ParentNodeID = parent->m_ID;
             parent->m_ChildrenNodeIDs.push_back(newNodeID);
         }
-
-        scene->m_Nodes.push_back(newNode);
 
         // if a node does not have a mesh, it's simply an node with no Visual
         if (gltfNode.mesh != -1)
