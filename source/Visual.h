@@ -3,7 +3,8 @@
 #include "nvrhi/nvrhi.h"
 
 #include "MathUtilities.h"
-#include "OctTree.h"
+
+#include "shaders/shared/RawVertexFormat.h"
 
 class Mesh;
 
@@ -22,6 +23,30 @@ public:
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;
     nvrhi::SamplerAddressMode m_AddressMode = nvrhi::SamplerAddressMode::Wrap;
+};
+
+class Mesh
+{
+public:
+    void Initialize(std::span<const RawVertexFormat> rawVertices, std::span<const uint32_t> indices, std::string_view meshName);
+
+    static std::size_t HashVertices(std::span<const RawVertexFormat> vertices);
+
+    bool IsValid() const;
+
+    std::size_t m_Hash = 0;
+    uint32_t m_Idx = UINT_MAX;
+
+    uint32_t m_NbVertices = 0;
+    uint32_t m_NbIndices = 0;
+
+    uint32_t m_StartVertexLocation = UINT_MAX;
+    uint32_t m_StartIndexLocation = UINT_MAX;
+
+    uint32_t m_MeshDataBufferIdx = UINT_MAX;
+
+    AABB m_AABB = { Vector3::Zero, Vector3::Zero };
+    Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
 };
 
 // TODO: throw to its own file if it gets too big

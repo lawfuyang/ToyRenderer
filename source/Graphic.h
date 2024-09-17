@@ -11,7 +11,7 @@
 #include "Allocators.h"
 #include "CriticalSection.h"
 #include "MathUtilities.h"
-#include "Mesh.h"
+#include "Visual.h"
 
 class CommonResources;
 class DescriptorTableManager;
