@@ -185,7 +185,7 @@ void View::GatherVisibleVisualProxies()
 
     if (m_bIsPerspective)
     {
-        scene->m_OctTree.GetObjectsInBound(m_Frustum, visibleNodes, bFineGrainCulling);
+        scene->m_OctTreeRoot.m_Root.GetObjectsInBound(m_Frustum, visibleNodes, bFineGrainCulling);
     }
     else
     {
@@ -196,13 +196,13 @@ void View::GatherVisibleVisualProxies()
         OBB cascadeOBB;
         OBB::CreateFromPoints(cascadeOBB, std::size(cascadeCorners), (DirectX::XMFLOAT3*)cascadeCorners, sizeof(Vector3));
 
-        scene->m_OctTree.GetObjectsInBound(cascadeOBB, visibleNodes, bFineGrainCulling);
+        scene->m_OctTreeRoot.m_Root.GetObjectsInBound(cascadeOBB, visibleNodes, bFineGrainCulling);
     }
 
     // get visible proxy indices
     for (OctTree::Node* node : visibleNodes)
     {
-        m_FrustumVisibleVisualProxiesIndices.push_back((uint32_t)node->m_Data);
+        m_FrustumVisibleVisualProxiesIndices.push_back(node->m_Data);
     }
 }
 
@@ -493,10 +493,10 @@ void Scene::RenderOctTreeDebug()
             const ddVec3 textScreenCenter{ strViewportPos.x, strViewportPos.y, 0.0f };
 
             // Level : Nb Primitives
-            dd::screenText(StringFormat("[%d]:[%d]", OctTree.m_Level, OctTree.m_Objects.size()), textScreenCenter, dd::colors::White);
+            dd::screenText(StringFormat("[%d]:[%d]", OctTree.m_Level, OctTree.m_NodeIndices.size()), textScreenCenter, dd::colors::White);
         };
 
-    m_OctTree.ForEachOctTree(DebugDrawOctTree);
+    m_OctTreeRoot.m_Root.ForEachOctTree(DebugDrawOctTree);
 }
 
 void Scene::UpdatePicking()
@@ -669,15 +669,14 @@ uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
     newProxy.m_WorldMatrix = worldMatrix;
     newProxy.m_PrevFrameWorldMatrix = worldMatrix;
 
-    const uint32_t nodeIdx = m_OctTreeNodes.size();
-    OctTree::Node* newOctTreeNode = m_OctTreeNodeAllocator.NewObject();
-	m_OctTreeNodes.push_back(newOctTreeNode);
+    const uint32_t nodeIdx = m_OctTreeRoot.m_OctTreeNodes.size();
+    OctTree::Node& newOctTreeNode = m_OctTreeRoot.m_OctTreeNodes.emplace_back();
     p->m_SceneOctTreeNodeIdx = nodeIdx;
 
-    newOctTreeNode->m_Data = (void*)proxyIdx;
-    newOctTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx).m_AABB, worldMatrix);
+    newOctTreeNode.m_Data = proxyIdx;
+    newOctTreeNode.m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx).m_AABB, worldMatrix);
 
-    m_OctTree.Insert(newOctTreeNode);
+    m_OctTreeRoot.m_Root.Insert(&newOctTreeNode, nodeIdx);
 
     return proxyIdx;
 }
@@ -687,11 +686,11 @@ void Scene::UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t pr
     VisualProxy& visualProxy = m_VisualProxies.at(proxyIdx);
     visualProxy.m_WorldMatrix = worldMatrix;
 
-	OctTree::Node* octTreeNode = m_OctTreeNodes.at(p->m_SceneOctTreeNodeIdx);
+	OctTree::Node& octTreeNode = m_OctTreeRoot.m_OctTreeNodes.at(p->m_SceneOctTreeNodeIdx);
 
-    octTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx).m_AABB, worldMatrix);
+    octTreeNode.m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx).m_AABB, worldMatrix);
 
-    m_OctTree.Update(octTreeNode);
+    m_OctTreeRoot.m_Root.Update(&octTreeNode, p->m_SceneOctTreeNodeIdx);
 }
 
 void Scene::CalculateCSMSplitDistances()
@@ -836,10 +835,10 @@ void Scene::UpdateIMGUIPropertyGrid()
                 {
                     levelIndentation += "  ";
                 }
-                ImGui::Text("Level:[%d] %s Prims:[%d]", OctTree.m_Level, levelIndentation.c_str(), OctTree.m_Objects.size());
+                ImGui::Text("Level:[%d] %s Prims:[%d]", OctTree.m_Level, levelIndentation.c_str(), OctTree.m_NodeIndices.size());
             };
 
-        m_OctTree.ForEachOctTree(OctTreeStats);
+        m_OctTreeRoot.m_Root.ForEachOctTree(OctTreeStats);
 
         ImGui::TreePop();
     }
@@ -853,8 +852,8 @@ void Scene::OnSceneLoad()
     View& mainView = m_Views[EView::Main];
 
     // max extents of every Node
-    m_OctTree.m_AABB.Center = m_AABB.Center;
-    m_OctTree.m_AABB.Extents = m_AABB.Extents;
+    m_OctTreeRoot.m_Root.m_AABB.Center = m_AABB.Center;
+    m_OctTreeRoot.m_Root.m_AABB.Extents = m_AABB.Extents;
 
     for (Node& node : m_Nodes)
     {

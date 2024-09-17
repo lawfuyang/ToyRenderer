@@ -8,17 +8,17 @@ class OctTree
 public:
     struct Node
     {
-        // NOTE: can be anything, so long as its <= 8 bytes
-        void* m_Data;
-
+        uint32_t m_Data;
         AABB m_AABB;
 
         uint32_t m_ArrayIdx = (uint32_t)-1;
     };
 
-    void Insert(Node* obj);
+    OctTree();
+
+    void Insert(Node* obj, uint32_t nodeIdx);
     void Remove(Node* obj);
-    void Update(Node* obj);
+    void Update(Node* obj, uint32_t nodeIdx);
     void GetObjectsInBound(const Frustum& frustum, std::vector<Node*>& foundObjects, bool bFineGrainCulling);
     void GetObjectsInBound(const OBB& obb, std::vector<Node*>& foundObjects, bool bFineGrainCulling);
     uint32_t TotalObjects() const;
@@ -35,11 +35,11 @@ public:
 
     static const uint32_t kNbChildren = 8;
 
-    MultithreadDetector m_MultithreadDetector;
-
     AABB m_AABB;
     uint32_t m_Level = 0;
-    OctTree* m_Parent = nullptr;
+    
+    uint32_t m_CurrentIdx = UINT32_MAX;
+    uint32_t m_ParentIdx = UINT32_MAX;
 
     // nodes are in this order:
         // -x, -y, -z
@@ -50,7 +50,15 @@ public:
         // +x, -y, +z
         // +x, +y, -z
         // +x, +y, +z
-    std::shared_ptr<OctTree> m_Children[kNbChildren];
+    uint32_t m_ChildrenIndices[kNbChildren];
 
-    std::vector<Node*> m_Objects;
+    std::vector<uint32_t> m_NodeIndices;
+};
+
+class OctTreeRoot
+{
+public:
+    OctTree m_Root;
+    std::vector<OctTree> m_OctTrees;
+    std::vector<OctTree::Node> m_OctTreeNodes;
 };
