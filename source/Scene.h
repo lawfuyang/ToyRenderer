@@ -112,9 +112,7 @@ public:
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
 
     std::vector<Node> m_Nodes;
-
-    std::vector<Visual*> m_Visuals;
-    DynamicObjectPool<Visual> m_VisualAllocator;
+    std::vector<Visual> m_Visuals;
 
     OctTree m_OctTree;
     DynamicObjectPool<OctTree> m_OctTreeAllocator;

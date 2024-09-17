@@ -323,7 +323,7 @@ void Node::UpdateIMGUI()
     if (bTransformDirty && m_VisualIdx != UINT_MAX)
     {
         Scene* scene = g_Graphic.m_Scene.get();
-        scene->m_Visuals.at(m_VisualIdx)->UpdatePrimitivesInScene();
+        scene->m_Visuals.at(m_VisualIdx).UpdatePrimitivesInScene();
 
         for (uint32_t childrenNodeID : m_ChildrenNodeIDs)
         {
@@ -334,7 +334,7 @@ void Node::UpdateIMGUI()
                 continue;
             }
 
-            scene->m_Visuals.at(child.m_VisualIdx)->UpdatePrimitivesInScene();
+            scene->m_Visuals.at(child.m_VisualIdx).UpdatePrimitivesInScene();
         }
     }
 }
@@ -465,7 +465,7 @@ static void RenderEditorForCurrentlySelectedNode()
     {
         ImGui::Indent(30.f);
         ImGui::PushID("Widget");
-		scene->m_Visuals.at(currentlySelectedNode.m_VisualIdx)->UpdateIMGUI();
+		scene->m_Visuals.at(currentlySelectedNode.m_VisualIdx).UpdateIMGUI();
         ImGui::PopID();
         ImGui::Unindent(30.f);
     }

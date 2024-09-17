@@ -366,7 +366,7 @@ struct GLTFSceneLoader
         return T{ arr.data() };
     }
 
-    void TraverseNode(const tinygltf::Node& gltfNode, Node* parent = nullptr)
+    void TraverseNode(const tinygltf::Node& gltfNode, uint32_t parentIdx = UINT_MAX)
     {
         Vector3 scale = Vector3::One;
         Vector3 translation;
@@ -403,26 +403,25 @@ struct GLTFSceneLoader
         newNode.m_Rotation = rotation;
         newNode.m_Scale = scale;
 
-        if (parent)
+        if (parentIdx != UINT_MAX)
         {
-            newNode.m_ParentNodeID = parent->m_ID;
-            parent->m_ChildrenNodeIDs.push_back(newNodeID);
+            newNode.m_ParentNodeID = parentIdx;
+            scene->m_Nodes.at(parentIdx).m_ChildrenNodeIDs.push_back(newNodeID);
         }
 
         // if a node does not have a mesh, it's simply an node with no Visual
         if (gltfNode.mesh != -1)
         {
-            Visual* newVisual = scene->m_VisualAllocator.NewObject();
-            newVisual->m_NodeID = newNodeID;
-            newVisual->m_Name = gltfNode.name;
-
             const uint32_t visualIdx = scene->m_Visuals.size();
-            scene->m_Visuals.push_back(newVisual);
+
+            Visual& newVisual = scene->m_Visuals.emplace_back();
+            newVisual.m_NodeID = newNodeID;
+            newVisual.m_Name = gltfNode.name;
 
             for (const Primitive& primitive : m_SceneMeshPrimitives.at(gltfNode.mesh))
             {
-                newVisual->m_Primitives.push_back(primitive);
-                newVisual->m_Primitives.back().m_VisualIdx = visualIdx;
+                newVisual.m_Primitives.push_back(primitive);
+                newVisual.m_Primitives.back().m_VisualIdx = visualIdx;
 
 				Mesh* primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
@@ -449,7 +448,7 @@ struct GLTFSceneLoader
 
         for (int childIdx : gltfNode.children)
         {
-            TraverseNode(m_Model.nodes[childIdx], &newNode);
+            TraverseNode(m_Model.nodes[childIdx], newNodeID);
         }
     }
 
