@@ -9,8 +9,6 @@
 #include "Utilities.h"
 #include "Visual.h"
 
-#include "extern/taskflow/taskflow.hpp"
-
 class Primitive;
 class RenderGraph;
 

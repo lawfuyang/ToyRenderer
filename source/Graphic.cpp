@@ -691,31 +691,32 @@ uint32_t Graphic::AppendOrRetrieveMaterialDataIndex(const MaterialData& material
     return m_CachedMaterialDataIndices.at(materialDataHash);
 }
 
-uint32_t Graphic::GetOrCreateMesh(size_t hash, bool& bRetrievedFromCache)
+void Graphic::GetOrCreateMesh(size_t inHash, uint32_t& outMeshIdx, Mesh*& outMeshPtr, bool& bRetrievedFromCache)
 {
-    Mesh* ret = nullptr;
-    bRetrievedFromCache = true;
+    AUTO_LOCK(m_MeshesArrayLock);
 
-    AUTO_LOCK(m_MeshCacheLock);
-
-    auto it = m_MeshCache.find(hash);
-    if (it == m_MeshCache.end())
+    auto it = m_MeshIdxCache.find(inHash);
+    if (it == m_MeshIdxCache.end())
     {
-        ret = m_MeshPool.NewObject();
-        assert(ret);
+        const uint32_t newMeshIdx = m_Meshes.size();
 
-        m_MeshCache[hash] = ret;
+        Mesh& newMesh = m_Meshes.emplace_back();
+
+        m_MeshIdxCache[inHash] = newMeshIdx;
         bRetrievedFromCache = false;
 
-        ret->m_Idx = m_Meshes.size();
-		m_Meshes.push_back(ret);
+        newMesh.m_Idx = newMeshIdx;
+
+        outMeshIdx = newMeshIdx;
+        outMeshPtr = &newMesh;
     }
     else
     {
-        ret = it->second;
+        bRetrievedFromCache = true;
+        
+        outMeshIdx = it->second;
+        outMeshPtr = &m_Meshes.at(outMeshIdx);
     }
-
-	return ret->m_Idx;
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
@@ -878,12 +879,10 @@ void Graphic::Shutdown()
     m_Scene.reset();
 
     m_TextureCache.clear();
-    m_MeshCache.clear();
     m_AllShaders.clear();
     m_CachedGraphicPSOs.clear();
     m_CachedComputePSOs.clear();
     m_CachedBindingLayouts.clear();
-    m_MeshPool.DeleteAll();
 
     // manually call destructor for all Renderers as they may hold resource handles
     for (IRenderer* renderer : IRenderer::ms_AllRenderers)

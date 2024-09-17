@@ -12,7 +12,6 @@
 #include "CriticalSection.h"
 #include "MathUtilities.h"
 #include "Mesh.h"
-#include "ObjectPool.h"
 
 class CommonResources;
 class DescriptorTableManager;
@@ -77,7 +76,7 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
     uint32_t AppendOrRetrieveMaterialDataIndex(const MaterialData& materialData);
 
-    uint32_t GetOrCreateMesh(size_t hash, bool& bRetrievedFromCache);
+    void GetOrCreateMesh(size_t inHash, uint32_t& outMeshIdx, Mesh*& outMeshPtr, bool& bRetrievedFromCache);
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle);
 
@@ -180,10 +179,9 @@ public:
     std::mutex m_TextureCacheLock;
     std::unordered_map<size_t, nvrhi::TextureHandle> m_TextureCache;
 
-    std::mutex m_MeshCacheLock;
-    std::unordered_map<size_t, Mesh*> m_MeshCache;
-    std::vector<Mesh*> m_Meshes;
-    DynamicObjectPool<Mesh> m_MeshPool;
+    std::mutex m_MeshesArrayLock;
+    std::unordered_map<size_t, uint32_t> m_MeshIdxCache;
+    std::vector<Mesh> m_Meshes;
 
     GrowableGPUVirtualBuffer m_VirtualVertexBuffer;
     GrowableGPUVirtualBuffer m_VirtualIndexBuffer;

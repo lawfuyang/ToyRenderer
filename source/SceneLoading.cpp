@@ -288,6 +288,17 @@ struct GLTFSceneLoader
         PROFILE_FUNCTION();
         SCOPED_TIMER_FUNCTION();
 
+        // because we're loading & initializing meshes in parallel, we need to reserve the space beforehand to prevent the mesh vector from resizing
+        uint32_t nbPrimitives = 0;
+        for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_Model.meshes.size(); ++modelMeshIdx)
+        {
+            nbPrimitives += m_Model.meshes.at(modelMeshIdx).primitives.size();
+        }
+
+        LOG_DEBUG("Loading %d primitives", nbPrimitives);
+
+        g_Graphic.m_Meshes.reserve(g_Graphic.m_Meshes.size() + nbPrimitives);
+
         tf::Taskflow taskflow;
         
         m_SceneMeshPrimitives.resize(m_Model.meshes.size());
@@ -330,12 +341,10 @@ struct GLTFSceneLoader
 
                         LoadAttributes(indices, indicesIdx);
 
-                        PROFILE_FUNCTION();
-
+                        uint32_t meshIdx;
+                        Mesh* sceneMesh = nullptr;
                         bool bRetrievedFromCache = false;
-                        const uint32_t meshIdx = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
-
-                        Mesh* sceneMesh = g_Graphic.m_Meshes.at(meshIdx);
+                        g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), meshIdx, sceneMesh, bRetrievedFromCache);
 
                         if (!bRetrievedFromCache)
                         {
@@ -423,10 +432,10 @@ struct GLTFSceneLoader
                 newVisual.m_Primitives.push_back(primitive);
                 newVisual.m_Primitives.back().m_VisualIdx = visualIdx;
 
-				Mesh* primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+				Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
-                AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh->m_AABB);
-                Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh->m_BoundingSphere);
+                AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
+                Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
             }
 
             // update scene BS too

@@ -56,6 +56,7 @@ void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, bool bIsKTX2
 
     {
         AUTO_LOCK(g_Graphic.m_TextureCacheLock);
+
         g_Graphic.m_TextureCache[m_Hash] = m_NVRHITextureHandle;
     }
 
@@ -175,7 +176,7 @@ bool Texture::LoadFromCache(bool bInsertEmptyTextureHandleIfNotFound, bool* bOut
 
 bool Primitive::IsValid() const
 {
-    return m_MeshIdx != UINT_MAX && g_Graphic.m_Meshes.at(m_MeshIdx)->IsValid();
+    return m_MeshIdx != UINT_MAX;
 }
 
 void Visual::UpdateIMGUI()
@@ -251,6 +252,10 @@ void Visual::InsertPrimitivesToScene()
     for (Primitive& p : m_Primitives)
     {
         assert(p.IsValid());
+
+        Mesh& primitiveMesh = g_Graphic.m_Meshes.at(p.m_MeshIdx);
+        assert(primitiveMesh.IsValid());
+
         assert(p.m_ScenePrimitiveIndex == UINT_MAX);
 
         p.m_ScenePrimitiveIndex = scene->InsertPrimitive(&p, worldMatrix);
@@ -266,6 +271,10 @@ void Visual::UpdatePrimitivesInScene()
     for (Primitive& p : m_Primitives)
     {
         assert(p.IsValid());
+
+        Mesh& primitiveMesh = g_Graphic.m_Meshes.at(p.m_MeshIdx);
+        assert(primitiveMesh.IsValid());
+
         assert(p.m_ScenePrimitiveIndex != UINT_MAX);
 
         scene->UpdatePrimitive(&p, worldMatrix, p.m_ScenePrimitiveIndex);

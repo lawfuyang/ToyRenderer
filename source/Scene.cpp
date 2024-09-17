@@ -677,7 +677,7 @@ uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
     p->m_SceneOctTreeNodeIdx = nodeIdx;
 
     newOctTreeNode->m_Data = (void*)proxyIdx;
-    newOctTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx)->m_AABB, worldMatrix);
+    newOctTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx).m_AABB, worldMatrix);
 
     m_OctTree.Insert(newOctTreeNode);
 
@@ -691,7 +691,7 @@ void Scene::UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t pr
 
 	OctTree::Node* octTreeNode = m_OctTreeNodes.at(p->m_SceneOctTreeNodeIdx);
 
-    octTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx)->m_AABB, worldMatrix);
+    octTreeNode->m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx).m_AABB, worldMatrix);
 
     m_OctTree.Update(octTreeNode);
 }
@@ -745,7 +745,7 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
             const Material& material = primitive->m_Material;
             assert(material.IsValid());
 
-            const Mesh* mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
+            const Mesh& mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
 
             Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
             inverseTransposeMatrix.Translation(Vector3::Zero);
@@ -757,7 +757,7 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
             instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
             instanceConsts.m_PrevFrameWorldMatrix = visualProxy.m_PrevFrameWorldMatrix;
             instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
-            instanceConsts.m_MeshDataIdx = mesh->m_MeshDataBufferIdx;
+            instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
             instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
 
             instanceConstsBytes.push_back(instanceConsts);

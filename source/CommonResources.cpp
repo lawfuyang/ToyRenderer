@@ -291,6 +291,16 @@ static void ReverseWinding(std::vector<Graphic::IndexBufferFormat_t>& indices, s
     }
 }
 
+static void InitDefaultMeshCommon(std::span<const RawVertexFormat> vertices, std::span<const uint32_t> indices, uint32_t& outMeshIdx, std::string_view meshName)
+{
+    Mesh* mesh;
+    bool bRetrievedFromCache = false;
+    g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), outMeshIdx, mesh, bRetrievedFromCache);
+    assert(!bRetrievedFromCache);
+
+    mesh->Initialize(vertices, indices, meshName);
+}
+
 static void CreateUnitCubeMesh()
 {
     PROFILE_FUNCTION();
@@ -352,13 +362,7 @@ static void CreateUnitCubeMesh()
 
     ReverseWinding(indices, vertices);
 
-    bool bRetrievedFromCache = false;
-    g_CommonResources.UnitCube.m_MeshIdx = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
-    assert(!bRetrievedFromCache);
-
-    Mesh* mesh = g_Graphic.m_Meshes.at(g_CommonResources.UnitCube.m_MeshIdx);
-    mesh->Initialize(vertices, indices, "Default Unit Cube Mesh");
-
+    InitDefaultMeshCommon(vertices, indices, g_CommonResources.UnitCube.m_MeshIdx, "Default Unit Cube Mesh");
 }
 
 static void CreateUnitSphereMesh()
@@ -429,12 +433,7 @@ static void CreateUnitSphereMesh()
     //if (invertn)
     //    InvertNormals(vertices);
 
-    bool bRetrievedFromCache = false;
-    g_CommonResources.UnitSphere.m_MeshIdx = g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), bRetrievedFromCache);
-    assert(!bRetrievedFromCache);
-
-    Mesh* mesh = g_Graphic.m_Meshes.at(g_CommonResources.UnitSphere.m_MeshIdx);
-    mesh->Initialize(vertices, indices, "Default UnitSphere Mesh");
+    InitDefaultMeshCommon(vertices, indices, g_CommonResources.UnitSphere.m_MeshIdx, "Default Unit Sphere Mesh");
 }
 
 static void CreateDefaultMaterial()
