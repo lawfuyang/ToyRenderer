@@ -396,16 +396,16 @@ struct GLTFSceneLoader
         Scene* scene = g_Graphic.m_Scene.get();
         const uint32_t newNodeID = scene->m_Nodes.size();
 
-        Node* newNode = &scene->m_Nodes.emplace_back();
-        newNode->m_ID = newNodeID;
-        newNode->m_Name = gltfNode.name;
-        newNode->m_Position = translation;
-        newNode->m_Rotation = rotation;
-        newNode->m_Scale = scale;
+        Node& newNode = scene->m_Nodes.emplace_back();
+        newNode.m_ID = newNodeID;
+        newNode.m_Name = gltfNode.name;
+        newNode.m_Position = translation;
+        newNode.m_Rotation = rotation;
+        newNode.m_Scale = scale;
 
         if (parent)
         {
-            newNode->m_ParentNodeID = parent->m_ID;
+            newNode.m_ParentNodeID = parent->m_ID;
             parent->m_ChildrenNodeIDs.push_back(newNodeID);
         }
 
@@ -426,20 +426,20 @@ struct GLTFSceneLoader
 
 				Mesh* primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
-                AABB::CreateMerged(newNode->m_AABB, newNode->m_AABB, primitiveMesh->m_AABB);
-                Sphere::CreateMerged(newNode->m_BoundingSphere, newNode->m_BoundingSphere, primitiveMesh->m_BoundingSphere);
+                AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh->m_AABB);
+                Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh->m_BoundingSphere);
             }
 
             // update scene BS too
-            const Matrix nodeWorldMatrix = newNode->MakeLocalToWorldMatrix();
+            const Matrix nodeWorldMatrix = newNode.MakeLocalToWorldMatrix();
 
-            const AABB nodeAABB = MakeLocalToWorldAABB(newNode->m_AABB, nodeWorldMatrix);
+            const AABB nodeAABB = MakeLocalToWorldAABB(newNode.m_AABB, nodeWorldMatrix);
             AABB::CreateMerged(scene->m_AABB, scene->m_AABB, nodeAABB);
 
-            const Sphere nodeBS = MakeLocalToWorldSphere(newNode->m_BoundingSphere, nodeWorldMatrix);
+            const Sphere nodeBS = MakeLocalToWorldSphere(newNode.m_BoundingSphere, nodeWorldMatrix);
             Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, nodeBS);
 
-            newNode->m_VisualIdx = visualIdx;
+            newNode.m_VisualIdx = visualIdx;
         }
 
         if (gltfNode.camera != -1)
@@ -449,7 +449,7 @@ struct GLTFSceneLoader
 
         for (int childIdx : gltfNode.children)
         {
-            TraverseNode(m_Model.nodes[childIdx], newNode);
+            TraverseNode(m_Model.nodes[childIdx], &newNode);
         }
     }
 
