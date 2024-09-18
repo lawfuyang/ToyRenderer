@@ -314,10 +314,19 @@ void Engine::RunEngineWindowThread()
     wc.hbrBackground = (::HBRUSH)(COLOR_BACKGROUND);
     wc.lpszClassName = s_AppName;
 
+	auto CriticalWindowsError = []
+        {
+            DWORD err = GetLastError();
+            LPTSTR lpBuffer = 0;
+            FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 0, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&lpBuffer, 0, 0);
+			LOG_DEBUG("Windows Error : %s", lpBuffer);
+            LocalFree(lpBuffer);
+            assert(0);
+        };
+
     if (FAILED(RegisterClass(&wc)))
     {
-        LOG_DEBUG("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
-        assert(false);
+        CriticalWindowsError();
     }
 
     const uint32_t kWindowWidth = g_DisplayResolution.Get()[0];
@@ -340,8 +349,7 @@ void Engine::RunEngineWindowThread()
 
     if (engineWindowHandle == 0)
     {
-        LOG_DEBUG("ApplicationWin : Failed to create window: %s", GetLastErrorAsString());
-        assert(false);
+        CriticalWindowsError();
     }
 
     m_WindowHandle = engineWindowHandle;
@@ -355,8 +363,7 @@ void Engine::RunEngineWindowThread()
     {
         if (bRet == -1)
         {
-            LOG_DEBUG("Can't get new message: %s", GetLastErrorAsString());
-            assert(false);
+            CriticalWindowsError();
         }
         else
         {

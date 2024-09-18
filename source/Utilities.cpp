@@ -4,8 +4,8 @@
 
 const char* StringFormat(const char* format, ...)
 {
-    const uint32_t kBufferSize = KB_TO_BYTES(1);
-    const uint32_t kNbBuffers = 128;
+    const uint32_t kBufferSize = 256;
+    const uint32_t kNbBuffers = 16;
     thread_local uint32_t bufferIdx = 0;
     thread_local char buffer[kBufferSize][kNbBuffers]{};
 
@@ -14,33 +14,11 @@ const char* StringFormat(const char* format, ...)
     va_list marker;
     va_start(marker, format);
     const int result = _vsnprintf_s(buffer[bufferIdx], kBufferSize, _TRUNCATE, format, marker);
-    assert(result >= 0);
     va_end(marker);
 
+    assert(result >= 0);
+
     return buffer[bufferIdx];
-}
-
-const char* GetTimeStamp()
-{
-    thread_local char dateStr[32]{};
-    ::time_t t;
-    ::time(&t);
-    ::strftime(dateStr, sizeof(dateStr), "%Y_%m_%d_%H_%M_%S", localtime(&t));
-
-    return dateStr;
-}
-
-const char* GetLastErrorAsString()
-{
-    // Get the error message, if any.
-    const DWORD errorMessageID = ::GetLastError();
-    if (errorMessageID == 0)
-        return ""; // No error message has been recorded
-
-    thread_local char buffer[KB_TO_BYTES(1)]{};
-    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buffer, sizeof(buffer), NULL);
-
-    return buffer;
 }
 
 const char* GetExecutableDirectory()
@@ -84,20 +62,6 @@ void GetFilesInDirectory(std::vector<std::string>& out, std::string_view directo
         }
 
         out.push_back(filePath.make_preferred().string());
-    }
-}
-
-CFileWrapper::CFileWrapper(const char* fileName, bool isReadMode)
-{
-    m_File = fopen(fileName, isReadMode ? "r" : "w");
-}
-
-CFileWrapper::~CFileWrapper()
-{
-    if (m_File)
-    {
-        fclose(m_File);
-        m_File = nullptr;
     }
 }
 
@@ -150,38 +114,6 @@ void TokenizeLine(char* in, std::vector<const char*>& tokens)
 
     if (*token)
         tokens.push_back(token);
-}
-
-bool IsFileExists(const char* fullfilename)
-{
-    std::ifstream infile(fullfilename);
-    return infile.good();
-}
-
-void ReadJSONfile(std::string_view filePath, const std::function<void(nlohmann::json)>& processDataFunctor)
-{
-    using json = nlohmann::json;
-
-    // Get Full File Path
-    char fullFilePath[_MAX_PATH]{};
-    char* ret = _fullpath(fullFilePath, filePath.data(), _MAX_PATH);
-    assert(ret);
-
-    //assert(std::filesystem::exists(fullFilePath));
-    assert(IsFileExists(fullFilePath));
-
-    CFileWrapper jsonFile{ fullFilePath };
-
-    try
-    {
-        json root = json::parse(jsonFile);
-
-        processDataFunctor(root);
-    }
-    catch (const std::exception& e)
-    {
-        printf("%s", e.what());
-    }
 }
 
 namespace StringUtils

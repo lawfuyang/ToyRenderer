@@ -1,32 +1,22 @@
 #pragma once
 
 #include "extern/magic_enum/magic_enum.hpp"
-#include "extern/json/json.hpp"
-
-#include "MathUtilities.h"
 
 const char* StringFormat(const char* format, ...);
 
-// In case you need to format huge strings > 1kb (but <1mb) in length
+// In case you need to format huge strings (>256 chars)
 template<typename... Args>
-inline const char* StringFormatBig(const char* format, Args&&... args)
+inline std::string StringFormatBig(const char* format, Args&&... args)
 {
-    const uint32_t NbBuffers = 8;
-    thread_local uint32_t bufferIdx = 0;
-    thread_local std::string tl_Result[NbBuffers];
-
-    bufferIdx = (bufferIdx + 1) % NbBuffers;
+    thread_local std::string tl_Result;
 
     const size_t size = snprintf(nullptr, 0, format, args...) + 1; // Extra space for '\0'
-    tl_Result[bufferIdx].resize(size);
-    snprintf(tl_Result[bufferIdx].data(), size, format, args ...);
+    tl_Result.resize(size);
+    snprintf(tl_Result.data(), size, format, args ...);
 
-    return tl_Result[bufferIdx].c_str();
+    return tl_Result;
 }
 
-// Returning the time in this format (yyyy_mm_dd_hh_mm_ss) allows for easy sorting of filenames
-const char* GetTimeStamp();
-const char* GetLastErrorAsString();
 const char* GetExecutableDirectory();
 const char* GetApplicationDirectory();
 const char* GetResourceDirectory();
@@ -36,54 +26,6 @@ inline const char* GetFileExtensionFromPath(std::string_view fullPath) { return 
 void ReadDataFromFile(std::string_view filename, std::vector<std::byte>& data);
 void ReadTextFromFile(std::string_view filename, std::string& str);
 void TokenizeLine(char* in, std::vector<const char*>& tokens);
-bool IsFileExists(const char* fullfilename);
-void ReadJSONfile(std::string_view filePath, const std::function<void(nlohmann::json)>& processDataFunctor);
-
-struct WindowsHandleWrapper
-{
-    WindowsHandleWrapper(::HANDLE hdl = nullptr)
-        : m_Handle(hdl)
-    {}
-
-    ~WindowsHandleWrapper()
-    {
-        ::FindClose(m_Handle);
-        ::CloseHandle(m_Handle);
-    }
-
-    operator ::HANDLE() const { return m_Handle; }
-
-    ::HANDLE m_Handle = nullptr;
-};
-
-struct CFileWrapper
-{
-    CFileWrapper(const char*fileName, bool isReadMode = true);
-    ~CFileWrapper();
-
-    CFileWrapper(const CFileWrapper&) = delete;
-    CFileWrapper& operator=(const CFileWrapper&) = delete;
-
-    operator bool() const { return m_File; }
-    operator FILE* () const { return m_File; }
-
-    FILE* m_File = nullptr;
-};
-
-template <typename Functor, bool ForwardScan = true>
-static void RunOnAllBits(uint32_t mask, Functor&& func)
-{
-    std::bitset<sizeof(uint32_t) * CHAR_BIT> bitSet{ mask };
-    unsigned long idx;
-    auto ForwardScanFunc = [&]() { return _BitScanForward(&idx, bitSet.to_ulong()); };
-    auto ReverseScanFunc = [&]() { return _BitScanReverse(&idx, bitSet.to_ulong()); };
-
-    while (ForwardScan ? ForwardScanFunc() : ReverseScanFunc())
-    {
-        bitSet.set(idx, false);
-        func(idx);
-    }
-}
 
 namespace EnumUtils
 {
@@ -109,8 +51,6 @@ namespace StringUtils
 
 float RandomFloat(float range = 1.0f);
 uint32_t RandomUInt(uint32_t range = UINT_MAX);
-
-inline const char* HRToString(HRESULT hr) { return StringFormat("HRESULT of 0x%08X", static_cast<UINT>(hr)); }
 
 template <class T>
 inline void HashCombine(std::size_t& seed, const T& v)
