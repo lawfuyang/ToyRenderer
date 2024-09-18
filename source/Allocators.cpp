@@ -90,10 +90,12 @@ void SimpleResizeableGPUBuffer::ClearBuffer(nvrhi::CommandListHandle commandList
     commandList->clearBufferUInt(m_Buffer, 0);
 }
 
-void SimpleResizeableGPUBuffer::GrowBufferIfNeeded(size_t nbBytes)
+void SimpleResizeableGPUBuffer::GrowBufferIfNeeded(size_t nbElements)
 {
     // simply check if debug name is empty for uninitialized desc
     assert(!m_BufferDesc.debugName.empty());
+
+	const uint32_t nbBytes = nbElements * m_BufferDesc.structStride;
 
     if (!m_Buffer || (nbBytes > m_BufferDesc.byteSize))
     {

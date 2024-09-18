@@ -30,12 +30,17 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        renderGraph.AddWriteDependency(g_ShadowMapArrayRDGTextureHandle);
         renderGraph.AddWriteDependency(g_GBufferARDGTextureHandle);
         renderGraph.AddWriteDependency(g_GBufferBRDGTextureHandle);
         renderGraph.AddWriteDependency(g_GBufferCRDGTextureHandle);
         renderGraph.AddWriteDependency(g_LightingOutputRDGTextureHandle);
         renderGraph.AddWriteDependency(g_DepthStencilBufferRDGTextureHandle);
+
+        const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
+        if (shadowControllables.m_bEnabled)
+        {
+            renderGraph.AddWriteDependency(g_ShadowMapArrayRDGTextureHandle);
+        }
 
         return true;
     }
@@ -90,11 +95,15 @@ public:
 
         // clear shadow map array
         {
-            PROFILE_GPU_SCOPED(commandList, "Clear Shadow Map Array");
+            const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
+            if (shadowControllables.m_bEnabled)
+            {
+                PROFILE_GPU_SCOPED(commandList, "Clear Shadow Map Array");
 
-            nvrhi::TextureHandle shadowMapArray = renderGraph.GetTexture(g_ShadowMapArrayRDGTextureHandle); 
+                nvrhi::TextureHandle shadowMapArray = renderGraph.GetTexture(g_ShadowMapArrayRDGTextureHandle);
 
-            commandList->clearDepthStencilTexture(shadowMapArray, nvrhi::AllSubresources, true, Graphic::kFarShadowMapDepth, false, 0);
+                commandList->clearDepthStencilTexture(shadowMapArray, nvrhi::AllSubresources, true, Graphic::kFarShadowMapDepth, false, 0);
+            }
         }
     }
 };
@@ -103,33 +112,6 @@ IRenderer* g_ClearBuffersRenderer = &gs_ClearBuffersRenderer;
 
 void View::Initialize()
 {
-    PROFILE_FUNCTION();
-
-    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Init View GPUCulling Indirect Buffers");
-
-    m_InstanceCountBuffer.m_BufferDesc.structStride = sizeof(uint32_t);
-    m_InstanceCountBuffer.m_BufferDesc.debugName = "InstanceIndexCounter";
-    m_InstanceCountBuffer.m_BufferDesc.canHaveUAVs = true;
-    m_InstanceCountBuffer.m_BufferDesc.isDrawIndirectArgs = true;
-    m_InstanceCountBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-    m_InstanceCountBuffer.ClearBuffer(commandList, sizeof(uint32_t));
-
-    m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.structStride = sizeof(nvrhi::DrawIndexedIndirectArguments);
-    m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.debugName = "DrawIndexedIndirectArguments Buffer";
-    m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.canHaveUAVs = true;
-    m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.isDrawIndirectArgs = true;
-    m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::IndirectArgument;
-    m_DrawIndexedIndirectArgumentsBuffer.ClearBuffer(commandList, sizeof(nvrhi::DrawIndexedIndirectArguments));
-
-    m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.structStride = sizeof(uint32_t);
-    m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.debugName = "StartInstanceConstsOffsets Buffer";
-    m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.canHaveUAVs = true;
-    m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.isVertexBuffer = true;
-    m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::VertexBuffer;
-    m_StartInstanceConstsOffsetsBuffer.ClearBuffer(commandList, sizeof(uint32_t));
 }
 
 void View::Update()
@@ -234,13 +216,6 @@ void Scene::Initialize()
                 view.Initialize();
             }
             m_Views[Main].m_bIsMainView = true;
-
-            m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_BufferDesc = m_Views[Main].m_InstanceCountBuffer.m_BufferDesc;
-            m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_BufferDesc.debugName = "PhaseTwoInstanceCountBuffer";
-            m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.m_BufferDesc = m_Views[Main].m_StartInstanceConstsOffsetsBuffer.m_BufferDesc;
-            m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.m_BufferDesc.debugName = "PhaseTwoStartInstanceConstsOffsetsBuffer";
-            m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.m_BufferDesc = m_Views[Main].m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc;
-            m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.m_BufferDesc.debugName = "PhaseTwoDrawIndexedIndirectArgumentsBuffer";
         });
 
     tf.emplace([this]
@@ -421,7 +396,7 @@ void Scene::UpdateCSMViews()
     }
 }
 
-void Scene::PrepareInstanceDataForViews()
+void Scene::UpdateInstanceConstsBuffer()
 {
     PROFILE_FUNCTION();
 
@@ -436,25 +411,69 @@ void Scene::PrepareInstanceDataForViews()
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "CullAndPrepareInstanceDataForViews");
 
+    // TODO: upload only dirty proxies
+
+    std::vector<BasePassInstanceConstants> instanceConstsBytes;
+    instanceConstsBytes.resize(m_VisualProxies.size());
+
+    static const uint32_t kNbInstancesPerJob = 1000;
+    const uint32_t nbJobs = std::max(1ULL, m_VisualProxies.size() / kNbInstancesPerJob);
+
+    tf::Taskflow tf;
+
+    for (uint32_t i = 0; i < nbJobs; ++i)
     {
-        PROFILE_GPU_SCOPED(commandList, "Update Visual Proxies Buffers");
+        tf::Task task = tf.emplace([&, i]
+            {
+                PROFILE_SCOPED("UpdateInstanceConstsBuffer Job");
 
-        for (View& view : m_Views)
-        {
-			view.m_InstanceCountBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
-			view.m_StartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
-			view.m_DrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(DrawIndexedIndirectArguments));
+                for (uint32_t j = 0; j < kNbInstancesPerJob; ++j)
+                {
+                    const uint32_t proxyIdx = kNbInstancesPerJob * i + j;
+                    if (proxyIdx >= m_VisualProxies.size())
+                    {
+                        break;
+                    }
 
-			if (view.m_bIsMainView)
-			{
-				m_OcclusionCullingPhaseTwoInstanceCountBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
-				m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
-				m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(DrawIndexedIndirectArguments));
-			}
-        }
+                    VisualProxy& visualProxy = m_VisualProxies.at(kNbInstancesPerJob * i + j);
+
+                    // TODO: perhaps this is not the place to do it?
+                    visualProxy.m_PrevFrameWorldMatrix = visualProxy.m_WorldMatrix;
+
+                    const Primitive* primitive = visualProxy.m_Primitive;
+                    assert(primitive->IsValid());
+
+                    const Material& material = primitive->m_Material;
+                    assert(material.IsValid());
+
+                    const Mesh& mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
+
+                    Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
+                    inverseTransposeMatrix.Translation(Vector3::Zero);
+                    inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
+
+                    AABB instanceAABB;
+                    mesh.m_AABB.Transform(instanceAABB, visualProxy.m_WorldMatrix);
+
+                    // instance consts
+                    BasePassInstanceConstants instanceConsts{};
+                    instanceConsts.m_NodeID = visualProxy.m_NodeID;
+                    instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
+                    instanceConsts.m_PrevFrameWorldMatrix = visualProxy.m_PrevFrameWorldMatrix;
+                    instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
+                    instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
+                    instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
+                    instanceConsts.m_AABBCenter = instanceAABB.Center;
+                    instanceConsts.m_AABBExtents = instanceAABB.Extents;
+
+                    instanceConstsBytes[proxyIdx] = instanceConsts;
+                }
+            });
     }
 
-    UpdateInstanceConstsBuffer(commandList);
+    g_Engine.m_Executor->corun(tf);
+
+    m_InstanceConstsBuffer.Write(commandList, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
 }
 
 void Scene::Update()
@@ -469,7 +488,7 @@ void Scene::Update()
 
     tf::Taskflow tf;
 
-    tf::Task prepareInstancesDataTask = tf.emplace([this] { PrepareInstanceDataForViews(); });
+    tf::Task updateInstanceConstsBufferTask = tf.emplace([this] { UpdateInstanceConstsBuffer(); });
     
     extern IRenderer* g_ClearBuffersRenderer;
     extern IRenderer* g_GPUCullingRenderer[EnumUtils::Count<Scene::EView>()];
@@ -492,18 +511,18 @@ void Scene::Update()
 
     m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
 
-    m_RenderGraph->AddRenderer(g_GPUCullingRenderer[Scene::EView::Main], &prepareInstancesDataTask);
+    m_RenderGraph->AddRenderer(g_GPUCullingRenderer[Scene::EView::Main], &updateInstanceConstsBufferTask);
     for (size_t i = Scene::EView::CSM0; i < EnumUtils::Count<Scene::EView>(); i++)
     {
-        m_RenderGraph->AddRenderer(g_GPUCullingRenderer[i], &prepareInstancesDataTask);
+        m_RenderGraph->AddRenderer(g_GPUCullingRenderer[i], &updateInstanceConstsBufferTask);
     }
 
-    m_RenderGraph->AddRenderer(g_GBufferRenderer, &prepareInstancesDataTask);
+    m_RenderGraph->AddRenderer(g_GBufferRenderer, &updateInstanceConstsBufferTask);
     m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
 
     for (uint32_t i = 0; i < Graphic::kNbCSMCascades; i++)
     {
-        m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i], &prepareInstancesDataTask);
+        m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i], &updateInstanceConstsBufferTask);
     }
 
     m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
@@ -511,7 +530,7 @@ void Scene::Update()
     m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
     m_RenderGraph->AddRenderer(g_SkyRenderer);
     m_RenderGraph->AddRenderer(g_BloomRenderer);
-    m_RenderGraph->AddRenderer(g_TransparentBasePassRenderer, &prepareInstancesDataTask);
+    m_RenderGraph->AddRenderer(g_TransparentBasePassRenderer, &updateInstanceConstsBufferTask);
     m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
 
     // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet
@@ -571,76 +590,6 @@ void Scene::CalculateCSMSplitDistances()
     m_CSMSplitDistances[Graphic::kNbCSMCascades - 1] = shadowControllables.m_MaxShadowDistance;
 }
 
-void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
-{
-    // TODO: upload only dirty proxies
-
-    PROFILE_FUNCTION();
-    PROFILE_GPU_SCOPED(commandList, "UpdateInstanceConstsBuffer");
-
-    std::vector<BasePassInstanceConstants> instanceConstsBytes;
-	instanceConstsBytes.resize(m_VisualProxies.size());
-
-	static const uint32_t kNbInstancesPerJob = 1000;
-	const uint32_t nbJobs = std::max(1ULL, m_VisualProxies.size() / kNbInstancesPerJob);
-
-	tf::Taskflow tf;
-
-	for (uint32_t i = 0; i < nbJobs; ++i)
-	{
-		tf::Task task = tf.emplace([&, i]
-			{
-                PROFILE_SCOPED("UpdateInstanceConstsBuffer Job");
-
-				for (uint32_t j = 0; j < kNbInstancesPerJob; ++j)
-				{
-					const uint32_t proxyIdx = kNbInstancesPerJob * i + j;
-					if (proxyIdx >= m_VisualProxies.size())
-					{
-						break;
-					}
-
-					VisualProxy& visualProxy = m_VisualProxies.at(kNbInstancesPerJob * i + j);
-
-					// TODO: perhaps this is not the place to do it?
-					visualProxy.m_PrevFrameWorldMatrix = visualProxy.m_WorldMatrix;
-
-					const Primitive* primitive = visualProxy.m_Primitive;
-					assert(primitive->IsValid());
-
-					const Material& material = primitive->m_Material;
-					assert(material.IsValid());
-
-					const Mesh& mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
-
-					Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
-					inverseTransposeMatrix.Translation(Vector3::Zero);
-					inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
-
-                    AABB instanceAABB;
-					mesh.m_AABB.Transform(instanceAABB, visualProxy.m_WorldMatrix);
-
-					// instance consts
-					BasePassInstanceConstants instanceConsts{};
-					instanceConsts.m_NodeID = visualProxy.m_NodeID;
-					instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
-					instanceConsts.m_PrevFrameWorldMatrix = visualProxy.m_PrevFrameWorldMatrix;
-					instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
-					instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
-					instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
-					instanceConsts.m_AABBCenter = instanceAABB.Center;
-					instanceConsts.m_AABBExtents = instanceAABB.Extents;
-
-					instanceConstsBytes[proxyIdx] = instanceConsts;
-				}
-			});
-	}
-
-	g_Engine.m_Executor->corun(tf);
-
-	m_InstanceConstsBuffer.Write(commandList, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
-}
-
 void Scene::Shutdown()
 {
 }
@@ -683,13 +632,11 @@ void Scene::UpdateIMGUIPropertyGrid()
             ImGui::Indent();
 			ImGui::Text("GPU Visible: Frustum:[%d]", g_GraphicPropertyGrid.m_DebugControllables.m_bEnableGPUFrustumCulling ? view.m_GPUCullingCounters.m_Frustum : g_Graphic.m_Scene->m_VisualProxies.size());
 
-			if (view.m_bIsMainView)
-			{
-				ImGui::SameLine();
-				ImGui::Text("Occlusion: Phase 1:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase1);
-				ImGui::SameLine();
-				ImGui::Text("Phase 2:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase2);
-			}
+			ImGui::SameLine();
+			ImGui::Text("Occlusion: Phase 1:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase1);
+			ImGui::SameLine();
+			ImGui::Text("Phase 2:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase2);
+
             ImGui::Unindent();
         }
 

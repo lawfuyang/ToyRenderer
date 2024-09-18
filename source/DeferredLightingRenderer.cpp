@@ -41,7 +41,6 @@ public:
 		renderGraph.AddReadDependency(g_GBufferARDGTextureHandle);
 		renderGraph.AddReadDependency(g_GBufferBRDGTextureHandle);
 		renderGraph.AddReadDependency(g_GBufferCRDGTextureHandle);
-		renderGraph.AddReadDependency(g_ShadowMaskRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
 
@@ -49,6 +48,12 @@ public:
 		if (AOControllables.m_bEnabled)
 		{
 			renderGraph.AddReadDependency(g_SSAORDGTextureHandle);
+		}
+
+		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
+		if (shadowControllables.m_bEnabled)
+		{
+			renderGraph.AddReadDependency(g_ShadowMaskRDGTextureHandle);
 		}
 
 		g_Graphic.m_Scene->m_DeferredLightingTileRenderingHelper.AddReadDependencies(renderGraph);
@@ -62,8 +67,9 @@ public:
 		Scene* scene = g_Graphic.m_Scene.get();
 		View& view = scene->m_Views[Scene::EView::Main];
 
-		const GraphicPropertyGrid::LightingControllables& lightingControllables = g_GraphicPropertyGrid.m_LightingControllables;
-		const GraphicPropertyGrid::AmbientOcclusionControllables& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
+		const auto& lightingControllables = g_GraphicPropertyGrid.m_LightingControllables;
+		const auto& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
+		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
 		const TileRenderingHelper& tileRenderingHelper = scene->m_DeferredLightingTileRenderingHelper;
 
 		// pass constants
@@ -93,7 +99,7 @@ public:
 		nvrhi::TextureHandle GBufferBTexture = renderGraph.GetTexture(g_GBufferBRDGTextureHandle);
 		nvrhi::TextureHandle GBufferCTexture = renderGraph.GetTexture(g_GBufferCRDGTextureHandle);
 		nvrhi::TextureHandle ssaoTexture = AOControllables.m_bEnabled ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
-		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
+		nvrhi::TextureHandle shadowMaskTexture = shadowControllables.m_bEnabled ? renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
@@ -152,7 +158,11 @@ public:
 	{
 		g_Graphic.m_Scene->m_DeferredLightingTileRenderingHelper.CreateTransientResources(renderGraph);
 
-		renderGraph.AddReadDependency(g_ConservativeShadowMaskRDGTextureHandle);
+		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
+		if (shadowControllables.m_bEnabled)
+		{
+			renderGraph.AddReadDependency(g_ConservativeShadowMaskRDGTextureHandle);
+		}
 
 		return true;
 	}
@@ -163,7 +173,9 @@ public:
 		Scene* scene = g_Graphic.m_Scene.get();
 		View& view = scene->m_Views[Scene::EView::Main];
 
-		nvrhi::TextureHandle conservativeShadowMaskTexture = renderGraph.GetTexture(g_ConservativeShadowMaskRDGTextureHandle);
+		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
+
+		nvrhi::TextureHandle conservativeShadowMaskTexture = shadowControllables.m_bEnabled ? renderGraph.GetTexture(g_ConservativeShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
 
 		const TileRenderingHelper& tileRendereringHelper = scene->m_DeferredLightingTileRenderingHelper;
 
@@ -183,7 +195,7 @@ public:
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {
 			nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-			nvrhi::BindingSetItem::Texture_SRV(0, conservativeShadowMaskTexture, nvrhi::Format::UNKNOWN,  nvrhi::TextureSubresourceSet{ kConservativeTextureMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
+			nvrhi::BindingSetItem::Texture_SRV(0, conservativeShadowMaskTexture, nvrhi::Format::UNKNOWN, shadowControllables.m_bEnabled ? nvrhi::TextureSubresourceSet{ kConservativeTextureMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices } : nvrhi::AllSubresources),
 			nvrhi::BindingSetItem::StructuredBuffer_UAV(0, tileCounterBuffer),
 			nvrhi::BindingSetItem::StructuredBuffer_UAV(1, dispatchIndirectArgsBuffer),
 			nvrhi::BindingSetItem::StructuredBuffer_UAV(2, drawIndirectArgsBuffer),

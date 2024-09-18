@@ -4,7 +4,6 @@
 #include "DescriptorTableManager.h"
 #include "Engine.h"
 #include "FFXHelpers.h"
-#include "GPUCulling.h"
 #include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
 #include "Scene.h"
@@ -35,7 +34,13 @@ RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
 class BasePassRenderer : public IRenderer
 {
 public:
-    BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
+    // TODO: RDG
+    struct CullingBuffers
+    {
+        SimpleResizeableGPUBuffer m_InstanceCountBuffer;
+        SimpleResizeableGPUBuffer m_DrawIndexedIndirectArgumentsBuffer;
+        SimpleResizeableGPUBuffer m_StartInstanceConstsOffsetsBuffer;
+    };
 
     struct RenderBasePassParams
     {
@@ -43,23 +48,63 @@ public:
         View* m_View;
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
-        nvrhi::BufferHandle m_InstanceCountBuffer;
-        nvrhi::BufferHandle m_StartInstanceConstsOffsetsBuffer;
-        nvrhi::BufferHandle m_DrawIndexedIndirectArgumentsBuffer;
     };
+
+    FFXHelpers::SPD m_SPDHelper;
+
+    CullingBuffers m_CullingBuffers[2];
+
+    BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
+
+    void Initialize() override
+    {
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            m_CullingBuffers[i].m_InstanceCountBuffer.m_BufferDesc.structStride = sizeof(uint32_t);
+            m_CullingBuffers[i].m_InstanceCountBuffer.m_BufferDesc.debugName = StringFormat("InstanceIndexCounter %d", i);
+            m_CullingBuffers[i].m_InstanceCountBuffer.m_BufferDesc.canHaveUAVs = true;
+            m_CullingBuffers[i].m_InstanceCountBuffer.m_BufferDesc.isDrawIndirectArgs = true;
+            m_CullingBuffers[i].m_InstanceCountBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+            m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.structStride = sizeof(nvrhi::DrawIndexedIndirectArguments);
+            m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.debugName = StringFormat("DrawIndexedIndirectArguments %d", i);
+            m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.canHaveUAVs = true;
+            m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.isDrawIndirectArgs = true;
+            m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::IndirectArgument;
+
+            m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.structStride = sizeof(uint32_t);
+            m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.debugName = StringFormat("StartInstanceConstsOffsets %d", i);
+            m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.canHaveUAVs = true;
+            m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.isVertexBuffer = true;
+            m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::VertexBuffer;
+        }
+    }
+
+	bool Setup(RenderGraph& renderGraph) override
+	{
+        m_SPDHelper.CreateTransientResources(renderGraph);
+
+        return true;
+	}
 
     void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderBasePassParams& params)
     {
         assert(params.m_View);
-		assert(params.m_InstanceCountBuffer);
-		assert(params.m_StartInstanceConstsOffsetsBuffer);
-		assert(params.m_DrawIndexedIndirectArgumentsBuffer);
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
 
-        assert(!scene->m_VisualProxies.empty());
+        const uint32_t nbInstances = scene->m_VisualProxies.size();
+
+        assert(nbInstances > 0);
+
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            m_CullingBuffers[i].m_InstanceCountBuffer.GrowBufferIfNeeded(nbInstances);
+            m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances);
+            m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances);
+        }
 
         nvrhi::FramebufferHandle frameBuffer = device->createFramebuffer(params.m_FrameBufferDesc);
         const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
@@ -113,9 +158,9 @@ public:
         drawState.framebuffer = frameBuffer;
         drawState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
         drawState.indexBuffer = { g_Graphic.m_VirtualIndexBuffer.m_Buffer, g_Graphic.m_VirtualIndexBuffer.m_Buffer->getDesc().format, 0 };
-        drawState.vertexBuffers = { { params.m_StartInstanceConstsOffsetsBuffer, 0, 0 } };
-        drawState.indirectParams = params.m_DrawIndexedIndirectArgumentsBuffer;
-        drawState.indirectCountBuffer = params.m_InstanceCountBuffer;
+        drawState.vertexBuffers = { { m_CullingBuffers[0].m_StartInstanceConstsOffsetsBuffer.m_Buffer, 0, 0}};
+        drawState.indirectParams = m_CullingBuffers[0].m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
+        drawState.indirectCountBuffer = m_CullingBuffers[0].m_InstanceCountBuffer.m_Buffer;
         drawState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
         drawState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
 
@@ -134,6 +179,8 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
+		BasePassRenderer::Setup(renderGraph);
+
         nvrhi::TextureDesc desc;
         desc.width = g_Graphic.m_RenderResolution.x;
         desc.height = g_Graphic.m_RenderResolution.y;
@@ -153,7 +200,22 @@ public:
         desc.debugName = "GBufferC";
         renderGraph.CreateTransientResource(g_GBufferCRDGTextureHandle, desc);
 
-        renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
+        {
+            nvrhi::TextureDesc desc;
+            desc.width = g_Graphic.m_RenderResolution.x;
+            desc.height = g_Graphic.m_RenderResolution.y;
+            desc.format = Graphic::kDepthStencilFormat;
+            desc.debugName = "Depth Buffer";
+            desc.isRenderTarget = true;
+            desc.setClearValue(nvrhi::Color{ Graphic::kFarDepth, Graphic::kStencilBit_Sky, 0.0f, 0.0f });
+            desc.initialState = nvrhi::ResourceStates::DepthRead;
+            renderGraph.CreateTransientResource(g_DepthStencilBufferRDGTextureHandle, desc);
+
+            desc.format = Graphic::kDepthBufferCopyFormat;
+            desc.debugName = "Depth Buffer Copy";
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            renderGraph.CreateTransientResource(g_DepthBufferCopyRDGTextureHandle, desc);
+        }
 
         return true;
     }
@@ -186,9 +248,6 @@ public:
         params.m_View = &view;
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, g_CommonResources.DepthReadStencilNone, g_CommonResources.CullClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
-		params.m_InstanceCountBuffer = view.m_InstanceCountBuffer.m_Buffer;
-		params.m_StartInstanceConstsOffsetsBuffer = view.m_StartInstanceConstsOffsetsBuffer.m_Buffer;
-		params.m_DrawIndexedIndirectArgumentsBuffer = view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
 
         RenderBasePass(commandList, params);
     }
@@ -284,9 +343,6 @@ public:
         params.m_View = &scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, shadowDepthStencilState, g_CommonResources.CullCounterClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
-        params.m_InstanceCountBuffer = view.m_InstanceCountBuffer.m_Buffer;
-        params.m_StartInstanceConstsOffsetsBuffer = view.m_StartInstanceConstsOffsetsBuffer.m_Buffer;
-        params.m_DrawIndexedIndirectArgumentsBuffer = view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
 
         RenderBasePass(commandList, params);
     }
@@ -344,6 +400,9 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
+        return false; // TODO: GPU CULLING REFACTOR
+
+#if 0
         {
             nvrhi::BufferDesc desc;
             desc.byteSize = sizeof(uint32_t) * kNbGPUCullingBufferCounters;
@@ -395,10 +454,12 @@ public:
         }
 
         return true;
+#endif
     }
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
+#if 0
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
 
@@ -638,6 +699,7 @@ public:
 
         // copy counter buffer, so that it can be read on CPU next frame
         m_CounterStatsReadbackBuffer.CopyTo(device, commandList, counterStatsBuffer);
+#endif
     }
 };
 

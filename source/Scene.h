@@ -57,10 +57,6 @@ public:
 
     Frustum m_Frustum;
 
-    SimpleResizeableGPUBuffer m_InstanceCountBuffer;
-    SimpleResizeableGPUBuffer m_DrawIndexedIndirectArgumentsBuffer;
-    SimpleResizeableGPUBuffer m_StartInstanceConstsOffsetsBuffer;
-
     GPUCullingCounters m_GPUCullingCounters;
 };
 
@@ -113,17 +109,12 @@ public:
 
     TileRenderingHelper m_DeferredLightingTileRenderingHelper;
 
-    SimpleResizeableGPUBuffer m_OcclusionCullingPhaseTwoInstanceCountBuffer;
-    SimpleResizeableGPUBuffer m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer;
-    SimpleResizeableGPUBuffer m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer;
-
     SimpleResizeableGPUBuffer m_InstanceConstsBuffer;
 
 private:
     void UpdateMainViewCameraControls();
     void UpdateCSMViews();
-    void PrepareInstanceDataForViews();
-    void UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList);
+    void UpdateInstanceConstsBuffer();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;

@@ -22,7 +22,7 @@ class SimpleResizeableGPUBuffer
 public:
     void Write(nvrhi::CommandListHandle commandList, void* srcData, size_t nbBytes);
     void ClearBuffer(nvrhi::CommandListHandle commandList, size_t nbBytes);
-    void GrowBufferIfNeeded(size_t nbBytes);
+    void GrowBufferIfNeeded(size_t nbElements);
 
     operator bool() const { return m_Buffer && (m_BufferDesc.byteSize > 0); };
 

@@ -24,6 +24,12 @@ public:
 
 	bool Setup(RenderGraph& renderGraph) override
     {
+		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
+		if (!shadowControllables.m_bEnabled)
+		{
+			return false;
+		}
+
 		m_SPDHelper.CreateTransientResources(renderGraph);
 
 		nvrhi::TextureDesc desc;

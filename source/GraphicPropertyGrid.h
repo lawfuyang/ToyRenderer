@@ -46,7 +46,7 @@ public:
 
     struct ShadowControllables
     {
-        bool m_bEnabled = true;
+        bool m_bEnabled = false; // TODO: GPU CULLING REFACTOR
         float m_MaxShadowDistance = 200.0f;
         float m_CSMSplitLambda = 0.5f;
         uint32_t m_ShadowMapResolution = 2048;
