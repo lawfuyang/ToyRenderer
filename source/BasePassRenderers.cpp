@@ -4,6 +4,7 @@
 #include "DescriptorTableManager.h"
 #include "Engine.h"
 #include "FFXHelpers.h"
+#include "GPUCulling.h"
 #include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
 #include "Scene.h"
@@ -42,15 +43,17 @@ public:
         View* m_View;
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
-
-        nvrhi::BufferHandle m_OverrideInstanceCountBuffer;
-        nvrhi::BufferHandle m_OverrideStartInstanceConstsOffsetsBuffer;
-        nvrhi::BufferHandle m_OverrideDrawIndexedIndirectArgumentsBuffer;
+        nvrhi::BufferHandle m_InstanceCountBuffer;
+        nvrhi::BufferHandle m_StartInstanceConstsOffsetsBuffer;
+        nvrhi::BufferHandle m_DrawIndexedIndirectArgumentsBuffer;
     };
 
     void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderBasePassParams& params)
     {
         assert(params.m_View);
+		assert(params.m_InstanceCountBuffer);
+		assert(params.m_StartInstanceConstsOffsetsBuffer);
+		assert(params.m_DrawIndexedIndirectArgumentsBuffer);
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
@@ -106,31 +109,13 @@ public:
         PSODesc.inputLayout = g_CommonResources.GPUCullingLayout;
         PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
 
-        nvrhi::BufferHandle instanceCountBuffer =
-            params.m_OverrideInstanceCountBuffer ?
-            params.m_OverrideInstanceCountBuffer :
-            view.m_InstanceCountBuffer.m_Buffer;
-
-        nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = 
-            params.m_OverrideStartInstanceConstsOffsetsBuffer ? 
-            params.m_OverrideStartInstanceConstsOffsetsBuffer : 
-            view.m_StartInstanceConstsOffsetsBuffer.m_Buffer;
-
-        nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = 
-            params.m_OverrideDrawIndexedIndirectArgumentsBuffer ? 
-            params.m_OverrideDrawIndexedIndirectArgumentsBuffer : 
-            view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
-
-        assert(startInstanceConstsOffsetsBuffer);
-        assert(drawIndexedIndirectArgumentsBuffer);
-
         nvrhi::GraphicsState drawState;
         drawState.framebuffer = frameBuffer;
         drawState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
         drawState.indexBuffer = { g_Graphic.m_VirtualIndexBuffer.m_Buffer, g_Graphic.m_VirtualIndexBuffer.m_Buffer->getDesc().format, 0 };
-        drawState.vertexBuffers = { { startInstanceConstsOffsetsBuffer, 0, 0 } };
-        drawState.indirectParams = drawIndexedIndirectArgumentsBuffer;
-        drawState.indirectCountBuffer = instanceCountBuffer;
+        drawState.vertexBuffers = { { params.m_StartInstanceConstsOffsetsBuffer, 0, 0 } };
+        drawState.indirectParams = params.m_DrawIndexedIndirectArgumentsBuffer;
+        drawState.indirectCountBuffer = params.m_InstanceCountBuffer;
         drawState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
         drawState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
 
@@ -201,6 +186,9 @@ public:
         params.m_View = &view;
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, g_CommonResources.DepthReadStencilNone, g_CommonResources.CullClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
+		params.m_InstanceCountBuffer = view.m_InstanceCountBuffer.m_Buffer;
+		params.m_StartInstanceConstsOffsetsBuffer = view.m_StartInstanceConstsOffsetsBuffer.m_Buffer;
+		params.m_DrawIndexedIndirectArgumentsBuffer = view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
 
         RenderBasePass(commandList, params);
     }
@@ -322,6 +310,9 @@ public:
         params.m_View = &scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, shadowDepthStencilState, g_CommonResources.CullCounterClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
+        params.m_InstanceCountBuffer = view.m_InstanceCountBuffer.m_Buffer;
+        params.m_StartInstanceConstsOffsetsBuffer = view.m_StartInstanceConstsOffsetsBuffer.m_Buffer;
+        params.m_DrawIndexedIndirectArgumentsBuffer = view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
 
         RenderBasePass(commandList, params);
     }
@@ -430,6 +421,9 @@ public:
             params.m_View = &mainView;
             params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, g_CommonResources.DepthReadStencilNone, g_CommonResources.CullClockwise };
             params.m_FrameBufferDesc = frameBufferDesc;
+            params.m_InstanceCountBuffer = mainView.m_InstanceCountBuffer.m_Buffer;
+            params.m_StartInstanceConstsOffsetsBuffer = mainView.m_StartInstanceConstsOffsetsBuffer.m_Buffer;
+            params.m_DrawIndexedIndirectArgumentsBuffer = mainView.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
 
             // render opaque
             RenderBasePass(commandList, params);
@@ -702,13 +696,9 @@ public:
                 params.m_View = &view;
                 params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, g_CommonResources.CullClockwise };
                 params.m_FrameBufferDesc = frameBufferDesc;
-
-                if (!bIsFirstPhase)
-                {
-                    params.m_OverrideInstanceCountBuffer = scene->m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_Buffer;
-                    params.m_OverrideStartInstanceConstsOffsetsBuffer = scene->m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.m_Buffer;
-                    params.m_OverrideDrawIndexedIndirectArgumentsBuffer = scene->m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.m_Buffer;
-                }
+                params.m_InstanceCountBuffer = bIsFirstPhase ? view.m_InstanceCountBuffer.m_Buffer : scene->m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_Buffer;
+				params.m_StartInstanceConstsOffsetsBuffer = bIsFirstPhase ? view.m_StartInstanceConstsOffsetsBuffer.m_Buffer : scene->m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.m_Buffer;
+				params.m_DrawIndexedIndirectArgumentsBuffer = bIsFirstPhase ? view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer : scene->m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.m_Buffer;
 
                 RenderBasePass(commandList, params);
             };

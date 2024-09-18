@@ -41,6 +41,28 @@ RWStructuredBuffer<uint> g_Phase2StartInstanceConstsOffsets : register(u7);
 RWStructuredBuffer<uint> g_Phase2InstanceIndexCounter : register(u8);
 SamplerState g_PointClampSampler : register(s0);
 
+// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
+bool ProjectSphere(float3 center, float radius, float znear, float P00, float P11, out float4 aabb)
+{
+    if (center.z < radius + znear)
+        return false;
+
+    float2 cx = -center.xz;
+    float2 vx = float2(sqrt(dot(cx, cx) - radius * radius), radius);
+    float2 minx = mul(cx, float2x2(vx.x, vx.y, -vx.y, vx.x));
+    float2 maxx = mul(cx, float2x2(vx.x, -vx.y, vx.y, vx.x));
+
+    float2 cy = -center.yz;
+    float2 vy = float2(sqrt(dot(cy, cy) - radius * radius), radius);
+    float2 miny = mul(cy, float2x2(vy.x, vy.y, -vy.y, vy.x));
+    float2 maxy = mul(cy, float2x2(vy.x, -vy.y, vy.y, vy.x));
+
+    aabb = float4(minx.x / minx.y * P00, miny.x / miny.y * P11, maxx.x / maxx.y * P00, maxy.x / maxy.y * P11);
+    aabb = aabb.xwzy * float4(0.5f, -0.5f, 0.5f, -0.5f) + float4(0.5f, 0.5f, 0.5f, 0.5f); // clip space -> uv space
+
+    return true;
+}
+
 struct FrustumCullData
 {
     bool m_IsVisible;
