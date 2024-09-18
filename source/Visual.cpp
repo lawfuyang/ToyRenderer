@@ -364,7 +364,7 @@ void Node::UpdateIMGUI()
 {
     bool bTransformDirty = false;
 
-    bTransformDirty |= ImGui::InputText("Name", &m_Name, ImGuiInputTextFlags_EnterReturnsTrue);
+    ImGui::InputText("Name", &m_Name, ImGuiInputTextFlags_EnterReturnsTrue);
     bTransformDirty |= ImGui::InputFloat3("Position", (float*)&m_Position, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
     bTransformDirty |= ImGui::InputFloat3("Scale", (float*)&m_Scale, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
     //ImGui::SliderFloat3("World Rotation (yaw, pitch, roll)", (float*)&m_Rotation, 0.0f, PI, "%.2f");
@@ -378,7 +378,8 @@ void Node::UpdateIMGUI()
 
     const Matrix worldMatrix = MakeLocalToWorldMatrix();
 
-    const AABB aabb = MakeLocalToWorldAABB(m_AABB, worldMatrix);
+    AABB aabb;
+	m_AABB.Transform(aabb, worldMatrix);
     ImGui::Text("AABB Center: [%f, %f, %f]", aabb.Center.x, aabb.Center.y, aabb.Center.z);
     ImGui::Text("AABB Extents: [%f, %f, %f]", aabb.Extents.x, aabb.Extents.y, aabb.Extents.z);
 
@@ -518,7 +519,8 @@ static void RenderEditorForCurrentlySelectedNode()
 
     const Matrix worldMatrix = currentlySelectedNode.MakeLocalToWorldMatrix();
 
-    const AABB& aabb = MakeLocalToWorldAABB(currentlySelectedNode.m_AABB, worldMatrix);
+    AABB aabb;
+	currentlySelectedNode.m_AABB.Transform(aabb, worldMatrix);
 
     //We not need to divise scale because it's based on the half extention of the AABB
     const Vector3 aabbMins = Vector3{ aabb.Center } - Vector3{ aabb.Extents };

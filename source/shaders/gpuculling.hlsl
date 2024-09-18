@@ -41,24 +41,6 @@ RWStructuredBuffer<uint> g_Phase2StartInstanceConstsOffsets : register(u7);
 RWStructuredBuffer<uint> g_Phase2InstanceIndexCounter : register(u8);
 SamplerState g_PointClampSampler : register(s0);
 
-// same as in MathUtilites.h
-void MakeLocalToWorldAABB(float3 aabbCenter, float3 aabbExtents, float4x4 worldMatrix, out float3 outCenter, out float3 outExtents)
-{
-    float3 globalCenter = mul(float4(aabbCenter, 1), worldMatrix).xyz;
-
-    // Scaled orientation
-    float3 right = worldMatrix[0].xyz * aabbExtents.x;
-    float3 up = worldMatrix[1].xyz * aabbExtents.y;
-    float3 forward = worldMatrix[2].xyz * aabbExtents.z;
-
-    float newIi = abs(dot(float3(1, 0, 0), right)) + abs(dot(float3(1, 0, 0), up)) + abs(dot(float3(1, 0, 0), forward));
-    float newIj = abs(dot(float3(0, 1, 0), right)) + abs(dot(float3(0, 1, 0), up)) + abs(dot(float3(0, 1, 0), forward));
-    float newIk = abs(dot(float3(0, 0, 1), right)) + abs(dot(float3(0, 0, 1), up)) + abs(dot(float3(0, 0, 1), forward));
-
-    outCenter = globalCenter;
-    outExtents = float3(newIi, newIj, newIk);
-}
-
 struct FrustumCullData
 {
     bool m_IsVisible;
@@ -166,15 +148,10 @@ void CS_GPUCulling(
     }
     
     uint instanceConstsIdx = bOcclusionCullingIsSecondPhase ? g_VisualProxiesIndices[dispatchThreadID.x] : dispatchThreadID.x;
-    
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
-    MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
-    
-    float3 aabbCenter, aabbExtents;
-    MakeLocalToWorldAABB(meshData.m_AABBCenter, meshData.m_AABBExtents, instanceConsts.m_WorldMatrix, aabbCenter, aabbExtents);
     
     // Frustum test instance against the current view
-    FrustumCullData cullData = ScreenSpaceFrustumCull(aabbCenter, aabbExtents, g_GPUCullingPassConstants.m_WorldToClip);
+    FrustumCullData cullData = ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
     
     bool bIsVisible = true;
     bool bWasOccluded = false;
@@ -193,7 +170,7 @@ void CS_GPUCulling(
         if (bOcclusionCullingIsFirstPhase)
         {
             // test instance visibiliy against the *previous* view to determine if it was visible last frame
-            FrustumCullData prevCullData = ScreenSpaceFrustumCull(aabbCenter, aabbExtents, g_GPUCullingPassConstants.m_PrevFrameWorldToClip);
+            FrustumCullData prevCullData = ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_PrevFrameWorldToClip);
             if (prevCullData.m_IsVisible)
             {
                 // Occlusion test instance against the HZB
@@ -233,6 +210,8 @@ void CS_GPUCulling(
     
     uint outInstanceIdx;
     InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);
+    
+    MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
     
     DrawIndexedIndirectArguments newArgs;
     newArgs.m_IndexCount = meshData.m_IndexCount;

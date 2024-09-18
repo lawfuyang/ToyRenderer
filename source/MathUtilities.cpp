@@ -55,22 +55,6 @@ void GetFrustumCornersWorldSpace(const Matrix& projview, Vector3(&frustumCorners
     }
 }
 
-AABB MakeLocalToWorldAABB(const AABB& aabb, const Matrix& worldMatrix)
-{
-    const Vector3 globalCenter = Vector3::Transform(aabb.Center, worldMatrix);
-
-    // Scaled orientation
-    const Vector3 right = worldMatrix.Right() * aabb.Extents.x;
-    const Vector3 up = worldMatrix.Up() * aabb.Extents.y;
-    const Vector3 forward = worldMatrix.Forward() * aabb.Extents.z;
-
-    const float newIi = std::abs(Vector3::UnitX.Dot(right)) + std::abs(Vector3::UnitX.Dot(up)) + std::abs(Vector3::UnitX.Dot(forward));
-    const float newIj = std::abs(Vector3::UnitY.Dot(right)) + std::abs(Vector3::UnitY.Dot(up)) + std::abs(Vector3::UnitY.Dot(forward));
-    const float newIk = std::abs(Vector3::UnitZ.Dot(right)) + std::abs(Vector3::UnitZ.Dot(up)) + std::abs(Vector3::UnitZ.Dot(forward));
-
-    return AABB{ globalCenter, Vector3{ newIi, newIj, newIk } };
-}
-
 Sphere MakeLocalToWorldSphere(const Sphere& sphere, const Matrix& worldMatrix)
 {
     const Vector3 globalCenter = Vector3::Transform(sphere.Center, worldMatrix);

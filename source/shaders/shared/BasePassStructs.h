@@ -24,6 +24,10 @@ struct BasePassInstanceConstants
 	uint32_t m_NodeID;
 	uint32_t m_MeshDataIdx;
 	uint32_t m_MaterialDataIdx;
+	uint32_t PAD0;
+	Vector3 m_AABBCenter;
+	uint32_t PAD1;
+	Vector3 m_AABBExtents;
 };
 
 #endif // #define _BASE_PASS_CONSTANTS_

@@ -441,7 +441,9 @@ struct GLTFSceneLoader
             // update scene BS too
             const Matrix nodeWorldMatrix = newNode.MakeLocalToWorldMatrix();
 
-            const AABB nodeAABB = MakeLocalToWorldAABB(newNode.m_AABB, nodeWorldMatrix);
+            AABB nodeAABB;
+			newNode.m_AABB.Transform(nodeAABB, nodeWorldMatrix);
+
             AABB::CreateMerged(scene->m_AABB, scene->m_AABB, nodeAABB);
 
             const Sphere nodeBS = MakeLocalToWorldSphere(newNode.m_BoundingSphere, nodeWorldMatrix);

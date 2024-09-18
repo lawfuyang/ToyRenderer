@@ -51,6 +51,5 @@ constexpr uint32_t DivideAndRoundUp(uint32_t Dividend, uint32_t Divisor)
 
 void ModifyPerspectiveMatrix(Matrix& mat, float nearPlane, float farPlane, bool bReverseZ, bool bInfiniteZ);
 void GetFrustumCornersWorldSpace(const Matrix& projview, Vector3(&frustumCorners)[8]);
-AABB MakeLocalToWorldAABB(const AABB& aabb, const Matrix& worldMatrix);
 Sphere MakeLocalToWorldSphere(const Sphere& sphere, const Matrix& worldMatrix);
 Vector2 ProjectWorldPositionToViewport(const Vector3& worldPos, const Matrix& viewProjMatrix, const Vector2U& viewportDim);

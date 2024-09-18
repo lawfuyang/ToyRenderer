@@ -655,6 +655,9 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
 					inverseTransposeMatrix.Translation(Vector3::Zero);
 					inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
 
+                    AABB instanceAABB;
+					mesh.m_AABB.Transform(instanceAABB, visualProxy.m_WorldMatrix);
+
 					// instance consts
 					BasePassInstanceConstants instanceConsts{};
 					instanceConsts.m_NodeID = visualProxy.m_NodeID;
@@ -663,6 +666,8 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
 					instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
 					instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
 					instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
+					instanceConsts.m_AABBCenter = instanceAABB.Center;
+					instanceConsts.m_AABBExtents = instanceAABB.Extents;
 
 					instanceConstsBytes[proxyIdx] = instanceConsts;
 				}
@@ -714,7 +719,7 @@ void Scene::UpdateIMGUIPropertyGrid()
             ImGui::Text("[%s]:", EnumUtils::ToString((EView)i));
 
             ImGui::Indent();
-			ImGui::Text("GPU Visible: Frustum:[%d]", view.m_GPUCullingCounters.m_Frustum);
+			ImGui::Text("GPU Visible: Frustum:[%d]", g_GraphicPropertyGrid.m_DebugControllables.m_bEnableGPUFrustumCulling ? view.m_GPUCullingCounters.m_Frustum : g_Graphic.m_Scene->m_VisualProxies.size());
 
 			if (view.m_bIsMainView)
 			{
