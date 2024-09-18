@@ -20,7 +20,7 @@ public:
         bool m_bRenderSceneAABB = false;
         bool m_bRenderSceneBS = false;
         bool m_bEnableGPUFrustumCulling = true;
-        bool m_bEnableGPUOcclusionCulling = true;
+        bool m_bEnableGPUOcclusionCulling = false;
         bool m_bColorizeInstances = false;
     };
     DebugControllables m_DebugControllables;
