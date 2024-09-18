@@ -165,7 +165,7 @@ void CS_GPUCulling(
         return;
     }
     
-    uint instanceConstsIdx = g_VisualProxiesIndices[dispatchThreadID.x];
+    uint instanceConstsIdx = bOcclusionCullingIsSecondPhase ? g_VisualProxiesIndices[dispatchThreadID.x] : dispatchThreadID.x;
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];

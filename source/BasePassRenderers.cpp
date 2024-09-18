@@ -52,12 +52,11 @@ public:
     {
         assert(params.m_View);
 
-        const uint32_t nbInstances = (uint32_t)params.m_View->m_FrustumVisibleVisualProxiesIndices.size();
-        assert(nbInstances > 0);
-
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
+
+        assert(!scene->m_VisualProxies.empty());
 
         nvrhi::FramebufferHandle frameBuffer = device->createFramebuffer(params.m_FrameBufferDesc);
         const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
@@ -138,7 +137,7 @@ public:
         commandList->setGraphicsState(drawState);
 
         // NOTE: treating the 2nd arg for 'drawIndexedIndirect' as 'MaxCommandCount' is only legit for d3d12!
-        const uint32_t maxCommandCount = nbInstances;
+        const uint32_t maxCommandCount = scene->m_VisualProxies.size();
         commandList->drawIndexedIndirect(0, maxCommandCount);
     }
 };
@@ -177,13 +176,13 @@ public:
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
         Scene* scene = g_Graphic.m_Scene.get();
-        View& view = scene->m_Views[Scene::EView::Main];
 
-        const uint32_t nbInstances = (uint32_t)view.m_FrustumVisibleVisualProxiesIndices.size();
-        if (nbInstances == 0)
+        if (scene->m_VisualProxies.empty())
         {
             return;
         }
+
+        View& view = scene->m_Views[Scene::EView::Main];
 
         nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
         nvrhi::TextureHandle GBufferBTexture = renderGraph.GetTexture(g_GBufferBRDGTextureHandle);
@@ -302,13 +301,13 @@ public:
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
         Scene* scene = g_Graphic.m_Scene.get();
-        View& view = scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
 
-        const uint32_t nbInstances = (uint32_t)view.m_FrustumVisibleVisualProxiesIndices.size();
-        if (nbInstances == 0)
+        if (scene->m_VisualProxies.empty())
         {
             return;
         }
+
+        View& view = scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
 
         nvrhi::TextureHandle shadowMapArray = renderGraph.GetTexture(g_ShadowMapArrayRDGTextureHandle);
 
@@ -395,12 +394,13 @@ public:
             assert(!context.m_RenderTarget);
 
             Scene* scene = g_Graphic.m_Scene.get();
-            View& mainView = scene->m_Views[Scene::EView::Main];
 
-            if ((uint32_t)mainView.m_FrustumVisibleVisualProxiesIndices.empty())
+            if (scene->m_VisualProxies.empty())
             {
                 return;
             }
+
+            View& mainView = scene->m_Views[Scene::EView::Main];
 
             nvrhi::TextureDesc desc;
             desc.width = g_Graphic.m_RenderResolution.x;
@@ -555,13 +555,14 @@ public:
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
-        View& view = scene->m_Views[m_ViewIndex];
 
-        const uint32_t nbInstances = (uint32_t)view.m_FrustumVisibleVisualProxiesIndices.size();
+		const uint32_t nbInstances = scene->m_VisualProxies.size();
         if (nbInstances == 0)
         {
             return;
         }
+
+        View& view = scene->m_Views[m_ViewIndex];
 
         GraphicPropertyGrid::DebugControllables& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
 
@@ -657,7 +658,7 @@ public:
                     nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer.m_Buffer),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_SRV(2, bIsFirstPhase ? view.m_FrustumVisibleVisualProxiesIndicesBuffer.m_Buffer : m_PhaseTwoCullingIndicesBuffer.m_Buffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(2, bIsFirstPhase ? g_CommonResources.DummyUintStructuredBuffer : m_PhaseTwoCullingIndicesBuffer.m_Buffer),
                     nvrhi::BindingSetItem::Texture_SRV(3, scene->m_HZB),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(4, bIsFirstPhase ? g_CommonResources.DummyUintStructuredBuffer : scene->m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_Buffer),
                     nvrhi::BindingSetItem::StructuredBuffer_UAV(0, view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer),

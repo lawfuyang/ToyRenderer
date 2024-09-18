@@ -4,7 +4,6 @@
 
 #include "Allocators.h"
 #include "MathUtilities.h"
-#include "OctTree.h"
 #include "TileRenderingHelper.h"
 #include "Utilities.h"
 #include "Visual.h"
@@ -26,8 +25,6 @@ class View
 public:
     void Initialize();
     void Update();
-    void GatherVisibleVisualProxies();
-    void UpdateVisibleVisualProxiesBuffer(nvrhi::CommandListHandle commandList);
 
     bool m_bIsMainView = false;
 
@@ -59,9 +56,6 @@ public:
     Matrix m_PrevFrameInvViewProjectionMatrix;
 
     Frustum m_Frustum;
-
-    std::vector<uint32_t> m_FrustumVisibleVisualProxiesIndices;
-    SimpleResizeableGPUBuffer m_FrustumVisibleVisualProxiesIndicesBuffer;
 
     SimpleResizeableGPUBuffer m_InstanceCountBuffer;
     SimpleResizeableGPUBuffer m_DrawIndexedIndirectArgumentsBuffer;
@@ -112,8 +106,6 @@ public:
     std::vector<Node> m_Nodes;
     std::vector<Visual> m_Visuals;
 
-    OctTreeRoot m_OctTreeRoot;
-
     std::vector<VisualProxy> m_VisualProxies;
 
     nvrhi::TextureHandle m_HZB;
@@ -130,9 +122,8 @@ public:
 private:
     void UpdateMainViewCameraControls();
     void UpdateCSMViews();
-    void RenderOctTreeDebug();
     void UpdatePicking();
-    void CullAndPrepareInstanceDataForViews();
+    void PrepareInstanceDataForViews();
     void UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList);
 
     // TODO: move this shit to some sort of camera class

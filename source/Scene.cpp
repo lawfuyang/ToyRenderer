@@ -110,10 +110,6 @@ void View::Initialize()
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Init View GPUCulling Indirect Buffers");
 
-    m_FrustumVisibleVisualProxiesIndicesBuffer.m_BufferDesc.structStride = sizeof(uint32_t);
-    m_FrustumVisibleVisualProxiesIndicesBuffer.m_BufferDesc.debugName = "Visible Instance Consts Indices";
-    m_FrustumVisibleVisualProxiesIndicesBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-
     m_InstanceCountBuffer.m_BufferDesc.structStride = sizeof(uint32_t);
     m_InstanceCountBuffer.m_BufferDesc.debugName = "InstanceIndexCounter";
     m_InstanceCountBuffer.m_BufferDesc.canHaveUAVs = true;
@@ -167,55 +163,6 @@ void View::Update()
 
     Frustum::CreateFromMatrix(m_Frustum, m_ProjectionMatrix);
     m_Frustum.Transform(m_Frustum, m_InvViewMatrix);
-}
-
-void View::GatherVisibleVisualProxies()
-{
-    PROFILE_FUNCTION();
-
-    Scene* scene = g_Graphic.m_Scene.get();
-
-    // clear visual proxies
-    m_FrustumVisibleVisualProxiesIndices.clear();
-
-    std::vector<OctTree::Node*> visibleNodes;
-
-    // GPU will fine-grain cull in CS, so do only coarse octtree culling
-    const bool bFineGrainCulling = false;
-
-    if (m_bIsPerspective)
-    {
-        scene->m_OctTreeRoot.m_Root.GetObjectsInBound(m_Frustum, visibleNodes, bFineGrainCulling);
-    }
-    else
-    {
-        // construct OBB from frustum points to perform OBB-AABB culling, because 'Frustum::Contains' doesn't work with orthographic projection
-        Vector3 cascadeCorners[Frustum::CORNER_COUNT]{};
-        m_Frustum.GetCorners((DirectX::XMFLOAT3*)&cascadeCorners);
-
-        OBB cascadeOBB;
-        OBB::CreateFromPoints(cascadeOBB, std::size(cascadeCorners), (DirectX::XMFLOAT3*)cascadeCorners, sizeof(Vector3));
-
-        scene->m_OctTreeRoot.m_Root.GetObjectsInBound(cascadeOBB, visibleNodes, bFineGrainCulling);
-    }
-
-    // get visible proxy indices
-    for (OctTree::Node* node : visibleNodes)
-    {
-        m_FrustumVisibleVisualProxiesIndices.push_back(node->m_Data);
-    }
-}
-
-void View::UpdateVisibleVisualProxiesBuffer(nvrhi::CommandListHandle commandList)
-{
-    PROFILE_FUNCTION();
-
-    if (m_FrustumVisibleVisualProxiesIndices.empty())
-    {
-        return;
-    }
-
-    m_FrustumVisibleVisualProxiesIndicesBuffer.Write(commandList, m_FrustumVisibleVisualProxiesIndices.data(), m_FrustumVisibleVisualProxiesIndices.size() * sizeof(uint32_t));
 }
 
 void Scene::Initialize()
@@ -470,35 +417,6 @@ void Scene::UpdateCSMViews()
     }
 }
 
-void Scene::RenderOctTreeDebug()
-{
-    if (!g_GraphicPropertyGrid.m_DebugControllables.m_bRenderSceneOctTree)
-    {
-        return;
-    }
-
-	PROFILE_FUNCTION();
-
-    auto DebugDrawOctTree = [](const OctTree& OctTree)
-        {
-            View& mainView = g_Graphic.m_Scene->m_Views[EView::Main];
-
-            const AABB& aabb = OctTree.m_AABB;
-            const ddVec3 center{ aabb.Center.x, aabb.Center.y, aabb.Center.z };
-
-            const bool bDepthEnabled = false;
-            dd::box(center, dd::colors::White, aabb.Extents.x * 2, aabb.Extents.y * 2, aabb.Extents.z * 2, 0, bDepthEnabled);
-
-            const Vector2 strViewportPos = ProjectWorldPositionToViewport(aabb.Center, mainView.m_ViewProjectionMatrix, g_Graphic.m_DisplayResolution);
-            const ddVec3 textScreenCenter{ strViewportPos.x, strViewportPos.y, 0.0f };
-
-            // Level : Nb Primitives
-            dd::screenText(StringFormat("[%d]:[%d]", OctTree.m_Level, OctTree.m_NodeIndices.size()), textScreenCenter, dd::colors::White);
-        };
-
-    m_OctTreeRoot.m_Root.ForEachOctTree(DebugDrawOctTree);
-}
-
 void Scene::UpdatePicking()
 {
     PROFILE_FUNCTION();
@@ -537,14 +455,16 @@ void Scene::UpdatePicking()
     }
 }
 
-void Scene::CullAndPrepareInstanceDataForViews()
+void Scene::PrepareInstanceDataForViews()
 {
     PROFILE_FUNCTION();
 
-    // MT gather visible proxies
-    for (View& view : m_Views)
+    // NOTE: it's VERY important that the state of these 2 gpu culling indirect buffers are persistent throughout the frame
+    //       all GPUCulling & BasePass renderers will access their Views' buffers multi-threaded
+    const uint32_t nbInstances = m_VisualProxies.size();
+    if (nbInstances == 0)
     {
-        view.GatherVisibleVisualProxies();
+        return;
     }
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
@@ -555,24 +475,16 @@ void Scene::CullAndPrepareInstanceDataForViews()
 
         for (View& view : m_Views)
         {
-            view.UpdateVisibleVisualProxiesBuffer(commandList);
+			view.m_InstanceCountBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
+			view.m_StartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
+			view.m_DrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(DrawIndexedIndirectArguments));
 
-            // NOTE: it's VERY important that the state of these 2 gpu culling indirect buffers are persistent throughout the frame
-            //       all GPUCulling & BasePass renderers will access their Views' buffers multi-threaded
-            const uint32_t nbInstances = (uint32_t)view.m_FrustumVisibleVisualProxiesIndices.size();
-            if (nbInstances > 0)
-            {
-                view.m_InstanceCountBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
-                view.m_StartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
-                view.m_DrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(DrawIndexedIndirectArguments));
-
-                if (view.m_bIsMainView)
-                {
-                    m_OcclusionCullingPhaseTwoInstanceCountBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
-                    m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
-                    m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(DrawIndexedIndirectArguments));
-                }
-            }
+			if (view.m_bIsMainView)
+			{
+				m_OcclusionCullingPhaseTwoInstanceCountBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
+				m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(uint32_t));
+				m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances * sizeof(DrawIndexedIndirectArguments));
+			}
         }
     }
 
@@ -591,11 +503,9 @@ void Scene::Update()
 
     UpdateCSMViews();
 
-    RenderOctTreeDebug();
-
     tf::Taskflow tf;
 
-    tf::Task prepareInstancesDataTask = tf.emplace([this] { CullAndPrepareInstanceDataForViews(); });
+    tf::Task prepareInstancesDataTask = tf.emplace([this] { PrepareInstanceDataForViews(); });
     
     extern IRenderer* g_ClearBuffersRenderer;
     extern IRenderer* g_GPUCullingRenderer[EnumUtils::Count<Scene::EView>()];
@@ -669,15 +579,6 @@ uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
     newProxy.m_WorldMatrix = worldMatrix;
     newProxy.m_PrevFrameWorldMatrix = worldMatrix;
 
-    const uint32_t nodeIdx = m_OctTreeRoot.m_OctTreeNodes.size();
-    OctTree::Node& newOctTreeNode = m_OctTreeRoot.m_OctTreeNodes.emplace_back();
-    p->m_SceneOctTreeNodeIdx = nodeIdx;
-
-    newOctTreeNode.m_Data = proxyIdx;
-    newOctTreeNode.m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx).m_AABB, worldMatrix);
-
-    m_OctTreeRoot.m_Root.Insert(&newOctTreeNode, nodeIdx);
-
     return proxyIdx;
 }
 
@@ -685,12 +586,6 @@ void Scene::UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t pr
 {
     VisualProxy& visualProxy = m_VisualProxies.at(proxyIdx);
     visualProxy.m_WorldMatrix = worldMatrix;
-
-	OctTree::Node& octTreeNode = m_OctTreeRoot.m_OctTreeNodes.at(p->m_SceneOctTreeNodeIdx);
-
-    octTreeNode.m_AABB = MakeLocalToWorldAABB(g_Graphic.m_Meshes.at(p->m_MeshIdx).m_AABB, worldMatrix);
-
-    m_OctTreeRoot.m_Root.Update(&octTreeNode, p->m_SceneOctTreeNodeIdx);
 }
 
 void Scene::CalculateCSMSplitDistances()
@@ -717,11 +612,6 @@ void Scene::CalculateCSMSplitDistances()
 void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
 {
     // TODO: upload only dirty proxies
-
-    if (m_VisualProxies.empty())
-    {
-        return;
-    }
 
     PROFILE_FUNCTION();
     PROFILE_GPU_SCOPED(commandList, "UpdateInstanceConstsBuffer");
@@ -801,44 +691,20 @@ void Scene::UpdateIMGUIPropertyGrid()
         {
             const View& view = m_Views[i];
 
-            const uint32_t nbCPUVisible = (uint32_t)m_Views[i].m_FrustumVisibleVisualProxiesIndices.size();
-
             ImGui::Text("[%s]:", EnumUtils::ToString((EView)i));
 
             ImGui::Indent();
-            ImGui::Text("CPU Visible:[%d]", nbCPUVisible);
-            if (nbCPUVisible)
-            {
-                ImGui::Text("GPU Visible: Frustum:[%d]", view.m_GPUCullingCounters.m_Frustum);
+			ImGui::Text("GPU Visible: Frustum:[%d]", view.m_GPUCullingCounters.m_Frustum);
 
-                if (view.m_bIsMainView)
-                {
-                    ImGui::SameLine();
-                    ImGui::Text("Occlusion: Phase 1:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase1);
-                    ImGui::SameLine();
-                    ImGui::Text("Phase 2:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase2);
-                }
-            }
+			if (view.m_bIsMainView)
+			{
+				ImGui::SameLine();
+				ImGui::Text("Occlusion: Phase 1:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase1);
+				ImGui::SameLine();
+				ImGui::Text("Phase 2:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase2);
+			}
             ImGui::Unindent();
         }
-
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Oct Tree Stats"))
-    {
-        auto OctTreeStats = [](const OctTree& OctTree)
-            {
-                std::string levelIndentation;
-                levelIndentation.reserve(OctTree.m_Level * 2);
-                for (size_t i = 0; i < OctTree.m_Level; i++)
-                {
-                    levelIndentation += "  ";
-                }
-                ImGui::Text("Level:[%d] %s Prims:[%d]", OctTree.m_Level, levelIndentation.c_str(), OctTree.m_NodeIndices.size());
-            };
-
-        m_OctTreeRoot.m_Root.ForEachOctTree(OctTreeStats);
 
         ImGui::TreePop();
     }
@@ -850,10 +716,6 @@ void Scene::OnSceneLoad()
     SCOPED_TIMER_FUNCTION();
 
     View& mainView = m_Views[EView::Main];
-
-    // max extents of every Node
-    m_OctTreeRoot.m_Root.m_AABB.Center = m_AABB.Center;
-    m_OctTreeRoot.m_Root.m_AABB.Extents = m_AABB.Extents;
 
     for (Node& node : m_Nodes)
     {

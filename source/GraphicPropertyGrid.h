@@ -20,7 +20,6 @@ public:
         bool m_bRenderSceneAABB = false;
         bool m_bRenderSceneBS = false;
         bool m_bRenderSceneOctTree = false;
-        bool m_bEnableCPUOctTreeFrustumCulling = true;
         bool m_bEnableGPUFrustumCulling = true;
         bool m_bEnableGPUOcclusionCulling = true;
         bool m_bColorizeInstances = false;
