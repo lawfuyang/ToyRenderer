@@ -2,7 +2,6 @@
 
 #include "shadowfiltering.hlsl"
 #include "lightingcommon.hlsli"
-#include "hzb.hlsli"
 #include "random.hlsli"
 
 #include "shared/CommonConsts.h"
