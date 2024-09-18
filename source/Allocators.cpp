@@ -24,15 +24,12 @@ uint64_t GrowableGPUVirtualBuffer::QueueAppend(const void* srcData, uint64_t siz
     return destOffsetBytes;
 }
 
-void GrowableGPUVirtualBuffer::CommitPendingUploads()
+void GrowableGPUVirtualBuffer::CommitPendingUploads(nvrhi::CommandListHandle commandList)
 {
     if (m_QueuedUploadBatches.empty())
     {
         return;
     }
-
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "GrowableGPUVirtualBuffer::CommitPendingUploads");
 
     const nvrhi::BufferDesc& bufferDesc = m_Buffer->getDesc();
 

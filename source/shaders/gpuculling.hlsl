@@ -7,38 +7,13 @@
 #include "shared/GPUCullingStructs.h"
 #include "shared/IndirectArguments.h"
 
-/*
-	-- 2 Phase Occlusion Culling --
-
-	Works under the assumption that it's likely that objects visible in the previous frame, will be visible this frame.
-
-	In Phase 1, we render all objects that were visible last frame by testing against the previous HZB.
-	Occluded objects are stored in a list, to be processed later.
-	The HZB is constructed from the current result.
-	Phase 2 tests all previously occluded objects against the new HZB and renders unoccluded.
-	The HZB is constructed again from this result to be used in the next frame.
-
-	Cull both on a per-instance level as on a per-meshlet level.
-	Leverage Mesh/Amplification shaders to drive per-meshlet culling.
-
-	https://advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf
-*/
-
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
 StructuredBuffer<MeshData> g_MeshData : register(t1);
-StructuredBuffer<uint> g_VisualProxiesIndices : register(t2);
-Texture2D<float> g_HZBTexture : register(t3);
-StructuredBuffer<uint> g_SecondPhaseNbInstances : register(t4);
 RWStructuredBuffer<DrawIndexedIndirectArguments> g_DrawArgumentsOutput : register(u0);
 RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
-RWStructuredBuffer<uint> g_PhaseTwoVisualProxyIndicesOut : register(u4);
-RWStructuredBuffer<uint> g_PhaseTwoVisualProxyIndicesOutCounter : register(u5);
-RWStructuredBuffer<DrawIndexedIndirectArguments> g_Phase2DrawArgumentsOutput : register(u6);
-RWStructuredBuffer<uint> g_Phase2StartInstanceConstsOffsets : register(u7);
-RWStructuredBuffer<uint> g_Phase2InstanceIndexCounter : register(u8);
 SamplerState g_PointClampSampler : register(s0);
 
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
@@ -63,18 +38,8 @@ bool ProjectSphere(float3 center, float radius, float znear, float P00, float P1
     return true;
 }
 
-struct FrustumCullData
+bool ScreenSpaceFrustumCull(float3 aabbCenter, float3 aabbExtents, float4x4 worldToClip)
 {
-    bool m_IsVisible;
-    float3 m_RectMin;
-    float3 m_RectMax;
-};
-
-FrustumCullData ScreenSpaceFrustumCull(float3 aabbCenter, float3 aabbExtents, float4x4 worldToClip)
-{
-    FrustumCullData data = (FrustumCullData) 0;
-    data.m_IsVisible = true;
-
     float3 ext = 2.0f * aabbExtents;
     float4x4 extentsBasis = float4x4(
         ext.x, 0, 0, 0,
@@ -122,34 +87,26 @@ FrustumCullData ScreenSpaceFrustumCull(float3 aabbCenter, float3 aabbExtents, fl
     float3 csPos011 = pos011.xyz / pos011.w;
     float3 csPos111 = pos111.xyz / pos111.w;
 
-    data.m_RectMin = Min3(
-                    Min3(csPos000, csPos100, csPos010),
-                    Min3(csPos110, csPos001, csPos101),
-                    Min3(csPos011, csPos111, float3(1, 1, 1))
-                    );
-
-    data.m_RectMax = Max3(
+    float3 rectMax = Max3(
                     Max3(csPos000, csPos100, csPos010),
                     Max3(csPos110, csPos001, csPos101),
                     Max3(csPos011, csPos111, float3(-1, -1, -1))
                     );
 
-    data.m_IsVisible &= data.m_RectMax.z > 0;
+    bool bIsVisible = rectMax.z > 0;
 
     if (minW <= 0 && maxW > 0)
     {
-        data.m_RectMin = -1;
-        data.m_RectMax = 1;
-        data.m_IsVisible = true;
+        bIsVisible = true;
     }
     else
     {
-        data.m_IsVisible &= maxW > 0.0f;
+        bIsVisible &= maxW > 0.0f;
     }
 
-    data.m_IsVisible &= !any(planeMins > 0.0f);
+    bIsVisible &= !any(planeMins > 0.0f);
 
-    return data;
+    return bIsVisible;
 }
 
 [numthreads(kNbGPUCullingGroupThreads, 1, 1)]
@@ -159,76 +116,31 @@ void CS_GPUCulling(
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex)
 {
-    const bool bOcclusionCullingEnabled = (g_GPUCullingPassConstants.m_OcclusionCullingFlags & OcclusionCullingFlag_Enable);
-    const bool bOcclusionCullingIsFirstPhase = (g_GPUCullingPassConstants.m_OcclusionCullingFlags & OcclusionCullingFlag_IsFirstPhase);
-    const bool bOcclusionCullingIsSecondPhase = (bOcclusionCullingEnabled && !bOcclusionCullingIsFirstPhase);
-    
-    const uint nbInstances = bOcclusionCullingIsSecondPhase ? g_SecondPhaseNbInstances[0] : g_GPUCullingPassConstants.m_NbInstances;
+    const uint nbInstances = g_GPUCullingPassConstants.m_NbInstances;
     if (dispatchThreadID.x >= nbInstances)
     {
         return;
     }
     
-    uint instanceConstsIdx = bOcclusionCullingIsSecondPhase ? g_VisualProxiesIndices[dispatchThreadID.x] : dispatchThreadID.x;
+    uint instanceConstsIdx = dispatchThreadID.x;
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
     
-    // Frustum test instance against the current view
-    FrustumCullData cullData = ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
-    
     bool bIsVisible = true;
-    bool bWasOccluded = false;
     
     if (g_GPUCullingPassConstants.m_EnableFrustumCulling)
     {
-        bIsVisible = cullData.m_IsVisible;
-        if (bIsVisible)
+        bIsVisible &= ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
+        
+        if(bIsVisible)
         {
             InterlockedAdd(g_CullingCounters[kFrustumCullingBufferCounterIdx], 1);
         }
     }
     
-    if (bIsVisible && bOcclusionCullingEnabled)
-    {
-        if (bOcclusionCullingIsFirstPhase)
-        {
-            // test instance visibiliy against the *previous* view to determine if it was visible last frame
-            FrustumCullData prevCullData = ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_PrevFrameWorldToClip);
-            if (prevCullData.m_IsVisible)
-            {
-                // Occlusion test instance against the HZB
-                float minDepth = GetMinDepthFromHZB(float4(ClipXYToUV(prevCullData.m_RectMin.xy), ClipXYToUV(prevCullData.m_RectMax.xy)), g_HZBTexture, g_GPUCullingPassConstants.m_HZBDimensions, g_PointClampSampler);
-                bWasOccluded = minDepth > prevCullData.m_RectMax.z;
-            }
-        
-            // If the instance was occluded the previous frame, we can't be sure it's still occluded this frame.
-            // Add it to the list to re-test in the second phase.
-            if (bWasOccluded)
-            {
-                uint outInstanceIdx;
-                InterlockedAdd(g_PhaseTwoVisualProxyIndicesOutCounter[0], 1, outInstanceIdx);
-                g_PhaseTwoVisualProxyIndicesOut[outInstanceIdx] = instanceConstsIdx;
-            }
-        }
-        else
-        {
-            // Occlusion test instance against the updated HZB
-            float minDepth = GetMinDepthFromHZB(float4(ClipXYToUV(cullData.m_RectMin.xy), ClipXYToUV(cullData.m_RectMax.xy)), g_HZBTexture, g_GPUCullingPassConstants.m_HZBDimensions, g_PointClampSampler);
-            bIsVisible = minDepth <= cullData.m_RectMax.z;
-        }
-    }
-
-    // TODO
-    if (bIsVisible && g_GPUCullingPassConstants.m_EnableMeshletConeCulling)
-    {
-        
-    }
-    
-    if (!bIsVisible || bWasOccluded)
+    if (!bIsVisible)
     {
         return;
     }
-    
-    // culling passed... add instance to indirect args
     
     uint outInstanceIdx;
     InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);
@@ -244,24 +156,6 @@ void CS_GPUCulling(
     
     g_DrawArgumentsOutput[outInstanceIdx] = newArgs;
     g_StartInstanceConstsOffsets[outInstanceIdx] = instanceConstsIdx;
-    
-    if (bOcclusionCullingEnabled)
-    {
-        uint counterIdx = bOcclusionCullingIsFirstPhase ? kOcclusionCullingPhase1BufferCounterIdx : kOcclusionCullingPhase2BufferCounterIdx;
-        InterlockedAdd(g_CullingCounters[counterIdx], 1);
-    }
-    
-    // output indirect args specifically for phase 2 depth pre-pass
-    if (bOcclusionCullingIsSecondPhase)
-    {
-        uint phase2OutInstanceIdx;
-        InterlockedAdd(g_Phase2InstanceIndexCounter[0], 1, phase2OutInstanceIdx);
-        
-        newArgs.m_StartInstanceLocation = phase2OutInstanceIdx;
-        
-        g_Phase2DrawArgumentsOutput[phase2OutInstanceIdx] = newArgs;
-        g_Phase2StartInstanceConstsOffsets[phase2OutInstanceIdx] = instanceConstsIdx;
-    }
 }
 
 StructuredBuffer<uint> g_NbPhaseTwoInstances : register(t0);

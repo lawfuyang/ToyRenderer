@@ -120,7 +120,8 @@ public:
 				nvrhi::BindingSetItem::Texture_SRV(2, GBufferCTexture),
 				nvrhi::BindingSetItem::Texture_SRV(3, depthBufferCopyTexture),
 				nvrhi::BindingSetItem::Texture_SRV(4, ssaoTexture),
-				nvrhi::BindingSetItem::Texture_SRV(5, shadowMaskTexture)
+				nvrhi::BindingSetItem::Texture_SRV(5, shadowMaskTexture),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
 			};
 
 			// NOTE: i'm lazy to support debug Shader for CS codepath...

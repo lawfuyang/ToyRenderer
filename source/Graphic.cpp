@@ -923,7 +923,10 @@ void Graphic::Update()
         m_CachedGraphicPSOs.clear();
         m_CachedComputePSOs.clear();
 
-        InitShaders();
+        // run as a task due to the usage of "corun" in the InitShaders function
+        tf::Taskflow tf;
+        tf.emplace([this] { InitShaders(); });
+        g_Engine.m_Executor->run(tf).wait();
 
         m_bTriggerReloadShaders = false;
     }
@@ -956,10 +959,15 @@ void Graphic::Update()
         dd::clear();
     }
 
-    m_VirtualVertexBuffer.CommitPendingUploads();
-    m_VirtualIndexBuffer.CommitPendingUploads();
-    m_VirtualMeshDataBuffer.CommitPendingUploads();
-    m_VirtualMaterialDataBuffer.CommitPendingUploads();
+    {
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "VirtualBuffers CommitPendingUploads");
+
+        m_VirtualVertexBuffer.CommitPendingUploads(commandList);
+        m_VirtualIndexBuffer.CommitPendingUploads(commandList);
+        m_VirtualMeshDataBuffer.CommitPendingUploads(commandList);
+        m_VirtualMaterialDataBuffer.CommitPendingUploads(commandList);
+    }
 
     tf::Taskflow tf;
 

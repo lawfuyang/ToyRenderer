@@ -6,7 +6,7 @@ class GrowableGPUVirtualBuffer
 {
 public:
     uint64_t QueueAppend(const void* srcData, uint64_t sizeInBytes);
-    void CommitPendingUploads();
+    void CommitPendingUploads(nvrhi::CommandListHandle commandList);
 
     nvrhi::BufferHandle m_Buffer;
     uint64_t m_CurrentBytesOffset = 0;

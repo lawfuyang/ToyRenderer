@@ -8,6 +8,9 @@
 #include "shared/DeferredLightingStructs.h"
 #include "shared/IndirectArguments.h"
 
+// NOTE: this is being used in multiple Shaders in this file
+SamplerState g_PointClampSampler : register(s0);
+
 cbuffer g_DeferredLightingPassConstantsBuffer : register(b0) { DeferredLightingConsts g_DeferredLightingConsts; }
 Texture2D g_GBufferAlbedo : register(t0);
 Texture2D g_GBufferNormal : register(t1);
@@ -59,7 +62,7 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     float3 lighting = DefaultLitBxDF(specular, roughness, diffuse, normal, V, L);
     
     // Retrieve the shadow factor from the shadow mask texture
-    float shadowFactor = g_ShadowMaskTexture[screenTexel].r;
+    float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, screenUV, 0).r;
     lighting *= shadowFactor;
     
     // Add the ambient term to the lighting result after shadow
@@ -140,7 +143,6 @@ RWStructuredBuffer<uint> g_TileCounter : register(u0);
 RWStructuredBuffer<DispatchIndirectArguments> g_DispatchIndirectArgs : register(u1);
 RWStructuredBuffer<DrawIndirectArguments> g_DrawIndirectArgs : register(u2);
 RWStructuredBuffer<uint2> g_TileOffsetsOut : register(u3);
-sampler g_PointClampSampler : register(s0);
 
 [numthreads(8, 8, 1)]
 void CS_TileClassification(

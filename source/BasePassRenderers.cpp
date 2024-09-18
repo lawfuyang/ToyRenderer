@@ -51,13 +51,16 @@ public:
     };
 
     FFXHelpers::SPD m_SPDHelper;
-
     CullingBuffers m_CullingBuffers[2];
+    FencedReadbackBuffer m_CounterStatsReadbackBuffer;
+    RenderGraph::ResourceHandle m_CounterStatsRDGBufferHandle;
 
     BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
 
     void Initialize() override
     {
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
         for (uint32_t i = 0; i < 2; ++i)
         {
             m_CullingBuffers[i].m_InstanceCountBuffer.m_BufferDesc.structStride = sizeof(uint32_t);
@@ -78,19 +81,29 @@ public:
             m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.isVertexBuffer = true;
             m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::VertexBuffer;
         }
+
+        m_CounterStatsReadbackBuffer.Initialize(device, sizeof(uint32_t) * kNbGPUCullingBufferCounters);
     }
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
         m_SPDHelper.CreateTransientResources(renderGraph);
 
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(uint32_t) * kNbGPUCullingBufferCounters;
+            desc.structStride = sizeof(uint32_t);
+            desc.canHaveUAVs = true;
+            desc.debugName = "GPUCullingCounterStats";
+            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+            renderGraph.CreateTransientResource(m_CounterStatsRDGBufferHandle, desc);
+        }
+
         return true;
 	}
 
-    void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderBasePassParams& params)
+    void GPUCulling(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, nvrhi::BufferHandle counterStatsBuffer)
     {
-        assert(params.m_View);
-
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
@@ -99,12 +112,69 @@ public:
 
         assert(nbInstances > 0);
 
-        for (uint32_t i = 0; i < 2; ++i)
         {
-            m_CullingBuffers[i].m_InstanceCountBuffer.GrowBufferIfNeeded(nbInstances);
-            m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances);
-            m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances);
+            PROFILE_SCOPED("Grow & Clear Buffers");
+            PROFILE_GPU_SCOPED(commandList, "Grow & Clear Buffers");
+
+            commandList->clearBufferUInt(counterStatsBuffer, 0);
+
+            for (uint32_t i = 0; i < 2; ++i)
+            {
+                m_CullingBuffers[i].m_InstanceCountBuffer.GrowBufferIfNeeded(nbInstances);
+                m_CullingBuffers[i].m_InstanceCountBuffer.ClearBuffer(commandList, nbInstances * sizeof(uint32_t));
+
+                m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.GrowBufferIfNeeded(nbInstances);
+                m_CullingBuffers[i].m_StartInstanceConstsOffsetsBuffer.ClearBuffer(commandList, nbInstances * sizeof(uint32_t));
+
+                m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.GrowBufferIfNeeded(nbInstances);
+                m_CullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer.ClearBuffer(commandList, nbInstances * sizeof(DrawIndexedIndirectArguments));
+            }
         }
+
+        const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
+
+        // read back nb visible instances from counter
+        {
+            uint32_t readbackResults[kNbGPUCullingBufferCounters]{};
+            m_CounterStatsReadbackBuffer.Read(device, readbackResults);
+
+            // TODO: support transparent
+            GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
+            cullingCounters.m_Frustum = readbackResults[kFrustumCullingBufferCounterIdx];
+            cullingCounters.m_OcclusionPhase1 = readbackResults[kOcclusionCullingPhase1BufferCounterIdx];
+            cullingCounters.m_OcclusionPhase2 = readbackResults[kOcclusionCullingPhase2BufferCounterIdx];
+        }
+
+        GPUCullingPassConstants passParameters{};
+        passParameters.m_NbInstances = nbInstances;
+        passParameters.m_EnableFrustumCulling = debugControllables.m_bEnableGPUFrustumCulling;
+        passParameters.m_OcclusionCullingFlags = 0;
+        passParameters.m_WorldToClip = view.m_ViewProjectionMatrix;
+        passParameters.m_PrevFrameWorldToClip = view.m_PrevFrameViewProjectionMatrix;
+
+        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
+
+        nvrhi::BindingSetDesc bindingSetDesc;
+        bindingSetDesc.bindings = {
+            nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, m_CullingBuffers[0].m_DrawIndexedIndirectArgumentsBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, m_CullingBuffers[0].m_StartInstanceConstsOffsetsBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(2, m_CullingBuffers[0].m_InstanceCountBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
+        };
+
+        const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNbGPUCullingGroupThreads);
+        g_Graphic.AddComputePass(commandList, "gpuculling_CS_GPUCulling", bindingSetDesc, dispatchGroupSize);
+    }
+
+    void RenderInstances(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
+    {
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+        Scene* scene = g_Graphic.m_Scene.get();
+        View& view = *params.m_View;
 
         nvrhi::FramebufferHandle frameBuffer = device->createFramebuffer(params.m_FrameBufferDesc);
         const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
@@ -158,7 +228,7 @@ public:
         drawState.framebuffer = frameBuffer;
         drawState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
         drawState.indexBuffer = { g_Graphic.m_VirtualIndexBuffer.m_Buffer, g_Graphic.m_VirtualIndexBuffer.m_Buffer->getDesc().format, 0 };
-        drawState.vertexBuffers = { { m_CullingBuffers[0].m_StartInstanceConstsOffsetsBuffer.m_Buffer, 0, 0}};
+        drawState.vertexBuffers = { { m_CullingBuffers[0].m_StartInstanceConstsOffsetsBuffer.m_Buffer, 0, 0} };
         drawState.indirectParams = m_CullingBuffers[0].m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
         drawState.indirectCountBuffer = m_CullingBuffers[0].m_InstanceCountBuffer.m_Buffer;
         drawState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
@@ -169,6 +239,31 @@ public:
         // NOTE: treating the 2nd arg for 'drawIndexedIndirect' as 'MaxCommandCount' is only legit for d3d12!
         const uint32_t maxCommandCount = scene->m_VisualProxies.size();
         commandList->drawIndexedIndirect(0, maxCommandCount);
+    }
+
+    void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
+    {
+        assert(params.m_View);
+
+        // early cull: frustum cull & fill objects that *were* visible last frame
+        nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
+        GPUCulling(commandList, renderGraph, params, counterStatsBuffer);
+
+        // early render: render objects that were visible last frame
+        RenderInstances(commandList, renderGraph, params);
+
+        // depth pyramid generation
+        //pyramid();
+
+        // late cull: frustum + occlusion cull & fill objects that were *not* visible last frame
+        //cull(taskSubmit ? taskculllatePipeline : drawculllatePipeline, 6, "late cull", /* late= */ true);
+
+        // late render: render objects that are visible this frame but weren't drawn in the early pass
+        //render(/* late= */ true, colorClear, depthClear, 1, 10, "late render");
+
+        // copy counter buffer, so that it can be read on CPU next frame
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+        m_CounterStatsReadbackBuffer.CopyTo(device, commandList, counterStatsBuffer);
     }
 };
 
@@ -240,16 +335,35 @@ public:
         frameBufferDesc.addColorAttachment(GBufferATexture);
         frameBufferDesc.addColorAttachment(GBufferBTexture);
         frameBufferDesc.addColorAttachment(GBufferCTexture);
-        frameBufferDesc.setDepthAttachment(depthStencilBuffer)
-            .depthAttachment.isReadOnly = true;
+        frameBufferDesc.setDepthAttachment(depthStencilBuffer);
+
+        // write 'opaque' to stencil buffer
+        nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthWriteStencilWrite;
+        depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
+        depthStencilState.frontFaceStencil.passOp = nvrhi::StencilOp::Replace;
 
         RenderBasePassParams params;
         params.m_PS = g_Graphic.GetShader("basepass_PS_Main_GBuffer");
         params.m_View = &view;
-        params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, g_CommonResources.DepthReadStencilNone, g_CommonResources.CullClockwise };
+        params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, g_CommonResources.CullClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
 
-        RenderBasePass(commandList, params);
+        RenderBasePass(commandList, renderGraph, params);
+
+        // at this point, we have the final depth buffer. create a copy for SRV purposes
+        {
+            PROFILE_GPU_SCOPED(commandList, "Copy depth buffer");
+
+            nvrhi::BindingSetDesc bindingSetDesc;
+            bindingSetDesc.bindings = { nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer), };
+
+            nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
+
+            nvrhi::FramebufferDesc frameBufferDesc;
+            frameBufferDesc.addColorAttachment(depthBufferCopy);
+
+            g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, "fullscreen_PS_Passthrough");
+        }
     }
 };
 
@@ -344,362 +458,7 @@ public:
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, shadowDepthStencilState, g_CommonResources.CullCounterClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
 
-        RenderBasePass(commandList, params);
-    }
-};
-
-IRenderer* g_GPUCullingRenderer[EnumUtils::Count<Scene::EView>()];
-
-class GPUCullingRenderer : public BasePassRenderer
-{
-    inline static uint32_t ms_ViewIdxCounter = 0;
-    const uint32_t m_ViewIndex;
-    const bool m_bIsMainView; // NOTE: Renderers & Scene views init in parallel... so View's 'm_bIsMainView' might not be properly initialized
-
-    FFXHelpers::SPD m_SPDHelper;
-
-    RenderGraph::ResourceHandle m_CounterStatsRDGBufferHandle;
-    RenderGraph::ResourceHandle m_PhaseTwoCullingIndirectArgsRDGBufferHandle;
-    RenderGraph::ResourceHandle m_PhaseTwoInstanceIndexCounterRDGBufferHandle;
-
-    FencedReadbackBuffer m_CounterStatsReadbackBuffer;
-    SimpleResizeableGPUBuffer m_PhaseTwoCullingIndicesBuffer;
-
-public:
-    GPUCullingRenderer()
-        : BasePassRenderer(StringFormat("GPUCulling: %s", EnumUtils::ToString((Scene::EView)ms_ViewIdxCounter)))
-        , m_ViewIndex(ms_ViewIdxCounter++)
-        , m_bIsMainView(m_ViewIndex == (uint32_t)Scene::EView::Main)
-    {
-        g_GPUCullingRenderer[m_ViewIndex] = this;
-    }
-
-    void Initialize() override
-    {
-        // we only need the BasePass functionality for main view for populating depth buffer
-        if (m_bIsMainView)
-        {
-            BasePassRenderer::Initialize();
-        }
-
-        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-        m_CounterStatsReadbackBuffer.Initialize(device, sizeof(uint32_t) * kNbGPUCullingBufferCounters);
-
-        if (m_bIsMainView)
-        {
-            m_PhaseTwoCullingIndicesBuffer.m_BufferDesc.structStride = sizeof(uint32_t);
-            m_PhaseTwoCullingIndicesBuffer.m_BufferDesc.debugName = "PhaseTwoCullingIndicesBuffer";
-            m_PhaseTwoCullingIndicesBuffer.m_BufferDesc.canHaveUAVs = true;
-            m_PhaseTwoCullingIndicesBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-            nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-            SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "GPUCullingRenderer Init SPDHelper");
-        }
-    }
-
-    bool Setup(RenderGraph& renderGraph) override
-    {
-        return false; // TODO: GPU CULLING REFACTOR
-
-#if 0
-        {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(uint32_t) * kNbGPUCullingBufferCounters;
-            desc.structStride = sizeof(uint32_t);
-            desc.canHaveUAVs = true;
-            desc.debugName = "GPUCullingCounterStats";
-            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-            renderGraph.CreateTransientResource(m_CounterStatsRDGBufferHandle, desc);
-        }
-
-        if (m_bIsMainView)
-        {
-            m_SPDHelper.CreateTransientResources(renderGraph);
-
-            nvrhi::TextureDesc desc;
-            desc.width = g_Graphic.m_RenderResolution.x;
-            desc.height = g_Graphic.m_RenderResolution.y;
-            desc.format = Graphic::kDepthStencilFormat;
-            desc.debugName = "Depth Buffer";
-            desc.isRenderTarget = true;
-            desc.setClearValue(nvrhi::Color{ Graphic::kFarDepth, Graphic::kStencilBit_Sky, 0.0f, 0.0f });
-            desc.initialState = nvrhi::ResourceStates::DepthRead;
-            renderGraph.CreateTransientResource(g_DepthStencilBufferRDGTextureHandle, desc);
-
-            desc.format = Graphic::kDepthBufferCopyFormat;
-            desc.debugName = "Depth Buffer Copy";
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            renderGraph.CreateTransientResource(g_DepthBufferCopyRDGTextureHandle, desc);
-
-            {
-                nvrhi::BufferDesc desc;
-                desc.byteSize = sizeof(DispatchIndirectArguments);
-                desc.structStride = sizeof(DispatchIndirectArguments);
-                desc.debugName = "PhaseTwoCullingIndirectArgsBuffer";
-                desc.canHaveUAVs = true;
-                desc.isDrawIndirectArgs = true;
-                desc.initialState = nvrhi::ResourceStates::IndirectArgument;
-                renderGraph.CreateTransientResource(m_PhaseTwoCullingIndirectArgsRDGBufferHandle, desc);
-            }
-            {
-                nvrhi::BufferDesc desc;
-                desc.byteSize = sizeof(uint32_t);
-                desc.structStride = sizeof(uint32_t);
-                desc.canHaveUAVs = true;
-                desc.debugName = "PhaseTwoInstanceIndexCounter";
-                desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-                renderGraph.CreateTransientResource(m_PhaseTwoInstanceIndexCounterRDGBufferHandle, desc);
-            }
-        }
-
-        return true;
-#endif
-    }
-
-    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
-    {
-#if 0
-        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
-
-		const uint32_t nbInstances = scene->m_VisualProxies.size();
-        if (nbInstances == 0)
-        {
-            return;
-        }
-
-        View& view = scene->m_Views[m_ViewIndex];
-
-        GraphicPropertyGrid::DebugControllables& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
-
-        // read back nb visible instances from counter
-        {
-            uint32_t readbackResults[kNbGPUCullingBufferCounters]{};
-            m_CounterStatsReadbackBuffer.Read(device, readbackResults);
-
-            // TODO: support transparent
-            GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
-            cullingCounters.m_Frustum = readbackResults[kFrustumCullingBufferCounterIdx];
-            cullingCounters.m_OcclusionPhase1 = readbackResults[kOcclusionCullingPhase1BufferCounterIdx];
-            cullingCounters.m_OcclusionPhase2 = readbackResults[kOcclusionCullingPhase2BufferCounterIdx];
-        }
-
-        nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
-
-        nvrhi::TextureHandle depthStencilBuffer;
-        nvrhi::BufferHandle phaseTwoInstanceIndexCounter;
-        nvrhi::BufferHandle phaseTwoCullingIndirectArgsBuffer;
-        if (m_bIsMainView)
-        {
-            depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
-            phaseTwoInstanceIndexCounter = renderGraph.GetBuffer(m_PhaseTwoInstanceIndexCounterRDGBufferHandle);
-            phaseTwoCullingIndirectArgsBuffer = renderGraph.GetBuffer(m_PhaseTwoCullingIndirectArgsRDGBufferHandle);
-        }
-
-        {
-            PROFILE_SCOPED("Clear Buffers");
-            PROFILE_GPU_SCOPED(commandList, "Clear Buffers");
-
-            view.m_InstanceCountBuffer.ClearBuffer(commandList, nbInstances * sizeof(uint32_t));
-            view.m_StartInstanceConstsOffsetsBuffer.ClearBuffer(commandList, nbInstances * sizeof(uint32_t));
-            view.m_DrawIndexedIndirectArgumentsBuffer.ClearBuffer(commandList, nbInstances * sizeof(DrawIndexedIndirectArguments));
-            commandList->clearBufferUInt(counterStatsBuffer, 0);
-
-            if (m_bIsMainView)
-            {
-                m_PhaseTwoCullingIndicesBuffer.ClearBuffer(commandList, sizeof(uint32_t) * nbInstances);
-
-                commandList->clearBufferUInt(phaseTwoInstanceIndexCounter, 0);
-                scene->m_OcclusionCullingPhaseTwoInstanceCountBuffer.ClearBuffer(commandList, nbInstances * sizeof(uint32_t));
-                scene->m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.ClearBuffer(commandList, nbInstances * sizeof(uint32_t));
-                scene->m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.ClearBuffer(commandList, nbInstances * sizeof(DrawIndexedIndirectArguments));
-            }
-        }
-
-        // Process instances and output meshlets of each visible instance.
-        // In Phase 1, also output instances which are occluded according to the previous frame's HZB, and have to be retested in Phase 2.
-        // In Phase 2, outputs visible instances which were considered occluded before, but are not based on the updated HZB created in Phase 1.
-        const bool bDoOcclusionCulling = debugControllables.m_bEnableGPUOcclusionCulling;
-
-        auto DoGPUCulling = [&](bool bIsFirstPhase)
-            {
-                const char* passName = "";
-
-                if (view.m_bIsMainView)
-                {
-                    passName = bIsFirstPhase ? "1st Phase Culling" : "2nd Phase Culling";
-                }
-                else
-                {
-                    passName = "GPU Frustum Culling";
-                }
-
-                PROFILE_SCOPED(passName);
-                PROFILE_GPU_SCOPED(commandList, passName);
-
-                uint32_t occlusionCullingFlags = 0;
-
-                // only perform occlusion culling for main view due to usage of HZB
-                if (m_bIsMainView)
-                {
-                    occlusionCullingFlags |= bDoOcclusionCulling ? OcclusionCullingFlag_Enable : 0;
-                    occlusionCullingFlags |= (bDoOcclusionCulling && bIsFirstPhase) ? OcclusionCullingFlag_IsFirstPhase : 0;
-                }
-
-                const nvrhi::TextureDesc& HZBDesc = scene->m_HZB->getDesc();
-
-                GPUCullingPassConstants passParameters{};
-                passParameters.m_NbInstances = bIsFirstPhase ? nbInstances : 0; // 2nd phase nb instances is driven by indirect buffer
-                passParameters.m_EnableFrustumCulling = bIsFirstPhase ? debugControllables.m_bEnableGPUFrustumCulling : false; // 2nd phase instances are already frustum culled
-                passParameters.m_OcclusionCullingFlags = occlusionCullingFlags;
-                passParameters.m_WorldToClip = view.m_ViewProjectionMatrix;
-                passParameters.m_PrevFrameWorldToClip = view.m_PrevFrameViewProjectionMatrix;
-                passParameters.m_HZBDimensions = Vector2U{ HZBDesc.width, HZBDesc.height };
-                passParameters.m_HZBMipCount = HZBDesc.mipLevels;
-
-                nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
-
-                nvrhi::BindingSetDesc bindingSetDesc;
-                bindingSetDesc.bindings = {
-                    nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_SRV(2, bIsFirstPhase ? g_CommonResources.DummyUintStructuredBuffer : m_PhaseTwoCullingIndicesBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::Texture_SRV(3, scene->m_HZB),
-                    nvrhi::BindingSetItem::StructuredBuffer_SRV(4, bIsFirstPhase ? g_CommonResources.DummyUintStructuredBuffer : scene->m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(0, view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(1, view.m_StartInstanceConstsOffsetsBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(2, view.m_InstanceCountBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(4, (bIsFirstPhase && m_bIsMainView) ? m_PhaseTwoCullingIndicesBuffer.m_Buffer : g_CommonResources.DummyUintStructuredBuffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(5, (bIsFirstPhase && m_bIsMainView) ? scene->m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_Buffer : g_CommonResources.DummyUintStructuredBuffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(6, bIsFirstPhase ? g_CommonResources.DummyUintStructuredBuffer : scene->m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(7, bIsFirstPhase ? g_CommonResources.DummyUintStructuredBuffer : scene->m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.m_Buffer),
-                    nvrhi::BindingSetItem::StructuredBuffer_UAV(8, bIsFirstPhase ? g_CommonResources.DummyUintStructuredBuffer : phaseTwoInstanceIndexCounter),
-                    nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
-                };
-
-                if (bIsFirstPhase)
-                {
-                    const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNbGPUCullingGroupThreads);
-                    g_Graphic.AddComputePass(commandList, "gpuculling_CS_GPUCulling", bindingSetDesc, dispatchGroupSize);
-                }
-                else
-                {
-                    g_Graphic.AddComputePass(commandList, "gpuculling_CS_GPUCulling", bindingSetDesc, phaseTwoCullingIndirectArgsBuffer);
-                }
-            };
-
-        auto PopulateDepthBuffer = [&](bool bIsFirstPhase)
-            {
-                const char* passName = bIsFirstPhase ? "1st Phase Depth Buffer" : "2nd Phase Depth Buffer";
-
-                PROFILE_SCOPED(passName);
-                PROFILE_GPU_SCOPED(commandList, passName);
-
-                nvrhi::FramebufferDesc frameBufferDesc;
-                frameBufferDesc.setDepthAttachment(depthStencilBuffer);
-
-                nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthWriteStencilWrite;
-                depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
-                depthStencilState.frontFaceStencil.passOp = nvrhi::StencilOp::Replace;
-
-                RenderBasePassParams params;
-                params.m_View = &view;
-                params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, g_CommonResources.CullClockwise };
-                params.m_FrameBufferDesc = frameBufferDesc;
-                params.m_InstanceCountBuffer = bIsFirstPhase ? view.m_InstanceCountBuffer.m_Buffer : scene->m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_Buffer;
-				params.m_StartInstanceConstsOffsetsBuffer = bIsFirstPhase ? view.m_StartInstanceConstsOffsetsBuffer.m_Buffer : scene->m_OcclusionCullingPhaseTwoStartInstanceConstsOffsetsBuffer.m_Buffer;
-				params.m_DrawIndexedIndirectArgumentsBuffer = bIsFirstPhase ? view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer : scene->m_OcclusionCullingPhaseTwoDrawIndexedIndirectArgumentsBuffer.m_Buffer;
-
-                RenderBasePass(commandList, params);
-            };
-
-        auto GenerateHZB = [&](std::string_view passName)
-            {
-                PROFILE_SCOPED(passName.data());
-
-                const nvrhi::TextureDesc& hzbDesc = scene->m_HZB->getDesc();
-
-                MinMaxDownsampleConsts PassParameters;
-                PassParameters.m_OutputDimensions = Vector2U{ hzbDesc.width, hzbDesc.height };
-                PassParameters.m_bDownsampleMax = false;
-
-                nvrhi::BindingSetDesc bindingSetDesc;
-                bindingSetDesc.bindings = {
-                    nvrhi::BindingSetItem::PushConstants(0, sizeof(PassParameters)),
-                    nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
-                    nvrhi::BindingSetItem::Texture_UAV(0, scene->m_HZB),
-                    nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
-                };
-
-                const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ hzbDesc.width, hzbDesc.height }, 8);
-                g_Graphic.AddComputePass(commandList, "minmaxdownsample_CS_Main", bindingSetDesc, dispatchGroupSize, &PassParameters, sizeof(PassParameters));
-
-                // generate HZB mip chain
-                const nvrhi::SamplerReductionType reductionType = Graphic::kInversedDepthBuffer ? nvrhi::SamplerReductionType::Minimum : nvrhi::SamplerReductionType::Maximum;
-                m_SPDHelper.Execute(commandList, renderGraph, depthStencilBuffer, scene->m_HZB, reductionType);
-            };
-
-        // 1st phase
-        bool bIsFirstPhase = true;
-        DoGPUCulling(bIsFirstPhase);
-
-        if (m_bIsMainView)
-        {
-            // populate Depth Buffer with instances that passed the 1st phase culling
-            PopulateDepthBuffer(bIsFirstPhase);
-
-            if (bDoOcclusionCulling)
-            {
-                GenerateHZB("1st Phase HZB");
-
-                // prepare for 2nd phase culling
-                {
-                    PROFILE_SCOPED("Prepare 2nd Phase Indirect Args & Buffers");
-                    PROFILE_GPU_SCOPED(commandList, "Prepare 2nd Phase Indirect Args & Buffers");
-
-                    nvrhi::BindingSetDesc bindingSetDesc;
-                    bindingSetDesc.bindings = {
-                        nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_OcclusionCullingPhaseTwoInstanceCountBuffer.m_Buffer),
-                        nvrhi::BindingSetItem::StructuredBuffer_UAV(0, phaseTwoCullingIndirectArgsBuffer),
-                    };
-
-                    g_Graphic.AddComputePass(commandList, "gpuculling_CS_BuildPhaseTwoIndirectArgs", bindingSetDesc, Vector3U{ 1, 1, 1 });
-                }
-
-                // 2nd Phase culling
-                bIsFirstPhase = false;
-                DoGPUCulling(bIsFirstPhase);
-
-                // populate Depth Buffer again with instances that passed the 2nd phase
-                PopulateDepthBuffer(bIsFirstPhase);
-
-                GenerateHZB("2nd Phase HZB");
-            }
-
-            // at this point, we have the final depth buffer. create a copy for SRV purposes
-            {
-                PROFILE_GPU_SCOPED(commandList, "Copy depth buffer");
-
-                nvrhi::BindingSetDesc bindingSetDesc;
-                bindingSetDesc.bindings = {
-                    nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
-                };
-
-                nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
-
-                nvrhi::FramebufferDesc frameBufferDesc;
-                frameBufferDesc.addColorAttachment(depthBufferCopy);
-
-                g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, "fullscreen_PS_Passthrough");
-            }
-        }
-
-        // copy counter buffer, so that it can be read on CPU next frame
-        m_CounterStatsReadbackBuffer.CopyTo(device, commandList, counterStatsBuffer);
-#endif
+        RenderBasePass(commandList, renderGraph, params);
     }
 };
 
@@ -710,5 +469,3 @@ static TransparentBasePassRenderer gs_TransparentBasePassRenderer;
 IRenderer* g_TransparentBasePassRenderer = &gs_TransparentBasePassRenderer;
 
 static SunCSMBasePassRenderer gs_CSMRenderers[Graphic::kNbCSMCascades];
-
-static GPUCullingRenderer gs_GPUCullingRenderers[EnumUtils::Count<Scene::EView>()];

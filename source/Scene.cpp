@@ -408,9 +408,6 @@ void Scene::UpdateInstanceConstsBuffer()
         return;
     }
 
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "CullAndPrepareInstanceDataForViews");
-
     // TODO: upload only dirty proxies
 
     std::vector<BasePassInstanceConstants> instanceConstsBytes;
@@ -473,6 +470,9 @@ void Scene::UpdateInstanceConstsBuffer()
 
     g_Engine.m_Executor->corun(tf);
 
+    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload BasePassInstanceConstants");
+
     m_InstanceConstsBuffer.Write(commandList, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
 }
 
@@ -491,7 +491,6 @@ void Scene::Update()
     tf::Task updateInstanceConstsBufferTask = tf.emplace([this] { UpdateInstanceConstsBuffer(); });
     
     extern IRenderer* g_ClearBuffersRenderer;
-    extern IRenderer* g_GPUCullingRenderer[EnumUtils::Count<Scene::EView>()];
     extern IRenderer* g_GBufferRenderer;
     extern IRenderer* g_ShadowMaskRenderer;
     extern IRenderer* g_TileClassificationRenderer;
@@ -510,13 +509,6 @@ void Scene::Update()
     m_RenderGraph->InitializeForFrame(tf);
 
     m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
-
-    m_RenderGraph->AddRenderer(g_GPUCullingRenderer[Scene::EView::Main], &updateInstanceConstsBufferTask);
-    for (size_t i = Scene::EView::CSM0; i < EnumUtils::Count<Scene::EView>(); i++)
-    {
-        m_RenderGraph->AddRenderer(g_GPUCullingRenderer[i], &updateInstanceConstsBufferTask);
-    }
-
     m_RenderGraph->AddRenderer(g_GBufferRenderer, &updateInstanceConstsBufferTask);
     m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
 
