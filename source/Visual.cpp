@@ -383,7 +383,8 @@ void Node::UpdateIMGUI()
     ImGui::Text("AABB Center: [%f, %f, %f]", aabb.Center.x, aabb.Center.y, aabb.Center.z);
     ImGui::Text("AABB Extents: [%f, %f, %f]", aabb.Extents.x, aabb.Extents.y, aabb.Extents.z);
 
-    const Sphere bs = MakeLocalToWorldSphere(m_BoundingSphere, worldMatrix);
+    Sphere bs;
+	m_BoundingSphere.Transform(bs, worldMatrix);
     ImGui::Text("BS Center: [%f, %f, %f]", bs.Center.x, bs.Center.y, bs.Center.z);
     ImGui::Text("BS Radius: [%f]", bs.Radius);
 

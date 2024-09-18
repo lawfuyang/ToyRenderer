@@ -446,7 +446,9 @@ struct GLTFSceneLoader
 
             AABB::CreateMerged(scene->m_AABB, scene->m_AABB, nodeAABB);
 
-            const Sphere nodeBS = MakeLocalToWorldSphere(newNode.m_BoundingSphere, nodeWorldMatrix);
+            Sphere nodeBS;
+            newNode.m_BoundingSphere.Transform(nodeBS, nodeWorldMatrix);
+
             Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, nodeBS);
 
             newNode.m_VisualIdx = visualIdx;

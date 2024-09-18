@@ -37,32 +37,6 @@ void ModifyPerspectiveMatrix(Matrix& mat, float nearPlane, float farPlane, bool 
     mat._43 = Q2;
 }
 
-void GetFrustumCornersWorldSpace(const Matrix& projview, Vector3(&frustumCorners)[8])
-{
-    const Matrix inv = projview.Invert();
-
-    Vector3* outputPtr = frustumCorners;
-    for (uint32_t x = 0; x < 2; ++x)
-    {
-        for (uint32_t y = 0; y < 2; ++y)
-        {
-            for (uint32_t z = 0; z < 2; ++z)
-            {
-                const Vector4 pt = Vector4::Transform(Vector4{ 2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f }, inv);
-                *outputPtr++ = Vector3{ pt } / pt.w;
-            }
-        }
-    }
-}
-
-Sphere MakeLocalToWorldSphere(const Sphere& sphere, const Matrix& worldMatrix)
-{
-    const Vector3 globalCenter = Vector3::Transform(sphere.Center, worldMatrix);
-    const float globalRadius = std::max(std::max(worldMatrix._11, worldMatrix._22), worldMatrix._33) * sphere.Radius;
-
-    return Sphere{ globalCenter, globalRadius };
-}
-
 Vector2 ProjectWorldPositionToViewport(const Vector3& worldPos, const Matrix& viewProjMatrix, const Vector2U& viewportDim)
 {
     Vector4 worldPosVec4{ Vector3{ worldPos } };

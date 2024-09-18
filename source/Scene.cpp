@@ -371,8 +371,12 @@ void Scene::UpdateCSMViews()
 
         const Matrix cascadeProj = Matrix::CreatePerspectiveFieldOfView(mainView.m_FOV, mainView.m_AspectRatio, i == 0 ? 0.1f : m_CSMSplitDistances[i - 1], m_CSMSplitDistances[i]);
 
+        Frustum cascadeFrustum;
+        Frustum::CreateFromMatrix(cascadeFrustum, cascadeProj);
+        cascadeFrustum.Transform(cascadeFrustum, mainView.m_InvViewMatrix);
+
         Vector3 frustumCorners[8];
-        GetFrustumCornersWorldSpace(mainView.m_ViewMatrix * cascadeProj, frustumCorners);
+        cascadeFrustum.GetCorners(frustumCorners);
 
         Vector3 frustumCenter;
         for (const Vector3& v : frustumCorners)
