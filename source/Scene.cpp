@@ -421,44 +421,6 @@ void Scene::UpdateCSMViews()
     }
 }
 
-void Scene::UpdatePicking()
-{
-    PROFILE_FUNCTION();
-
-    Graphic::PickingContext& context = g_Graphic.m_PickingContext;
-
-    if (context.m_State == Graphic::PickingContext::RESULT_READY)
-    {
-        if (context.m_Result != UINT_MAX)
-        {
-            Scene* scene = g_Graphic.m_Scene.get();
-
-            const uint32_t pickedNodeID = context.m_Result;
-
-            extern uint32_t g_CurrentlySelectedNodeID;
-            g_CurrentlySelectedNodeID = pickedNodeID;
-
-            assert(g_CurrentlySelectedNodeID < scene->m_Nodes.size());
-        }
-
-        context.m_State = Graphic::PickingContext::NONE;
-    }
-
-    if (context.m_State == Graphic::PickingContext::NONE && Mouse::WasButtonReleased(Mouse::Left) && !ImGui::GetIO().WantCaptureMouse)
-    {
-		// request picking next frame for thread safety
-        g_Engine.AddCommand([&]
-            {
-                // TODO: properly scale mouse pos when we have upscaling
-                const Vector2U clickPos{ std::min(g_Graphic.m_RenderResolution.x - 1, (uint32_t)Mouse::GetX()), std::min(g_Graphic.m_RenderResolution.y - 1, (uint32_t)Mouse::GetY()) };
-                context.m_PickingLocation = clickPos;
-                context.m_State = Graphic::PickingContext::REQUESTED;
-
-                //LOG_DEBUG("Requested Picking: [%d, %d]", clickPos.x, clickPos.y);
-            });
-    }
-}
-
 void Scene::PrepareInstanceDataForViews()
 {
     PROFILE_FUNCTION();
@@ -499,8 +461,6 @@ void Scene::Update()
 {
     PROFILE_FUNCTION();
 
-    UpdatePicking();
-
     UpdateMainViewCameraControls();
 
     m_Views[EView::Main].Update();
@@ -522,7 +482,6 @@ void Scene::Update()
     extern IRenderer* g_TransparentBasePassRenderer;
     extern IRenderer* g_DebugDrawRenderer;
     extern IRenderer* g_IMGUIRenderer;
-    extern IRenderer* g_PickingRenderer;
     extern IRenderer* g_SkyRenderer;
     extern IRenderer* g_PostProcessRenderer;
     extern IRenderer* g_AdaptLuminanceRenderer;
@@ -552,7 +511,7 @@ void Scene::Update()
     m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
     m_RenderGraph->AddRenderer(g_SkyRenderer);
     m_RenderGraph->AddRenderer(g_BloomRenderer);
-    // m_RenderGraph->AddRenderer(g_TransparentBasePassRenderer).succeed(prepareInstancesDataTask); // TODO: support transparent
+    m_RenderGraph->AddRenderer(g_TransparentBasePassRenderer, &prepareInstancesDataTask);
     m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
 
     // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet
@@ -562,7 +521,6 @@ void Scene::Update()
     m_RenderGraph->AddRenderer(g_PostProcessRenderer);
 
     // DisplayResolution Debug Passes
-    m_RenderGraph->AddRenderer(g_PickingRenderer, &prepareInstancesDataTask);
     m_RenderGraph->AddRenderer(g_DebugDrawRenderer);
     m_RenderGraph->AddRenderer(g_IMGUIRenderer);
 

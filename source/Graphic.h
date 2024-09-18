@@ -200,17 +200,6 @@ public:
     std::deque<nvrhi::CommandListHandle> m_FreeCommandLists[(uint32_t)nvrhi::CommandQueue::Count];
     std::mutex m_FreeCommandListsLock;
 
-    struct PickingContext
-    {
-        enum EState { NONE, REQUESTED, AWAITING_RESULT, RESULT_READY };
-
-        EState m_State = NONE;
-        nvrhi::TextureHandle m_RenderTarget;
-        Vector2U m_PickingLocation;
-        uint32_t m_Result = UINT_MAX;
-    };
-    PickingContext m_PickingContext;
-
 private:
     bool m_bTearingSupported = false;
 

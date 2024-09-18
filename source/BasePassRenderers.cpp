@@ -199,41 +199,15 @@ class TransparentBasePassRenderer : public BasePassRenderer
 public:
     TransparentBasePassRenderer() : BasePassRenderer("TransparentBasePassRenderer") {}
 
+	bool Setup(RenderGraph& renderGraph) override
+	{
+        // TODO
+        return false;
+	}
+
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        // TODO: support transparent
-#if 0
-        Scene* scene = g_Graphic.m_Scene.get();
-        std::vector<uint32_t>& visualProxyIndicesToRender = scene->m_MainViewVisualProxies[Scene::Transparent];
-
-        GPUCullingCounters& cullingCounters = scene->m_GPUCullingCounters[EVisualBucketType::Transparent][Scene::EView::Main];
-
-        // nothing to render. return.
-        if (visualProxyIndicesToRender.empty())
-        {
-            memset(&cullingCounters, 0, sizeof(GPUCullingCounters));
-            return;
-        }
-
-        m_CommandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST(m_CommandList, m_Name);
-
-        nvrhi::FramebufferDesc frameBufferDesc;
-        frameBufferDesc.addColorAttachment(scene->m_LightingOutput);
-        frameBufferDesc.setDepthAttachment(depthStencilBuffer)
-            .depthAttachment.isReadOnly = true;
-
-        SceneRenderer::Params params;
-        params.m_Name = m_Name;
-        params.m_CommandList = m_CommandList;
-        params.m_VisualProxiesIndicesToRender = visualProxyIndicesToRender;
-        params.m_PS = g_Graphic.GetShader("basepass_PS_Main");
-        params.m_View = &g_Graphic.m_Scene->m_View;
-        params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendAlpha }, g_CommonResources.DepthRead, g_CommonResources.CullClockwise };
-        params.m_FrameBufferDesc = frameBufferDesc;
-
-        cullingCounters = m_SceneRenderer.Render(params);
-#endif
+        // TODO
     }
 };
 
@@ -315,128 +289,6 @@ public:
         params.m_DrawIndexedIndirectArgumentsBuffer = view.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
 
         RenderBasePass(commandList, params);
-    }
-};
-
-class PickingRenderer : public BasePassRenderer
-{
-    nvrhi::StagingTextureHandle m_StagingTexture;
-
-public:
-    PickingRenderer() : BasePassRenderer("PickingRenderer") {}
-
-    void Initialize() override
-    {
-        BasePassRenderer::Initialize();
-
-        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-        nvrhi::TextureDesc desc;
-        desc.width = 1;
-        desc.height = 1;
-        desc.format = nvrhi::Format::R32_FLOAT;
-        desc.debugName = "Picking staging texture";
-        desc.initialState = nvrhi::ResourceStates::CopyDest;
-        m_StagingTexture = device->createStagingTexture(desc, nvrhi::CpuAccessMode::Read);
-    }
-
-    bool Setup(RenderGraph& renderGraph) override
-	{
-        Graphic::PickingContext& context = g_Graphic.m_PickingContext;
-
-        // return if picking is in progress
-        if (context.m_State == Graphic::PickingContext::NONE || context.m_State == Graphic::PickingContext::RESULT_READY)
-        {
-            return false;
-        }
-
-        if (context.m_State == Graphic::PickingContext::REQUESTED)
-        {
-            renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
-        }
-
-		return true;
-	}
-
-    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
-    {
-        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-        Graphic::PickingContext& context = g_Graphic.m_PickingContext;
-
-        // picking in progress & render done last frame. copy result
-        if (context.m_State == Graphic::PickingContext::AWAITING_RESULT)
-        {
-            assert(context.m_RenderTarget);
-
-            // copy result of from staging texture to CPU
-            size_t rowPitch = 0;
-            void* mapResult = device->mapStagingTexture(m_StagingTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Read, &rowPitch);
-            context.m_Result = (uint32_t)*(float*)mapResult;
-            device->unmapStagingTexture(m_StagingTexture);
-
-            context.m_RenderTarget.Reset();
-            context.m_State = Graphic::PickingContext::RESULT_READY;
-        }
-
-        // trigger rendering for picking. also, create picking RT
-        else if (context.m_State == Graphic::PickingContext::REQUESTED)
-        {
-            assert(!context.m_RenderTarget);
-
-            Scene* scene = g_Graphic.m_Scene.get();
-
-            if (scene->m_VisualProxies.empty())
-            {
-                return;
-            }
-
-            View& mainView = scene->m_Views[Scene::EView::Main];
-
-            nvrhi::TextureDesc desc;
-            desc.width = g_Graphic.m_RenderResolution.x;
-            desc.height = g_Graphic.m_RenderResolution.y;
-
-            // NOTE: uint format just doesnt work for some reason... and we clear to -1 anyway, which is UINT_MAX, which is default for BG pixel
-            desc.format = nvrhi::Format::R32_FLOAT;
-
-            desc.debugName = "Picking texture";
-            desc.isRenderTarget = true;
-            desc.initialState = nvrhi::ResourceStates::RenderTarget;
-            desc.setClearValue(nvrhi::Color{ -1.0f });
-            context.m_RenderTarget = device->createTexture(desc);
-
-            commandList->clearTextureFloat(context.m_RenderTarget, nvrhi::AllSubresources, nvrhi::Color{ -1.0f });
-
-            nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
-
-            nvrhi::FramebufferDesc frameBufferDesc;
-            frameBufferDesc.addColorAttachment(context.m_RenderTarget);
-            frameBufferDesc.setDepthAttachment(depthStencilBuffer)
-                .depthAttachment.isReadOnly = true;
-
-            // render everything to RT. opaque & transparent
-            RenderBasePassParams params;
-            params.m_PS = g_Graphic.GetShader("basepass_PS_NodeID");
-            params.m_View = &mainView;
-            params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, g_CommonResources.DepthReadStencilNone, g_CommonResources.CullClockwise };
-            params.m_FrameBufferDesc = frameBufferDesc;
-            params.m_InstanceCountBuffer = mainView.m_InstanceCountBuffer.m_Buffer;
-            params.m_StartInstanceConstsOffsetsBuffer = mainView.m_StartInstanceConstsOffsetsBuffer.m_Buffer;
-            params.m_DrawIndexedIndirectArgumentsBuffer = mainView.m_DrawIndexedIndirectArgumentsBuffer.m_Buffer;
-
-            // render opaque
-            RenderBasePass(commandList, params);
-
-            // TODO: support transparent
-            // NOTE: dont bother with any alpha blending
-            // m_SceneRenderer.Render(params);
-
-            // copy result from RT to staging texture
-            commandList->copyTexture(m_StagingTexture, nvrhi::TextureSlice{}, context.m_RenderTarget, nvrhi::TextureSlice{ context.m_PickingLocation.x, context.m_PickingLocation.y, 0, 1, 1, 1 });
-
-            context.m_State = Graphic::PickingContext::AWAITING_RESULT;
-        }
     }
 };
 
@@ -798,6 +650,3 @@ IRenderer* g_TransparentBasePassRenderer = &gs_TransparentBasePassRenderer;
 static SunCSMBasePassRenderer gs_CSMRenderers[Graphic::kNbCSMCascades];
 
 static GPUCullingRenderer gs_GPUCullingRenderers[EnumUtils::Count<Scene::EView>()];
-
-static PickingRenderer gs_PickingRenderer;
-IRenderer* g_PickingRenderer = &gs_PickingRenderer;

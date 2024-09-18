@@ -122,7 +122,6 @@ public:
 private:
     void UpdateMainViewCameraControls();
     void UpdateCSMViews();
-    void UpdatePicking();
     void PrepareInstanceDataForViews();
     void UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList);
 
