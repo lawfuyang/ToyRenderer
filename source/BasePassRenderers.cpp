@@ -127,10 +127,10 @@ public:
     }
 };
 
-class OpaqueBasePassRenderer : public BasePassRenderer
+class GBufferRenderer : public BasePassRenderer
 {
 public:
-    OpaqueBasePassRenderer() : BasePassRenderer("OpaqueBasePassRenderer") {}
+    GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
 
     bool Setup(RenderGraph& renderGraph) override
     {
@@ -641,8 +641,8 @@ public:
     }
 };
 
-static OpaqueBasePassRenderer gs_OpaqueBasePassRenderer;
-IRenderer* g_OpaqueBasePassRenderer = &gs_OpaqueBasePassRenderer;
+static GBufferRenderer gs_GBufferRenderer;
+IRenderer* g_GBufferRenderer = &gs_GBufferRenderer;
 
 static TransparentBasePassRenderer gs_TransparentBasePassRenderer;
 IRenderer* g_TransparentBasePassRenderer = &gs_TransparentBasePassRenderer;

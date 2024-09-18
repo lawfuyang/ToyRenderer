@@ -473,7 +473,7 @@ void Scene::Update()
     
     extern IRenderer* g_ClearBuffersRenderer;
     extern IRenderer* g_GPUCullingRenderer[EnumUtils::Count<Scene::EView>()];
-    extern IRenderer* g_OpaqueBasePassRenderer;
+    extern IRenderer* g_GBufferRenderer;
     extern IRenderer* g_ShadowMaskRenderer;
     extern IRenderer* g_TileClassificationRenderer;
     extern IRenderer* g_DeferredLightingRenderer;
@@ -498,7 +498,7 @@ void Scene::Update()
         m_RenderGraph->AddRenderer(g_GPUCullingRenderer[i], &prepareInstancesDataTask);
     }
 
-    m_RenderGraph->AddRenderer(g_OpaqueBasePassRenderer, &prepareInstancesDataTask);
+    m_RenderGraph->AddRenderer(g_GBufferRenderer, &prepareInstancesDataTask);
     m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
 
     for (uint32_t i = 0; i < Graphic::kNbCSMCascades; i++)
