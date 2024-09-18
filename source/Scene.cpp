@@ -617,41 +617,61 @@ void Scene::UpdateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
     PROFILE_GPU_SCOPED(commandList, "UpdateInstanceConstsBuffer");
 
     std::vector<BasePassInstanceConstants> instanceConstsBytes;
+	instanceConstsBytes.resize(m_VisualProxies.size());
 
-    {
-        PROFILE_SCOPED("Gather Instance Consts Bytes");
+	static const uint32_t kNbInstancesPerJob = 1000;
+	const uint32_t nbJobs = std::max(1ULL, m_VisualProxies.size() / kNbInstancesPerJob);
 
-        for (VisualProxy& visualProxy : m_VisualProxies)
-        {
-            // TODO: perhaps this is not the place to do it?
-            visualProxy.m_PrevFrameWorldMatrix = visualProxy.m_WorldMatrix;
+	tf::Taskflow tf;
 
-            const Primitive* primitive = visualProxy.m_Primitive;
-            assert(primitive->IsValid());
+	for (uint32_t i = 0; i < nbJobs; ++i)
+	{
+		tf::Task task = tf.emplace([&, i]
+			{
+                PROFILE_SCOPED("UpdateInstanceConstsBuffer Job");
 
-            const Material& material = primitive->m_Material;
-            assert(material.IsValid());
+				for (uint32_t j = 0; j < kNbInstancesPerJob; ++j)
+				{
+					const uint32_t proxyIdx = kNbInstancesPerJob * i + j;
+					if (proxyIdx >= m_VisualProxies.size())
+					{
+						break;
+					}
 
-            const Mesh& mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
+					VisualProxy& visualProxy = m_VisualProxies.at(kNbInstancesPerJob * i + j);
 
-            Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
-            inverseTransposeMatrix.Translation(Vector3::Zero);
-            inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
+					// TODO: perhaps this is not the place to do it?
+					visualProxy.m_PrevFrameWorldMatrix = visualProxy.m_WorldMatrix;
 
-            // instance consts
-            BasePassInstanceConstants instanceConsts{};
-            instanceConsts.m_NodeID = visualProxy.m_NodeID;
-            instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
-            instanceConsts.m_PrevFrameWorldMatrix = visualProxy.m_PrevFrameWorldMatrix;
-            instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
-            instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
-            instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
+					const Primitive* primitive = visualProxy.m_Primitive;
+					assert(primitive->IsValid());
 
-            instanceConstsBytes.push_back(instanceConsts);
-        }
-    }
+					const Material& material = primitive->m_Material;
+					assert(material.IsValid());
 
-    m_InstanceConstsBuffer.Write(commandList, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
+					const Mesh& mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
+
+					Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
+					inverseTransposeMatrix.Translation(Vector3::Zero);
+					inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
+
+					// instance consts
+					BasePassInstanceConstants instanceConsts{};
+					instanceConsts.m_NodeID = visualProxy.m_NodeID;
+					instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
+					instanceConsts.m_PrevFrameWorldMatrix = visualProxy.m_PrevFrameWorldMatrix;
+					instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
+					instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
+					instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
+
+					instanceConstsBytes[proxyIdx] = instanceConsts;
+				}
+			});
+	}
+
+	g_Engine.m_Executor->corun(tf);
+
+	m_InstanceConstsBuffer.Write(commandList, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
 }
 
 void Scene::Shutdown()
