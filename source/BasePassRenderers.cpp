@@ -57,7 +57,7 @@ public:
     };
 
     FFXHelpers::SPD m_SPDHelper;
-    CullingBuffersRDG m_CullingBuffersRDG[2];
+    CullingBuffersRDG m_CullingBuffersRDG;
     FencedReadbackBuffer m_CounterStatsReadbackBuffer;
     RenderGraph::ResourceHandle m_CounterStatsRDGBufferHandle;
 
@@ -123,42 +123,39 @@ public:
 		const uint32_t nbInstances = g_Graphic.m_Scene->m_VisualProxies.size();
 		if (nbInstances > 0)
 		{
-			for (uint32_t i = 0; i < 2; ++i)
 			{
-				{
-					nvrhi::BufferDesc desc;
-					desc.byteSize = sizeof(uint32_t) * nbInstances;
-					desc.structStride = sizeof(uint32_t);
-					desc.canHaveUAVs = true;
-					desc.isDrawIndirectArgs = true;
-					desc.initialState = nvrhi::ResourceStates::ShaderResource;
-					desc.debugName = StringFormat("InstanceIndexCounter %d", i);
+				nvrhi::BufferDesc desc;
+				desc.byteSize = sizeof(uint32_t) * nbInstances;
+				desc.structStride = sizeof(uint32_t);
+				desc.canHaveUAVs = true;
+				desc.isDrawIndirectArgs = true;
+				desc.initialState = nvrhi::ResourceStates::ShaderResource;
+				desc.debugName = "InstanceIndexCounter";
 
-					renderGraph.CreateTransientResource(m_CullingBuffersRDG[i].m_InstanceCountBuffer, desc);
-				}
-				{
-					nvrhi::BufferDesc desc;
-					desc.byteSize = sizeof(DrawIndexedIndirectArguments) * nbInstances;
-					desc.structStride = sizeof(DrawIndexedIndirectArguments);
-					desc.canHaveUAVs = true;
-					desc.isDrawIndirectArgs = true;
-					desc.initialState = nvrhi::ResourceStates::IndirectArgument;
-					desc.debugName = StringFormat("DrawIndexedIndirectArguments %d", i);
+				renderGraph.CreateTransientResource(m_CullingBuffersRDG.m_InstanceCountBuffer, desc);
+			}
+			{
+				nvrhi::BufferDesc desc;
+				desc.byteSize = sizeof(DrawIndexedIndirectArguments) * nbInstances;
+				desc.structStride = sizeof(DrawIndexedIndirectArguments);
+				desc.canHaveUAVs = true;
+				desc.isDrawIndirectArgs = true;
+				desc.initialState = nvrhi::ResourceStates::IndirectArgument;
+				desc.debugName = "DrawIndexedIndirectArguments";
 
-					renderGraph.CreateTransientResource(m_CullingBuffersRDG[i].m_DrawIndexedIndirectArgumentsBuffer, desc);
-				}
+				renderGraph.CreateTransientResource(m_CullingBuffersRDG.m_DrawIndexedIndirectArgumentsBuffer, desc);
+			}
 
-				{
-					nvrhi::BufferDesc desc;
-					desc.byteSize = sizeof(uint32_t) * nbInstances;
-					desc.structStride = sizeof(uint32_t);
-					desc.canHaveUAVs = true;
-					desc.isVertexBuffer = true;
-					desc.initialState = nvrhi::ResourceStates::VertexBuffer;
-					desc.debugName = StringFormat("StartInstanceConstsOffsets %d", i);
+			{
+				nvrhi::BufferDesc desc;
+				desc.byteSize = sizeof(uint32_t) * nbInstances;
+				desc.structStride = sizeof(uint32_t);
+				desc.canHaveUAVs = true;
+				desc.isVertexBuffer = true;
+				desc.initialState = nvrhi::ResourceStates::VertexBuffer;
+				desc.debugName = "StartInstanceConstsOffsets";
 
-					renderGraph.CreateTransientResource(m_CullingBuffersRDG[i].m_StartInstanceConstsOffsetsBuffer, desc);
-				}
+				renderGraph.CreateTransientResource(m_CullingBuffersRDG.m_StartInstanceConstsOffsetsBuffer, desc);
 			}
 		}
 
@@ -335,20 +332,17 @@ public:
         assert(params.m_View);
 
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
-        CullingBuffers cullingBuffers[2];
+        CullingBuffers cullingBuffers;
 
-        for (uint32_t i = 0; i < 2; ++i)
-        {
-            cullingBuffers[i].m_InstanceCountBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG[i].m_InstanceCountBuffer);
-            cullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG[i].m_DrawIndexedIndirectArgumentsBuffer);
-            cullingBuffers[i].m_StartInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG[i].m_StartInstanceConstsOffsetsBuffer);
-        }
+        cullingBuffers.m_InstanceCountBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG.m_InstanceCountBuffer);
+        cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG.m_DrawIndexedIndirectArgumentsBuffer);
+        cullingBuffers.m_StartInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG.m_StartInstanceConstsOffsetsBuffer);
 
         // early cull: frustum cull & fill objects that *were* visible last frame
-        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers[0]);
+        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers);
 
         // early render: render objects that were visible last frame
-        RenderInstances(commandList, renderGraph, params, cullingBuffers[0]);
+        RenderInstances(commandList, renderGraph, params, cullingBuffers);
 
         // depth pyramid generation
 		GenerateHZB(commandList, renderGraph, params);
