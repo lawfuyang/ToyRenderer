@@ -62,7 +62,7 @@ public:
     RenderGraph::ResourceHandle m_CounterStatsRDGBufferHandle;
 
     nvrhi::TextureHandle m_HZB;
-    Vector2U m_HZBResolution;
+    Vector2U m_HZBResolution{ 0, 0 };
 
     BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
 
@@ -91,6 +91,11 @@ public:
         desc.useClearValue = false;
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
         m_HZB = device->createTexture(desc);
+
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Clear Hi-Z");
+
+        commandList->clearTextureFloat(m_HZB, nvrhi::AllSubresources, Graphic::kFarDepth);
     }
 
 	void Initialize() override
@@ -296,11 +301,39 @@ public:
         commandList->drawIndexedIndirect(0, maxCommandCount);
     }
 
+    void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
+    {
+        if (!m_HZB)
+        {
+            return;
+        }
+
+        MinMaxDownsampleConsts PassParameters;
+        PassParameters.m_OutputDimensions = Vector2U{ m_HZBResolution.x, m_HZBResolution.y };
+        PassParameters.m_bDownsampleMax = Graphic::kInversedDepthBuffer;
+
+        nvrhi::TextureHandle depthStencilBuffer = params.m_FrameBufferDesc.depthAttachment.texture;
+
+        nvrhi::BindingSetDesc bindingSetDesc;
+        bindingSetDesc.bindings = {
+            nvrhi::BindingSetItem::PushConstants(0, sizeof(PassParameters)),
+            nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
+            nvrhi::BindingSetItem::Texture_UAV(0, m_HZB),
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
+        };
+
+        const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ m_HZBResolution.x, m_HZBResolution.y }, 8);
+        g_Graphic.AddComputePass(commandList, "minmaxdownsample_CS_Main", bindingSetDesc, dispatchGroupSize, &PassParameters, sizeof(PassParameters));
+
+        // generate HZB mip chain
+        const nvrhi::SamplerReductionType reductionType = Graphic::kInversedDepthBuffer ? nvrhi::SamplerReductionType::Minimum : nvrhi::SamplerReductionType::Maximum;
+        m_SPDHelper.Execute(commandList, renderGraph, depthStencilBuffer, m_HZB, reductionType);
+    }
+
     void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
     {
         assert(params.m_View);
 
-        // early cull: frustum cull & fill objects that *were* visible last frame
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
         CullingBuffers cullingBuffers[2];
 
@@ -311,13 +344,14 @@ public:
             cullingBuffers[i].m_StartInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG[i].m_StartInstanceConstsOffsetsBuffer);
         }
 
+        // early cull: frustum cull & fill objects that *were* visible last frame
         GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers[0]);
 
         // early render: render objects that were visible last frame
         RenderInstances(commandList, renderGraph, params, cullingBuffers[0]);
 
         // depth pyramid generation
-        //pyramid();
+		GenerateHZB(commandList, renderGraph, params);
 
         // late cull: frustum + occlusion cull & fill objects that were *not* visible last frame
         //cull(taskSubmit ? taskculllatePipeline : drawculllatePipeline, 6, "late cull", /* late= */ true);
@@ -526,12 +560,6 @@ public:
         if (scene->m_VisualProxies.empty())
         {
             return;
-        }
-
-        const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-        if (shadowControllables.m_bShadowMapResolutionDirty)
-        {
-            commandList->clearTextureFloat(m_HZB, nvrhi::AllSubresources, Graphic::kFarDepth);
         }
 
         View& view = scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
