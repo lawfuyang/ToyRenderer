@@ -423,11 +423,13 @@ nvrhi::IResource* RenderGraph::GetResourceInternal(const ResourceHandle& resourc
 	assert(resourceHandle.m_AllocatedFrameIdx == g_Graphic.m_FrameCounter);
 	assert(tl_CurrentThreadPassID != kInvalidPassID);
 
+#if _DEBUG
 	const ResourceAccessesArray& accesses = m_Passes.at(tl_CurrentThreadPassID).m_ResourceAccesses;
 
 	// check if resource is requested by the current Pass
 	auto it = std::ranges::find_if(accesses, [&resourceHandle](const ResourceAccess& access) { return access.m_ResourceHandle == &resourceHandle; });
 	assert(it != accesses.end());
+#endif // _DEBUG
 
 	const Resource& resource = m_Resources.at(resourceHandle.m_ID);
 	assert(resource.m_Resource);
