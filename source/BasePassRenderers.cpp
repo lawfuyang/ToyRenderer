@@ -81,55 +81,57 @@ public:
             desc.debugName = "GPUCullingCounterStats";
             desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
             renderGraph.CreateTransientResource(m_CounterStatsRDGBufferHandle, desc);
-        }
+		}
 
-        const uint32_t nbInstances = g_Graphic.m_Scene->m_VisualProxies.size();
-        if (nbInstances > 0)
-        {
-            for (uint32_t i = 0; i < 2; ++i)
-            {
-                {
-                    nvrhi::BufferDesc desc;
-                    desc.byteSize = sizeof(uint32_t) * nbInstances;
-                    desc.structStride = sizeof(uint32_t);
-                    desc.canHaveUAVs = true;
-                    desc.isDrawIndirectArgs = true;
-                    desc.initialState = nvrhi::ResourceStates::ShaderResource;
-                    desc.debugName = StringFormat("InstanceIndexCounter %d", i);
+		const uint32_t nbInstances = g_Graphic.m_Scene->m_VisualProxies.size();
+		if (nbInstances > 0)
+		{
+			for (uint32_t i = 0; i < 2; ++i)
+			{
+				{
+					nvrhi::BufferDesc desc;
+					desc.byteSize = sizeof(uint32_t) * nbInstances;
+					desc.structStride = sizeof(uint32_t);
+					desc.canHaveUAVs = true;
+					desc.isDrawIndirectArgs = true;
+					desc.initialState = nvrhi::ResourceStates::ShaderResource;
+					desc.debugName = StringFormat("InstanceIndexCounter %d", i);
 
-                    renderGraph.CreateTransientResource(m_CullingBuffersRDG[i].m_InstanceCountBuffer, desc);
-                }
-                {
-                    nvrhi::BufferDesc desc;
-                    desc.byteSize = sizeof(DrawIndexedIndirectArguments) * nbInstances;
-                    desc.structStride = sizeof(DrawIndexedIndirectArguments);
-                    desc.canHaveUAVs = true;
-                    desc.isDrawIndirectArgs = true;
-                    desc.initialState = nvrhi::ResourceStates::IndirectArgument;
-                    desc.debugName = StringFormat("DrawIndexedIndirectArguments %d", i);
+					renderGraph.CreateTransientResource(m_CullingBuffersRDG[i].m_InstanceCountBuffer, desc);
+				}
+				{
+					nvrhi::BufferDesc desc;
+					desc.byteSize = sizeof(DrawIndexedIndirectArguments) * nbInstances;
+					desc.structStride = sizeof(DrawIndexedIndirectArguments);
+					desc.canHaveUAVs = true;
+					desc.isDrawIndirectArgs = true;
+					desc.initialState = nvrhi::ResourceStates::IndirectArgument;
+					desc.debugName = StringFormat("DrawIndexedIndirectArguments %d", i);
 
 					renderGraph.CreateTransientResource(m_CullingBuffersRDG[i].m_DrawIndexedIndirectArgumentsBuffer, desc);
-                }
+				}
 
-                {
-                    nvrhi::BufferDesc desc;
-                    desc.byteSize = sizeof(uint32_t) * nbInstances;
-                    desc.structStride = sizeof(uint32_t);
-                    desc.canHaveUAVs = true;
-                    desc.isVertexBuffer = true;
-                    desc.initialState = nvrhi::ResourceStates::VertexBuffer;
-                    desc.debugName = StringFormat("StartInstanceConstsOffsets %d", i);
+				{
+					nvrhi::BufferDesc desc;
+					desc.byteSize = sizeof(uint32_t) * nbInstances;
+					desc.structStride = sizeof(uint32_t);
+					desc.canHaveUAVs = true;
+					desc.isVertexBuffer = true;
+					desc.initialState = nvrhi::ResourceStates::VertexBuffer;
+					desc.debugName = StringFormat("StartInstanceConstsOffsets %d", i);
 
 					renderGraph.CreateTransientResource(m_CullingBuffersRDG[i].m_StartInstanceConstsOffsetsBuffer, desc);
-                }
-            }
-        }
+				}
+			}
+		}
 
-        return true;
+		return true;
 	}
 
-    void GPUCulling(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, nvrhi::BufferHandle counterStatsBuffer, CullingBuffers cullingBuffers[2])
+    void GPUCulling(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, nvrhi::BufferHandle counterStatsBuffer, const CullingBuffers cullingBuffers[2])
     {
+        PROFILE_FUNCTION();
+
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
@@ -138,8 +140,7 @@ public:
         assert(nbInstances > 0);
 
         {
-            PROFILE_SCOPED("Grow & Clear Buffers");
-            PROFILE_GPU_SCOPED(commandList, "Grow & Clear Buffers");
+            PROFILE_GPU_SCOPED(commandList, "Clear Buffers");
 
             commandList->clearBufferUInt(counterStatsBuffer, 0);
 
@@ -190,8 +191,10 @@ public:
         g_Graphic.AddComputePass(commandList, "gpuculling_CS_GPUCulling", bindingSetDesc, dispatchGroupSize);
     }
 
-    void RenderInstances(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, CullingBuffers cullingBuffers[2])
+    void RenderInstances(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, const CullingBuffers cullingBuffers[2])
     {
+        PROFILE_FUNCTION();
+
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
