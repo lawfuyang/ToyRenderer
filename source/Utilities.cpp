@@ -28,22 +28,21 @@ const char* GetExecutableDirectory()
             char buffer[512];
             GetModuleFileNameA(NULL, buffer, sizeof(buffer));
 
-            std::filesystem::path path = buffer;
-            return path.parent_path().string();
+            return std::filesystem::path{ buffer }.parent_path().string();
         }();
+    return path.c_str();
+}
+
+const char* GetRootDirectory()
+{
+    static std::string path = std::filesystem::path{ GetExecutableDirectory() }.parent_path().string();
     return path.c_str();
 }
 
 const char* GetApplicationDirectory()
 {
-    static std::string s = std::filesystem::current_path().string();
-    return s.c_str();
-}
-
-const char* GetResourceDirectory()
-{
-    static std::string s = (std::filesystem::path{ GetApplicationDirectory() }.parent_path() / "resources").string();
-    return s.c_str();
+    static std::string path = std::filesystem::current_path().string();
+    return path.c_str();
 }
 
 void GetFilesInDirectory(std::vector<std::string>& out, std::string_view directory, const char* extFilter)

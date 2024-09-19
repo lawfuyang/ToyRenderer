@@ -206,7 +206,7 @@ void Visual::UpdateIMGUI()
 
                         if (ImGui::Button("Browse..."))
                         {
-                            std::vector<std::string> result = pfd::open_file(StringFormat("Select %s", texName.data()), GetResourceDirectory(), { "Image Files", "*.png *.jpg *.jpeg *.bmp" }, pfd::opt::force_path).result();
+                            std::vector<std::string> result = pfd::open_file(StringFormat("Select %s", texName.data()), GetRootDirectory(), { "Image Files", "*.png *.jpg *.jpeg *.bmp" }, pfd::opt::force_path).result();
                             if (!result.empty())
                             {
                                 const bool bResult = texResource.LoadFromFile(result[0]);

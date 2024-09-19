@@ -18,8 +18,8 @@ inline std::string StringFormatBig(const char* format, Args&&... args)
 }
 
 const char* GetExecutableDirectory();
+const char* GetRootDirectory();
 const char* GetApplicationDirectory();
-const char* GetResourceDirectory();
 void GetFilesInDirectory(std::vector<std::string>& out, std::string_view directory, const char* extFilter = nullptr);
 inline const char* GetFileNameFromPath(std::string_view fullPath) { return StringFormat("%s", std::filesystem::path{ fullPath }.filename().string().c_str()); }
 inline const char* GetFileExtensionFromPath(std::string_view fullPath) { return StringFormat("%s", std::filesystem::path{ fullPath }.extension().string().c_str()); }

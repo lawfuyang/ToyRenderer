@@ -671,7 +671,7 @@ void UpdateSceneIMGUI()
 {
     if (s_bToggleOpenMapFileDialog)
     {
-        std::vector<std::string> result = pfd::open_file{ "Select a map file", GetResourceDirectory(), { "All Files", "*" }, pfd::opt::force_path }.result();
+        std::vector<std::string> result = pfd::open_file{ "Select a map file", GetRootDirectory(), { "All Files", "*" }, pfd::opt::force_path }.result();
         if (!result.empty())
         {
 			extern void LoadScene(std::string_view filePath);

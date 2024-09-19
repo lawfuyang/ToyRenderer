@@ -52,9 +52,9 @@ void Engine::Initialize()
     SCOPED_TIMER_FUNCTION();
     PROFILE_FUNCTION();
 
+    LOG_DEBUG("Root Directory: %s", GetRootDirectory());
     LOG_DEBUG("Executable Directory: %s", GetExecutableDirectory());
     LOG_DEBUG("Application Directory: %s", GetApplicationDirectory());
-    LOG_DEBUG("Resources Directory: %s", GetResourceDirectory());
 
     // Look in the Windows Registry to determine if Developer Mode is enabled
     {
