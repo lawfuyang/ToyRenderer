@@ -440,6 +440,8 @@ public:
             return false;
         }
 
+        BasePassRenderer::Setup(renderGraph);
+
         // create shadow map array RDG Texture. CSM0 is responsible for creating it
         if (m_CSMIndex == 0)
         {
