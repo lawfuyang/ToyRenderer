@@ -160,7 +160,7 @@ public:
 		return true;
 	}
 
-    void GPUCulling(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, nvrhi::BufferHandle counterStatsBuffer, const CullingBuffers cullingBuffers[2])
+    void GPUCulling(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, nvrhi::BufferHandle counterStatsBuffer, const CullingBuffers& cullingBuffers)
     {
         PROFILE_FUNCTION();
 
@@ -178,9 +178,9 @@ public:
 
             for (uint32_t i = 0; i < 2; ++i)
             {
-				commandList->clearBufferUInt(cullingBuffers[i].m_InstanceCountBuffer, 0);
-				commandList->clearBufferUInt(cullingBuffers[i].m_StartInstanceConstsOffsetsBuffer, 0);
-				commandList->clearBufferUInt(cullingBuffers[i].m_DrawIndexedIndirectArgumentsBuffer, 0);
+				commandList->clearBufferUInt(cullingBuffers.m_InstanceCountBuffer, 0);
+				commandList->clearBufferUInt(cullingBuffers.m_StartInstanceConstsOffsetsBuffer, 0);
+				commandList->clearBufferUInt(cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer, 0);
             }
         }
 
@@ -212,9 +212,9 @@ public:
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer.m_Buffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, cullingBuffers[0].m_DrawIndexedIndirectArgumentsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, cullingBuffers[0].m_StartInstanceConstsOffsetsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(2, cullingBuffers[0].m_InstanceCountBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, cullingBuffers.m_StartInstanceConstsOffsetsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(2, cullingBuffers.m_InstanceCountBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
@@ -223,7 +223,7 @@ public:
         g_Graphic.AddComputePass(commandList, "gpuculling_CS_GPUCulling", bindingSetDesc, dispatchGroupSize);
     }
 
-    void RenderInstances(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, const CullingBuffers cullingBuffers[2])
+    void RenderInstances(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, const CullingBuffers cullingBuffers)
     {
         PROFILE_FUNCTION();
 
@@ -283,9 +283,9 @@ public:
         drawState.framebuffer = frameBuffer;
         drawState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
         drawState.indexBuffer = { g_Graphic.m_VirtualIndexBuffer.m_Buffer, g_Graphic.m_VirtualIndexBuffer.m_Buffer->getDesc().format, 0 };
-        drawState.vertexBuffers = { { cullingBuffers[0].m_StartInstanceConstsOffsetsBuffer, 0, 0} };
-        drawState.indirectParams = cullingBuffers[0].m_DrawIndexedIndirectArgumentsBuffer;
-        drawState.indirectCountBuffer = cullingBuffers[0].m_InstanceCountBuffer;
+        drawState.vertexBuffers = { { cullingBuffers.m_StartInstanceConstsOffsetsBuffer, 0, 0} };
+        drawState.indirectParams = cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer;
+        drawState.indirectCountBuffer = cullingBuffers.m_InstanceCountBuffer;
         drawState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
         drawState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
 
@@ -311,10 +311,10 @@ public:
             cullingBuffers[i].m_StartInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG[i].m_StartInstanceConstsOffsetsBuffer);
         }
 
-        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers);
+        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers[0]);
 
         // early render: render objects that were visible last frame
-        RenderInstances(commandList, renderGraph, params, cullingBuffers);
+        RenderInstances(commandList, renderGraph, params, cullingBuffers[0]);
 
         // depth pyramid generation
         //pyramid();
