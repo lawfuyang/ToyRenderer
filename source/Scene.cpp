@@ -497,7 +497,7 @@ void Scene::Update()
     extern IRenderer* g_DeferredLightingRenderer;
     extern IRenderer* g_TileClassificationDebugRenderer;
     extern IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
-    extern IRenderer* g_TransparentBasePassRenderer;
+    extern IRenderer* g_TransparentForwardRenderer;
     extern IRenderer* g_DebugDrawRenderer;
     extern IRenderer* g_IMGUIRenderer;
     extern IRenderer* g_SkyRenderer;
@@ -522,7 +522,7 @@ void Scene::Update()
     m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
     m_RenderGraph->AddRenderer(g_SkyRenderer);
     m_RenderGraph->AddRenderer(g_BloomRenderer);
-    m_RenderGraph->AddRenderer(g_TransparentBasePassRenderer, &updateInstanceConstsBufferTask);
+    m_RenderGraph->AddRenderer(g_TransparentForwardRenderer, &updateInstanceConstsBufferTask);
     m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
 
     // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet

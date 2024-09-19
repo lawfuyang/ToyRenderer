@@ -399,10 +399,10 @@ public:
     }
 };
 
-class TransparentBasePassRenderer : public BasePassRenderer
+class TransparentForwardRenderer : public BasePassRenderer
 {
 public:
-    TransparentBasePassRenderer() : BasePassRenderer("TransparentBasePassRenderer") {}
+    TransparentForwardRenderer() : BasePassRenderer("TransparentForwardRenderer") {}
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
@@ -499,7 +499,7 @@ public:
 static GBufferRenderer gs_GBufferRenderer;
 IRenderer* g_GBufferRenderer = &gs_GBufferRenderer;
 
-static TransparentBasePassRenderer gs_TransparentBasePassRenderer;
-IRenderer* g_TransparentBasePassRenderer = &gs_TransparentBasePassRenderer;
+static TransparentForwardRenderer gs_TransparentForwardRenderer;
+IRenderer* g_TransparentForwardRenderer = &gs_TransparentForwardRenderer;
 
 static SunCSMBasePassRenderer gs_CSMRenderers[Graphic::kNbCSMCascades];
