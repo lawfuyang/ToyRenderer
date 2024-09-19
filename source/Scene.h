@@ -101,10 +101,8 @@ public:
 
     std::vector<Node> m_Nodes;
     std::vector<Visual> m_Visuals;
-
     std::vector<VisualProxy> m_VisualProxies;
 
-    nvrhi::TextureHandle m_HZB;
     nvrhi::BufferHandle m_LuminanceBuffer;
 
     TileRenderingHelper m_DeferredLightingTileRenderingHelper;

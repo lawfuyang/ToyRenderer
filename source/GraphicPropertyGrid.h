@@ -50,6 +50,8 @@ public:
         float m_MaxShadowDistance = 200.0f;
         float m_CSMSplitLambda = 0.5f;
         uint32_t m_ShadowMapResolution = 2048;
+
+        bool m_bShadowMapResolutionDirty = false;
     };
     ShadowControllables m_ShadowControllables;
 

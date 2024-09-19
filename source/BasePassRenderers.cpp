@@ -61,13 +61,45 @@ public:
     FencedReadbackBuffer m_CounterStatsReadbackBuffer;
     RenderGraph::ResourceHandle m_CounterStatsRDGBufferHandle;
 
+    nvrhi::TextureHandle m_HZB;
+    Vector2U m_HZBResolution;
+
     BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
 
-    void Initialize() override
+    void InitHZB()
     {
+		// dont init HZB if not needed. (primarily for TransparentForwardRenderer)
+		if (m_HZBResolution.x == 0 && m_HZBResolution.y == 0)
+		{
+			return;
+		}
+
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        m_CounterStatsReadbackBuffer.Initialize(device, sizeof(uint32_t) * kNbGPUCullingBufferCounters);
+
+		// HZB must be power of 2
+		assert(GetNextPow2(m_HZBResolution.x) == m_HZBResolution.x);
+		assert(GetNextPow2(m_HZBResolution.y) == m_HZBResolution.y);
+
+        nvrhi::TextureDesc desc;
+        desc.width = m_HZBResolution.x;
+        desc.height = m_HZBResolution.y;
+        desc.format = Graphic::kHZBFormat;
+        desc.isRenderTarget = false;
+        desc.isUAV = true;
+        desc.debugName = "HZB";
+        desc.mipLevels = ComputeNbMips(desc.width, desc.height);
+        desc.useClearValue = false;
+        desc.initialState = nvrhi::ResourceStates::ShaderResource;
+        m_HZB = device->createTexture(desc);
     }
+
+	void Initialize() override
+	{
+		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+		m_CounterStatsReadbackBuffer.Initialize(device, sizeof(uint32_t) * kNbGPUCullingBufferCounters);
+
+        InitHZB();
+	}
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
@@ -304,6 +336,14 @@ class GBufferRenderer : public BasePassRenderer
 public:
     GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
 
+	void Initialize() override
+	{
+        m_HZBResolution.x = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
+        m_HZBResolution.y = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
+
+        BasePassRenderer::Initialize();
+	}
+
     bool Setup(RenderGraph& renderGraph) override
     {
 		BasePassRenderer::Setup(renderGraph);
@@ -431,6 +471,13 @@ public:
         g_SunCSMBasePassRenderers[m_CSMIndex] = this;
     }
 
+    void Initialize() override
+	{
+        m_HZBResolution.x = m_HZBResolution.y = g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
+
+		BasePassRenderer::Initialize();
+	}
+
     bool Setup(RenderGraph& renderGraph) override
     {
         const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
@@ -438,6 +485,11 @@ public:
         if (!shadowControllables.m_bEnabled)
         {
             return false;
+        }
+
+        if (shadowControllables.m_bShadowMapResolutionDirty)
+        {
+            InitHZB();
         }
 
         BasePassRenderer::Setup(renderGraph);
@@ -474,6 +526,12 @@ public:
         if (scene->m_VisualProxies.empty())
         {
             return;
+        }
+
+        const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
+        if (shadowControllables.m_bShadowMapResolutionDirty)
+        {
+            commandList->clearTextureFloat(m_HZB, nvrhi::AllSubresources, Graphic::kFarDepth);
         }
 
         View& view = scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
