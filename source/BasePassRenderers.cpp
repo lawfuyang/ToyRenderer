@@ -498,13 +498,12 @@ IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
 
 class SunCSMBasePassRenderer : public BasePassRenderer
 {
-    inline static uint32_t ms_CSMIdxCounter = 0;
     const uint32_t m_CSMIndex;
 
 public:
-    SunCSMBasePassRenderer()
-        : BasePassRenderer(StringFormat("CSM: %d", ms_CSMIdxCounter))
-        , m_CSMIndex(ms_CSMIdxCounter++)
+    SunCSMBasePassRenderer(uint32_t CSMIdx)
+        : BasePassRenderer(StringFormat("CSM: %d", CSMIdx))
+        , m_CSMIndex(CSMIdx)
     {
         g_SunCSMBasePassRenderers[m_CSMIndex] = this;
     }
@@ -593,4 +592,4 @@ IRenderer* g_GBufferRenderer = &gs_GBufferRenderer;
 static TransparentForwardRenderer gs_TransparentForwardRenderer;
 IRenderer* g_TransparentForwardRenderer = &gs_TransparentForwardRenderer;
 
-static SunCSMBasePassRenderer gs_CSMRenderers[Graphic::kNbCSMCascades];
+static SunCSMBasePassRenderer gs_CSMRenderers[Graphic::kNbCSMCascades] = { 0, 1, 2, 3 };
