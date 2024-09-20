@@ -86,7 +86,7 @@ public:
 
 		passConstants.m_DebugFlags = 0;
 		passConstants.m_DebugFlags |= lightingControllables.m_bLightingOnlyDebug ? kDeferredLightingDebugFlag_LightingOnly : 0;
-		passConstants.m_DebugFlags |= g_GraphicPropertyGrid.m_DebugControllables.m_bColorizeInstances ? kDeferredLightingDebugFlag_ColorizeInstances : 0;
+		passConstants.m_DebugFlags |= g_GraphicPropertyGrid.m_InstanceRenderingControlalbles.m_bColorizeInstances ? kDeferredLightingDebugFlag_ColorizeInstances : 0;
 
 		for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
 		{

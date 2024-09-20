@@ -591,6 +591,8 @@ void Scene::UpdateIMGUIPropertyGrid()
 
     if (ImGui::TreeNode("Culling Stats"))
     {
+		const auto& InstanceRenderingControlalbles = g_GraphicPropertyGrid.m_InstanceRenderingControlalbles;
+
         // TODO: support transparent
         for (size_t i = 0; i < EnumUtils::Count<EView>(); i++)
         {
@@ -599,7 +601,7 @@ void Scene::UpdateIMGUIPropertyGrid()
             ImGui::Text("[%s]:", EnumUtils::ToString((EView)i));
 
             ImGui::Indent();
-			ImGui::Text("GPU Visible: Frustum:[%d]", g_GraphicPropertyGrid.m_DebugControllables.m_bEnableGPUFrustumCulling ? view.m_GPUCullingCounters.m_Frustum : g_Graphic.m_Scene->m_VisualProxies.size());
+			ImGui::Text("GPU Visible: Frustum:[%d]", InstanceRenderingControlalbles.m_bEnableFrustumCulling ? view.m_GPUCullingCounters.m_Frustum : g_Graphic.m_Scene->m_VisualProxies.size());
 
 			ImGui::SameLine();
 			ImGui::Text("Occlusion: Phase 1:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase1);

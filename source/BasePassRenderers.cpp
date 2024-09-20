@@ -186,7 +186,7 @@ public:
             }
         }
 
-        const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
+        const auto& instanceRenderingControlalbles = g_GraphicPropertyGrid.m_InstanceRenderingControlalbles;
 
         // read back nb visible instances from counter
         {
@@ -202,7 +202,7 @@ public:
 
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
-        passParameters.m_EnableFrustumCulling = debugControllables.m_bEnableGPUFrustumCulling;
+        passParameters.m_EnableFrustumCulling = instanceRenderingControlalbles.m_bEnableFrustumCulling;
         passParameters.m_OcclusionCullingFlags = 0;
         passParameters.m_WorldToClip = view.m_ViewProjectionMatrix;
         passParameters.m_PrevFrameWorldToClip = view.m_PrevFrameViewProjectionMatrix;

@@ -19,11 +19,16 @@ public:
         bool m_bRenderGrid = false;
         bool m_bRenderSceneAABB = false;
         bool m_bRenderSceneBS = false;
-        bool m_bEnableGPUFrustumCulling = true;
-        bool m_bEnableGPUOcclusionCulling = false;
-        bool m_bColorizeInstances = false;
     };
     DebugControllables m_DebugControllables;
+
+    struct InstanceRenderingControlalbles
+    {
+        bool m_bEnableFrustumCulling = true;
+        bool m_bEnableOcclusionCulling = false;
+        bool m_bColorizeInstances = false;
+    };
+	InstanceRenderingControlalbles m_InstanceRenderingControlalbles;
 
     struct SkyControllables
     {

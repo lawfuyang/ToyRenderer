@@ -95,12 +95,20 @@ void GraphicPropertyGrid::UpdateIMGUI()
         ImGui::Checkbox("Render Grid", &params.m_bRenderGrid);
         ImGui::Checkbox("Draw Scene AABB", &params.m_bRenderSceneAABB);
         ImGui::Checkbox("Draw Scene Bounding Sphere", &params.m_bRenderSceneBS);
-        ImGui::Checkbox("Enable GPU Frustum Culling", &params.m_bEnableGPUFrustumCulling);
-        ImGui::Checkbox("Enable GPU Occlusion Culling", &params.m_bEnableGPUOcclusionCulling);
         ImGui::Checkbox("Render Debug Draw Demo", &params.m_bRenderDebugDrawDemo);
-        ImGui::Checkbox("Colorize Instances", &params.m_bColorizeInstances);
         ImGui::TreePop();
     }
+
+	if (ImGui::TreeNode("GBuffer"))
+	{
+		InstanceRenderingControlalbles& params = m_InstanceRenderingControlalbles;
+
+		ImGui::Checkbox("Enable Frustum Culling", &params.m_bEnableFrustumCulling);
+		ImGui::Checkbox("Enable Occlusion Culling", &params.m_bEnableOcclusionCulling);
+        ImGui::Checkbox("Colorize Instances", &params.m_bColorizeInstances);
+
+		ImGui::TreePop();
+	}
 
     if (ImGui::TreeNode("Lighting"))
     {
