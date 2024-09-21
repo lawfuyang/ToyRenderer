@@ -224,7 +224,8 @@ void PS_Main_Forward(
     float shadowFactor = ShadowFiltering(shadowFilteringParams);
     lighting *= shadowFactor;
     
-    lighting += AmbientTerm(g_SSAOTexture, g_BasePassConsts.m_SSAOEnabled ? uint2(inPosition.xy) : uint2(0, 0), gbufferParams.m_Albedo);
+    // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
+    lighting += AmbientTerm(g_SSAOTexture, g_BasePassConsts.m_SSAOEnabled ? uint2(inPosition.xy) : uint2(0, 0), gbufferParams.m_Albedo, gbufferParams.m_Normal);
     
     outColor = float4(lighting, gbufferParams.m_Alpha);
 }

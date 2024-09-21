@@ -32,8 +32,9 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
         return float3(0, 0, 0);
     }
 
-    float3 albedo = g_GBufferAlbedo[screenTexel].rgb;    
-    float3 ambientTerm = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? screenTexel : uint2(0, 0), albedo);
+    float3 albedo = g_GBufferAlbedo[screenTexel].rgb;
+    float3 normal = DecodeNormal(g_GBufferNormal[screenTexel].rg); // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
+    float3 ambientTerm = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? screenTexel : uint2(0, 0), albedo, normal);
     
     // If the tile is fully shadowed, return the lighting result with only ambient
     if (g_DeferredLightingConsts.m_TileID == Tile_ID_Full_Shadow)
@@ -54,7 +55,6 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     const float materialSpecular = 0.5f; // TODO?
     float3 diffuse = ComputeDiffuseColor(albedo, metallic);
     float3 specular = ComputeF0(materialSpecular, albedo, metallic);
-    float3 normal = DecodeNormal(g_GBufferNormal[screenTexel].rg);
     
     float3 V = normalize(g_DeferredLightingConsts.m_CameraOrigin - worldPosition);
     float3 L = g_DeferredLightingConsts.m_DirectionalLightVector;
