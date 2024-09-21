@@ -40,6 +40,22 @@ float3 Diffuse_Lambert(float3 diffuseColor)
     return diffuseColor * (1.0f / M_PI);
 }
 
+float3 BurleyDiffuse(float NdotL, float3 albedo, float roughness)
+{
+    return albedo * (NdotL * (1.0 + roughness) / (M_PI * 4.0));
+}
+
+// https://www.unrealengine.com/en-US/blog/physically-based-shading-on-mobile
+float3 EnvBRDFApprox(float3 specularColor, float roughness, float ndotv)
+{
+    const float4 c0 = float4(-1, -0.0275, -0.572, 0.022);
+    const float4 c1 = float4(1, 0.0425, 1.04, -0.04);
+    float4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28 * ndotv)) * r.x + r.y;
+    float2 AB = float2(-1.04, 1.04) * a004 + r.zw;
+    return specularColor * AB.x + AB.y;
+}
+
 // GGX / Trowbridge-Reitz
 // Note the division by PI here
 // [Walter et al. 2007, "Microfacet models for refraction through rough surfaces"]
@@ -66,12 +82,14 @@ float3 F_Schlick(float3 f0, float VdotH)
     return Fc + (1.0f - Fc) * f0;
 }
 
-float3 DefaultLitBxDF(float3 specularColor, float specularRoughness, float3 diffuseColor, float3 N, float3 V, float3 L)
+float3 DefaultLitBxDF(float3 specularColor, float roughness, float3 albedo, float3 N, float3 V, float3 L)
 {
+    float NdotL = saturate(dot(N, L));
+    
     // Diffuse BRDF
-    float3 lighting = Diffuse_Lambert(diffuseColor);
-
-	float NdotL = saturate(dot(N, L));
+    float3 diffuse;
+    diffuse = Diffuse_Lambert(albedo);
+    //diffuse = BurleyDiffuse(NdotL, albedo, roughness);
 
 	float3 H = normalize(V + L);
 	float NdotV = saturate(abs(dot(N, V)) + 1e-5); // Bias to avoid artifacting
@@ -79,14 +97,19 @@ float3 DefaultLitBxDF(float3 specularColor, float specularRoughness, float3 diff
 	float VdotH = saturate(dot(V, H));
 
 	// Generalized microfacet Specular BRDF
-	float a = specularRoughness * specularRoughness;
+    float3 specular;
+    float a = roughness * roughness;
 	float a2 = clamp(a * a, 0.0001f, 1.0f);
 	float D = D_GGX(a2, NdotH);
 	float Vis = Vis_SmithJointApprox(a2, NdotV, NdotL);
 	float3 F = F_Schlick(specularColor, VdotH);
-	lighting += (D * Vis) * F;
+    specular = (D * Vis) * F;
+    
+    // TODO: AMD Brixelizer GI
+    float3 envSpecularColor = EnvBRDFApprox(specularColor, a, NdotV);
+    specular += envSpecularColor;
 
-    return lighting * NdotL;
+    return (diffuse + specular) * NdotL;
 }
 
 float3 AmbientTerm(Texture2D<uint> SSAOTexture, uint2 texel, float3 diffuseColor)
