@@ -25,7 +25,7 @@
 • RenderCaptureInterface::FScopedCapture
 • GPU Driven Base Pass Renderer
 	• support batching of meshes via binning
-        • procedurally spawn random shapes to test
+        • https://github.com/KhronosGroup/glTF-Sample-Models/tree/d7a3cc8e51d7c573771ae77a57f16b0662a905c6/2.0/SimpleInstancing
 	• discard empty indirect draw arguments
 • support KHR_mesh_quantization (?)
 • support EXT_meshopt_compression (?)
