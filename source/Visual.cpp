@@ -177,7 +177,7 @@ bool Texture::LoadFromCache(bool bInsertEmptyTextureHandleIfNotFound, bool* bOut
 
 bool Primitive::IsValid() const
 {
-    return m_MeshIdx != UINT_MAX;
+    return m_MeshIdx != UINT_MAX && m_Material.IsValid();
 }
 
 void Visual::UpdateIMGUI()

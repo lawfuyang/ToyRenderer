@@ -30,6 +30,7 @@ public:
     static constexpr uint32_t kStencilBit_Opaque = 0x0;
     static constexpr uint32_t kStencilBit_Sky = 0x1;
 
+    static constexpr bool kFrontCCW = true;
     static constexpr bool kInversedDepthBuffer = true;
     static constexpr bool kInfiniteDepthBuffer = true;
     static constexpr bool kInversedShadowMapDepthBuffer = false;

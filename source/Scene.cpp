@@ -519,8 +519,6 @@ void Scene::Update()
 
 uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
 {
-    assert(p->m_SceneOctTreeNodeIdx == UINT_MAX);
-
     const uint32_t proxyIdx = (uint32_t)m_VisualProxies.size();
     VisualProxy& newProxy = m_VisualProxies.emplace_back();
 

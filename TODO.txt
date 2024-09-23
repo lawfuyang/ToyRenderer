@@ -1,7 +1,6 @@
 • fix GPU occlusion culling causing wrong results
 • fix GPU furstum culling causing wrong results for shadows (Bistro)
 • fix all -Wconversion Shader warnings
-• cgltf: https://github.com/jkuhlmann/cgltf
 • Render Graph: D3D12_Research\Graphics\RenderGraph
 	• Transient resource allocation
 		• Validation of resource dependencies

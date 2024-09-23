@@ -1,8 +1,6 @@
-// NOTE: must include this before tiny_gltf, due to 'TINYGLTF_IMPLEMENTATION'
-#include "extern/json/json.hpp"
-
-#define TINYGLTF_IMPLEMENTATION
-#include "extern/json/tiny_gltf.h"
+#define CGLTF_VALIDATE_ENABLE_ASSERTS 1
+#define CGLTF_IMPLEMENTATION
+#include "extern/cgltf/cgltf.h"
 
 #include "CommonResources.h"
 #include "Engine.h"
@@ -21,53 +19,58 @@ CommandLineOption<bool> g_ProfileSceneLoading{ "profilesceneloading", false };
 struct GLTFSceneLoader
 {
     std::string m_BaseFolderPath;
-    tinygltf::Model m_Model;
+    cgltf_data* m_GLTFData = nullptr;
 
     std::vector<std::vector<Primitive>> m_SceneMeshPrimitives;
-    std::vector<nvrhi::SamplerAddressMode> m_AddressModes;
+    std::unordered_map<const cgltf_mesh*, uint32_t> m_GLTFMeshToSceneMeshPrimitivesIndex;
+
+    std::unordered_map<const cgltf_sampler*, nvrhi::SamplerAddressMode> m_AddressModes;
+
     std::vector<Texture> m_SceneTextures;
+    std::unordered_map<const cgltf_texture*, uint32_t> m_GLTFTextureToSceneTexturesIdx;
+
     std::vector<Material> m_SceneMaterials;
+    std::unordered_map<const cgltf_material*, uint32_t> m_GLTFMaterialToSceneMaterialsIdx;
+
+    ~GLTFSceneLoader()
+    {
+        if (m_GLTFData)
+        {
+            cgltf_free(m_GLTFData);
+        }
+    }
 
     void LoadScene(std::string_view filePath)
     {
         PROFILE_FUNCTION();
 
+        cgltf_options options{};
+        
+        {
+            PROFILE_SCOPED("Load gltf file");
+            SCOPED_TIMER_NAMED("Load gltf file");
+            cgltf_result result = cgltf_parse_file(&options, filePath.data(), &m_GLTFData);
+
+            if (result != cgltf_result_success)
+            {
+                LOG_DEBUG("GLTF - Failed to load '%s': [%s]", filePath.data(), EnumUtils::ToString(result));
+                return;
+            }
+        }
+
+        {
+            PROFILE_SCOPED("Load gltf buffers");
+            SCOPED_TIMER_NAMED("Load gltf buffers");
+
+            cgltf_result result = cgltf_load_buffers(&options, m_GLTFData, filePath.data());
+            if (result != cgltf_result_success)
+            {
+                LOG_DEBUG("GLTF - Failed to load buffers '%s': [%s]", filePath.data(), EnumUtils::ToString(result));
+                return;
+            }
+        }
+
         m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
-
-        tinygltf::TinyGLTF loader;
-        loader.SetImageLoader(&LoadImageDataFunction, this);
-
-        std::string err, warn;
-        bool ret = false;
-        {
-            PROFILE_SCOPED("Load file from disk");
-            SCOPED_TIMER_NAMED("Load file from disk");
-
-            const char* fileExt = GetFileExtensionFromPath(filePath);
-            if (std::strcmp(fileExt, ".gltf") == 0)
-            {
-                ret = loader.LoadASCIIFromFile(&m_Model, &err, &warn, filePath.data());
-            }
-            else if (std::strcmp(fileExt, ".glb") == 0)
-            {
-                ret = loader.LoadBinaryFromFile(&m_Model, &err, &warn, filePath.data());
-            }
-        }
-
-        if (!err.empty())
-        {
-            LOG_DEBUG("GLTF Load Error: %s", err.c_str());
-        }
-
-        if (!warn.empty())
-        {
-            LOG_DEBUG("GLTF Load Warning: %s", err.c_str());
-        }
-
-        if (!ret)
-        {
-            return;
-        }
 
         LoadSamplers();
         LoadTextures();
@@ -76,44 +79,42 @@ struct GLTFSceneLoader
         LoadNodes();
     }
 
-    static bool LoadImageDataFunction(tinygltf::Image* image, const int idx, std::string* err, std::string* warn, int width, int height, const unsigned char* dataPtr, int dataSize, void* user_pointer)
-    {
-        // simply copy over the image bytes into the tinygltf::Image obj itself to defer load the texture in 'LoadTextures'
-        image->image.resize(dataSize);
-        memcpy(image->image.data(), dataPtr, dataSize);
-
-        return true;
-    }
-
     void LoadSamplers()
     {
         PROFILE_FUNCTION();
+        SCOPED_TIMER_FUNCTION();
 
-        m_AddressModes.resize(m_Model.samplers.size());
-
-        for (uint32_t i = 0; i < m_Model.samplers.size(); ++i)
+        for (uint32_t i = 0; i < m_GLTFData->samplers_count; ++i)
         {
-            const tinygltf::Sampler& sampler = m_Model.samplers[i];
+            const cgltf_sampler& gltfSampler = m_GLTFData->samplers[i];
 
-            auto GLtoTextureAddressMode = [](int glWrapMode)
+            auto GLtoTextureAddressMode = [](int wrapMode)
                 {
-                    switch (glWrapMode)
+                    // copied from tiny_gltf
+                    static const uint32_t kRepeat = 10497;
+                    static const uint32_t kClampToEdge = 33071;
+                    static const uint32_t kMirroredRepeat = 33648;
+
+                    switch (wrapMode)
                     {
-                    case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE: return nvrhi::SamplerAddressMode::Clamp;
-                    case TINYGLTF_TEXTURE_WRAP_MIRRORED_REPEAT: return nvrhi::SamplerAddressMode::Mirror;
-                    case TINYGLTF_TEXTURE_WRAP_REPEAT: return nvrhi::SamplerAddressMode::Wrap;
+                    case kClampToEdge: return nvrhi::SamplerAddressMode::Clamp;
+                    case kMirroredRepeat: return nvrhi::SamplerAddressMode::Mirror;
+                    case kRepeat: return nvrhi::SamplerAddressMode::Wrap;
                     }
+                    
+                    assert(0);
 
                     return nvrhi::SamplerAddressMode::Clamp;
                 };
 
-            const nvrhi::SamplerAddressMode addressModeS = GLtoTextureAddressMode(sampler.wrapS);
-            const nvrhi::SamplerAddressMode addressModeT = GLtoTextureAddressMode(sampler.wrapT);
+            const nvrhi::SamplerAddressMode addressModeS = GLtoTextureAddressMode(gltfSampler.wrap_s);
+            const nvrhi::SamplerAddressMode addressModeT = GLtoTextureAddressMode(gltfSampler.wrap_t);
 
             // TODO: support different S&T address modes?
             assert(addressModeS == addressModeT);
 
-            m_AddressModes[i] = addressModeS;
+            assert(!m_AddressModes.contains(&gltfSampler));
+            m_AddressModes[&gltfSampler] = addressModeS;
         }
     }
 
@@ -122,164 +123,107 @@ struct GLTFSceneLoader
         PROFILE_FUNCTION();
         SCOPED_TIMER_FUNCTION();
 
-        m_SceneTextures.resize(m_Model.textures.size());
-
-        struct DeferLoadTexture
+        if (m_GLTFData->textures_count == 0)
         {
-            Texture m_Texture;
-            uint32_t m_Idx;
-        };
-        std::vector<DeferLoadTexture> deferLoadTextures;
+            return;
+        }
 
         tf::Taskflow taskflow;
-        for (uint32_t i = 0; i < m_Model.textures.size(); ++i)
+
+        // hacky assumption that images_count == textures_count
+        assert(m_GLTFData->images_count == m_GLTFData->textures_count);
+
+        m_SceneTextures.resize(m_GLTFData->textures_count);
+
+        for (uint32_t i = 0; i < m_GLTFData->textures_count; ++i)
         {
-            taskflow.emplace([&, i] () mutable
+            m_GLTFTextureToSceneTexturesIdx[&m_GLTFData->textures[i]] = i;
+
+            taskflow.emplace([&, i]()
                 {
-                    const tinygltf::Texture& texture = m_Model.textures[i];
+                    const cgltf_texture& gltfTexture = m_GLTFData->textures[i];
 
-                    int textureSourceIdx = -1;
-                    const auto KTXExtIt = texture.extensions.find("KHR_texture_basisu");
-                    if (KTXExtIt != texture.extensions.end())
+                    assert(gltfTexture.sampler);
+                    m_SceneTextures[i].m_AddressMode = m_AddressModes.at(gltfTexture.sampler);
+
+                    const cgltf_image* image = gltfTexture.has_basisu ? gltfTexture.basisu_image : gltfTexture.image;
+
+                    const char* debugName = image->name ? image->name : gltfTexture.name ? gltfTexture.name : "Un-Named Texture";
+
+                    if (image->buffer_view)
                     {
-                        textureSourceIdx = KTXExtIt->second.Get("source").GetNumberAsInt();
+                        debugName = !debugName ? image->buffer_view->name : debugName;
+                        m_SceneTextures[i].LoadFromMemory((std::byte*)image->buffer_view->buffer->data + image->buffer_view->offset, image->buffer_view->size, gltfTexture.has_basisu, debugName);
                     }
                     else
                     {
-                        textureSourceIdx = texture.source;
-                    }
-
-                    const tinygltf::Image& image = m_Model.images.at(textureSourceIdx);
-
-                    Texture newTex;
-
-                    if (texture.sampler > -1)
-                    {
-                        newTex.m_AddressMode = m_AddressModes.at(texture.sampler);
-                    }
-
-                    // if the image's internal data array is filled, it means it went through the 'LoadImageDataFunction'. i.e, its embedded in the .glb itself
-                    if (!image.image.empty())
-                    {
-                        const bool bIsKTX2 = image.mimeType == "image/ktx2";
-
-                        newTex.LoadFromMemory(image.image.data(), (uint32_t)image.image.size(), bIsKTX2, image.name);
-                        m_SceneTextures[i] = newTex;
-                    }
-                    else
-                    {
-                        std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image.uri.c_str()).string();
+                        std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image->uri).string();
                         filePath = std::regex_replace(filePath, std::regex("%20"), " "); // uri is not decoded (e.g. whitespace may be represented as %20)
 
-                        m_SceneTextures[i] = newTex;
-
-                        // loading from file might fail if another thread is proceesing it, so we load it from cache after all textures are loaded multi-threaded
-                        if (newTex.LoadFromFile(filePath))
-                        {
-                            m_SceneTextures[i] = newTex;
-                        }
-                        else
-                        {
-                            static std::mutex s_Lck;
-                            AUTO_LOCK(s_Lck);
-
-                            deferLoadTextures.push_back({ newTex, i });
-                        }
+                        const bool bResult = m_SceneTextures[i].LoadFromFile(filePath);
+                        assert(bResult);
                     }
                 });
         }
 
-        // Multi-thread IO load & init textures
-        if (!taskflow.empty())
-        {
-            g_Engine.m_Executor->run(taskflow).wait();
-        }
-
-        for (DeferLoadTexture& deferLoadTex : deferLoadTextures)
-        {
-            const bool bResult = deferLoadTex.m_Texture.LoadFromCache();
-
-            // at this point, whatever that was loaded in parallel must have already been loaded here
-            assert(bResult && deferLoadTex.m_Texture);
-
-            m_SceneTextures[deferLoadTex.m_Idx] = deferLoadTex.m_Texture;
-        }
+        g_Engine.m_Executor->run(taskflow).wait();
     }
 
     void LoadMaterials()
     {
         PROFILE_FUNCTION();
+        SCOPED_TIMER_FUNCTION();
 
-        // TODO: multi-thread if needed
-        m_SceneMaterials.resize(m_Model.materials.size());
-        for (uint32_t i = 0; i < m_Model.materials.size(); ++i)
+        m_SceneMaterials.resize(m_GLTFData->materials_count);
+
+        for (uint32_t i = 0; i < m_GLTFData->materials_count; ++i)
         {
-            PROFILE_SCOPED("Load Material");
-
-            const tinygltf::Material& material = m_Model.materials.at(i);
-            const tinygltf::NormalTextureInfo& normalTextureInfo = material.normalTexture;
-            const tinygltf::PbrMetallicRoughness& pbrMetallicRoughness = material.pbrMetallicRoughness;
-
             Material& sceneMaterial = m_SceneMaterials[i];
 
-            if (pbrMetallicRoughness.baseColorTexture.index != -1)
+            const cgltf_material& gltfMaterial = m_GLTFData->materials[i];
+
+            if (gltfMaterial.has_pbr_metallic_roughness)
             {
-                sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
-                sceneMaterial.m_AlbedoTexture = m_SceneTextures[pbrMetallicRoughness.baseColorTexture.index];
+                if (gltfMaterial.pbr_metallic_roughness.base_color_texture.texture)
+                {
+                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
+                    sceneMaterial.m_AlbedoTexture = m_SceneTextures.at(m_GLTFTextureToSceneTexturesIdx.at(gltfMaterial.pbr_metallic_roughness.base_color_texture.texture));
+                }
+                if (gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture)
+                {
+                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
+                    sceneMaterial.m_MetallicRoughnessTexture = m_SceneTextures.at(m_GLTFTextureToSceneTexturesIdx.at(gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture));
+                }
+
+                sceneMaterial.m_ConstDiffuse.x = gltfMaterial.pbr_metallic_roughness.base_color_factor[0];
+                sceneMaterial.m_ConstDiffuse.y = gltfMaterial.pbr_metallic_roughness.base_color_factor[1];
+                sceneMaterial.m_ConstDiffuse.z = gltfMaterial.pbr_metallic_roughness.base_color_factor[2];
+                sceneMaterial.m_ConstMetallic = gltfMaterial.pbr_metallic_roughness.metallic_factor;
+                sceneMaterial.m_ConstRoughness = gltfMaterial.pbr_metallic_roughness.roughness_factor;
             }
-            if (normalTextureInfo.index != -1)
+            else if (gltfMaterial.has_pbr_specular_glossiness)
+            {
+                assert(0); // TODO?
+            }
+
+            if (gltfMaterial.normal_texture.texture)
             {
                 sceneMaterial.m_MaterialFlags |= MaterialFlag_UseNormalTexture;
-                sceneMaterial.m_NormalTexture = m_SceneTextures[normalTextureInfo.index];
+                sceneMaterial.m_NormalTexture = m_SceneTextures.at(m_GLTFTextureToSceneTexturesIdx.at(gltfMaterial.normal_texture.texture));
             }
-            if (pbrMetallicRoughness.metallicRoughnessTexture.index != -1)
-            {
-                sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
-                sceneMaterial.m_MetallicRoughnessTexture = m_SceneTextures[pbrMetallicRoughness.metallicRoughnessTexture.index];
-            }
-
-            sceneMaterial.m_ConstDiffuse = ToMathType<Vector3>(pbrMetallicRoughness.baseColorFactor);
-            sceneMaterial.m_ConstRoughness = (float)pbrMetallicRoughness.roughnessFactor;
-            sceneMaterial.m_ConstMetallic = (float)pbrMetallicRoughness.metallicFactor;
-
-            // give the float values discreet steps (8-bit compressed) to allow them to be hash friendly
-            const Vector3U compressedConstDiffuseUint{ (uint32_t)(sceneMaterial.m_ConstDiffuse.x * 255.0f), (uint32_t)(sceneMaterial.m_ConstDiffuse.y * 255.0f), (uint32_t)(sceneMaterial.m_ConstDiffuse.z * 255.0f) };
-            const Vector3 compressedConstDiffuse{ (float)compressedConstDiffuseUint.x / 255.0f, (float)compressedConstDiffuseUint.y / 255.0f, (float)compressedConstDiffuseUint.z / 255.0f };
-            const float compressedConstRoughness = std::floor(sceneMaterial.m_ConstRoughness * 255.0f) / 255.0f;
-            const float compressedConstMetallic = std::floor(sceneMaterial.m_ConstMetallic * 255.0f) / 255.0f;
 
             MaterialData materialData{};
-            materialData.m_ConstDiffuse = compressedConstDiffuse;
+            materialData.m_ConstDiffuse = sceneMaterial.m_ConstDiffuse;
             materialData.m_MaterialFlags = sceneMaterial.m_MaterialFlags;
             materialData.m_AlbedoTextureSamplerAndDescriptorIndex = (sceneMaterial.m_AlbedoTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_AlbedoTexture.m_AddressMode) << 30));
             materialData.m_NormalTextureSamplerAndDescriptorIndex = (sceneMaterial.m_NormalTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_NormalTexture.m_AddressMode) << 30));
             materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex = (sceneMaterial.m_MetallicRoughnessTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_MetallicRoughnessTexture.m_AddressMode) << 30));
-            materialData.m_ConstRoughness = compressedConstRoughness;
-            materialData.m_ConstMetallic = compressedConstMetallic;
+            materialData.m_ConstRoughness = sceneMaterial.m_ConstRoughness;
+            materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
 
             sceneMaterial.m_MaterialDataBufferIdx = g_Graphic.AppendOrRetrieveMaterialDataIndex(materialData);
-        }
-    }
 
-    template <typename VertexOrIndexType>
-    void LoadAttributes(std::vector<VertexOrIndexType>& attributeContainer, int attributeID, uint32_t vertexAttributeMemOffset = 0)
-    {
-        assert(attributeID != -1);
-
-        const tinygltf::Accessor& accessor = m_Model.accessors.at(attributeID);
-        const tinygltf::BufferView& bufferView = m_Model.bufferViews.at(accessor.bufferView);
-        const tinygltf::Buffer& buffer = m_Model.buffers.at(bufferView.buffer);
-
-        const unsigned char* dataPtr = buffer.data.data() + accessor.byteOffset + bufferView.byteOffset;
-
-        const int byteStride = accessor.ByteStride(bufferView);
-        assert(byteStride != -1);
-
-        const uint32_t attributeSizeInBytes = tinygltf::GetComponentSizeInBytes(accessor.componentType) * tinygltf::GetNumComponentsInType(accessor.type);
-
-        for (uint32_t i = 0; i < accessor.count; ++i, dataPtr += byteStride)
-        {
-            std::memcpy((std::byte*)&attributeContainer.at(i) + vertexAttributeMemOffset, dataPtr, attributeSizeInBytes);
+            m_GLTFMaterialToSceneMaterialsIdx[&gltfMaterial] = i;
         }
     }
 
@@ -288,58 +232,92 @@ struct GLTFSceneLoader
         PROFILE_FUNCTION();
         SCOPED_TIMER_FUNCTION();
 
-        // because we're loading & initializing meshes in parallel, we need to reserve the space beforehand to prevent the mesh vector from resizing
         uint32_t nbPrimitives = 0;
-        for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_Model.meshes.size(); ++modelMeshIdx)
+        for (uint32_t i = 0; i < m_GLTFData->meshes_count; ++i)
         {
-            nbPrimitives += m_Model.meshes.at(modelMeshIdx).primitives.size();
+            const cgltf_mesh& mesh = m_GLTFData->meshes[i];
+            nbPrimitives += mesh.primitives_count;
         }
-
-        LOG_DEBUG("Loading %d primitives", nbPrimitives);
 
         g_Graphic.m_Meshes.reserve(g_Graphic.m_Meshes.size() + nbPrimitives);
 
         tf::Taskflow taskflow;
-        
-        m_SceneMeshPrimitives.resize(m_Model.meshes.size());
-        for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_Model.meshes.size(); ++modelMeshIdx)
-        {
-            const tinygltf::Mesh& mesh = m_Model.meshes.at(modelMeshIdx);
 
-            m_SceneMeshPrimitives[modelMeshIdx].resize(mesh.primitives.size());
-            for (uint32_t primitiveIdx = 0; primitiveIdx < mesh.primitives.size(); ++primitiveIdx)
+        m_SceneMeshPrimitives.resize(m_GLTFData->meshes_count);
+        for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_GLTFData->meshes_count; ++modelMeshIdx)
+        {
+            const cgltf_mesh& mesh = m_GLTFData->meshes[modelMeshIdx];
+
+            m_SceneMeshPrimitives[modelMeshIdx].resize(mesh.primitives_count);
+            m_GLTFMeshToSceneMeshPrimitivesIndex[&mesh] = modelMeshIdx;
+
+            for (uint32_t primitiveIdx = 0; primitiveIdx < mesh.primitives_count; ++primitiveIdx)
             {
                 taskflow.emplace([&, modelMeshIdx, primitiveIdx]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
-                        const tinygltf::Primitive& gltfPrimitive = mesh.primitives.at(primitiveIdx);
-                        assert(gltfPrimitive.mode == TINYGLTF_MODE_TRIANGLES); // TODO: support more primitive topologies
+                        const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
+                        assert(gltfPrimitive.type == cgltf_primitive_type_triangles); // TODO: support more primitive topologies
 
-                        // vertices
-                        std::vector<RawVertexFormat> vertices;
-                        const int positionIdx = gltfPrimitive.attributes.at("POSITION");
-                        vertices.resize(m_Model.accessors.at(positionIdx).count);
-
-                        auto LoadAttributesHelper = [&](std::string_view attributeString, uint32_t vertexAttributeMemOffset)
-                            {
-                                if (auto it = gltfPrimitive.attributes.find(attributeString.data());
-                                    it != gltfPrimitive.attributes.end())
-                                {
-                                    LoadAttributes(vertices, it->second, vertexAttributeMemOffset);
-                                }
-                            };
-
-                        LoadAttributesHelper("POSITION", offsetof(RawVertexFormat, m_Position));
-                        LoadAttributesHelper("NORMAL", offsetof(RawVertexFormat, m_Normal));
-                        LoadAttributesHelper("TEXCOORD_0", offsetof(RawVertexFormat, m_TexCoord));
-
-                        // indices
                         std::vector<Graphic::IndexBufferFormat_t> indices;
-                        const int indicesIdx = gltfPrimitive.indices;
-                        indices.resize(m_Model.accessors.at(indicesIdx).count);
+                        indices.resize(gltfPrimitive.indices->count);
 
-                        LoadAttributes(indices, indicesIdx);
+                        static const int indexMap[] = { 0, 1, 2 }; // if CCW, { 0, 2, 1 }
+                        for (size_t i = 0; i < gltfPrimitive.indices->count; i += 3)
+                        {
+                            indices[i + 0] = cgltf_accessor_read_index(gltfPrimitive.indices, i + indexMap[0]);
+                            indices[i + 1] = cgltf_accessor_read_index(gltfPrimitive.indices, i + indexMap[1]);
+                            indices[i + 2] = cgltf_accessor_read_index(gltfPrimitive.indices, i + indexMap[2]);
+                        }
+
+                        std::vector<Vector3> vertexPositions;
+                        std::vector<Vector3> vertexNormals;
+                        std::vector<Vector2> vertexUVs;
+
+                        for (size_t attrIdx = 0; attrIdx < gltfPrimitive.attributes_count; ++attrIdx)
+                        {
+                            const cgltf_attribute& attribute = gltfPrimitive.attributes[attrIdx];
+
+                            if (attribute.type == cgltf_attribute_type_position)
+                            {
+                                vertexPositions.resize(attribute.data->count);
+                                const cgltf_size unpackResult = cgltf_accessor_unpack_floats(attribute.data, &vertexPositions[0].x, attribute.data->count * 3);
+                                assert(unpackResult > 0);
+                            }
+                            else if (attribute.type == cgltf_attribute_type_normal)
+                            {
+                                vertexNormals.resize(attribute.data->count);
+                                const cgltf_size unpackResult = cgltf_accessor_unpack_floats(attribute.data, &vertexNormals[0].x, attribute.data->count * 3);
+                                assert(unpackResult > 0);
+                            }
+                            else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 0)
+                            {
+                                vertexUVs.resize(attribute.data->count);
+                                const cgltf_size unpackResult = cgltf_accessor_unpack_floats(attribute.data, &vertexUVs[0].x, attribute.data->count * 3);
+                                assert(unpackResult > 0);
+                            }
+
+                            // TODO: cgltf_attribute_type_weights, cgltf_attribute_type_joints
+                        }
+
+                        std::vector<RawVertexFormat> vertices;
+                        vertices.resize(vertexPositions.size());
+
+                        for (size_t i = 0; i < vertices.size(); ++i)
+                        {
+                            vertices[i].m_Position = vertexPositions[i];
+
+                            if (!vertexNormals.empty())
+                            {
+                                vertices[i].m_Normal = vertexNormals[i];
+                            }
+
+                            if (!vertexUVs.empty())
+                            {
+                                vertices[i].m_TexCoord = vertexUVs[i];
+                            }
+                        }
 
                         uint32_t meshIdx;
                         Mesh* sceneMesh = nullptr;
@@ -348,15 +326,14 @@ struct GLTFSceneLoader
 
                         if (!bRetrievedFromCache)
                         {
-                            sceneMesh->Initialize(vertices, indices, mesh.name);
+                            sceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
                         }
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
-
-                        primitive.m_Material = m_SceneMaterials[gltfPrimitive.material];
-                        assert(primitive.m_Material.IsValid());
-
+                        primitive.m_Material = m_SceneMaterials.at(m_GLTFMaterialToSceneMaterialsIdx.at(gltfPrimitive.material));
                         primitive.m_MeshIdx = meshIdx;
+
+                        assert(primitive.IsValid());
                     });
             }
         }
@@ -365,119 +342,103 @@ struct GLTFSceneLoader
         g_Engine.m_Executor->run(taskflow).wait();
     }
 
-    // convert into array of floats, then shoves it into vector/matrix
-    template <typename T>
-    static T ToMathType(std::span<const double> val)
-    {
-        SmallVector<float, sizeof(T) / sizeof(float)> arr;
-        for (double d : val)
-            arr.push_back((float)d);
-        return T{ arr.data() };
-    }
-
-    void TraverseNode(const tinygltf::Node& gltfNode, uint32_t parentIdx = UINT_MAX)
-    {
-        Vector3 scale = Vector3::One;
-        Vector3 translation;
-        Quaternion rotation;
-
-        // Matrix and T/R/S are exclusive
-        if (!gltfNode.matrix.empty())
-        {
-            Matrix matrix = ToMathType<Matrix>(gltfNode.matrix);
-
-            // decompose local matrix
-            const bool bDecomposeResult = matrix.Decompose(scale, rotation, translation);
-            assert(bDecomposeResult);
-        }
-        else
-        {
-            if (!gltfNode.translation.empty())
-                translation = ToMathType<Vector3>(gltfNode.translation);
-
-            if (!gltfNode.rotation.empty())
-                rotation = ToMathType<Quaternion>(gltfNode.rotation);
-
-            if (!gltfNode.scale.empty())
-                scale = ToMathType<Vector3>(gltfNode.scale);
-        }
-        
-        Scene* scene = g_Graphic.m_Scene.get();
-        const uint32_t newNodeID = scene->m_Nodes.size();
-
-        Node& newNode = scene->m_Nodes.emplace_back();
-        newNode.m_ID = newNodeID;
-        newNode.m_Name = gltfNode.name;
-        newNode.m_Position = translation;
-        newNode.m_Rotation = rotation;
-        newNode.m_Scale = scale;
-
-        if (parentIdx != UINT_MAX)
-        {
-            newNode.m_ParentNodeID = parentIdx;
-            scene->m_Nodes.at(parentIdx).m_ChildrenNodeIDs.push_back(newNodeID);
-        }
-
-        // if a node does not have a mesh, it's simply an node with no Visual
-        if (gltfNode.mesh != -1)
-        {
-            const uint32_t visualIdx = scene->m_Visuals.size();
-
-            Visual& newVisual = scene->m_Visuals.emplace_back();
-            newVisual.m_NodeID = newNodeID;
-            newVisual.m_Name = gltfNode.name;
-
-            for (const Primitive& primitive : m_SceneMeshPrimitives.at(gltfNode.mesh))
-            {
-                newVisual.m_Primitives.push_back(primitive);
-                newVisual.m_Primitives.back().m_VisualIdx = visualIdx;
-
-				Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
-
-                AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
-                Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
-            }
-
-            // update scene BS too
-            const Matrix nodeWorldMatrix = newNode.MakeLocalToWorldMatrix();
-
-            AABB nodeAABB;
-			newNode.m_AABB.Transform(nodeAABB, nodeWorldMatrix);
-
-            AABB::CreateMerged(scene->m_AABB, scene->m_AABB, nodeAABB);
-
-            Sphere nodeBS;
-            newNode.m_BoundingSphere.Transform(nodeBS, nodeWorldMatrix);
-
-            Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, nodeBS);
-
-            newNode.m_VisualIdx = visualIdx;
-        }
-
-        if (gltfNode.camera != -1)
-        {
-            // TODO
-        }
-
-        for (int childIdx : gltfNode.children)
-        {
-            TraverseNode(m_Model.nodes[childIdx], newNodeID);
-        }
-    }
-
     void LoadNodes()
     {
         PROFILE_FUNCTION();
         SCOPED_TIMER_FUNCTION();
-        
-        // TODO: support more than 1 scene?
-        assert(m_Model.scenes.size() == 1);
-        const tinygltf::Scene& scene = m_Model.scenes.at(0);
 
-        for (int nodeIdx : scene.nodes)
+        Scene* scene = g_Graphic.m_Scene.get();
+
+        std::unordered_map<const cgltf_node*, uint32_t> nodeToSceneNodeIndex;
+
+        // init node maps first
+        for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
         {
-            const tinygltf::Node& gltfNode = m_Model.nodes.at(nodeIdx);
-            TraverseNode(gltfNode);
+            const cgltf_node& node = m_GLTFData->nodes[i];
+            nodeToSceneNodeIndex[&node] = i;
+        }
+
+        for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
+        {
+            const cgltf_node& node = m_GLTFData->nodes[i];
+            nodeToSceneNodeIndex[&node] = i;
+
+            Matrix nodeLocalMatrix;
+            cgltf_node_transform_local(&node, &nodeLocalMatrix.m[0][0]);
+
+            Vector3 scale = Vector3::One;
+            Vector3 translation;
+            Quaternion rotation;
+
+            // decompose local matrix
+            const bool bDecomposeResult = nodeLocalMatrix.Decompose(scale, rotation, translation);
+            assert(bDecomposeResult);
+
+            const uint32_t newNodeID = scene->m_Nodes.size();
+
+            Node& newNode = scene->m_Nodes.emplace_back();
+            newNode.m_ID = newNodeID;
+            newNode.m_Name = node.name ? node.name : "Un-named Mode";
+            newNode.m_Position = translation;
+            newNode.m_Rotation = rotation;
+            newNode.m_Scale = scale;
+
+            if (node.parent)
+            {
+                newNode.m_ParentNodeID = nodeToSceneNodeIndex.at(node.parent);
+            }
+
+            if (node.children_count > 0)
+            {
+                for (uint32_t i = 0; i < node.children_count; ++i)
+                {
+                    newNode.m_ChildrenNodeIDs.push_back(nodeToSceneNodeIndex.at(node.children[i]));
+                }
+            }
+
+            if (node.mesh)
+            {
+                Matrix localToWorld;
+                cgltf_node_transform_world(&node, &localToWorld.m[0][0]);
+
+                const uint32_t visualIdx = scene->m_Visuals.size();
+
+                Visual& newVisual = scene->m_Visuals.emplace_back();
+                newVisual.m_NodeID = newNodeID;
+                newVisual.m_Name = node.name ? node.name : "Un-named Visual";
+
+                const uint32_t sceneMeshPrimitivesIdx = m_GLTFMeshToSceneMeshPrimitivesIndex.at(node.mesh);
+
+                for (const Primitive& primitive : m_SceneMeshPrimitives.at(sceneMeshPrimitivesIdx))
+                {
+                    newVisual.m_Primitives.push_back(primitive);
+                    newVisual.m_Primitives.back().m_VisualIdx = visualIdx;
+
+                    Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+
+                    AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
+                    Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
+                }
+
+                newNode.m_VisualIdx = visualIdx;
+            }
+        }
+
+        // need to be a separate loop due to 'MakeLocalToWorldMatrix' requiring all nodes to be loaded
+        for (Node& node : scene->m_Nodes)
+        {
+            // update scene BS too
+            const Matrix nodeWorldMatrix = node.MakeLocalToWorldMatrix();
+
+            AABB nodeAABB;
+            node.m_AABB.Transform(nodeAABB, nodeWorldMatrix);
+
+            AABB::CreateMerged(scene->m_AABB, scene->m_AABB, nodeAABB);
+
+            Sphere nodeBS;
+            node.m_BoundingSphere.Transform(nodeBS, nodeWorldMatrix);
+
+            Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, nodeBS);
         }
     }
 };
