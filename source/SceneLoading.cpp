@@ -388,19 +388,13 @@ struct GLTFSceneLoader
                 newNode.m_ParentNodeID = nodeToSceneNodeIndex.at(node.parent);
             }
 
-            if (node.children_count > 0)
+            for (uint32_t i = 0; i < node.children_count; ++i)
             {
-                for (uint32_t i = 0; i < node.children_count; ++i)
-                {
-                    newNode.m_ChildrenNodeIDs.push_back(nodeToSceneNodeIndex.at(node.children[i]));
-                }
+                newNode.m_ChildrenNodeIDs.push_back(nodeToSceneNodeIndex.at(node.children[i]));
             }
 
             if (node.mesh)
             {
-                Matrix localToWorld;
-                cgltf_node_transform_world(&node, &localToWorld.m[0][0]);
-
                 const uint32_t visualIdx = scene->m_Visuals.size();
 
                 Visual& newVisual = scene->m_Visuals.emplace_back();
