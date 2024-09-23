@@ -143,8 +143,10 @@ struct GLTFSceneLoader
                 {
                     const cgltf_texture& gltfTexture = m_GLTFData->textures[i];
 
-                    assert(gltfTexture.sampler);
-                    m_SceneTextures[i].m_AddressMode = m_AddressModes.at(gltfTexture.sampler);
+                    if (gltfTexture.sampler)
+                    {
+                        m_SceneTextures[i].m_AddressMode = m_AddressModes.at(gltfTexture.sampler);
+                    }
 
                     const cgltf_image* image = gltfTexture.has_basisu ? gltfTexture.basisu_image : gltfTexture.image;
 
@@ -158,7 +160,7 @@ struct GLTFSceneLoader
                     else
                     {
                         std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image->uri).string();
-                        filePath = std::regex_replace(filePath, std::regex("%20"), " "); // uri is not decoded (e.g. whitespace may be represented as %20)
+                        cgltf_decode_uri(filePath.data());
 
                         const bool bResult = m_SceneTextures[i].LoadFromFile(filePath);
                         assert(bResult);
