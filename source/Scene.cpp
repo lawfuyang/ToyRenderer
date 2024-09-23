@@ -366,8 +366,6 @@ void Scene::UpdateCSMViews()
         if constexpr (Graphic::kInversedShadowMapDepthBuffer)
         {
             std::swap(CSMView.m_ZNearP, CSMView.m_ZFarP);
-            //CSMView.m_ProjectionMatrix._33 *= -1.0f;
-            //CSMView.m_ProjectionMatrix._34 *= -1.0f;
         }
 
         CSMView.Update();
