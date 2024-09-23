@@ -33,7 +33,7 @@ public:
     static constexpr bool kFrontCCW = true;
     static constexpr bool kInversedDepthBuffer = true;
     static constexpr bool kInfiniteDepthBuffer = true;
-    static constexpr bool kInversedShadowMapDepthBuffer = false;
+    static constexpr bool kInversedShadowMapDepthBuffer = true;
 
     static constexpr float kNearDepth = kInversedDepthBuffer ? 1.0f : 0.0f;
     static constexpr float kFarDepth = 1.0f - kNearDepth;

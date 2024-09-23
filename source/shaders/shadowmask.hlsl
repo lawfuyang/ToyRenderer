@@ -76,4 +76,9 @@ void PS_Main(
     
     // Perform shadow filtering and assign the result to the output color
     outColor = ShadowFiltering(shadowFilteringParams);
+    
+    if (g_ShadowMaskConsts.m_InversedDepth)
+    {
+        outColor = 1.0f - outColor;
+    }
 }

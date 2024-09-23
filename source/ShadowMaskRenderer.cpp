@@ -68,6 +68,7 @@ public:
         passConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
         passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
         passConstants.m_CSMDistances = { scene->m_CSMSplitDistances[0], scene->m_CSMSplitDistances[1], scene->m_CSMSplitDistances[2], scene->m_CSMSplitDistances[3] };
+		passConstants.m_InversedDepth = Graphic::kInversedShadowMapDepthBuffer;
 
         for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
         {

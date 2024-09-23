@@ -37,7 +37,6 @@
 • snap shadow projector area to texel
 	• see D3D12_Research shadows
 	• or "moveLightTexelSize" brach in 'LightComponent::CalculateCascadeShadowProjection' in FFX Samples
-• inverse Z for shadow maps (?)
 • separate top mip streaming
     • integrate D3DX12Residency into nvrhi
 • volumetric clouds
