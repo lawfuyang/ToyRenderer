@@ -40,9 +40,12 @@ float3 Diffuse_Lambert(float3 diffuseColor)
     return diffuseColor * (1.0f / M_PI);
 }
 
-float3 BurleyDiffuse(float NdotL, float3 albedo, float roughness)
+float3 Diffuse_Burley(float3 DiffuseColor, float Roughness, float NoV, float NoL, float VoH)
 {
-    return albedo * (NdotL * (1.0 + roughness) / (M_PI * 4.0));
+    float FD90 = 0.5 + 2 * VoH * VoH * Roughness;
+    float FdV = 1 + (FD90 - 1) * Pow5(1 - NoV);
+    float FdL = 1 + (FD90 - 1) * Pow5(1 - NoL);
+    return DiffuseColor * ((1 / M_PI) * FdV * FdL);
 }
 
 // https://www.unrealengine.com/en-US/blog/physically-based-shading-on-mobile
@@ -84,18 +87,18 @@ float3 F_Schlick(float3 f0, float VdotH)
 
 float3 DefaultLitBxDF(float3 specularColor, float roughness, float3 albedo, float3 N, float3 V, float3 L)
 {
+    float3 H = normalize(V + L);
+    float NdotV = saturate(abs(dot(N, V)) + 1e-5); // Bias to avoid artifacting
     float NdotL = saturate(dot(N, L));
+    float NdotH = saturate(dot(N, H));
+    float VdotH = saturate(dot(V, H));
+    float LdotH = saturate(dot(L, H));
     
     // Diffuse BRDF
     float3 diffuse;
     diffuse = Diffuse_Lambert(albedo);
-    //diffuse = BurleyDiffuse(NdotL, albedo, roughness);
-
-	float3 H = normalize(V + L);
-	float NdotV = saturate(abs(dot(N, V)) + 1e-5); // Bias to avoid artifacting
-	float NdotH = saturate(dot(N, H));
-	float VdotH = saturate(dot(V, H));
-
+    //diffuse = Diffuse_Burley(albedo, roughness, NdotV, NdotL, VdotH);
+    
 	// Generalized microfacet Specular BRDF
     float3 specular;
     float a = roughness * roughness;
