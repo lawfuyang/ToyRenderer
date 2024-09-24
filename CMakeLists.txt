@@ -53,7 +53,6 @@ file(GLOB_RECURSE BASE_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${SRC_DIR}/*.hpp
 file(GLOB_RECURSE NVRHI_SRC "${EXTERN_DIR}/nvrhi/src/d3d12/*" "${EXTERN_DIR}/nvrhi/src/validation/*" "${EXTERN_DIR}/nvrhi/src/common/*" "${EXTERN_DIR}/nvrhi/*.h")
 file(GLOB_RECURSE TASKFLOW_SRC "${EXTERN_DIR}/taskflow/*.*")
 file(GLOB_RECURSE MICROPROFILE_SRC "${EXTERN_DIR}/microprofile/*.*")
-file(GLOB_RECURSE SPDLOG_SRC "${EXTERN_DIR}/spdlog/*.cpp" "${EXTERN_DIR}/spdlog/*.h")
 file(GLOB_RECURSE IMGUI_SRC "${EXTERN_DIR}/imgui/*.*")
 file(GLOB_RECURSE SIMPLEMATH_SRC "${EXTERN_DIR}/simplemath/*.*")
 file(GLOB_RECURSE STB_SRC "${EXTERN_DIR}/stb/*.*")
@@ -66,7 +65,6 @@ set(TOYRENDERER_SRC ${BASE_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${NVRHI_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${TASKFLOW_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${MICROPROFILE_SRC})
-set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SPDLOG_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${IMGUI_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SIMPLEMATH_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SHADERMAKE_SRC})
@@ -92,18 +90,14 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} ${SRC_DIR})
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} ${EXTERN_DIR})
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvrhi/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/ShaderMake/include")
-set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} ${EXTERN_DIR}/spdlog/include)
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/FidelityFX/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 # global preprocessor macros
 target_compile_definitions(ToyRenderer PUBLIC _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
 target_compile_definitions(ToyRenderer PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
-target_compile_definitions(ToyRenderer PUBLIC SPDLOG_COMPILED_LIB SPDLOG_NO_SOURCE_LOC SPDLOG_NO_THREAD_ID SPDLOG_NO_ATOMIC_LEVELS SPDLOG_DISABLE_DEFAULT_LOGGER)
 target_compile_definitions(ToyRenderer PUBLIC IMGUI_DEFINE_MATH_OPERATORS IMGUI_DISABLE_OBSOLETE_FUNCTIONS IMGUI_DISABLE_OBSOLETE_KEYIO)
 target_compile_definitions(ToyRenderer PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
-target_compile_definitions(ToyRenderer PUBLIC JSON_USE_IMPLICIT_CONVERSIONS=0)
-target_compile_definitions(ToyRenderer PUBLIC STBI_MAX_DIMENSIONS=8192)
 target_compile_definitions(ToyRenderer PUBLIC DEBUG_DRAW_CXX11_SUPPORTED)
 target_compile_definitions(ToyRenderer PUBLIC BASISU_FORCE_DEVEL_MESSAGES)
 target_compile_definitions(ToyRenderer PUBLIC NVRHI_D3D12_WITH_D3D12MA)
@@ -116,16 +110,6 @@ if (ENABLE_UNITY_BUILD)
 	
 	# unity builds results in large objs...
 	target_compile_options(ToyRenderer PRIVATE /bigobj)
-	
-	# LibraryImplementations.cpp must explicitly not be in Unity build
-	file(GLOB_RECURSE LIBRARY_IMPLEMENTATIONS_SRC "${SRC_DIR}/LibraryImplementations.cpp")
-	set(NO_UNITY_FILES ${LIBRARY_IMPLEMENTATIONS_SRC})
-	
-	# AMD Fidelity FX SSSR blue noise distribution arrays defines a bunch of similarly named stuff
-	set(NO_UNITY_FILES ${NO_UNITY_FILES} ${AMD_FFX_BLUE_NOISE_ERROR_DISTRO_SRC})
-	
-	# Set UNITY_BUILD property to OFF for the excluded file
-	set_source_files_properties(${NO_UNITY_FILES} PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 endif()
 
 # On Windows - FXC and DXC are part of WindowsSDK and there's also DXC in VulkanSDK which supports SPIR-V
