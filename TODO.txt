@@ -33,7 +33,6 @@
 • GLTF AlphaBlendModeTest
 	• implement binning of opaque/transparent instances after gpuculling
 	• OIT: https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
-• nvidia aftermath
 • snap shadow projector area to texel
 	• see D3D12_Research shadows
 	• or "moveLightTexelSize" brach in 'LightComponent::CalculateCascadeShadowProjection' in FFX Samples
