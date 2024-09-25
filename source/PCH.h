@@ -42,6 +42,12 @@
 #define PRAGMA_OPTIMIZE_OFF __pragma(optimize("",off))
 #define PRAGMA_OPTIMIZE_ON  __pragma(optimize("", on))
 
+#ifdef NDEBUG
+    #define verify(expr) assert(expr)
+#else
+    #define verify(expr) expr
+#endif
+
 using Microsoft::WRL::ComPtr;
 
 #define SingletonFunctionsCommon(ClassName)          \

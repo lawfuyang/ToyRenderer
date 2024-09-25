@@ -873,7 +873,7 @@ void Graphic::Initialize()
 void Graphic::Shutdown()
 {
     // wait for latest swap chain present to be done
-    m_NVRHIDevice->waitForIdle();
+    verify(m_NVRHIDevice->waitForIdle());
 
     m_Scene->Shutdown();
     m_Scene.reset();
@@ -901,7 +901,7 @@ void Graphic::Shutdown()
     m_FrameTimerQuery.Reset();
 
     // Make sure that all frames have finished rendering & garbage collect
-    m_NVRHIDevice->waitForIdle();
+    verify(m_NVRHIDevice->waitForIdle());
     m_NVRHIDevice->runGarbageCollection();
 
     MicroProfileGpuShutdown();
@@ -917,7 +917,7 @@ void Graphic::Update()
 
         LOG_DEBUG("Reloading all Shaders...");
 
-        m_NVRHIDevice->waitForIdle();
+        verify(m_NVRHIDevice->waitForIdle());
         m_NVRHIDevice->runGarbageCollection();
 
         m_CachedGraphicPSOs.clear();
@@ -1045,7 +1045,7 @@ void Graphic::ExecuteAllCommandLists()
 
         {
             PROFILE_SCOPED("Wait for previous GPU Frame");
-            m_NVRHIDevice->waitForIdle();
+            verify(m_NVRHIDevice->waitForIdle());
         }
 
         m_NVRHIDevice->executeCommandLists(&m_PendingCommandLists[0], m_PendingCommandLists.size());

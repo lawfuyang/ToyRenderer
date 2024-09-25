@@ -204,6 +204,11 @@ namespace nvrhi::d3d12
         {
             std::wstring wname(desc.debugName.begin(), desc.debugName.end());
             resource->SetName(wname.c_str());
+#if NVRHI_WITH_AFTERMATH
+            // the driver will track the resource internally so don't need to keep the handle around
+            GFSDK_Aftermath_ResourceHandle resourceHandle = {};
+            GFSDK_Aftermath_DX12_RegisterResource(resource, &resourceHandle);
+#endif
 
         // [rlaw] BEGIN
         #ifdef NVRHI_D3D12_WITH_D3D12MA
@@ -213,6 +218,7 @@ namespace nvrhi::d3d12
             }
         #endif
         // [rlaw] END
+
         }
     }
 

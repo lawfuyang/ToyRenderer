@@ -228,6 +228,23 @@ namespace nvrhi::d3d12
 
 #endif // #if NVRHI_D3D12_WITH_NVAPI
 
+#if NVRHI_WITH_AFTERMATH
+        if (desc.aftermathEnabled)
+        {
+            const uint32_t aftermathFlags = GFSDK_Aftermath_FeatureFlags_EnableMarkers | GFSDK_Aftermath_FeatureFlags_EnableResourceTracking | GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo | GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
+            GFSDK_Aftermath_Result aftermathResult = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_Context.device);
+            if (!GFSDK_Aftermath_SUCCEED(aftermathResult))
+            {
+                std::stringstream ss;
+                ss << "Aftermath initialize call failed, result = 0x" << std::hex << std::setw(8) << aftermathResult;
+                m_Context.error(ss.str());
+            }
+            else
+            {
+                m_AftermathEnabled = true;
+            }
+        }
+#endif
 
 // [rlaw] BEGIN
 #ifdef NVRHI_D3D12_WITH_D3D12MA
@@ -246,6 +263,7 @@ namespace nvrhi::d3d12
         g_D3D12MAAllocator = m_Allocator;
 #endif // #ifdef NVRHI_D3D12_WITH_D3D12MA
 // [rlaw] END
+
     }
 
     Device::~Device()
@@ -268,7 +286,7 @@ namespace nvrhi::d3d12
 // [rlaw] END
     }
 
-    void Device::waitForIdle()
+    bool Device::waitForIdle()
     {
         // Wait for every queue to reach its last submitted instance
         for (const auto& pQueue : m_Queues)
@@ -281,6 +299,7 @@ namespace nvrhi::d3d12
                 WaitForFence(pQueue->fence, pQueue->lastSubmittedInstance, m_FenceEvent);
             }
         }
+        return true;
     }
     
     Object RootSignature::getNativeObject(ObjectType objectType)
@@ -392,7 +411,7 @@ namespace nvrhi::d3d12
         HRESULT hr = m_Context.device->GetDeviceRemovedReason();
         if (FAILED(hr))
         {
-            m_Context.messageCallback->message(MessageSeverity::Fatal, "Device Removed!");
+            m_Context.messageCallback->message(MessageSeverity::Error, "Device Removed!");
         }
 
         return pQueue->lastSubmittedInstance;

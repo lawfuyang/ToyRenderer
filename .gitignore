@@ -1,6 +1,7 @@
 /.vs
 /projects
 /bin
+/aftermath
 *.lnk
 *.ipch
 ipch
