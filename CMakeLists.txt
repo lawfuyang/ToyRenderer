@@ -78,7 +78,7 @@ add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ToyRenderer)
 
 # libs
-target_link_libraries(ToyRenderer PUBLIC d3d12 dxgi dxguid Ws2_32 "${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64")
+target_link_libraries(ToyRenderer PUBLIC d3d12 dxgi dxguid Ws2_32 "${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64.lib")
 
 # force include PCH.h
 set(PCH_FILE "${SRC_DIR}/PCH.h")
