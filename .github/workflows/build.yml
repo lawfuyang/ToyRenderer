@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-${{ matrix.vs }}
 
     strategy:
-      fail-fast: false
+      fail-fast: true
 
       matrix:
         vs: [2022]
@@ -20,6 +20,10 @@ jobs:
         platform: [x64]
 
     steps:
+    
+    - name: Set up the latest Windows SDK
+      run: choco install windows-sdk-10.0 --version=latest -y
+          
     - name: Checkout
       uses: actions/checkout@v4
 
