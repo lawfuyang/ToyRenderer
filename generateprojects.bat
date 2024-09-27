@@ -12,22 +12,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-rem generate projects
-call :CreateProject "%cd%" "%cd%\projects\ToyRenderer"
-call :CreateProject "%cd%\extern\ShaderMake" "%cd%\projects\ShaderMake"
-goto :AfterGenerateProjects
-
-:CreateProject
-set SRC_PATH="%~1"
-set BUILD_PATH="%~2"
-echo Generating %SRC_PATH%...
-cmake -S %SRC_PATH% -B %BUILD_PATH%
-echo:
-echo:
-goto :eof
-
-:AfterGenerateProjects
-
 rem check & download DXC
 set DXC_EXEC=%cd%\extern\dxc\dxc.exe
 set DXC_DEST_FOLDER=%cd%\extern\dxc
@@ -68,6 +52,53 @@ echo Deleting '%DXC_TMP_FOLDER%'
 rd /S /Q "%DXC_TMP_FOLDER%"
 
 :AfterDownloadDXC
+
+rem check & download Nvidia Aftermath
+
+set "AFTERMATH_DEST_FOLDER=%cd%\extern\nvidia\aftermath"
+if exist "%AFTERMATH_DEST_FOLDER%\GFSDK_Aftermath.h" (
+    echo Nvidia Aftermath files found in %AFTERMATH_DEST_FOLDER%. Skipping Download.
+	echo:
+	goto :AfterDownloadAftermath
+)
+
+set AFTERMATH_URL=https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2024_2_0/windows/NVIDIA_Nsight_Aftermath_SDK_2024.2.0.24200.zip
+set AFTERMATH_ZIP_FILE=aftermath.zip
+set AFTERMATH_TMP_FOLDER=%TEMP%\aftermath
+
+echo Downloading Nvidia Aftermath .zip file to '%AFTERMATH_TMP_FOLDER%'
+mkdir "%AFTERMATH_TMP_FOLDER%"
+powershell -Command "Invoke-WebRequest -Uri '%AFTERMATH_URL%' -OutFile '%AFTERMATH_TMP_FOLDER%\%AFTERMATH_ZIP_FILE%'"
+
+echo Extracting Nvidia Aftermath .zip files
+powershell -Command "Expand-Archive -Path '%AFTERMATH_TMP_FOLDER%\%AFTERMATH_ZIP_FILE%' -DestinationPath '%AFTERMATH_TMP_FOLDER%'"
+
+echo Copying Nvidia Aftermath files to '%AFTERMATH_DEST_FOLDER%'
+mkdir "%AFTERMATH_DEST_FOLDER%" 2>nul
+xcopy "%AFTERMATH_TMP_FOLDER%\include\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
+xcopy "%AFTERMATH_TMP_FOLDER%\lib\x64\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
+xcopy "%AFTERMATH_DEST_FOLDER%\GFSDK_Aftermath_Lib.x64.dll" "%cd%\bin" /E /I /Y
+
+echo Deleting '%AFTERMATH_TMP_FOLDER%'
+rd /S /Q "%AFTERMATH_TMP_FOLDER%"
+
+:AfterDownloadAftermath
+
+rem generate projects
+call :CreateProject "%cd%" "%cd%\projects\ToyRenderer"
+call :CreateProject "%cd%\extern\ShaderMake" "%cd%\projects\ShaderMake"
+goto :AfterGenerateProjects
+
+:CreateProject
+set SRC_PATH="%~1"
+set BUILD_PATH="%~2"
+echo Generating %SRC_PATH%...
+cmake -S %SRC_PATH% -B %BUILD_PATH%
+echo:
+echo:
+goto :eof
+
+:AfterGenerateProjects
 
 rem create shortcuts to VS solutions in root folder
 call :CreateSlnShortcut "%cd%\projects\ToyRenderer\ToyRenderer.sln" "%cd%\ToyRenderer.sln.lnk"

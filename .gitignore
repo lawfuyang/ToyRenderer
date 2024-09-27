@@ -3,6 +3,7 @@
 /bin
 /aftermath
 /extern/dxc
+/extern/nvidia/aftermath
 *.lnk
 *.ipch
 ipch

@@ -29,8 +29,6 @@ if (ENABLE_IPO)
 	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
 set(ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}")
 set(BIN_DIR "${ROOT_DIR}/bin")
 set(SRC_DIR "${ROOT_DIR}/source")
@@ -80,7 +78,7 @@ add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ToyRenderer)
 
 # libs
-target_link_libraries(ToyRenderer PUBLIC d3d12 dxgi dxguid Ws2_32)
+target_link_libraries(ToyRenderer PUBLIC d3d12 dxgi dxguid Ws2_32 "${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64")
 
 # force include PCH.h
 set(PCH_FILE "${SRC_DIR}/PCH.h")
@@ -93,6 +91,7 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} ${EXTERN_DIR})
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvrhi/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/ShaderMake/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/FidelityFX/include")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/aftermath")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 # global preprocessor macros
@@ -102,31 +101,7 @@ target_compile_definitions(ToyRenderer PUBLIC IMGUI_DEFINE_MATH_OPERATORS IMGUI_
 target_compile_definitions(ToyRenderer PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
 target_compile_definitions(ToyRenderer PUBLIC DEBUG_DRAW_CXX11_SUPPORTED)
 target_compile_definitions(ToyRenderer PUBLIC BASISU_FORCE_DEVEL_MESSAGES)
-target_compile_definitions(ToyRenderer PUBLIC NVRHI_D3D12_WITH_D3D12MA)
-
-if (NOT TARGET aftermath)
-    find_package(Aftermath QUIET)
-    
-    if (AFTERMATH_FOUND)
-        add_library(aftermath SHARED IMPORTED GLOBAL)
-        
-        message(STATUS "Aftermath SDK files found in: '${CMAKE_SOURCE_DIR}/aftermath'")
-        
-        target_include_directories(aftermath INTERFACE "${AFTERMATH_INCLUDE_DIR}")
-        set_property(TARGET aftermath PROPERTY IMPORTED_IMPLIB "${AFTERMATH_LIBRARY}")
-        set_property(TARGET aftermath PROPERTY IMPORTED_LOCATION "${AFTERMATH_RUNTIME_LIBRARY}")
-        
-        message(STATUS "Copying GFSDK_Aftermath_Lib.x64.dll to: ${BIN_DIR}")
-        file(COPY ${AFTERMATH_RUNTIME_LIBRARY} DESTINATION ${BIN_DIR})
-        
-        message(STATUS "NVRHI_WITH_AFTERMATH set to '1'")
-        target_compile_definitions(ToyRenderer PUBLIC NVRHI_WITH_AFTERMATH=1)
-        target_link_libraries(ToyRenderer PUBLIC aftermath)
-    else()
-        message(STATUS "Aftermath SDK files not found in '${CMAKE_SOURCE_DIR}/aftermath'. NVRHI_WITH_AFTERMATH set to '0'")
-        target_compile_definitions(ToyRenderer PUBLIC NVRHI_WITH_AFTERMATH=0)
-    endif()
-endif()
+target_compile_definitions(ToyRenderer PUBLIC NVRHI_D3D12_WITH_D3D12MA NVRHI_WITH_AFTERMATH=1)
 
 # disable checked iterators for perf
 target_compile_definitions(ToyRenderer PUBLIC _ITERATOR_DEBUG_LEVEL=0)
