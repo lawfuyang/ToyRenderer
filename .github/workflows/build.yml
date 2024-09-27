@@ -22,7 +22,7 @@ jobs:
     steps:
     
     - name: Set up the latest Windows SDK
-      run: choco install windows-sdk-10.0 --version=latest -y
+      run: choco install windows-sdk-10.0 --pre --ignore-checksums
           
     - name: Checkout
       uses: actions/checkout@v4
