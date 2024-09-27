@@ -4,20 +4,13 @@ setlocal enabledelayedexpansion
 rem Change to the directory containing the batch file
 cd /d "%~dp0"
 
-rem Search for cmake.exe in the system's PATH
-for /f "delims=" %%a in ('where cmake.exe 2^>nul') do (
-    set "CMAKE_PATH="%%a""
-    goto found
+rem Check if CMake is installed
+where cmake >nul 2>&1
+
+if %errorlevel% neq 0 (
+    echo ERROR: CMake is not installed.
+    exit /b 1
 )
-
-rem If cmake.exe wasn't found, display an error message and exit
-echo ERROR: cannot find CMake.exe. Did you install it?
-exit /b 1
-
-:found
-echo Found cmake.exe at %CMAKE_PATH%
-echo:
-echo:
 
 rem generate projects
 call :CreateProject "%cd%" "%cd%\projects\ToyRenderer"
@@ -28,16 +21,14 @@ goto :AfterGenerateProjects
 set SRC_PATH="%~1"
 set BUILD_PATH="%~2"
 echo Generating %SRC_PATH%...
-%CMAKE_PATH% -S %SRC_PATH% -B %BUILD_PATH%
+cmake -S %SRC_PATH% -B %BUILD_PATH%
 echo:
 echo:
 goto :eof
 
 :AfterGenerateProjects
 
-rem download dxc
-
-rem Check if dxc.exe already exists
+rem check & download DXC
 set DXC_EXEC=%cd%\extern\dxc\dxc.exe
 set DXC_DEST_FOLDER=%cd%\extern\dxc
 if exist "%DXC_EXEC%" (
