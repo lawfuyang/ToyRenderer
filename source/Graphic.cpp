@@ -65,6 +65,43 @@ PRAGMA_OPTIMIZE_ON;
 
 IDXGIAdapter1* g_DXGIAdapter;
 
+// copied from d3dx12.h
+static D3D_FEATURE_LEVEL QueryHighestFeatureLevel(ID3D12Device* device)
+{
+    // Check against a list of all feature levels present in d3dcommon.h
+    // Needs to be updated for future feature levels
+    const D3D_FEATURE_LEVEL allLevels[] =
+    {
+#if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 3)
+        D3D_FEATURE_LEVEL_12_2,
+#endif
+        D3D_FEATURE_LEVEL_12_1,
+        D3D_FEATURE_LEVEL_12_0,
+        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_10_1,
+        D3D_FEATURE_LEVEL_10_0,
+        D3D_FEATURE_LEVEL_9_3,
+        D3D_FEATURE_LEVEL_9_2,
+        D3D_FEATURE_LEVEL_9_1,
+#if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 5)
+        D3D_FEATURE_LEVEL_1_0_CORE,
+#endif
+#if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 611)
+        D3D_FEATURE_LEVEL_1_0_GENERIC
+#endif
+    };
+
+    D3D12_FEATURE_DATA_FEATURE_LEVELS dFeatureLevel;
+    dFeatureLevel.NumFeatureLevels = static_cast<UINT>(sizeof(allLevels) / sizeof(D3D_FEATURE_LEVEL));
+    dFeatureLevel.pFeatureLevelsRequested = allLevels;
+
+    const HRESULT result = device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &dFeatureLevel, sizeof(D3D12_FEATURE_DATA_FEATURE_LEVELS));
+    assert(SUCCEEDED(result));
+
+    return dFeatureLevel.MaxSupportedFeatureLevel;
+}
+
 void Graphic::InitDevice()
 {
     {
@@ -125,24 +162,17 @@ void Graphic::InitDevice()
 
         // enforce requirment of 12_0 feature level at least
         static const D3D_FEATURE_LEVEL kMinimumFeatureLevel = D3D_FEATURE_LEVEL_12_0;
+        HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_D3DDevice)));
 
-        auto CreateDevice = [this](D3D_FEATURE_LEVEL requestedFeatureLevel)
-            {
-                HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, requestedFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
-                assert(m_D3DDevice);
-
-                HRESULT_CALL(m_DeviceFeatures.Init(m_D3DDevice.Get()));
-            };
-
-        CreateDevice(kMinimumFeatureLevel);
+        const D3D_FEATURE_LEVEL maxSupportedFeatureLevel = QueryHighestFeatureLevel(m_D3DDevice.Get());
 
         // use higher feature level if available
-        if (m_DeviceFeatures.MaxSupportedFeatureLevel() != kMinimumFeatureLevel)
+        if (maxSupportedFeatureLevel != kMinimumFeatureLevel)
         {
-            CreateDevice(m_DeviceFeatures.MaxSupportedFeatureLevel());
+            HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, maxSupportedFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
         }
         
-        LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", m_DeviceFeatures.MaxSupportedFeatureLevel());
+        LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", maxSupportedFeatureLevel);
 
         // disables 'dynamic frequency scaling' on GPU for reliable profiling
         if (g_EnableGPUStablePowerState.Get())

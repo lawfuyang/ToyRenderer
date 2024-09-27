@@ -19,11 +19,7 @@ jobs:
         build_type: [Debug, Release]
         platform: [x64]
 
-    steps:
-    
-    - name: Set up the latest Windows SDK
-      run: choco install windows-sdk-11-version-22h2-all
-          
+    steps:          
     - name: Checkout
       uses: actions/checkout@v4
 

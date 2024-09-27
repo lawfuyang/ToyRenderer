@@ -3,7 +3,6 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
-#include "extern/d3dx12/d3dx12.h"
 #include "extern/microprofile/microprofile.h"
 #include "nvrhi/nvrhi.h"
 #include "nvrhi/utils.h"
@@ -164,7 +163,6 @@ public:
             pushConstantsBytes);
     }
 
-    CD3DX12FeatureSupport m_DeviceFeatures;
     nvrhi::DeviceHandle m_NVRHIDevice;
 
     std::shared_ptr<Scene> m_Scene;
