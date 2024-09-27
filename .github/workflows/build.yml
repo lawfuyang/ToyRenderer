@@ -28,9 +28,6 @@ jobs:
       
     - name: Build ShaderMake
       run: cmake --build projects/ShaderMake
-      
-    - name: Compile Shaders
-      run: .\compileallshaders.bat
 
     - name: Build ToyRenderer
       run: cmake --build projects/ToyRenderer
