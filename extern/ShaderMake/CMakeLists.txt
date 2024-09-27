@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 # only Release
-set(CMAKE_CONFIGURATION_TYPES "Release" CACHE STRING "Limited configurations" FORCE)
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
 
 project(ShaderMake)
 
