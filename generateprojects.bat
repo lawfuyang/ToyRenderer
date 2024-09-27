@@ -1,8 +1,5 @@
 @echo off
 
-rem Get start time
-set start_time=%time%
-
 rem Change to the directory containing the batch file
 cd /d "%~dp0"
 
@@ -37,6 +34,37 @@ goto :eof
 
 :AfterGenerateProjects
 
+rem download dxc
+
+rem Check if dxc.exe already exists
+set DXC_EXEC=%CD%\extern\dxc\dxc.exe
+set DXC_DEST_FOLDER=%cd%\extern\dxc
+if exist "%DXC_EXEC%" (
+    echo DXC files found in %DXC_DEST_FOLDER%. Skipping download
+    echo:
+    goto :AfterDownloadDXC
+)
+
+set DXC_URL=https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31_clang_cl.zip
+set DXC_ZIP_FILE=dxc.zip
+set DXC_TMP_FOLDER=%TEMP%\dxc
+
+echo Downloading DXC .zip file to '%DXC_TMP_FOLDER%'
+mkdir "%DXC_TMP_FOLDER%"
+powershell -Command "Invoke-WebRequest -Uri '%DXC_URL%' -OutFile '%DXC_TMP_FOLDER%\%DXC_ZIP_FILE%'"
+
+echo Extracting DXC .zip files
+powershell -Command "Expand-Archive -Path '%DXC_TMP_FOLDER%\%DXC_ZIP_FILE%' -DestinationPath '%DXC_TMP_FOLDER%'"
+
+echo Copying DXC files to '%DXC_DEST_FOLDER%'
+mkdir "%DXC_DEST_FOLDER%" 2>nul
+xcopy "%DXC_TMP_FOLDER%\bin\x64\*" "%DXC_DEST_FOLDER%\" /E /I /Y
+
+echo Deleting '%DXC_TMP_FOLDER%'
+rd /S /Q "%DXC_TMP_FOLDER%"
+
+:AfterDownloadDXC
+
 rem create shortcuts to VS solutions in root folder
 call :CreateSlnShortcut "%cd%\projects\ToyRenderer\ToyRenderer.sln" "%cd%\ToyRenderer.sln.lnk"
 call :CreateSlnShortcut "%cd%\projects\ShaderMake\ShaderMake.sln" "%cd%\ShaderMake.sln.lnk"
@@ -45,6 +73,7 @@ goto :AfterCreateSlnShortcuts
 :CreateSlnShortcut
 set TargetPath="%~1"
 set ShortcutPath="%~2"
+echo Creating shortcut for %TargetPath%
 echo Set objShell = WScript.CreateObject("WScript.Shell") >> CreateShortcut.vbs
 echo Set objShortcut = objShell.CreateShortcut(%ShortcutPath%) >> CreateShortcut.vbs
 echo objShortcut.TargetPath = %TargetPath% >> CreateShortcut.vbs
@@ -55,13 +84,5 @@ goto :eof
 
 :AfterCreateSlnShortcuts
 
-rem Get end time
-set end_time=%time%
-
-rem Calculate elapsed time
-set /a seconds=(%end_time:~6,2% - %start_time:~6,2% + 60) %% 60
-set /a milliseconds=(%end_time:~9,2% - %start_time:~9,2% + 100) %% 1000
-
-echo Elapsed time: %seconds%.%milliseconds% seconds
-
+echo:
 pause

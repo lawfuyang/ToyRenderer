@@ -2,6 +2,7 @@
 /projects
 /bin
 /aftermath
+/extern/dxc
 *.lnk
 *.ipch
 ipch

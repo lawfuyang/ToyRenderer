@@ -138,28 +138,6 @@ if (ENABLE_UNITY_BUILD)
 	target_compile_options(ToyRenderer PRIVATE /bigobj)
 endif()
 
-# On Windows - FXC and DXC are part of WindowsSDK and there's also DXC in VulkanSDK which supports SPIR-V
-if (DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
-	set (WINDOWS_SDK_VERSION ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION})
-elseif (DEFINED ENV{WindowsSDKLibVersion})
-	string (REGEX REPLACE "\\\\$" "" WINDOWS_SDK_VERSION "$ENV{WindowsSDKLibVersion}")
-else ()
-	message (FATAL_ERROR "WindowsSDK is not installed (CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION is not defined; WindowsSDKLibVersion is '$ENV{WindowsSDKLibVersion}')!")
-endif ()
-
-if (${WINDOWS_SDK_VERSION} STRLESS "10.0.20348")
-	message(FATAL_ERROR "Windows SDK version 10.0.20348 or later is required")
-endif()
-
-get_filename_component (WINDOWS_SDK_ROOT "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;KitsRoot10]" ABSOLUTE)
-set (WINDOWS_SDK_BIN "${WINDOWS_SDK_ROOT}/bin/${WINDOWS_SDK_VERSION}/x64")
-
-find_program (DXC_PATH "${WINDOWS_SDK_BIN}/dxc")
-if (NOT DXC_PATH)
-	message (FATAL_ERROR "Can't find DXC in WindowsSDK: ${WINDOWS_SDK_BIN}")
-endif ()
-message (STATUS "Setting 'DXC_PATH' to '${DXC_PATH}'")
-
 ################################################################################
 
 ################################################################################

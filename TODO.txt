@@ -1,3 +1,4 @@
+• add code analysis workflow: https://github.com/microsoft/DirectXTK12/blob/main/.github/workflows/msvc.yml
 • fix GPU occlusion culling causing wrong results
 • fix GPU furstum culling causing wrong results for shadows (Bistro)
 • fix all -Wconversion Shader warnings
