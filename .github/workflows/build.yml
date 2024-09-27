@@ -1,0 +1,33 @@
+name: Build
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-${{ matrix.vs }}
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        vs: [2022]
+        build_type: [Debug, Release]
+        platform: [x64]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: GenerateProjects
+      run: .\generateprojects.bat
+      
+    - name: Build ShaderMake
+      run: cmake --build projects/ShaderMake
+
+    - name: Build ToyRenderer
+      run: cmake --build projects/ToyRenderer
