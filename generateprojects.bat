@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 
 rem Change to the directory containing the batch file
 cd /d "%~dp0"
@@ -37,12 +38,24 @@ goto :eof
 rem download dxc
 
 rem Check if dxc.exe already exists
-set DXC_EXEC=%CD%\extern\dxc\dxc.exe
+set DXC_EXEC=%cd%\extern\dxc\dxc.exe
 set DXC_DEST_FOLDER=%cd%\extern\dxc
 if exist "%DXC_EXEC%" (
-    echo DXC files found in %DXC_DEST_FOLDER%. Skipping download
-    echo:
-    goto :AfterDownloadDXC
+
+    echo DXC files found in %DXC_DEST_FOLDER%
+
+    set "DESIRED_DXC_VERSION_STRING=dxcompiler.dll: 1.8 - 1.8.2407.7 (416fab6b5); dxil.dll: 1.8(101.8.2407.12)"
+    
+    :: Run dxc.exe and capture the version output
+    for /f "delims=" %%i in ('"%DXC_EXEC%" --version') do set "currentVersionString=%%i"
+    
+    if "!currentVersionString!"=="!DESIRED_DXC_VERSION_STRING!" (
+        echo Desired DXC version found. Skipping Download.
+        echo:
+        goto :AfterDownloadDXC
+    ) else (
+        echo Desired DXC version mismatch. Proceeding to download DXC and overrite existing files.
+    )
 )
 
 set DXC_URL=https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31_clang_cl.zip
