@@ -77,7 +77,7 @@ echo Copying Nvidia Aftermath files to '%AFTERMATH_DEST_FOLDER%'
 mkdir "%AFTERMATH_DEST_FOLDER%" 2>nul
 xcopy "%AFTERMATH_TMP_FOLDER%\include\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
 xcopy "%AFTERMATH_TMP_FOLDER%\lib\x64\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
-xcopy "%AFTERMATH_DEST_FOLDER%\GFSDK_Aftermath_Lib.x64.dll" "%cd%\bin" /E /I /Y
+xcopy "%AFTERMATH_DEST_FOLDER%\GFSDK_Aftermath_Lib.x64.dll" "%cd%\bin\" /E /I /Y
 
 echo Deleting '%AFTERMATH_TMP_FOLDER%'
 rd /S /Q "%AFTERMATH_TMP_FOLDER%"
