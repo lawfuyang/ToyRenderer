@@ -2,7 +2,13 @@ name: Build
 
 on:
   push:
-  workflow_dispatch:
+      paths:
+      - 'extern/**'
+      - 'source/**'
+      - '.github/workflows/build.yml'
+      - 'CMakeLists.txt'
+      - 'compileallshaders.bat'
+      - 'generateprojects.bat'
 
 permissions:
   contents: read
