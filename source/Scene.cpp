@@ -465,52 +465,54 @@ void Scene::Update()
     tf::Taskflow tf;
 
     tf::Task updateInstanceConstsBufferTask = tf.emplace([this] { UpdateInstanceConstsBuffer(); });
-    
-    extern IRenderer* g_ClearBuffersRenderer;
-    extern IRenderer* g_GBufferRenderer;
-    extern IRenderer* g_ShadowMaskRenderer;
-    extern IRenderer* g_TileClassificationRenderer;
-    extern IRenderer* g_DeferredLightingRenderer;
-    extern IRenderer* g_TileClassificationDebugRenderer;
-    extern IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
-    extern IRenderer* g_TransparentForwardRenderer;
-    extern IRenderer* g_DebugDrawRenderer;
-    extern IRenderer* g_IMGUIRenderer;
-    extern IRenderer* g_SkyRenderer;
-    extern IRenderer* g_PostProcessRenderer;
-    extern IRenderer* g_AdaptLuminanceRenderer;
-    extern IRenderer* g_AmbientOcclusionRenderer;
-    extern IRenderer* g_BloomRenderer;
 
     m_RenderGraph->InitializeForFrame(tf);
-
-    m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
-    m_RenderGraph->AddRenderer(g_GBufferRenderer, &updateInstanceConstsBufferTask);
-    m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
-
-    for (uint32_t i = 0; i < Graphic::kNbCSMCascades; i++)
     {
-        m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i], &updateInstanceConstsBufferTask);
+        PROFILE_SCOPED("Schedule Renderers");
+
+        extern IRenderer* g_ClearBuffersRenderer;
+        extern IRenderer* g_GBufferRenderer;
+        extern IRenderer* g_ShadowMaskRenderer;
+        extern IRenderer* g_TileClassificationRenderer;
+        extern IRenderer* g_DeferredLightingRenderer;
+        extern IRenderer* g_TileClassificationDebugRenderer;
+        extern IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
+        extern IRenderer* g_TransparentForwardRenderer;
+        extern IRenderer* g_DebugDrawRenderer;
+        extern IRenderer* g_IMGUIRenderer;
+        extern IRenderer* g_SkyRenderer;
+        extern IRenderer* g_PostProcessRenderer;
+        extern IRenderer* g_AdaptLuminanceRenderer;
+        extern IRenderer* g_AmbientOcclusionRenderer;
+        extern IRenderer* g_BloomRenderer;
+
+        m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
+        m_RenderGraph->AddRenderer(g_GBufferRenderer, &updateInstanceConstsBufferTask);
+        m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
+
+        for (uint32_t i = 0; i < Graphic::kNbCSMCascades; i++)
+        {
+            m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i], &updateInstanceConstsBufferTask);
+        }
+
+        m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
+        m_RenderGraph->AddRenderer(g_TileClassificationRenderer);
+        m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
+        m_RenderGraph->AddRenderer(g_SkyRenderer);
+        m_RenderGraph->AddRenderer(g_BloomRenderer);
+        m_RenderGraph->AddRenderer(g_TransparentForwardRenderer, &updateInstanceConstsBufferTask);
+        m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
+
+        // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet
+        // RenderResolution Debug passes
+        m_RenderGraph->AddRenderer(g_TileClassificationDebugRenderer);
+
+        m_RenderGraph->AddRenderer(g_PostProcessRenderer);
+
+        // DisplayResolution Debug Passes
+        m_RenderGraph->AddRenderer(g_DebugDrawRenderer);
+        m_RenderGraph->AddRenderer(g_IMGUIRenderer);
     }
-
-    m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
-    m_RenderGraph->AddRenderer(g_TileClassificationRenderer);
-    m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
-    m_RenderGraph->AddRenderer(g_SkyRenderer);
-    m_RenderGraph->AddRenderer(g_BloomRenderer);
-    m_RenderGraph->AddRenderer(g_TransparentForwardRenderer, &updateInstanceConstsBufferTask);
-    m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
-
-    // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet
-    // RenderResolution Debug passes
-    m_RenderGraph->AddRenderer(g_TileClassificationDebugRenderer);
-
-    m_RenderGraph->AddRenderer(g_PostProcessRenderer);
-
-    // DisplayResolution Debug Passes
-    m_RenderGraph->AddRenderer(g_DebugDrawRenderer);
-    m_RenderGraph->AddRenderer(g_IMGUIRenderer);
-
     m_RenderGraph->Compile();
 
     g_Engine.m_Executor->corun(tf);

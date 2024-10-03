@@ -3,6 +3,7 @@
 #include "observer.hpp"
 #include "taskflow.hpp"
 #include "async_task.hpp"
+#include "freelist.hpp"
 
 /**
 @file executor.hpp
@@ -15,9 +16,10 @@ namespace tf {
 // Executor Definition
 // ----------------------------------------------------------------------------
 
-/** @class Executor
+/** 
+@class Executor
 
-@brief class to create an executor for running a taskflow graph
+@brief class to create an executor 
 
 An executor manages a set of worker threads to run one or multiple taskflows
 using an efficient work-stealing scheduling algorithm.
@@ -421,7 +423,7 @@ class Executor {
   Unlike the typical flow of calling `tf::Executor::run` series 
   plus waiting on the result, this method must be called by an internal
   worker of this executor. The caller worker will participate in
-  the work-stealing loop of the scheduler, therby avoiding potential
+  the work-stealing loop of the scheduler, thereby avoiding potential
   deadlock caused by blocked waiting.
   
   @code{.cpp}
@@ -533,7 +535,7 @@ class Executor {
   size_t num_taskflows() const;
   
   /**
-  @brief queries the id of the caller thread in this executor
+  @brief queries the id of the caller thread within this executor
 
   Each worker has an unique id in the range of @c 0 to @c N-1 associated with
   its parent executor.
@@ -1035,32 +1037,38 @@ class Executor {
     
   const size_t _MAX_STEALS;
   
-  std::mutex _wsq_mutex;
+  //std::mutex _wsq_mutex;
   std::mutex _taskflows_mutex;
+  
+  std::vector<std::thread> _threads;
+  std::vector<Worker> _workers;
+  DefaultNotifier _notifier;
+
+#ifdef __cpp_lib_latch
+  std::latch _latch;
+#else
+  Latch _latch;
+#endif
 
 #ifdef __cpp_lib_atomic_wait
   std::atomic<size_t> _num_topologies {0};
-  std::atomic_flag _all_spawned = ATOMIC_FLAG_INIT;
+  std::atomic_flag _done = ATOMIC_FLAG_INIT; 
 #else
   std::condition_variable _topology_cv;
   std::mutex _topology_mutex;
   size_t _num_topologies {0};
+  std::atomic<bool> _done {0};
 #endif
+
   
-  std::unordered_map<std::thread::id, size_t> _wids;
-  std::vector<std::thread> _threads;
-  std::vector<Worker> _workers;
   std::list<Taskflow> _taskflows;
 
-  Notifier _notifier;
-
-  TaskQueue<Node*> _wsq;
-
-  std::atomic<bool> _done {0};
+  //UnboundedTaskQueue<Node*> _wsq;
+  Freelist<Node*> _freelist;
 
   std::unordered_set<std::shared_ptr<ObserverInterface>> _observers;
 
-  Worker* _this_worker();
+  //Worker* _this_worker() const;
   
   bool _wait_for_task(Worker&, Node*&);
   bool _invoke_module_task_internal(Worker&, Node*);
@@ -1098,14 +1106,20 @@ class Executor {
   
   template <typename P>
   void _corun_until(Worker&, P&&);
+
 };
+
+#ifndef DOXYGEN_GENERATING_OUTPUT
 
 // Constructor
 inline Executor::Executor(size_t N) :
-  _MAX_STEALS {((N+1) << 1)},
-  _threads    {N},
-  _workers    {N},
-  _notifier   {N} {
+  _MAX_STEALS ((N+1) << 1),
+  _threads    (N),
+  _workers    (N),
+  _notifier   (N),
+  _latch      (N+1),
+  _freelist   (N)
+{
 
   if(N == 0) {
     TF_THROW("executor must define at least one worker");
@@ -1126,11 +1140,15 @@ inline Executor::~Executor() {
   wait_for_all();
 
   // shut down the scheduler
+
+#ifdef __cpp_lib_atomic_wait
+  _done.test_and_set(std::memory_order_relaxed);
+#else
   _done = true;
+#endif
+  _notifier.notify_all();
 
-  _notifier.notify(true);
-
-  for(auto& t : _threads){
+  for(auto& t : _threads) {
     t.join();
   }
 }
@@ -1155,26 +1173,24 @@ inline size_t Executor::num_taskflows() const {
 }
 
 // Function: _this_worker
-inline Worker* Executor::_this_worker() {
-  auto itr = _wids.find(std::this_thread::get_id());
-  return itr == _wids.end() ? nullptr : &_workers[itr->second];
-}
+//inline Worker* Executor::_this_worker() const {
+//  auto w = pt::worker;
+//  return (w && w->_executor == this) ? w : nullptr;
+//}
 
 // Function: this_worker_id
 inline int Executor::this_worker_id() const {
-  auto i = _wids.find(std::this_thread::get_id());
-  return i == _wids.end() ? -1 : static_cast<int>(_workers[i->second]._id);
+  auto w = pt::worker;
+  return (w && w->_executor == this) ? w->_id : -1;
 }
 
 // Procedure: _spawn
 inline void Executor::_spawn(size_t N) {
 
-#ifdef __cpp_lib_atomic_wait
-#else
-  std::mutex mutex;
-  std::condition_variable cond;
-  size_t n=0;
-#endif
+  // Note: we can't declare latch here as a local variable
+  //       since the main thread may leave quicker than other thread
+  //       and then destroy it, causing the other thread to dangle
+  //       with the latch
 
   for(size_t id=0; id<N; ++id) {
 
@@ -1182,7 +1198,6 @@ inline void Executor::_spawn(size_t N) {
     _workers[id]._vtm = id;
     _workers[id]._executor = this;
     _workers[id]._waiter = &_notifier._waiters[id];
-
     _threads[id] = std::thread([&, &w=_workers[id]] () {
 
         // [rlaw]: BEGIN
@@ -1190,21 +1205,8 @@ inline void Executor::_spawn(size_t N) {
         OnThreadCreateCB();
         // [rlaw]: END
 
-#ifdef __cpp_lib_atomic_wait
-      // wait for the caller thread to initialize the ID mapping
-      _all_spawned.wait(false, std::memory_order_acquire);
-      w._thread = &_threads[w._id];
-#else
-      // update the ID mapping of this thread
-      w._thread = &_threads[w._id];
-      {
-        std::scoped_lock lock(mutex);
-        _wids[std::this_thread::get_id()] = w._id;
-        if(n++; n == num_workers()) {
-          cond.notify_one();
-        }
-      }
-#endif
+      pt::worker = &w;
+      _latch.arrive_and_wait();  // synchronize with the main thread
 
       Node* t = nullptr;
       
@@ -1228,22 +1230,9 @@ inline void Executor::_spawn(size_t N) {
     //pthread_setaffinity_np(
     //  _threads[id].native_handle(), sizeof(cpu_set_t), &cpuset
     //);
-
-#ifdef __cpp_lib_atomic_wait
-    //_wids[_threads[id].get_id()] = id;
-    _wids.emplace(std::piecewise_construct,
-      std::forward_as_tuple(_threads[id].get_id()), std::forward_as_tuple(id)
-    );
-#endif
   }
-  
-#ifdef __cpp_lib_atomic_wait
-  _all_spawned.test_and_set(std::memory_order_release);
-  _all_spawned.notify_all();
-#else
-  std::unique_lock<std::mutex> lock(mutex);
-  cond.wait(lock, [&](){ return n==N; });
-#endif
+
+  _latch.arrive_and_wait();
 }
 
 // Function: _corun_until
@@ -1266,7 +1255,7 @@ void Executor::_corun_until(Worker& w, P&& stop_predicate) {
 
       explore:
 
-      t = (w._id == w._vtm) ? _wsq.steal() : _workers[w._vtm]._wsq.steal();
+      t = (w._id == w._vtm) ? _freelist.steal(w._id) : _workers[w._vtm]._wsq.steal();
 
       if(t) {
         _invoke(w, t);
@@ -1300,7 +1289,7 @@ inline void Executor::_explore_task(Worker& w, Node*& t) {
   // Here, we write do-while to make the worker steal at once
   // from the assigned victim.
   do {
-    t = (w._id == w._vtm) ? _wsq.steal() : _workers[w._vtm]._wsq.steal();
+    t = (w._id == w._vtm) ? _freelist.steal(w._id) : _workers[w._vtm]._wsq.steal();
 
     if(t) {
       break;
@@ -1314,7 +1303,13 @@ inline void Executor::_explore_task(Worker& w, Node*& t) {
     }
 
     w._vtm = rdvtm(w._rdgen);
-  } while(!_done);
+  } 
+#ifdef __cpp_lib_atomic_wait
+  // the _DONE can be checked later in wait_for_task?
+  while(!_done.test(std::memory_order_relaxed));
+#else
+  while(!_done);
+#endif
 
 }
 
@@ -1332,26 +1327,34 @@ inline bool Executor::_wait_for_task(Worker& worker, Node*& t) {
   explore_task:
 
   _explore_task(worker, t);
+
+  if(t) {
+    return true;
+  }
   
   // The last thief who successfully stole a task will wake up
   // another thief worker to avoid starvation.
-  if(t) {
-    _notifier.notify(false);
-    return true;
-  }
-
+//  if(t) {
+//    _notifier.notify_one();
+//    return true;
+//  }
+  
   // ---- 2PC guard ----
   _notifier.prepare_wait(worker._waiter);
 
-  if(!_wsq.empty()) {
+  if(!_freelist.empty()) {
     _notifier.cancel_wait(worker._waiter);
     worker._vtm = worker._id;
     goto explore_task;
   }
-  
+
+#ifdef __cpp_lib_atomic_wait
+  if(_done.test(std::memory_order_relaxed)) {
+#else
   if(_done) {
+#endif
     _notifier.cancel_wait(worker._waiter);
-    _notifier.notify(true);
+    _notifier.notify_all();
     return false;
   }
   
@@ -1365,10 +1368,10 @@ inline bool Executor::_wait_for_task(Worker& worker, Node*& t) {
     }
   }
   
-  // Now I really need to relinguish my self to others
+  // Now I really need to relinquish my self to others
   _notifier.commit_wait(worker._waiter);
-
   goto explore_task;
+
 }
 
 // Function: make_observer
@@ -1410,46 +1413,28 @@ inline size_t Executor::num_observers() const noexcept {
 // Procedure: _schedule
 inline void Executor::_schedule(Worker& worker, Node* node) {
   
-  // We need to fetch p before the release such that the read 
-  // operation is synchronized properly with other thread to
-  // void data race.
-  auto p = node->_priority;
-
   node->_state.fetch_or(Node::READY, std::memory_order_release);
 
   // caller is a worker to this pool - starting at v3.5 we do not use
   // any complicated notification mechanism as the experimental result
   // has shown no significant advantage.
   if(worker._executor == this) {
-    worker._wsq.push(node, p);
-    _notifier.notify(false);
+    worker._wsq.push(node, [&](){ _freelist.push(worker._id, node); });
+    _notifier.notify_one();
     return;
   }
-
-  {
-    std::lock_guard<std::mutex> lock(_wsq_mutex);
-    _wsq.push(node, p);
-  }
-
-  _notifier.notify(false);
+  
+  _freelist.push(node);
+  _notifier.notify_one();
 }
 
 // Procedure: _schedule
 inline void Executor::_schedule(Node* node) {
   
-  // We need to fetch p before the release such that the read 
-  // operation is synchronized properly with other thread to
-  // void data race.
-  auto p = node->_priority;
-
   node->_state.fetch_or(Node::READY, std::memory_order_release);
 
-  {
-    std::lock_guard<std::mutex> lock(_wsq_mutex);
-    _wsq.push(node, p);
-  }
-
-  _notifier.notify(false);
+  _freelist.push(node);
+  _notifier.notify_one();
 }
 
 // Procedure: _schedule
@@ -1468,26 +1453,17 @@ inline void Executor::_schedule(Worker& worker, const SmallVector<Node*>& nodes)
   // has shown no significant advantage.
   if(worker._executor == this) {
     for(size_t i=0; i<num_nodes; ++i) {
-      // We need to fetch p before the release such that the read 
-      // operation is synchronized properly with other thread to
-      // void data race.
-      auto p = nodes[i]->_priority;
       nodes[i]->_state.fetch_or(Node::READY, std::memory_order_release);
-      worker._wsq.push(nodes[i], p);
-      _notifier.notify(false);
+      worker._wsq.push(nodes[i], [&](){ _freelist.push(worker._id, nodes[i]); });
+      _notifier.notify_one();
     }
     return;
   }
 
-  {
-    std::lock_guard<std::mutex> lock(_wsq_mutex);
-    for(size_t k=0; k<num_nodes; ++k) {
-      auto p = nodes[k]->_priority;
-      nodes[k]->_state.fetch_or(Node::READY, std::memory_order_release);
-      _wsq.push(nodes[k], p);
-    }
+  for(size_t k=0; k<num_nodes; ++k) {
+    nodes[k]->_state.fetch_or(Node::READY, std::memory_order_release);
+    _freelist.push(nodes[k]);
   }
-
   _notifier.notify_n(num_nodes);
 }
 
@@ -1501,16 +1477,9 @@ inline void Executor::_schedule(const SmallVector<Node*>& nodes) {
     return;
   }
 
-  // We need to fetch p before the release such that the read 
-  // operation is synchronized properly with other thread to
-  // void data race.
-  {
-    std::lock_guard<std::mutex> lock(_wsq_mutex);
-    for(size_t k=0; k<num_nodes; ++k) {
-      auto p = nodes[k]->_priority;
-      nodes[k]->_state.fetch_or(Node::READY, std::memory_order_release);
-      _wsq.push(nodes[k], p);
-    }
+  for(size_t k=0; k<num_nodes; ++k) {
+    nodes[k]->_state.fetch_or(Node::READY, std::memory_order_release);
+    _freelist.push(nodes[k]);
   }
 
   _notifier.notify_n(num_nodes);
@@ -1530,16 +1499,6 @@ inline void Executor::_invoke(Worker& worker, Node* node) {
   if(node->_is_cancelled()) {
     _tear_down_invoke(worker, node);
     return;
-  }
-
-  // if acquiring semaphore(s) exists, acquire them first
-  if(node->_semaphores && !node->_semaphores->to_acquire.empty()) {
-    SmallVector<Node*> nodes;
-    if(!node->_acquire_all(nodes)) {
-      _schedule(worker, nodes);
-      return;
-    }
-    node->_state.fetch_or(Node::ACQUIRED, std::memory_order_release);
   }
 
   // condition task
@@ -1604,11 +1563,6 @@ inline void Executor::_invoke(Worker& worker, Node* node) {
 
   //invoke_successors:
 
-  // if releasing semaphores exist, release them
-  if(node->_semaphores && !node->_semaphores->to_release.empty()) {
-    _schedule(worker, node->_release_all());
-  }
-  
   // Reset the join counter to support the cyclic control flow.
   // + We must do this before scheduling the successors to avoid race
   //   condition on _dependents.
@@ -1626,9 +1580,8 @@ inline void Executor::_invoke(Worker& worker, Node* node) {
   auto& j = (node->_parent) ? node->_parent->_join_counter :
                               node->_topology->_join_counter;
 
-  // Here, we want to cache the latest successor with the highest priority
+  // Here, we want to cache the latest successor
   worker._cache = nullptr;
-  auto max_p = static_cast<unsigned>(TaskPriority::MAX);
 
   // Invoke the task based on the corresponding type
   switch(node->_handle.index()) {
@@ -1642,16 +1595,10 @@ inline void Executor::_invoke(Worker& worker, Node* node) {
           // zeroing the join counter for invariant
           s->_join_counter.store(0, std::memory_order_relaxed);
           j.fetch_add(1, std::memory_order_relaxed);
-          if(s->_priority <= max_p) {
-            if(worker._cache) {
-              _schedule(worker, worker._cache);
-            }
-            worker._cache = s;
-            max_p = s->_priority;
+          if(worker._cache) {
+            _schedule(worker, worker._cache);
           }
-          else {
-            _schedule(worker, s);
-          }
+          worker._cache = s;
         }
       }
     }
@@ -1664,16 +1611,10 @@ inline void Executor::_invoke(Worker& worker, Node* node) {
         if(auto s = node->_successors[i]; 
           s->_join_counter.fetch_sub(1, std::memory_order_acq_rel) == 1) {
           j.fetch_add(1, std::memory_order_relaxed);
-          if(s->_priority <= max_p) {
-            if(worker._cache) {
-              _schedule(worker, worker._cache);
-            }
-            worker._cache = s;
-            max_p = s->_priority;
+          if(worker._cache) {
+            _schedule(worker, worker._cache);
           }
-          else {
-            _schedule(worker, s);
-          }
+          worker._cache = s;
         }
       }
     }
@@ -1701,8 +1642,7 @@ inline void Executor::_tear_down_invoke(Worker& worker, Node* node) {
       _tear_down_topology(worker, node->_topology);
     }
   }
-  // Here we asssume the parent is in a busy loop (e.g., corun) waiting for
-  // its join counter to become 0.
+  // The parent is in a corun loop waiting for its join counter to reach 0.
   else {
     //parent->_join_counter.fetch_sub(1, std::memory_order_acq_rel);
     parent->_join_counter.fetch_sub(1, std::memory_order_release);
@@ -2040,7 +1980,7 @@ tf::Future<void> Executor::run_until(Taskflow& f, P&& p, C&& c) {
     std::lock_guard<std::mutex> lock(f._mutex);
     f._topologies.push(t);
     if(f._topologies.size() == 1) {
-      _set_up_topology(_this_worker(), t.get());
+      _set_up_topology(pt::worker, t.get());
     }
   }
 
@@ -2066,14 +2006,12 @@ tf::Future<void> Executor::run_until(Taskflow&& f, P&& pred, C&& c) {
 template <typename T>
 void Executor::corun(T& target) {
   
-  auto w = _this_worker();
-
-  if(w == nullptr) {
+  if(pt::worker == nullptr || pt::worker->_executor != this) {
     TF_THROW("corun must be called by a worker of the executor");
   }
 
   Node parent;  // auxiliary parent
-  _corun_graph(*w, &parent, target.graph());
+  _corun_graph(*pt::worker, &parent, target.graph());
   parent._process_exception();
 }
 
@@ -2081,13 +2019,11 @@ void Executor::corun(T& target) {
 template <typename P>
 void Executor::corun_until(P&& predicate) {
   
-  auto w = _this_worker();
-
-  if(w == nullptr) {
+  if(pt::worker == nullptr || pt::worker->_executor != this) {
     TF_THROW("corun_until must be called by a worker of the executor");
   }
 
-  _corun_until(*w, std::forward<P>(predicate));
+  _corun_until(*pt::worker, std::forward<P>(predicate));
 
   // TODO: exception?
 }
@@ -2140,12 +2076,7 @@ inline void Executor::_set_up_topology(Worker* worker, Topology* tpg) {
   _set_up_graph(tpg->_taskflow._graph, nullptr, tpg, 0, tpg->_sources);
   tpg->_join_counter.store(tpg->_sources.size(), std::memory_order_relaxed);
 
-  if(worker) {
-    _schedule(*worker, tpg->_sources);
-  }
-  else {
-    _schedule(tpg->_sources);
-  }
+  worker ? _schedule(*worker, tpg->_sources) : _schedule(tpg->_sources);
 }
 
 // Function: _set_up_graph
@@ -2181,7 +2112,7 @@ inline void Executor::_tear_down_topology(Worker& worker, Topology* tpg) {
   // case 2: the final run of this topology
   else {
 
-    // TODO: if the topology is cancelled, need to release all semaphores
+    // invoke the callback after each run
     if(tpg->_call != nullptr) {
       tpg->_call();
     }
@@ -2195,7 +2126,7 @@ inline void Executor::_tear_down_topology(Worker& worker, Topology* tpg) {
       f._topologies.pop();
       tpg = f._topologies.front().get();
 
-      // decrement the topology but since this is not the last we don't notify
+      // decrement the topology
       _decrement_topology();
 
       // set up topology needs to be under the lock or it can
@@ -2303,6 +2234,48 @@ inline void Runtime::corun_all() {
   _parent->_process_exception();
 }
 
+// ----------------------------------------------------------------------------
+// Runtime: Semaphore series
+// ----------------------------------------------------------------------------
+
+// Function: acquire
+template <typename... S,
+  std::enable_if_t<all_same_v<Semaphore, std::decay_t<S>...>, void>*
+>
+void Runtime::acquire(S&&... semaphores) {
+  _executor._corun_until(_worker, [&](){ 
+    return tf::try_acquire(std::forward<S>(semaphores)...); 
+  });
+  // TODO: exception?
+}
+  
+// Function:: acquire
+template <typename I,
+  std::enable_if_t<std::is_same_v<deref_t<I>, Semaphore>, void>*
+>
+void Runtime::acquire(I first, I last) {
+  _executor._corun_until(_worker, [=](){ 
+    return tf::try_acquire(first, last); 
+  });
+  // TODO: exception?
+}
+
+// Function: release
+template <typename... S,
+  std::enable_if_t<all_same_v<Semaphore, std::decay_t<S>...>, void>*
+>
+void Runtime::release(S&&... semaphores){
+  tf::release(std::forward<S>(semaphores)...);
+}
+
+// Function:: release
+template <typename I,
+  std::enable_if_t<std::is_same_v<deref_t<I>, Semaphore>, void>*
+>
+void Runtime::release(I begin, I end) {
+  tf::release(begin, end);
+}
+
 // Destructor
 inline Runtime::~Runtime() {
   _executor._corun_until(_worker, [this] () -> bool { 
@@ -2320,7 +2293,7 @@ void Runtime::_silent_async(Worker& w, P&& params, F&& f) {
 
   _parent->_join_counter.fetch_add(1, std::memory_order_relaxed);
 
-  auto node = node_pool.animate(
+  auto node = animate(
     std::forward<P>(params), _parent->_topology, _parent, 0,
     std::in_place_type_t<Node::Async>{}, std::forward<F>(f)
   );
@@ -2331,13 +2304,13 @@ void Runtime::_silent_async(Worker& w, P&& params, F&& f) {
 // Function: silent_async
 template <typename F>
 void Runtime::silent_async(F&& f) {
-  _silent_async(*_executor._this_worker(), DefaultTaskParams{}, std::forward<F>(f));
+  _silent_async(*pt::worker, DefaultTaskParams{}, std::forward<F>(f));
 }
 
 // Function: silent_async
 template <typename P, typename F>
 void Runtime::silent_async(P&& params, F&& f) {
-  _silent_async(*_executor._this_worker(), std::forward<P>(params), std::forward<F>(f));
+  _silent_async(*pt::worker, std::forward<P>(params), std::forward<F>(f));
 }
 
 // Function: silent_async_unchecked
@@ -2367,7 +2340,7 @@ auto Runtime::_async(Worker& w, P&& params, F&& f) {
   std::packaged_task<R()> p(std::forward<F>(f));
   auto fu{p.get_future()};
 
-  auto node = node_pool.animate(
+  auto node = animate(
     std::forward<P>(params), _parent->_topology, _parent, 0, 
     std::in_place_type_t<Node::Async>{},
     [p=make_moc(std::move(p))] () mutable { p.object(); }
@@ -2381,14 +2354,17 @@ auto Runtime::_async(Worker& w, P&& params, F&& f) {
 // Function: async
 template <typename F>
 auto Runtime::async(F&& f) {
-  return _async(*_executor._this_worker(), DefaultTaskParams{}, std::forward<F>(f));
+  return _async(*pt::worker, DefaultTaskParams{}, std::forward<F>(f));
 }
 
 // Function: async
 template <typename P, typename F>
 auto Runtime::async(P&& params, F&& f) {
-  return _async(*_executor._this_worker(), std::forward<P>(params), std::forward<F>(f));
+  return _async(*pt::worker, std::forward<P>(params), std::forward<F>(f));
 }
+
+#endif
+
 
 
 

@@ -268,16 +268,6 @@ class Task {
     Task& succeed(Ts&&... tasks);
 
     /**
-    @brief makes the task release this semaphore
-    */
-    Task& release(Semaphore& semaphore);
-
-    /**
-    @brief makes the task acquire this semaphore
-    */
-    Task& acquire(Semaphore& semaphore);
-
-    /**
     @brief assigns pointer to user data
 
     @param data pointer to user data
@@ -308,22 +298,6 @@ class Task {
     */
     Task& data(void* data);
     
-    /**
-    @brief assigns a priority value to the task
-
-    A priority value can be one of the following three levels, 
-    tf::TaskPriority::HIGH (numerically equivalent to 0),
-    tf::TaskPriority::NORMAL (numerically equivalent to 1), and
-    tf::TaskPriority::LOW (numerically equivalent to 2).
-    The smaller the priority value, the higher the priority.
-    */
-    Task& priority(TaskPriority p);
-    
-    /**
-    @brief queries the priority value of the task
-    */
-    TaskPriority priority() const;
-
     /**
     @brief resets the task handle to null
     */
@@ -440,25 +414,6 @@ inline bool Task::operator != (const Task& rhs) const {
 // Function: name
 inline Task& Task::name(const std::string& name) {
   _node->_name = name;
-  return *this;
-}
-
-// Function: acquire
-inline Task& Task::acquire(Semaphore& s) {
-  if(!_node->_semaphores) {
-    _node->_semaphores = std::make_unique<Node::Semaphores>();
-  }
-  _node->_semaphores->to_acquire.push_back(&s);
-  return *this;
-}
-
-// Function: release
-inline Task& Task::release(Semaphore& s) {
-  if(!_node->_semaphores) {
-    //_node->_semaphores.emplace();
-    _node->_semaphores = std::make_unique<Node::Semaphores>();
-  }
-  _node->_semaphores->to_release.push_back(&s);
   return *this;
 }
 
@@ -582,17 +537,6 @@ inline void* Task::data() const {
 inline Task& Task::data(void* data) {
   _node->_data = data;
   return *this;
-}
-
-// Function: priority
-inline Task& Task::priority(TaskPriority p) {
-  _node->_priority = static_cast<unsigned>(p);
-  return *this;
-}
-
-// Function: priority
-inline TaskPriority Task::priority() const {
-  return static_cast<TaskPriority>(_node->_priority);
 }
 
 // ----------------------------------------------------------------------------
