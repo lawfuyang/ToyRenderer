@@ -5,6 +5,7 @@
 #include "extern/ShaderMake/src/argparse.h"
 #include "nvrhi/d3d12.h"
 #include "nvrhi/validation.h"
+#include "nvrhi/common/aftermath.h"
 #include "ShaderMake/ShaderBlob.h"
 
 #include "CommonResources.h"
@@ -160,6 +161,8 @@ void Graphic::InitDevice()
     {
         PROFILE_SCOPED("D3D12CreateDevice");
 
+        m_AftermathCrashDumper.EnableCrashDumpTracking();
+
         // enforce requirment of 12_0 feature level at least
         static const D3D_FEATURE_LEVEL kMinimumFeatureLevel = D3D_FEATURE_LEVEL_12_0;
         HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_D3DDevice)));
@@ -278,6 +281,8 @@ void Graphic::InitDevice()
                 HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true));
                 HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true));
             }
+
+            m_NVRHIDevice->getAftermathCrashDumpHelper().registerShaderBinaryLookupCallback(this, std::bind(&Graphic::FindShaderFromHashForAftermath, this, std::placeholders::_1, std::placeholders::_2));
         });
 
     // MT init GPU Profiler & nvrhi device
@@ -905,6 +910,8 @@ void Graphic::Shutdown()
     // wait for latest swap chain present to be done
     verify(m_NVRHIDevice->waitForIdle());
 
+    m_NVRHIDevice->getAftermathCrashDumpHelper().unRegisterShaderBinaryLookupCallback(this);
+
     m_Scene->Shutdown();
     m_Scene.reset();
 
@@ -1041,7 +1048,15 @@ void Graphic::Present()
     const UINT kFlags = (kSyncInterval == 0 && m_bTearingSupported) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
     // Present the frame.
-    HRESULT_CALL(m_SwapChain->Present(kSyncInterval, kFlags));
+    const HRESULT presentResult = m_SwapChain->Present(kSyncInterval, kFlags);
+
+    if (FAILED(presentResult))
+    {
+        verify(m_NVRHIDevice->waitForIdle());
+        AftermathCrashDump::WaitForCrashDump();
+        DeviceRemovedHandler();
+        assert(0);
+    }
 }
 
 uint32_t Graphic::GetThreadID()
@@ -1196,6 +1211,25 @@ void Graphic::AddComputePass(
     {
         commandList->dispatch(dispatchGroupSize.x, dispatchGroupSize.y, dispatchGroupSize.z);
     }
+}
+
+std::pair<const void*, size_t> Graphic::FindShaderFromHashForAftermath(uint64_t hash, std::function<uint64_t(std::pair<const void*, size_t>, nvrhi::GraphicsAPI)> hashGenerator)
+{
+    for (const auto [shaderHandleHash, shaderHandle] : m_AllShaders)
+    {
+        // NOTE: shaderHandleHash is simply the hash of the Shader's file name, not byte code hash
+
+        const void* pByteCode;
+        size_t size;
+        shaderHandle->getBytecode(&pByteCode, &size);
+
+        uint64_t entryHash = hashGenerator(std::make_pair(pByteCode, size), nvrhi::GraphicsAPI::D3D12);
+        if (entryHash == hash)
+        {
+            return std::make_pair(pByteCode, size);
+        }
+    }
+    return std::make_pair(nullptr, 0);
 }
 
 uint32_t FencedReadbackBuffer::GetWriteIndex() { return g_Graphic.m_FrameCounter % kNbBuffers; }

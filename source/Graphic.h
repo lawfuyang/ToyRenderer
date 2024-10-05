@@ -7,6 +7,7 @@
 #include "nvrhi/nvrhi.h"
 #include "nvrhi/utils.h"
 
+#include "AftermathCrashDump.h"
 #include "Allocators.h"
 #include "CriticalSection.h"
 #include "MathUtilities.h"
@@ -223,6 +224,9 @@ private:
     std::vector<nvrhi::CommandListHandle> m_PendingCommandLists;
 
     nvrhi::TimerQueryHandle m_FrameTimerQuery;
+
+    AftermathCrashDump m_AftermathCrashDumper;
+    std::pair<const void*, size_t> FindShaderFromHashForAftermath(uint64_t hash, std::function<uint64_t(std::pair<const void*, size_t>, nvrhi::GraphicsAPI)> hashGenerator);
 };
 #define g_Graphic Graphic::GetInstance()
 
