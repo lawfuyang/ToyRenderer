@@ -5,7 +5,11 @@
 #include "extern/ShaderMake/src/argparse.h"
 #include "nvrhi/d3d12.h"
 #include "nvrhi/validation.h"
+
+#if NVRHI_WITH_AFTERMATH
 #include "nvrhi/common/aftermath.h"
+#endif
+
 #include "ShaderMake/ShaderBlob.h"
 
 #include "CommonResources.h"
@@ -161,7 +165,9 @@ void Graphic::InitDevice()
     {
         PROFILE_SCOPED("D3D12CreateDevice");
 
+    #if NVRHI_WITH_AFTERMATH
         m_AftermathCrashDumper.EnableCrashDumpTracking();
+    #endif
 
         // enforce requirment of 12_0 feature level at least
         static const D3D_FEATURE_LEVEL kMinimumFeatureLevel = D3D_FEATURE_LEVEL_12_0;
@@ -282,7 +288,9 @@ void Graphic::InitDevice()
                 HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true));
             }
 
+        #if NVRHI_WITH_AFTERMATH
             m_NVRHIDevice->getAftermathCrashDumpHelper().registerShaderBinaryLookupCallback(this, std::bind(&Graphic::FindShaderFromHashForAftermath, this, std::placeholders::_1, std::placeholders::_2));
+        #endif
         });
 
     // MT init GPU Profiler & nvrhi device
@@ -910,7 +918,9 @@ void Graphic::Shutdown()
     // wait for latest swap chain present to be done
     verify(m_NVRHIDevice->waitForIdle());
 
+#if NVRHI_WITH_AFTERMATH
     m_NVRHIDevice->getAftermathCrashDumpHelper().unRegisterShaderBinaryLookupCallback(this);
+#endif
 
     m_Scene->Shutdown();
     m_Scene.reset();
@@ -1053,7 +1063,11 @@ void Graphic::Present()
     if (FAILED(presentResult))
     {
         verify(m_NVRHIDevice->waitForIdle());
+
+    #if NVRHI_WITH_AFTERMATH
         AftermathCrashDump::WaitForCrashDump();
+    #endif
+
         DeviceRemovedHandler();
         assert(0);
     }
@@ -1213,6 +1227,7 @@ void Graphic::AddComputePass(
     }
 }
 
+#if NVRHI_WITH_AFTERMATH
 std::pair<const void*, size_t> Graphic::FindShaderFromHashForAftermath(uint64_t hash, std::function<uint64_t(std::pair<const void*, size_t>, nvrhi::GraphicsAPI)> hashGenerator)
 {
     for (const auto [shaderHandleHash, shaderHandle] : m_AllShaders)
@@ -1231,6 +1246,7 @@ std::pair<const void*, size_t> Graphic::FindShaderFromHashForAftermath(uint64_t 
     }
     return std::make_pair(nullptr, 0);
 }
+#endif // NVRHI_WITH_AFTERMATH
 
 uint32_t FencedReadbackBuffer::GetWriteIndex() { return g_Graphic.m_FrameCounter % kNbBuffers; }
 uint32_t FencedReadbackBuffer::GetReadIndex() { return (g_Graphic.m_FrameCounter + 1) % kNbBuffers; }
