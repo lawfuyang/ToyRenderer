@@ -1,11 +1,12 @@
 #include "extern/ktx_transcoder/basisu_transcoder.h"
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_JPEG
+#define STBI_ONLY_PNG
 #include "extern/stb/stb_image.h"
 
 #include "Engine.h"
 #include "Graphic.h"
-#include "Utilities.h"
 
 nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName)
 {

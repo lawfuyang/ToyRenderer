@@ -103,6 +103,18 @@ target_compile_definitions(ToyRenderer PUBLIC DEBUG_DRAW_CXX11_SUPPORTED)
 target_compile_definitions(ToyRenderer PUBLIC BASISU_FORCE_DEVEL_MESSAGES)
 target_compile_definitions(ToyRenderer PUBLIC NVRHI_D3D12_WITH_D3D12MA NVRHI_WITH_AFTERMATH=1)
 
+# disable as many transcoder formats as possible to save code size
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_ASTC=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_ATC=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_BC7_MODE5=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_DXT1=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_DXT5A=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_ETC2_EAC_A8=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_ETC2_EAC_RG11=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_FXT1=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_PVRTC1=0)
+target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_PVRTC2=0)
+
 # disable checked iterators for perf
 target_compile_definitions(ToyRenderer PUBLIC _ITERATOR_DEBUG_LEVEL=0)
 
