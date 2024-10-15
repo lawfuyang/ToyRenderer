@@ -28,7 +28,7 @@
 	• discard empty indirect draw arguments
 • support KHR_mesh_quantization (?)
 • support EXT_meshopt_compression (?)
-• auto cull overly small primitives in CSM pass
+• cull overly small primitives in every view in GPU culling (contribution culling)
 • DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
 • GLTF AlphaBlendModeTest
 	• implement binning of opaque/transparent instances after gpuculling
