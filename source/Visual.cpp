@@ -195,7 +195,7 @@ void Visual::UpdateIMGUI()
                     {
                         // preview texture
                         nvrhi::TextureHandle previewTex = !!texResource ? texResource.m_NVRHITextureHandle : g_CommonResources.BlackTexture.m_NVRHITextureHandle;
-                        ImGui::Image(previewTex, ImVec2{ 64.0f, 64.0f });
+                        ImGui::Image((ImTextureID)previewTex.Get(), ImVec2{64.0f, 64.0f});
                         ImGui::SameLine();
 
                         if (!!texResource)

@@ -58,7 +58,7 @@ public:
         commandList->setPermanentTextureState(m_FontTexture, nvrhi::ResourceStates::ShaderResource);
         commandList->commitBarriers();
 
-        io.Fonts->TexID = m_FontTexture;
+        io.Fonts->TexID = (ImTextureID)m_FontTexture.Get();
     }
 
     void UploadVertexAndIndexBuffers(nvrhi::CommandListHandle commandList, ImDrawData* drawData)
