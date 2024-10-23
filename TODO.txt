@@ -2,6 +2,8 @@
 • fix GPU furstum culling causing wrong results for shadows (Bistro)
 • fix all -Wconversion Shader warnings
 • use vertex tangents
+• use low-poly occluders for depth prepass
+    • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
 	• Transient resource allocation
 		• Validation of resource dependencies
