@@ -467,16 +467,9 @@ struct GLTFSceneLoader
             }
             else
             {
-                Matrix nodeLocalMatrix;
-                cgltf_node_transform_local(&node, &nodeLocalMatrix.m[0][0]);
-
-                Vector3 scale = Vector3::One;
-                Vector3 translation;
-                Quaternion rotation;
-
-                // decompose local matrix
-                const bool bDecomposeResult = nodeLocalMatrix.Decompose(scale, rotation, translation);
-                assert(bDecomposeResult);
+                const Vector3 scale{ node.scale[0], node.scale[1], node.scale[2] };
+                const Vector3 translation{ node.translation[0], node.translation[1], node.translation[2] };
+                const Quaternion rotation{ node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3] };
 
                 AddNodeToScene(node, scale, translation, rotation, nodeToSceneNodeIndex);
             }
