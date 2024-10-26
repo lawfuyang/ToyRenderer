@@ -332,7 +332,14 @@ struct GLTFSceneLoader
                         }
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
-                        primitive.m_Material = m_SceneMaterials.at(m_GLTFMaterialToSceneMaterialsIdx.at(gltfPrimitive.material));
+                        if (gltfPrimitive.material)
+                        {
+                            primitive.m_Material = m_SceneMaterials.at(m_GLTFMaterialToSceneMaterialsIdx.at(gltfPrimitive.material));
+                        }
+                        else
+                        {
+                            primitive.m_Material = g_CommonResources.DefaultMaterial;
+                        }
                         primitive.m_MeshIdx = meshIdx;
 
                         assert(primitive.IsValid());
@@ -342,6 +349,59 @@ struct GLTFSceneLoader
 
         // Multi-thread load IO init mesh
         g_Engine.m_Executor->run(taskflow).wait();
+    }
+
+    void AddNodeToScene(
+        const cgltf_node& node,
+        const Vector3& scale,
+        const Vector3& translation,
+        const Quaternion& rotation,
+        const std::unordered_map<const cgltf_node*, uint32_t>& nodeToSceneNodeIndex
+    )
+    {
+        Scene* scene = g_Graphic.m_Scene.get();
+        const uint32_t newNodeID = scene->m_Nodes.size();
+
+        Node& newNode = scene->m_Nodes.emplace_back();
+        newNode.m_ID = newNodeID;
+        newNode.m_Name = node.name ? node.name : "Un-named Mode";
+        newNode.m_Position = translation;
+        newNode.m_Rotation = rotation;
+        newNode.m_Scale = scale;
+
+        if (node.parent)
+        {
+            newNode.m_ParentNodeID = nodeToSceneNodeIndex.at(node.parent);
+        }
+
+        for (uint32_t i = 0; i < node.children_count; ++i)
+        {
+            newNode.m_ChildrenNodeIDs.push_back(nodeToSceneNodeIndex.at(node.children[i]));
+        }
+
+        if (node.mesh)
+        {
+            const uint32_t visualIdx = scene->m_Visuals.size();
+
+            Visual& newVisual = scene->m_Visuals.emplace_back();
+            newVisual.m_NodeID = newNodeID;
+            newVisual.m_Name = node.name ? node.name : "Un-named Visual";
+
+            const uint32_t sceneMeshPrimitivesIdx = m_GLTFMeshToSceneMeshPrimitivesIndex.at(node.mesh);
+
+            for (const Primitive& primitive : m_SceneMeshPrimitives.at(sceneMeshPrimitivesIdx))
+            {
+                newVisual.m_Primitives.push_back(primitive);
+                newVisual.m_Primitives.back().m_VisualIdx = visualIdx;
+
+                Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+
+                AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
+                Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
+            }
+
+            newNode.m_VisualIdx = visualIdx;
+        }
     }
 
     void LoadNodes()
@@ -365,58 +425,60 @@ struct GLTFSceneLoader
             const cgltf_node& node = m_GLTFData->nodes[i];
             nodeToSceneNodeIndex[&node] = i;
 
-            Matrix nodeLocalMatrix;
-            cgltf_node_transform_local(&node, &nodeLocalMatrix.m[0][0]);
-
-            Vector3 scale = Vector3::One;
-            Vector3 translation;
-            Quaternion rotation;
-
-            // decompose local matrix
-            const bool bDecomposeResult = nodeLocalMatrix.Decompose(scale, rotation, translation);
-            assert(bDecomposeResult);
-
-            const uint32_t newNodeID = scene->m_Nodes.size();
-
-            Node& newNode = scene->m_Nodes.emplace_back();
-            newNode.m_ID = newNodeID;
-            newNode.m_Name = node.name ? node.name : "Un-named Mode";
-            newNode.m_Position = translation;
-            newNode.m_Rotation = rotation;
-            newNode.m_Scale = scale;
-
-            if (node.parent)
+            if (node.has_mesh_gpu_instancing)
             {
-                newNode.m_ParentNodeID = nodeToSceneNodeIndex.at(node.parent);
-            }
+                std::vector<Vector3> instanceScales;
+                std::vector<Vector3> instanceTranslations;
+                std::vector<Quaternion> instanceRotations;
 
-            for (uint32_t i = 0; i < node.children_count; ++i)
-            {
-                newNode.m_ChildrenNodeIDs.push_back(nodeToSceneNodeIndex.at(node.children[i]));
-            }
-
-            if (node.mesh)
-            {
-                const uint32_t visualIdx = scene->m_Visuals.size();
-
-                Visual& newVisual = scene->m_Visuals.emplace_back();
-                newVisual.m_NodeID = newNodeID;
-                newVisual.m_Name = node.name ? node.name : "Un-named Visual";
-
-                const uint32_t sceneMeshPrimitivesIdx = m_GLTFMeshToSceneMeshPrimitivesIndex.at(node.mesh);
-
-                for (const Primitive& primitive : m_SceneMeshPrimitives.at(sceneMeshPrimitivesIdx))
+                for (uint32_t j = 0; j < node.mesh_gpu_instancing.attributes_count; ++j)
                 {
-                    newVisual.m_Primitives.push_back(primitive);
-                    newVisual.m_Primitives.back().m_VisualIdx = visualIdx;
+                    const cgltf_attribute& instanceAttribute = node.mesh_gpu_instancing.attributes[j];
 
-                    Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
-
-                    AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
-                    Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
+                    if (strcmp(instanceAttribute.name, "TRANSLATION") == 0)
+                    {
+                        instanceTranslations.resize(instanceAttribute.data->count);
+                        const cgltf_size unpackResult = cgltf_accessor_unpack_floats(instanceAttribute.data, &instanceTranslations[0].x, instanceAttribute.data->count * 3);
+                        assert(unpackResult > 0);
+                    }
+                    else if (strcmp(instanceAttribute.name, "ROTATION") == 0)
+                    {
+                        instanceRotations.resize(instanceAttribute.data->count);
+                        const cgltf_size unpackResult = cgltf_accessor_unpack_floats(instanceAttribute.data, &instanceRotations[0].x, instanceAttribute.data->count * 4);
+                        assert(unpackResult > 0);
+                    }
+                    else if (strcmp(instanceAttribute.name, "SCALE") == 0)
+                    {
+                        instanceScales.resize(instanceAttribute.data->count);
+                        const cgltf_size unpackResult = cgltf_accessor_unpack_floats(instanceAttribute.data, &instanceScales[0].x, instanceAttribute.data->count * 3);
+                        assert(unpackResult > 0);
+                    }
                 }
 
-                newNode.m_VisualIdx = visualIdx;
+                const uint32_t nbInstances = instanceTranslations.size();
+                for (uint32_t instanceIdx = 0; instanceIdx < nbInstances; ++instanceIdx)
+                {
+                    const Vector3& scale = instanceScales[instanceIdx];
+                    const Vector3& translation = instanceTranslations[instanceIdx];
+                    const Quaternion& rotation = instanceRotations[instanceIdx];
+
+                    AddNodeToScene(node, scale, translation, rotation, nodeToSceneNodeIndex);
+                }
+            }
+            else
+            {
+                Matrix nodeLocalMatrix;
+                cgltf_node_transform_local(&node, &nodeLocalMatrix.m[0][0]);
+
+                Vector3 scale = Vector3::One;
+                Vector3 translation;
+                Quaternion rotation;
+
+                // decompose local matrix
+                const bool bDecomposeResult = nodeLocalMatrix.Decompose(scale, rotation, translation);
+                assert(bDecomposeResult);
+
+                AddNodeToScene(node, scale, translation, rotation, nodeToSceneNodeIndex);
             }
         }
 
