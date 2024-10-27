@@ -70,6 +70,12 @@ struct GLTFSceneLoader
             }
         }
 
+        {
+            PROFILE_SCOPED("Decompress buffers");
+            SCOPED_TIMER_NAMED("Decompress buffers");
+            DecompressMeshoptCompression();
+        }
+
         m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
 
         LoadSamplers();
@@ -77,6 +83,60 @@ struct GLTFSceneLoader
         LoadMaterials();
         LoadMeshes();
         LoadNodes();
+    }
+
+    void DecompressMeshoptCompression()
+    {
+        for (uint32_t i = 0; i < m_GLTFData->buffers_count; ++i)
+        {
+            if (!m_GLTFData->buffer_views[i].has_meshopt_compression)
+                continue;
+
+            const cgltf_meshopt_compression& mc = m_GLTFData->buffer_views[i].meshopt_compression;
+
+            const std::byte* source = (const std::byte*)mc.buffer->data;
+            assert(source);
+
+            source += mc.offset;
+
+            void* result = malloc(mc.count * mc.stride);
+            assert(result);
+
+            m_GLTFData->buffer_views[i].data = result;
+
+            switch (mc.mode)
+            {
+            case cgltf_meshopt_compression_mode_attributes:
+                //verify(meshopt_decodeVertexBuffer(result, mc.count, mc.stride, source, mc.size));
+                break;
+
+            case cgltf_meshopt_compression_mode_triangles:
+                //verify(meshopt_decodeIndexBuffer(result, mc.count, mc.stride, source, mc.size));
+                break;
+
+            case cgltf_meshopt_compression_mode_indices:
+                //verify(meshopt_decodeIndexSequence(result, mc.count, mc.stride, source, mc.size));
+                break;
+
+            default:
+                assert(0);
+            }
+
+            switch (mc.filter)
+            {
+            case cgltf_meshopt_compression_filter_octahedral:
+                //meshopt_decodeFilterOct(result, mc.count, mc.stride);
+                break;
+
+            case cgltf_meshopt_compression_filter_quaternion:
+                //meshopt_decodeFilterQuat(result, mc.count, mc.stride);
+                break;
+
+            case cgltf_meshopt_compression_filter_exponential:
+                //meshopt_decodeFilterExp(result, mc.count, mc.stride);
+                break;
+            }
+        }
     }
 
     void LoadSamplers()
