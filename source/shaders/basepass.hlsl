@@ -117,9 +117,13 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex > 30;
         
+        float2 finalUV = inUV;
+        finalUV *= materialData.m_AlbedoUVScale;
+        finalUV += materialData.m_AlbedoUVOffset;
+        
         // Retrieve the albedo texture and sample the texture at the given UV coordinates
         Texture2D albedoTexture = g_Textures[texIdx];
-        float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], inUV);
+        float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], finalUV);
         
         // Update the albedo and alpha values with the sampled values
         result.m_Albedo = textureSample.rgb;
@@ -136,13 +140,17 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_NormalTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_NormalTextureSamplerAndDescriptorIndex > 30;
         
+        float2 finalUV = inUV;
+        finalUV *= materialData.m_NormalUVScale;
+        finalUV += materialData.m_AlbedoUVOffset;
+        
         // Retrieve the normal texture and sample the texture at the given UV coordinates
         Texture2D normalTexture = g_Textures[texIdx];
-        float2 textureSample = normalTexture.Sample(g_Samplers[samplerIdx], inUV).xy;
+        float2 textureSample = normalTexture.Sample(g_Samplers[samplerIdx], finalUV).xy;
         
         // Update the normal value with the sampled value
         float3 uncompressedNormals = TwoChannelNormalX2(textureSample);
-        result.m_Normal = PeturbNormal(uncompressedNormals, inWorldPosition, inNormal, inUV);
+        result.m_Normal = PeturbNormal(uncompressedNormals, inWorldPosition, inNormal, finalUV);
     }
     
     // Set the default occlusion value
@@ -157,9 +165,13 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex > 30;
         
+        float2 finalUV = inUV;
+        finalUV *= materialData.m_MetallicRoughnessUVScale;
+        finalUV += materialData.m_MetallicRoughnessUVOffset;
+        
         // Retrieve the metallic roughness texture and sample the texture at the given UV coordinates
         Texture2D mrtTexture = g_Textures[texIdx];
-        float4 textureSample = mrtTexture.Sample(g_Samplers[samplerIdx], inUV);
+        float4 textureSample = mrtTexture.Sample(g_Samplers[samplerIdx], finalUV);
         
         // Update the roughness and metallic values with the sampled values
         result.m_Roughness = textureSample.g;

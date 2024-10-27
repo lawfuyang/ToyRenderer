@@ -176,6 +176,23 @@ struct GLTFSceneLoader
         PROFILE_FUNCTION();
         SCOPED_TIMER_FUNCTION();
 
+        auto HandleTextureView = [&](Texture& texture, const cgltf_texture_view& textureView)
+            {
+                texture = m_SceneTextures.at(m_GLTFTextureToSceneTexturesIdx.at(textureView.texture));
+
+                if (textureView.has_transform)
+                {
+                    // sanity check to see if 1 texture view per image
+                    assert(texture.m_UVOffset == Vector2::Zero);
+                    assert(texture.m_UVScale == Vector2::One);
+
+                    texture.m_UVOffset.x = textureView.transform.offset[0];
+                    texture.m_UVOffset.y = textureView.transform.offset[1];
+                    texture.m_UVScale.x = textureView.transform.scale[0];
+                    texture.m_UVScale.y = textureView.transform.scale[1];
+                }
+            };
+
         m_SceneMaterials.resize(m_GLTFData->materials_count);
 
         for (uint32_t i = 0; i < m_GLTFData->materials_count; ++i)
@@ -189,12 +206,12 @@ struct GLTFSceneLoader
                 if (gltfMaterial.pbr_metallic_roughness.base_color_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
-                    sceneMaterial.m_AlbedoTexture = m_SceneTextures.at(m_GLTFTextureToSceneTexturesIdx.at(gltfMaterial.pbr_metallic_roughness.base_color_texture.texture));
+                    HandleTextureView(sceneMaterial.m_AlbedoTexture, gltfMaterial.pbr_metallic_roughness.base_color_texture);
                 }
                 if (gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
-                    sceneMaterial.m_MetallicRoughnessTexture = m_SceneTextures.at(m_GLTFTextureToSceneTexturesIdx.at(gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture));
+                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
                 }
 
                 sceneMaterial.m_ConstDiffuse.x = gltfMaterial.pbr_metallic_roughness.base_color_factor[0];
@@ -211,7 +228,7 @@ struct GLTFSceneLoader
             if (gltfMaterial.normal_texture.texture)
             {
                 sceneMaterial.m_MaterialFlags |= MaterialFlag_UseNormalTexture;
-                sceneMaterial.m_NormalTexture = m_SceneTextures.at(m_GLTFTextureToSceneTexturesIdx.at(gltfMaterial.normal_texture.texture));
+                HandleTextureView(sceneMaterial.m_NormalTexture, gltfMaterial.normal_texture);
             }
 
             MaterialData materialData{};
@@ -222,6 +239,12 @@ struct GLTFSceneLoader
             materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex = (sceneMaterial.m_MetallicRoughnessTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_MetallicRoughnessTexture.m_AddressMode) << 30));
             materialData.m_ConstRoughness = sceneMaterial.m_ConstRoughness;
             materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
+            materialData.m_AlbedoUVOffset = sceneMaterial.m_AlbedoTexture.m_UVOffset;
+            materialData.m_AlbedoUVScale = sceneMaterial.m_AlbedoTexture.m_UVScale;
+            materialData.m_NormalUVOffset = sceneMaterial.m_NormalTexture.m_UVOffset;
+            materialData.m_NormalUVScale = sceneMaterial.m_NormalTexture.m_UVScale;
+            materialData.m_MetallicRoughnessUVOffset = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset;
+            materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
 
             sceneMaterial.m_MaterialDataBufferIdx = g_Graphic.AppendOrRetrieveMaterialDataIndex(materialData);
 
