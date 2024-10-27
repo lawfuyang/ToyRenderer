@@ -28,10 +28,6 @@
 • GPU Driven Base Pass Renderer
 	• support batching of meshes via binning
 	• discard empty indirect draw arguments
-• support full gltfpack optimized scenes w/ -cc
-	• KHR_mesh_quantization
-	• EXT_meshopt_compression
-	• KHR_texture_transform
 • cull overly small primitives in every view in GPU culling (contribution culling)
 • DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
 • GLTF AlphaBlendModeTest
