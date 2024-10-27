@@ -291,16 +291,6 @@ static void ReverseWinding(std::vector<Graphic::IndexBufferFormat_t>& indices, s
     }
 }
 
-static void InitDefaultMeshCommon(std::span<const RawVertexFormat> vertices, std::span<const uint32_t> indices, uint32_t& outMeshIdx, std::string_view meshName)
-{
-    Mesh* mesh;
-    bool bRetrievedFromCache = false;
-    g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), outMeshIdx, mesh, bRetrievedFromCache);
-    assert(!bRetrievedFromCache);
-
-    mesh->Initialize(vertices, indices, meshName);
-}
-
 static void CreateUnitCubeMesh()
 {
     PROFILE_FUNCTION();
@@ -362,7 +352,8 @@ static void CreateUnitCubeMesh()
 
     ReverseWinding(indices, vertices);
 
-    InitDefaultMeshCommon(vertices, indices, g_CommonResources.UnitCube.m_MeshIdx, "Default Unit Cube Mesh");
+    Mesh* mesh = g_Graphic.CreateMesh();
+    mesh->Initialize(vertices, indices, "Default Unit Cube Mesh");
 }
 
 static void CreateUnitSphereMesh()
@@ -433,7 +424,8 @@ static void CreateUnitSphereMesh()
     //if (invertn)
     //    InvertNormals(vertices);
 
-    InitDefaultMeshCommon(vertices, indices, g_CommonResources.UnitSphere.m_MeshIdx, "Default Unit Sphere Mesh");
+    Mesh* mesh = g_Graphic.CreateMesh();
+    mesh->Initialize(vertices, indices, "Default Unit Sphere Mesh");
 }
 
 static void CreateDefaultMaterial()
@@ -466,6 +458,7 @@ void CommonResources::Initialize()
 
     tf.emplace([this] { CreateDefaultBuffer("DummyUintStructuredBuffer", DummyUintStructuredBuffer, sizeof(uint32_t), sizeof(uint32_t), true); });
 
+    g_Graphic.m_Meshes.reserve(2); // NOTE: due to internal assert in 'CreateMesh' we need to reserve space for all meshes
     tf.emplace([] { CreateUnitCubeMesh(); });
     tf.emplace([] { CreateUnitSphereMesh(); });
 

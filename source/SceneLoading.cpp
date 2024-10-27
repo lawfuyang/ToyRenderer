@@ -326,6 +326,7 @@ struct GLTFSceneLoader
             nbPrimitives += mesh.primitives_count;
         }
 
+        // NOTE: due to internal assert in 'CreateMesh' we need to reserve space for all meshes
         g_Graphic.m_Meshes.reserve(g_Graphic.m_Meshes.size() + nbPrimitives);
 
         tf::Taskflow taskflow;
@@ -406,15 +407,8 @@ struct GLTFSceneLoader
                             }
                         }
 
-                        uint32_t meshIdx;
-                        Mesh* sceneMesh = nullptr;
-                        bool bRetrievedFromCache = false;
-                        g_Graphic.GetOrCreateMesh(Mesh::HashVertices(vertices), meshIdx, sceneMesh, bRetrievedFromCache);
-
-                        if (!bRetrievedFromCache)
-                        {
-                            sceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
-                        }
+                        Mesh* sceneMesh = g_Graphic.CreateMesh();
+                        sceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
                         if (gltfPrimitive.material)
@@ -425,14 +419,13 @@ struct GLTFSceneLoader
                         {
                             primitive.m_Material = g_CommonResources.DefaultMaterial;
                         }
-                        primitive.m_MeshIdx = meshIdx;
+                        primitive.m_MeshIdx = sceneMesh->m_Idx;
 
                         assert(primitive.IsValid());
                     });
             }
         }
 
-        // Multi-thread load IO init mesh
         g_Engine.m_Executor->run(taskflow).wait();
     }
 

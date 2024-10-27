@@ -734,32 +734,19 @@ uint32_t Graphic::AppendOrRetrieveMaterialDataIndex(const MaterialData& material
     return m_CachedMaterialDataIndices.at(materialDataHash);
 }
 
-void Graphic::GetOrCreateMesh(size_t inHash, uint32_t& outMeshIdx, Mesh*& outMeshPtr, bool& bRetrievedFromCache)
+Mesh* Graphic::CreateMesh()
 {
     AUTO_LOCK(m_MeshesArrayLock);
 
-    auto it = m_MeshIdxCache.find(inHash);
-    if (it == m_MeshIdxCache.end())
-    {
-        const uint32_t newMeshIdx = m_Meshes.size();
+    // we're returning a pointer to an element in a vector, so we need to make sure it's not reallocated
+    assert(m_Meshes.size() < m_Meshes.capacity());
 
-        Mesh& newMesh = m_Meshes.emplace_back();
+    const uint32_t newMeshIdx = m_Meshes.size();
 
-        m_MeshIdxCache[inHash] = newMeshIdx;
-        bRetrievedFromCache = false;
+    Mesh& newMesh = m_Meshes.emplace_back();
+    newMesh.m_Idx = newMeshIdx;
 
-        newMesh.m_Idx = newMeshIdx;
-
-        outMeshIdx = newMeshIdx;
-        outMeshPtr = &newMesh;
-    }
-    else
-    {
-        bRetrievedFromCache = true;
-        
-        outMeshIdx = it->second;
-        outMeshPtr = &m_Meshes.at(outMeshIdx);
-    }
+    return &newMesh;
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)

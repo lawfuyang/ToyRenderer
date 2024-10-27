@@ -286,7 +286,6 @@ void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const
 {
     PROFILE_FUNCTION();
 
-    m_Hash = HashVertices(vertices);
     m_NbVertices = (uint32_t)vertices.size();
     m_NbIndices = (uint32_t)indices.size();
 
@@ -316,26 +315,13 @@ void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const
     LOG_DEBUG("Mesh: [%s][V: %d][I: %d]", meshName.data(), m_NbVertices, m_NbIndices);
 }
 
-std::size_t Mesh::HashVertices(std::span<const RawVertexFormat> vertices)
-{
-    PROFILE_FUNCTION();
-
-    std::size_t hash = 0;
-    for (const RawVertexFormat& v : vertices)
-    {
-        HashCombine(hash, HashRawMem(v));
-    }
-    return hash;
-}
-
 bool Mesh::IsValid() const
 {
-    return m_Hash != 0 &&
-        m_NbVertices > 0 &&
-        m_NbIndices > 0 &&
-        m_StartVertexLocation != UINT_MAX &&
-        m_StartIndexLocation != UINT_MAX &&
-        m_MeshDataBufferIdx != UINT_MAX;
+    return m_NbVertices > 0
+        && m_NbIndices > 0
+        && m_StartVertexLocation != UINT_MAX
+        && m_StartIndexLocation != UINT_MAX
+        && m_MeshDataBufferIdx != UINT_MAX;
 }
 
 bool Material::IsValid() const
