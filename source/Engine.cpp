@@ -168,6 +168,19 @@ void Engine::Shutdown()
 	}
 }
 
+static void SleepCPUWhileWindowIsInactive()
+{
+    PROFILE_FUNCTION();
+
+    DWORD ForegroundProcess{};
+    ::GetWindowThreadProcessId(::GetForegroundWindow(), &ForegroundProcess);
+    while (ForegroundProcess != ::GetCurrentProcessId())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
+        ::GetWindowThreadProcessId(::GetForegroundWindow(), &ForegroundProcess);
+    }
+}
+
 static void BusyWaitUntilFPSLimit(Timer& timer)
 {
     const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
@@ -192,6 +205,8 @@ void Engine::MainLoop()
     do
     {
         PROFILE_SCOPED("Frame");
+
+        SleepCPUWhileWindowIsInactive();
 
         Timer frameTimer;
 
