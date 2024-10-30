@@ -19,7 +19,6 @@ struct BasePassConstants
 struct BasePassInstanceConstants
 {
 	Matrix m_WorldMatrix;
-	Matrix m_PrevFrameWorldMatrix;
 	Matrix m_InverseTransposeWorldMatrix;
 	uint32_t m_NodeID;
 	uint32_t m_MeshDataIdx;

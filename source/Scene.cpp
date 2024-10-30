@@ -376,8 +376,6 @@ void Scene::UpdateInstanceConstsBuffer()
 {
     PROFILE_FUNCTION();
 
-    // NOTE: it's VERY important that the state of these 2 gpu culling indirect buffers are persistent throughout the frame
-    //       all GPUCulling & BasePass renderers will access their Views' buffers multi-threaded
     const uint32_t nbInstances = m_VisualProxies.size();
     if (nbInstances == 0)
     {
@@ -387,64 +385,39 @@ void Scene::UpdateInstanceConstsBuffer()
     // TODO: upload only dirty proxies
 
     std::vector<BasePassInstanceConstants> instanceConstsBytes;
-    instanceConstsBytes.resize(m_VisualProxies.size());
+	instanceConstsBytes.resize(nbInstances);
 
-    static const uint32_t kNbInstancesPerJob = 1000;
-    const uint32_t nbJobs = std::max(1ULL, m_VisualProxies.size() / kNbInstancesPerJob);
+	for (uint32_t i = 0; i < nbInstances; ++i)
+	{
+		VisualProxy& visualProxy = m_VisualProxies.at(i);
 
-    tf::Taskflow tf;
+		const Primitive* primitive = visualProxy.m_Primitive;
+		assert(primitive->IsValid());
 
-    for (uint32_t i = 0; i < nbJobs; ++i)
-    {
-        tf::Task task = tf.emplace([&, i]
-            {
-                PROFILE_SCOPED("UpdateInstanceConstsBuffer Job");
+		const Material& material = primitive->m_Material;
+		assert(material.IsValid());
 
-                for (uint32_t j = 0; j < kNbInstancesPerJob; ++j)
-                {
-                    const uint32_t proxyIdx = kNbInstancesPerJob * i + j;
-                    if (proxyIdx >= m_VisualProxies.size())
-                    {
-                        break;
-                    }
+		const Mesh& mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
 
-                    VisualProxy& visualProxy = m_VisualProxies.at(kNbInstancesPerJob * i + j);
+		Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
+		inverseTransposeMatrix.Translation(Vector3::Zero);
+		inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
 
-                    // TODO: perhaps this is not the place to do it?
-                    visualProxy.m_PrevFrameWorldMatrix = visualProxy.m_WorldMatrix;
+		AABB instanceAABB;
+		mesh.m_AABB.Transform(instanceAABB, visualProxy.m_WorldMatrix);
 
-                    const Primitive* primitive = visualProxy.m_Primitive;
-                    assert(primitive->IsValid());
+		// instance consts
+		BasePassInstanceConstants instanceConsts{};
+		instanceConsts.m_NodeID = visualProxy.m_NodeID;
+		instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
+		instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
+		instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
+		instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
+		instanceConsts.m_AABBCenter = instanceAABB.Center;
+		instanceConsts.m_AABBExtents = instanceAABB.Extents;
 
-                    const Material& material = primitive->m_Material;
-                    assert(material.IsValid());
-
-                    const Mesh& mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
-
-                    Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
-                    inverseTransposeMatrix.Translation(Vector3::Zero);
-                    inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
-
-                    AABB instanceAABB;
-                    mesh.m_AABB.Transform(instanceAABB, visualProxy.m_WorldMatrix);
-
-                    // instance consts
-                    BasePassInstanceConstants instanceConsts{};
-                    instanceConsts.m_NodeID = visualProxy.m_NodeID;
-                    instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
-                    instanceConsts.m_PrevFrameWorldMatrix = visualProxy.m_PrevFrameWorldMatrix;
-                    instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
-                    instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
-                    instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
-                    instanceConsts.m_AABBCenter = instanceAABB.Center;
-                    instanceConsts.m_AABBExtents = instanceAABB.Extents;
-
-                    instanceConstsBytes[proxyIdx] = instanceConsts;
-                }
-            });
-    }
-
-    g_Engine.m_Executor->corun(tf);
+		instanceConstsBytes[i] = instanceConsts;
+	}
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload BasePassInstanceConstants");
@@ -463,8 +436,6 @@ void Scene::Update()
     UpdateCSMViews();
 
     tf::Taskflow tf;
-
-    tf::Task updateInstanceConstsBufferTask = tf.emplace([this] { UpdateInstanceConstsBuffer(); });
 
     m_RenderGraph->InitializeForFrame(tf);
     {
@@ -487,12 +458,12 @@ void Scene::Update()
         extern IRenderer* g_BloomRenderer;
 
         m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
-        m_RenderGraph->AddRenderer(g_GBufferRenderer, &updateInstanceConstsBufferTask);
+        m_RenderGraph->AddRenderer(g_GBufferRenderer);
         m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
 
         for (uint32_t i = 0; i < Graphic::kNbCSMCascades; i++)
         {
-            m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i], &updateInstanceConstsBufferTask);
+            m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i]);
         }
 
         m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
@@ -500,7 +471,7 @@ void Scene::Update()
         m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
         m_RenderGraph->AddRenderer(g_SkyRenderer);
         m_RenderGraph->AddRenderer(g_BloomRenderer);
-        m_RenderGraph->AddRenderer(g_TransparentForwardRenderer, &updateInstanceConstsBufferTask);
+        m_RenderGraph->AddRenderer(g_TransparentForwardRenderer);
         m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
 
         // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet
@@ -526,7 +497,6 @@ uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
     newProxy.m_NodeID = m_Visuals.at(p->m_VisualIdx).m_NodeID;
     newProxy.m_Primitive = p;
     newProxy.m_WorldMatrix = worldMatrix;
-    newProxy.m_PrevFrameWorldMatrix = worldMatrix;
 
     return proxyIdx;
 }
@@ -640,6 +610,8 @@ void Scene::OnSceneLoad()
     LOG_DEBUG("Scene Bounding Sphere: [%f, %f, %f][r: %f]", m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius);
     LOG_DEBUG("CSM Split Distances: [%f, %f, %f, %f]", m_CSMSplitDistances[0], m_CSMSplitDistances[1], m_CSMSplitDistances[2], m_CSMSplitDistances[3]);
     LOG_DEBUG("Camera Near Plane: %f", mainView.m_ZNearP);
+
+    UpdateInstanceConstsBuffer();
 }
 
 // referenced in imguimanager

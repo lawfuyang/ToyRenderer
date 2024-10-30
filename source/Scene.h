@@ -65,7 +65,6 @@ struct VisualProxy
     uint32_t m_NodeID;
     const Primitive* m_Primitive;
     Matrix m_WorldMatrix;
-    Matrix m_PrevFrameWorldMatrix;
 };
 
 class Scene

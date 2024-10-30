@@ -174,7 +174,7 @@ static void SleepCPUWhileWindowIsInactive()
 
     DWORD ForegroundProcess{};
     ::GetWindowThreadProcessId(::GetForegroundWindow(), &ForegroundProcess);
-    while (ForegroundProcess != ::GetCurrentProcessId())
+    while (ForegroundProcess != ::GetCurrentProcessId() && !g_Engine.IsExiting())
     {
         std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
         ::GetWindowThreadProcessId(::GetForegroundWindow(), &ForegroundProcess);
