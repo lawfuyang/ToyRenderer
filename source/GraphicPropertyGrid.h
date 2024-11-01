@@ -1,7 +1,5 @@
 #pragma once
 
-#include "extern/xegtao/XeGTAO.h"
-
 #include "MathUtilities.h"
 
 class GraphicPropertyGrid
@@ -63,8 +61,6 @@ public:
     struct AmbientOcclusionControllables
     {
         bool m_bEnabled = true;
-        int m_DebugOutputMode = 0;
-        XeGTAO::GTAOSettings m_XeGTAOSettings;
     };
     AmbientOcclusionControllables m_AmbientOcclusionControllables;
 

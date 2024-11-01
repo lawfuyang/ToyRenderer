@@ -125,64 +125,11 @@ void GraphicPropertyGrid::UpdateIMGUI()
     {
         AmbientOcclusionControllables& params = m_AmbientOcclusionControllables;
 
-        // copied from XeGTAO.h because they retardly inlined imgui code in the header file & wrapped it around "IMGUI_API"
-        static auto GTAOImGuiSettings = [](XeGTAO::GTAOSettings& settings)
-            {
-                ImGui::PushItemWidth(120.0f);
-
-                ImGui::Text("Performance/quality settings:");
-
-                ImGui::Combo("Quality Level", &settings.QualityLevel, "Low\0Medium\0High\0Ultra\00");
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Higher quality settings use more samples per pixel but are slower");
-                settings.QualityLevel = std::clamp(settings.QualityLevel, 0, 3);
-
-                ImGui::Combo("Denoising level", &settings.DenoisePasses, "Disabled\0Sharp\0Medium\0Soft\00");
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("The amount of edge-aware spatial denoise applied");
-                settings.DenoisePasses = std::clamp(settings.DenoisePasses, 0, 3);
-
-                ImGui::Text("Visual settings:");
-
-                settings.Radius = std::clamp(settings.Radius, 0.0f, 100000.0f);
-
-                ImGui::InputFloat("Effect radius", &settings.Radius, 0.05f, 0.0f, "%.2f");
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("World (viewspace) effect radius\nExpected range: depends on the scene & requirements, anything from 0.01 to 1000+");
-                settings.Radius = std::clamp(settings.Radius, 0.0f, 10000.0f);
-
-                if (ImGui::CollapsingHeader("Auto-tuned settings (heuristics)"))
-                {
-                    ImGui::InputFloat("Radius multiplier", &settings.RadiusMultiplier, 0.05f, 0.0f, "%.2f");
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Multiplies the 'Effect Radius' - used by the auto-tune to best match raytraced ground truth\nExpected range: [0.3, 3.0], defaults to %.3f", XE_GTAO_DEFAULT_RADIUS_MULTIPLIER);
-                    settings.RadiusMultiplier = std::clamp(settings.RadiusMultiplier, 0.3f, 3.0f);
-
-                    ImGui::InputFloat("Falloff range", &settings.FalloffRange, 0.05f, 0.0f, "%.2f");
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Gently reduce sample impact as it gets out of 'Effect radius' bounds\nExpected range: [0.0, 1.0], defaults to %.3f", XE_GTAO_DEFAULT_FALLOFF_RANGE);
-                    settings.FalloffRange = std::clamp(settings.FalloffRange, 0.0f, 1.0f);
-
-                    ImGui::InputFloat("Sample distribution power", &settings.SampleDistributionPower, 0.05f, 0.0f, "%.2f");
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Make samples on a slice equally distributed (1.0) or focus more towards the center (>1.0)\nExpected range: [1.0, 3.0], 2defaults to %.3f", XE_GTAO_DEFAULT_SAMPLE_DISTRIBUTION_POWER);
-                    settings.SampleDistributionPower = std::clamp(settings.SampleDistributionPower, 1.0f, 3.0f);
-
-                    ImGui::InputFloat("Thin occluder compensation", &settings.ThinOccluderCompensation, 0.05f, 0.0f, "%.2f");
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Slightly reduce impact of samples further back to counter the bias from depth-based (incomplete) input scene geometry data\nExpected range: [0.0, 0.7], defaults to %.3f", XE_GTAO_DEFAULT_THIN_OCCLUDER_COMPENSATION);
-                    settings.ThinOccluderCompensation = std::clamp(settings.ThinOccluderCompensation, 0.0f, 0.7f);
-
-                    ImGui::InputFloat("Final power", &settings.FinalValuePower, 0.05f, 0.0f, "%.2f");
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Applies power function to the final value: occlusion = pow( occlusion, finalPower )\nExpected range: [0.5, 5.0], defaults to %.3f", XE_GTAO_DEFAULT_FINAL_VALUE_POWER);
-                    settings.FinalValuePower = std::clamp(settings.FinalValuePower, 0.5f, 5.0f);
-
-                    ImGui::InputFloat("Depth MIP sampling offset", &settings.DepthMIPSamplingOffset, 0.05f, 0.0f, "%.2f");
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Mainly performance (texture memory bandwidth) setting but as a side-effect reduces overshadowing by thin objects and increases temporal instability\nExpected range: [2.0, 6.0], defaults to %.3f", XE_GTAO_DEFAULT_DEPTH_MIP_SAMPLING_OFFSET);
-                    settings.DepthMIPSamplingOffset = std::clamp(settings.DepthMIPSamplingOffset, 0.0f, 30.0f);
-                }
-
-                ImGui::PopItemWidth();
-            };
-
         ImGui::Checkbox("Enabled", &params.m_bEnabled);
         ImGui::Separator();
-        ImGui::Combo("Debug Output Mode", &params.m_DebugOutputMode, "None\0Screen-Space Normals\0Edges\0Bent Normals\0");
-        ImGui::Separator();
-        GTAOImGuiSettings(params.m_XeGTAOSettings);
+
+        extern IRenderer* g_AmbientOcclusionRenderer;
+        g_AmbientOcclusionRenderer->UpdateImgui();
 
         ImGui::TreePop();
     }

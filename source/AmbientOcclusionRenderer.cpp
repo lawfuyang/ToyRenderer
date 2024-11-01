@@ -1,5 +1,6 @@
 #include "Graphic.h"
 
+#include "extern/imgui/imgui.h"
 #include "extern/xegtao/XeGTAO.h"
 
 #include "CommonResources.h"
@@ -17,6 +18,9 @@ extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
 class AmbientOcclusionRenderer : public IRenderer
 {
     static const nvrhi::Format kWorkingDepthBufferFormat = nvrhi::Format::R16_FLOAT;
+
+    int m_DebugOutputMode = 0;
+    XeGTAO::GTAOSettings m_XeGTAOSettings;
 
     RenderGraph::ResourceHandle m_WorkingDepthBufferRDGTextureHandle;
     RenderGraph::ResourceHandle m_WorkingSSAORDGTextureHandle;
@@ -64,6 +68,14 @@ public:
 		commandList->commitBarriers();
 	}
 
+	void UpdateImgui() override
+	{
+		ImGui::Combo("Debug Output Mode", &m_DebugOutputMode, "None\0Screen-Space Normals\0Edges\0Bent Normals\0");
+		ImGui::Separator();
+
+		XeGTAO::GTAOImGuiSettings(m_XeGTAOSettings);
+	}
+
     bool Setup(RenderGraph& renderGraph) override
 	{
         const GraphicPropertyGrid::AmbientOcclusionControllables& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
@@ -96,7 +108,7 @@ public:
 		desc.debugName = "Working Edges Texture";
 		renderGraph.CreateTransientResource(m_WorkingEdgesRDGTextureHandle,desc);
 
-        if (AOControllables.m_DebugOutputMode != 0)
+        if (m_DebugOutputMode != 0)
         {
             desc.format = nvrhi::Format::RGBA16_SNORM;
             desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
@@ -112,8 +124,6 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        const GraphicPropertyGrid::AmbientOcclusionControllables& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
-
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& mainView = scene->m_Views[Scene::EView::Main];
@@ -125,7 +135,7 @@ public:
         const bool bTAAEnabled = false;
         const uint32_t frameCounter = bTAAEnabled ? (g_Graphic.m_FrameCounter % 256) : 0;
 
-        XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, AOControllables.m_XeGTAOSettings, (const float*)&mainView.m_ProjectionMatrix.m, bRowMajor, frameCounter);
+        XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, m_XeGTAOSettings, (const float*)&mainView.m_ProjectionMatrix.m, bRowMajor, frameCounter);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, GTAOconsts);
 
@@ -158,10 +168,10 @@ public:
             mainPassConsts.m_ViewMatrixNoTranslate = mainView.m_ViewMatrix;
             mainPassConsts.m_ViewMatrixNoTranslate.Translation(Vector3::Zero);
 
-            mainPassConsts.m_Quality = AOControllables.m_XeGTAOSettings.QualityLevel;
+            mainPassConsts.m_Quality = m_XeGTAOSettings.QualityLevel;
 
             nvrhi::TextureHandle debugOutputTexture = g_CommonResources.DummyUAV2DTexture.m_NVRHITextureHandle;
-            if (AOControllables.m_DebugOutputMode != 0)
+            if (m_DebugOutputMode != 0)
             {
                 debugOutputTexture = renderGraph.GetTexture(m_DebugOutputRDGTextureHandle);
 
@@ -184,7 +194,7 @@ public:
             };
 
             const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ workingSSAOTexture->getDesc().width, workingSSAOTexture->getDesc().height}, Vector2U{XE_GTAO_NUMTHREADS_X, XE_GTAO_NUMTHREADS_Y});
-            g_Graphic.AddComputePass(commandList, StringFormat("ambientocclusion_CS_XeGTAO_MainPass DEBUG_OUTPUT_MODE=%d", AOControllables.m_DebugOutputMode), bindingSetDesc, dispatchGroupSize, &mainPassConsts, sizeof(mainPassConsts));
+            g_Graphic.AddComputePass(commandList, StringFormat("ambientocclusion_CS_XeGTAO_MainPass DEBUG_OUTPUT_MODE=%d", m_DebugOutputMode), bindingSetDesc, dispatchGroupSize, &mainPassConsts, sizeof(mainPassConsts));
         }
 
         nvrhi::TextureHandle ssaoTexture = renderGraph.GetTexture(g_SSAORDGTextureHandle);
@@ -192,7 +202,7 @@ public:
         nvrhi::TextureHandle pingPongTextures[2] = { workingSSAOTexture, ssaoTexture };
 
         // denoise
-        const uint32_t nbPasses = std::max(1, AOControllables.m_XeGTAOSettings.DenoisePasses); // even without denoising we have to run a single last pass to output correct term into the external output texture
+        const uint32_t nbPasses = std::max(1, m_XeGTAOSettings.DenoisePasses); // even without denoising we have to run a single last pass to output correct term into the external output texture
         for (size_t i = 0; i < nbPasses; i++)
         {
             const bool bLastPass = (i == nbPasses - 1);

@@ -263,6 +263,8 @@ public:
     virtual ~IRenderer() = default;
     virtual void Initialize() {};
 
+    virtual void UpdateImgui() {};
+
     // return false if the renderer is not going to be used
     virtual bool Setup(RenderGraph& renderGraph) { return true; }
 
