@@ -3,7 +3,6 @@ imgui.hlsl -T ps -E PS_Main
 basepass.hlsl -T vs -E VS_Main
 basepass.hlsl -T ps -E PS_Main_GBuffer
 basepass.hlsl -T ps -E PS_Main_Forward
-basepass.hlsl -T ps -E PS_NodeID
 debugdraw.hlsl -T vs -E VS_LinePoint
 debugdraw.hlsl -T ps -E PS_LinePoint
 debugdraw.hlsl -T vs -E VS_TextGlyph

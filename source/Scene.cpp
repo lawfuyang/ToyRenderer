@@ -550,7 +550,7 @@ void Scene::UpdateIMGUIPropertyGrid()
             assert(m_DirLightVec.LengthSquared() <= (1 + KINDA_SMALL_NUMBER));
         }
 
-        ImGui::InputFloat3("Directional Light Color", (float*)&m_DirLightColor, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::InputFloat3("Directional Light Color", (float*)&m_DirLightColor, "%.1f");
         ImGui::DragFloat("Directional Light Strength", &m_DirLightStrength, 0.1f, 0.0f);
 
         ImGui::TreePop();

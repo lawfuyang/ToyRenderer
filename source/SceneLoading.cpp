@@ -373,6 +373,7 @@ struct GLTFSceneLoader
 
                         std::vector<Vector3> vertexPositions;
                         std::vector<Vector3> vertexNormals;
+                        std::vector<Vector4> vertexTangents;
                         std::vector<Vector2> vertexUVs;
 
                         for (size_t attrIdx = 0; attrIdx < gltfPrimitive.attributes_count; ++attrIdx)
@@ -382,20 +383,22 @@ struct GLTFSceneLoader
                             if (attribute.type == cgltf_attribute_type_position)
                             {
                                 vertexPositions.resize(attribute.data->count);
-                                const cgltf_size unpackResult = cgltf_accessor_unpack_floats(attribute.data, &vertexPositions[0].x, attribute.data->count * 3);
-                                assert(unpackResult > 0);
+                                verify(cgltf_accessor_unpack_floats(attribute.data, &vertexPositions[0].x, attribute.data->count * 3));
                             }
                             else if (attribute.type == cgltf_attribute_type_normal)
                             {
                                 vertexNormals.resize(attribute.data->count);
-                                const cgltf_size unpackResult = cgltf_accessor_unpack_floats(attribute.data, &vertexNormals[0].x, attribute.data->count * 3);
-                                assert(unpackResult > 0);
+                                verify(cgltf_accessor_unpack_floats(attribute.data, &vertexNormals[0].x, attribute.data->count * 3));
                             }
-                            else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 0)
+                            else if (attribute.type == cgltf_attribute_type_tangent)
+                            {
+                                vertexTangents.resize(attribute.data->count);
+                                verify(cgltf_accessor_unpack_floats(attribute.data, &vertexTangents[0].x, attribute.data->count * 4));
+                            }
+                            else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 0) // only read the first UV set
                             {
                                 vertexUVs.resize(attribute.data->count);
-                                const cgltf_size unpackResult = cgltf_accessor_unpack_floats(attribute.data, &vertexUVs[0].x, attribute.data->count * 3);
-                                assert(unpackResult > 0);
+                                verify(cgltf_accessor_unpack_floats(attribute.data, &vertexUVs[0].x, attribute.data->count * 3));
                             }
 
                             // TODO: cgltf_attribute_type_weights, cgltf_attribute_type_joints
@@ -411,6 +414,11 @@ struct GLTFSceneLoader
                             if (!vertexNormals.empty())
                             {
                                 vertices[i].m_Normal = vertexNormals[i];
+                            }
+
+                            if (!vertexTangents.empty())
+                            {
+                                vertices[i].m_Tangent = vertexTangents[i];
                             }
 
                             if (!vertexUVs.empty())

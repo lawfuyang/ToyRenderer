@@ -28,10 +28,11 @@ void VS_Main(
     uint inInstanceConstIndex : INSTANCE_START_LOCATION, // per-instance attribute
     uint inVertexID : SV_VertexID,
     out float4 outPosition : SV_POSITION,
+    out float3 outNormal : NORMAL,
+    out float4 outTangent : TANGENT,
+    out float3 outWorldPosition : POSITION_WS,
     out nointerpolation uint outInstanceConstsIdx : TEXCOORD0,
-    out float3 outNormal : TEXCOORD1,
-    out float2 outUV : TEXCOORD2,
-    out float3 outWorldPosition : TEXCOORD3
+    out float2 outUV : TEXCOORD1
 )
 {
     // Retrieve the instance constants for the given index
@@ -55,34 +56,13 @@ void VS_Main(
     
     // Transform the vertex normal to world space and normalize it
     outNormal = normalize(mul(float4(vertexInfo.m_Normal, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz);
+    outTangent = float4(normalize(mul(float4(vertexInfo.m_Tangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), vertexInfo.m_Tangent.w);
     
     // Pass the vertex texture coordinates to the pixel shader
     outUV = vertexInfo.m_TexCoord;
     
     // Pass the world space position to the pixel shader
     outWorldPosition = worldPos.xyz;
-}
-
-// Christian Schuler, "Normal Mapping without Precomputed Tangents", ShaderX 5, Chapter 2.6, pp. 131-140
-// See also follow-up blog post: http://www.thetenthplanet.de/archives/1180
-float3x3 CalculateTBN(float3 p, float3 n, float2 tex)
-{
-    float3 dp1 = ddx(p);
-    float3 dp2 = ddy(p);
-    float2 duv1 = ddx(tex);
-    float2 duv2 = ddy(tex);
-
-    float3x3 M = float3x3(dp1, dp2, cross(dp1, dp2));
-    float2x3 inverseM = float2x3(cross(M[1], M[2]), cross(M[2], M[0]));
-    float3 t = normalize(mul(float2(duv1.x, duv2.x), inverseM));
-    float3 b = normalize(mul(float2(duv1.y, duv2.y), inverseM));
-    return float3x3(t, b, n);
-}
-
-float3 PeturbNormal(float3 localNormal, float3 position, float3 normal, float2 texCoord)
-{
-    const float3x3 TBN = CalculateTBN(position, normal, texCoord);
-    return normalize(mul(localNormal, TBN));
 }
 
 float3 TwoChannelNormalX2(float2 normal)
@@ -95,6 +75,7 @@ float3 TwoChannelNormalX2(float2 normal)
 GBufferParams GetGBufferParams(
     uint inInstanceConstsIdx,
     float3 inNormal,
+    float4 inTangent,
     float2 inUV,
     float3 inWorldPosition)
 {
@@ -146,11 +127,13 @@ GBufferParams GetGBufferParams(
         
         // Retrieve the normal texture and sample the texture at the given UV coordinates
         Texture2D normalTexture = g_Textures[texIdx];
-        float2 textureSample = normalTexture.Sample(g_Samplers[samplerIdx], finalUV).xy;
+        float3 normal = TwoChannelNormalX2(normalTexture.Sample(g_Samplers[samplerIdx], finalUV).xy);
+                
+        float3 T = inTangent.xyz;
+        float3 B = cross(inNormal, T) * inTangent.w;
+        float3x3 TBN = float3x3(T, B, inNormal);
         
-        // Update the normal value with the sampled value
-        float3 uncompressedNormals = TwoChannelNormalX2(textureSample);
-        result.m_Normal = PeturbNormal(uncompressedNormals, inWorldPosition, inNormal, finalUV);
+        result.m_Normal = mul(normal, TBN);
     }
     
     // Set the default occlusion value
@@ -183,15 +166,16 @@ GBufferParams GetGBufferParams(
 
 void PS_Main_GBuffer(
     in float4 inPosition : SV_POSITION,
+    in float3 inNormal : NORMAL,
+    in float4 inTangent : TANGENT,
+    in float3 inWorldPosition : POSITION_WS,
     in uint inInstanceConstsIdx : TEXCOORD0,
-    in float3 inNormal : TEXCOORD1,
-    in float2 inUV : TEXCOORD2,
-    in float3 inWorldPosition : TEXCOORD3,
+    in float2 inUV : TEXCOORD1,
     out float4 outGBufferA : SV_Target0,
     out float4 outGBufferB : SV_Target1,
     out float4 outGBufferC : SV_Target2)
 {
-    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inUV, inWorldPosition);
+    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inTangent, inUV, inWorldPosition);
     
     // for colorizing instances
     uint seed = inInstanceConstsIdx;
@@ -205,14 +189,15 @@ void PS_Main_GBuffer(
 
 void PS_Main_Forward(
     in float4 inPosition : SV_POSITION,
+    in float3 inNormal : NORMAL,
+    in float4 inTangent : TANGENT,
+    in float3 inWorldPosition : POSITION_WS,
     in uint inInstanceConstsIdx : TEXCOORD0,
-    in float3 inNormal : TEXCOORD1,
-    in float2 inUV : TEXCOORD2,
-    in float3 inWorldPosition : TEXCOORD3,
+    in float2 inUV : TEXCOORD1,
     out float4 outColor : SV_Target)
 {
     // Get the common base pass values for the current instance
-    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inUV, inWorldPosition);
+    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inTangent, inUV, inWorldPosition);
     
     const float materialSpecular = 0.5f; // TODO?
     float3 specular = ComputeF0(materialSpecular, gbufferParams.m_Metallic, gbufferParams.m_Metallic);
@@ -240,16 +225,4 @@ void PS_Main_Forward(
     lighting += AmbientTerm(g_SSAOTexture, g_BasePassConsts.m_SSAOEnabled ? uint2(inPosition.xy) : uint2(0, 0), gbufferParams.m_Albedo, gbufferParams.m_Normal);
     
     outColor = float4(lighting, gbufferParams.m_Alpha);
-}
-
-void PS_NodeID(
-    in float4 inPosition : SV_POSITION,
-    in uint inInstanceConstsIdx : TEXCOORD0,
-    in float3 inNormal : TEXCOORD1,
-    in float2 inUV : TEXCOORD2,
-    in float3 inWorldPosition : TEXCOORD3,
-    out float outNodeID : SV_Target)
-{
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inInstanceConstsIdx];
-    outNodeID = (float)instanceConsts.m_NodeID;
 }

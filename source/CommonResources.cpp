@@ -195,6 +195,7 @@ static void CreateDefaultInputLayouts()
         { "COLOR",    nvrhi::Format::RGBA8_UNORM, 1, 0, offsetof(ImDrawVert,col), sizeof(ImDrawVert), false },
     };
     
+    // TODO: update this
     static const nvrhi::VertexAttributeDesc s_RawVertexFormatLayout[] =
     {
         { "POSITION"    , nvrhi::Format::RGB32_FLOAT, 1, 0, offsetof(RawVertexFormat, m_Position)   , sizeof(RawVertexFormat), false },
@@ -306,6 +307,16 @@ static void CreateUnitCubeMesh()
         {  0, -1,  0 },
     };
 
+    const Vector4 faceTangents[] = 
+    {
+        { 1, 0, 0, 1 },
+        { 1, 0, 0, 1 },
+        { 0, 0, 1, 1 },
+        { 0, 0, -1, 1 },
+        { 1, 0, 0, 1 },
+        { 1, 0, 0, 1 },
+    };
+
     const Vector2 textureCoordinates[] =
     {
         { 1, 0 },
@@ -338,16 +349,16 @@ static void CreateUnitCubeMesh()
 
         // Four vertices per face.
         // (faceNormals[i] - side1 - side2) * 0.5f // faceNormals[i] // t0
-        vertices.push_back(RawVertexFormat{ (faceNormals[i] - side1 - side2) * 0.5f, faceNormals[i], textureCoordinates[0] });
+        vertices.push_back(RawVertexFormat{ (faceNormals[i] - side1 - side2) * 0.5f, faceNormals[i], faceTangents[i], textureCoordinates[0] });
 
         // (faceNormals[i] - side1 + side2) * 0.5f // faceNormals[i] // t1
-        vertices.push_back(RawVertexFormat{ (faceNormals[i] - side1 + side2) * 0.5f, faceNormals[i], textureCoordinates[1] });
+        vertices.push_back(RawVertexFormat{ (faceNormals[i] - side1 + side2) * 0.5f, faceNormals[i], faceTangents[i], textureCoordinates[1] });
 
         // (faceNormals[i] + side1 + side2) * 0.5f // faceNormals[i] // t2
-        vertices.push_back(RawVertexFormat{ (faceNormals[i] + side1 + side2) * 0.5f, faceNormals[i], textureCoordinates[2] });
+        vertices.push_back(RawVertexFormat{ (faceNormals[i] + side1 + side2) * 0.5f, faceNormals[i], faceTangents[i], textureCoordinates[2] });
 
         // (faceNormals[i] + side1 - side2) * 0.5f // faceNormals[i] // t3
-        vertices.push_back(RawVertexFormat{ (faceNormals[i] + side1 - side2) * 0.5f, faceNormals[i], textureCoordinates[3] });
+        vertices.push_back(RawVertexFormat{ (faceNormals[i] + side1 - side2) * 0.5f, faceNormals[i], faceTangents[i], textureCoordinates[3] });
     }
 
     ReverseWinding(indices, vertices);
@@ -392,9 +403,10 @@ static void CreateUnitSphereMesh()
             dz *= dxz;
 
             const Vector3 normal{ dx, dy, dz };
+            const Vector4 tangent{ -dz, 0, dx, 1 };
             const Vector2 textureCoordinate{ u, v };
 
-            vertices.push_back(RawVertexFormat{ { normal* radius }, normal, textureCoordinate });
+            vertices.push_back(RawVertexFormat{ { normal* radius }, normal, tangent, textureCoordinate });
         }
     }
 
