@@ -9,11 +9,13 @@
 #include "ImguiManager.h"
 #include "Keyboard.h"
 #include "Mouse.h"
+#include "Scene.h"
 #include "Utilities.h"
 
 CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", {1600, 900} };
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
 CommandLineOption<int> g_MaxWorkerThreads{ "maxworkerthreads", 12 };
+CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
 
 thread_local uint32_t tl_ThreadID = 0;
 
@@ -98,6 +100,15 @@ void Engine::Initialize()
     {
         TriggerDumpProfilingCapture("EngineInit");
     }
+
+	if (std::string_view sceneToLoad = g_SceneToLoad.Get();
+        !sceneToLoad.empty())
+    {
+        extern void LoadScene(std::string_view filePath);
+        LoadScene(sceneToLoad);
+
+        m_Graphic->m_Scene->OnSceneLoad();
+    }
 }
 
 void Engine::ParseCommandlineArguments()
@@ -119,6 +130,7 @@ void Engine::ParseCommandlineArguments()
     RegisterCmdLineOptsMap(CommandLineOption<int>::ms_CachedArgs);
     RegisterCmdLineOptsMap(CommandLineOption<float>::ms_CachedArgs);
     RegisterCmdLineOptsMap(CommandLineOption<std::vector<int>>::ms_CachedArgs);
+    RegisterCmdLineOptsMap(CommandLineOption<std::string>::ms_CachedArgs);
 
     const cxxopts::ParseResult parseResult = options.parse(__argc, (const char**)__argv);
 
