@@ -20,13 +20,13 @@ public:
     };
     DebugControllables m_DebugControllables;
 
-    struct InstanceRenderingControlalbles
+    struct InstanceRenderingControllables
     {
         bool m_bEnableFrustumCulling = true;
         bool m_bEnableOcclusionCulling = false;
         bool m_bColorizeInstances = false;
     };
-	InstanceRenderingControlalbles m_InstanceRenderingControlalbles;
+	InstanceRenderingControllables m_InstanceRenderingControllables;
 
     struct SkyControllables
     {

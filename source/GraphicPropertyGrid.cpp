@@ -101,7 +101,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
 
 	if (ImGui::TreeNode("GBuffer"))
 	{
-		InstanceRenderingControlalbles& params = m_InstanceRenderingControlalbles;
+		InstanceRenderingControllables& params = m_InstanceRenderingControllables;
 
 		ImGui::Checkbox("Enable Frustum Culling", &params.m_bEnableFrustumCulling);
 		ImGui::Checkbox("Enable Occlusion Culling", &params.m_bEnableOcclusionCulling);
