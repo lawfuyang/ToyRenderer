@@ -19,7 +19,6 @@ public:
     bool m_bShowDemoWindows = false;
     bool m_bShowNodeEditor = false;
     bool m_bShowGraphicPropertyGrid = false;
-    bool m_bOpenWorld = false;
 
     friend class Engine;
     friend class IMGUIRenderer;

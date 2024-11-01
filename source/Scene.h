@@ -26,8 +26,6 @@ public:
     void Initialize();
     void Update();
 
-    bool m_bIsMainView = false;
-
     float m_ZNearP = 0.1f;
     float m_ZFarP = 100.0f;
 

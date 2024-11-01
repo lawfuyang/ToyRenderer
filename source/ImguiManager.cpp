@@ -68,18 +68,11 @@ void IMGUIManager::UpdateMainMenuBar()
 {
     if (ImGui::BeginMenu("Engine"))
     {
-        if (ImGui::MenuItem("Open Map"))
-        {
-            extern bool s_bToggleOpenMapFileDialog;
-            s_bToggleOpenMapFileDialog = true;
-        }
-
-        ImGui::Separator();
-
         if (ImGui::MenuItem("Toggle Node Editor"))
         {
             m_bShowNodeEditor = !m_bShowNodeEditor;
         }
+
         if (ImGui::MenuItem("Take Profiling Capture"))
         {
             Engine::TriggerDumpProfilingCapture("Frames");

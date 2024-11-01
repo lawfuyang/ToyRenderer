@@ -2,7 +2,6 @@
 
 #include "extern/debug_draw/debug_draw.hpp"
 #include "extern/imgui/imgui.h"
-#include "extern/portable-file-dialogs/portable-file-dialogs.h"
 
 #include "Engine.h"
 #include "Graphic.h"
@@ -192,7 +191,6 @@ void Scene::Initialize()
             {
                 view.Initialize();
             }
-            m_Views[Main].m_bIsMainView = true;
         });
 
     tf.emplace([this]
@@ -614,21 +612,7 @@ void Scene::OnSceneLoad()
     UpdateInstanceConstsBuffer();
 }
 
-// referenced in imguimanager
-bool s_bToggleOpenMapFileDialog = false;
-
 void UpdateSceneIMGUI()
 {
-    if (s_bToggleOpenMapFileDialog)
-    {
-        std::vector<std::string> result = pfd::open_file{ "Select a map file", GetRootDirectory(), { "All Files", "*" }, pfd::opt::force_path }.result();
-        if (!result.empty())
-        {
-			extern void LoadScene(std::string_view filePath);
-			LoadScene(result[0]);
 
-			g_Graphic.m_Scene->OnSceneLoad();
-		}
-        s_bToggleOpenMapFileDialog = false;
-    }
 }

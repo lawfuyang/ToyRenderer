@@ -3,7 +3,6 @@
 #include "extern/debug_draw/debug_draw.hpp"
 #include "extern/imgui/imgui.h"
 #include "extern/imgui/imgui_stdlib.h"
-#include "extern/portable-file-dialogs/portable-file-dialogs.h"
 #include "nvrhi/utils.h"
 
 #include "CommonResources.h"
@@ -202,23 +201,6 @@ void Visual::UpdateIMGUI()
                         {
                             ImGui::Text("%s", texResource.m_NVRHITextureHandle->getDesc().debugName.c_str());
                             ImGui::SameLine();
-                        }
-
-                        if (ImGui::Button("Browse..."))
-                        {
-                            std::vector<std::string> result = pfd::open_file(StringFormat("Select %s", texName.data()), GetRootDirectory(), { "Image Files", "*.png *.jpg *.jpeg *.bmp" }, pfd::opt::force_path).result();
-                            if (!result.empty())
-                            {
-                                const bool bResult = texResource.LoadFromFile(result[0]);
-                                assert(bResult); // this should never return false
-                            }
-                        }
-                        ImGui::SameLine();
-
-                        // reset back to default texture
-                        if (ImGui::Button("Reset"))
-                        {
-                            texResource.m_NVRHITextureHandle.Reset();
                         }
                     }
                 };
