@@ -56,7 +56,12 @@ void VS_Main(
     
     // Transform the vertex normal to world space and normalize it
     outNormal = normalize(mul(float4(vertexInfo.m_Normal, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz);
-    outTangent = float4(normalize(mul(float4(vertexInfo.m_Tangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), vertexInfo.m_Tangent.w);
+	
+	outTangent = float4(0, 0, 0, 1);
+	if (meshData.m_HasTangentData)
+	{
+		outTangent = float4(normalize(mul(float4(vertexInfo.m_Tangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), vertexInfo.m_Tangent.w);
+	}
     
     // Pass the vertex texture coordinates to the pixel shader
     outUV = vertexInfo.m_TexCoord;
