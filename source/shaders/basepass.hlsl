@@ -65,6 +65,23 @@ void VS_Main(
     outWorldPosition = worldPos.xyz;
 }
 
+// Christian Schuler, "Normal Mapping without Precomputed Tangents", ShaderX 5, Chapter 2.6, pp. 131-140
+// See also follow-up blog post: http://www.thetenthplanet.de/archives/1180
+float3x3 CalculateTBNWithoutTangent(float3 p, float3 n, float2 tex)
+{
+    float3 dp1 = ddx(p);
+    float3 dp2 = ddy(p);
+    float2 duv1 = ddx(tex);
+    float2 duv2 = ddy(tex);
+
+    float3x3 M = float3x3(dp1, dp2, cross(dp1, dp2));
+    float2x3 inverseM = float2x3(cross(M[1], M[2]), cross(M[2], M[0]));
+    float3 t = normalize(mul(float2(duv1.x, duv2.x), inverseM));
+    float3 b = normalize(mul(float2(duv1.y, duv2.y), inverseM));
+    return float3x3(t, b, n);
+}
+
+// Unpacks a 2 channel normal to xyz
 float3 TwoChannelNormalX2(float2 normal)
 {
     float2 xy = 2.0f * normal - 1.0f;
@@ -125,15 +142,24 @@ GBufferParams GetGBufferParams(
         finalUV *= materialData.m_NormalUVScale;
         finalUV += materialData.m_AlbedoUVOffset;
         
-        // Retrieve the normal texture and sample the texture at the given UV coordinates
         Texture2D normalTexture = g_Textures[texIdx];
-        float3 normal = TwoChannelNormalX2(normalTexture.Sample(g_Samplers[samplerIdx], finalUV).xy);
-                
-        float3 T = inTangent.xyz;
-        float3 B = cross(inNormal, T) * inTangent.w;
-        float3x3 TBN = float3x3(T, B, inNormal);
+        float3 sampledNormal = normalTexture.Sample(g_Samplers[samplerIdx], finalUV).rgb;
+        float3 unpackedNormal = TwoChannelNormalX2(sampledNormal.xy);
         
-        result.m_Normal = mul(normal, TBN);
+        // NOTE: for meshes that have no tangent data, but have normal texture, we compute TBN matrix on the fly via derivatives
+        MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
+        if (meshData.m_HasTangentData)
+        {
+            float3 T = inTangent.xyz;
+            float3 B = cross(inNormal, T) * inTangent.w;
+            float3x3 TBN = float3x3(T, B, inNormal);
+            result.m_Normal = normalize(mul(unpackedNormal, TBN));
+        }
+        else
+        {
+            float3x3 TBN = CalculateTBNWithoutTangent(inWorldPosition, inNormal, finalUV);
+            result.m_Normal = normalize(mul(unpackedNormal, TBN));
+        }
     }
     
     // Set the default occlusion value

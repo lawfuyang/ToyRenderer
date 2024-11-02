@@ -286,6 +286,7 @@ void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const
     meshData.m_IndexCount = m_NbIndices;
     meshData.m_StartIndexLocation = m_StartIndexLocation;
     meshData.m_StartVertexLocation = m_StartVertexLocation;
+    meshData.m_HasTangentData = vertices[0].m_Tangent.LengthSquared() > 0.0f; // huge assumption here!
     meshData.m_BoundingSphere = Vector4{ m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius };
     meshData.m_AABBCenter = m_AABB.Center;
     meshData.m_AABBExtents = m_AABB.Extents;
