@@ -117,24 +117,32 @@ void TokenizeLine(char* in, std::vector<const char*>& tokens)
 
 namespace StringUtils
 {
-    const wchar_t* Utf8ToWide(std::string_view strView)
+    const wchar_t* Utf8ToWide(std::string_view str)
     {
-        thread_local std::wstring result;
-        result.resize(strView.size());
+        thread_local std::wstring wstr;
+        wstr.clear();
 
-        if (!MultiByteToWideChar(CP_ACP, 0, strView.data(), -1, result.data(), MAX_PATH))
-            result[0] = L'\0';
-        return result.c_str();
+        if (int num_chars = ::MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.length(), NULL, 0))
+        {
+            wstr.resize(num_chars);
+            ::MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.length(), &wstr[0], num_chars);
+        }
+
+        return wstr.c_str();
     }
 
-    const char* WideToUtf8(std::wstring_view strView)
+    const char* WideToUtf8(std::wstring_view wstr)
     {
-        thread_local std::string result;
-        result.resize(strView.size());
+        thread_local std::string str;
+        str.clear();
 
-        if (!WideCharToMultiByte(CP_ACP, 0, strView.data(), -1, result.data(), MAX_PATH, nullptr, nullptr))
-            result[0] = L'\0';
-        return result.c_str();
+        if (int num_chars = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), (int)wstr.length(), NULL, 0, NULL, NULL))
+        {
+            str.resize(num_chars);
+            WideCharToMultiByte(CP_UTF8, 0, wstr.data(), (int)wstr.length(), &str[0], num_chars, NULL, NULL);
+        }
+
+        return str.c_str();
     }
 }
 
