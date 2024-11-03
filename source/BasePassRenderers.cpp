@@ -525,11 +525,6 @@ public:
             return false;
         }
 
-        if (shadowControllables.m_bShadowMapResolutionDirty)
-        {
-            InitHZB();
-        }
-
         BasePassRenderer::Setup(renderGraph);
 
         // create shadow map array RDG Texture. CSM0 is responsible for creating it

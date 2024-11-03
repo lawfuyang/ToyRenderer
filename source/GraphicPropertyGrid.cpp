@@ -148,16 +148,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
             scene->CalculateCSMSplitDistances();
         }
 
-        params.m_bShadowMapResolutionDirty = false;
-
-        int shadowMapRes = (int)params.m_ShadowMapResolution;
-        if (ImGui::InputInt("Shadow Map Resolution", &shadowMapRes, 1, 100, ImGuiInputTextFlags_EnterReturnsTrue))
-        {
-            shadowMapRes = std::clamp(GetNextPow2(shadowMapRes), 128u, 4096u);
-            params.m_ShadowMapResolution = shadowMapRes;
-
-			params.m_bShadowMapResolutionDirty = true;
-        }
+        ImGui::Text("Shadow Map Resolution: %u x %u", params.m_ShadowMapResolution, params.m_ShadowMapResolution);
 
         ImGui::TreePop();
     }

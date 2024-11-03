@@ -87,7 +87,8 @@ struct GLTFSceneLoader
         {
             SCENE_LOAD_PROFILE("Decompress buffers");
 
-            DecompressMeshoptCompression();
+            const cgltf_result result = decompressMeshopt(m_GLTFData);
+            assert(result == cgltf_result_success);
         }
 
         m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
@@ -99,58 +100,69 @@ struct GLTFSceneLoader
         LoadNodes();
     }
 
-    void DecompressMeshoptCompression()
+    // referred from meshoptimizer
+    static cgltf_result decompressMeshopt(cgltf_data* data)
     {
-        for (uint32_t i = 0; i < m_GLTFData->buffer_views_count; ++i)
+        for (size_t i = 0; i < data->buffer_views_count; ++i)
         {
-            if (!m_GLTFData->buffer_views[i].has_meshopt_compression)
+            if (!data->buffer_views[i].has_meshopt_compression)
                 continue;
+            cgltf_meshopt_compression* mc = &data->buffer_views[i].meshopt_compression;
 
-            const cgltf_meshopt_compression& mc = m_GLTFData->buffer_views[i].meshopt_compression;
+            const unsigned char* source = (const unsigned char*)mc->buffer->data;
+            if (!source)
+                return cgltf_result_invalid_gltf;
+            source += mc->offset;
 
-            const unsigned char* source = (const unsigned char*)mc.buffer->data;
-            assert(source);
+            void* result = malloc(mc->count * mc->stride);
+            if (!result)
+                return cgltf_result_out_of_memory;
 
-            source += mc.offset;
+            data->buffer_views[i].data = result;
 
-            void* result = malloc(mc.count * mc.stride);
-            assert(result);
+            int rc = -1;
 
-            m_GLTFData->buffer_views[i].data = result;
-
-            switch (mc.mode)
+            switch (mc->mode)
             {
             case cgltf_meshopt_compression_mode_attributes:
-                verify(meshopt_decodeVertexBuffer(result, mc.count, mc.stride, source, mc.size));
+                rc = meshopt_decodeVertexBuffer(result, mc->count, mc->stride, source, mc->size);
                 break;
 
             case cgltf_meshopt_compression_mode_triangles:
-                verify(meshopt_decodeIndexBuffer(result, mc.count, mc.stride, source, mc.size));
+                rc = meshopt_decodeIndexBuffer(result, mc->count, mc->stride, source, mc->size);
                 break;
 
             case cgltf_meshopt_compression_mode_indices:
-                verify(meshopt_decodeIndexSequence(result, mc.count, mc.stride, source, mc.size));
+                rc = meshopt_decodeIndexSequence(result, mc->count, mc->stride, source, mc->size);
                 break;
 
             default:
-                assert(0);
+                return cgltf_result_invalid_gltf;
             }
 
-            switch (mc.filter)
+            if (rc != 0)
+                return cgltf_result_io_error;
+
+            switch (mc->filter)
             {
             case cgltf_meshopt_compression_filter_octahedral:
-                meshopt_decodeFilterOct(result, mc.count, mc.stride);
+                meshopt_decodeFilterOct(result, mc->count, mc->stride);
                 break;
 
             case cgltf_meshopt_compression_filter_quaternion:
-                meshopt_decodeFilterQuat(result, mc.count, mc.stride);
+                meshopt_decodeFilterQuat(result, mc->count, mc->stride);
                 break;
 
             case cgltf_meshopt_compression_filter_exponential:
-                meshopt_decodeFilterExp(result, mc.count, mc.stride);
+                meshopt_decodeFilterExp(result, mc->count, mc->stride);
+                break;
+
+            default:
                 break;
             }
         }
+
+        return cgltf_result_success;
     }
 
     void LoadSamplers()

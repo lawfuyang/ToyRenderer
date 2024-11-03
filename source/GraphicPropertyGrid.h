@@ -52,9 +52,7 @@ public:
         bool m_bEnabled = true;
         float m_MaxShadowDistance = 200.0f;
         float m_CSMSplitLambda = 0.5f;
-        uint32_t m_ShadowMapResolution = 2048;
-
-        bool m_bShadowMapResolutionDirty = false;
+        const uint32_t m_ShadowMapResolution = 2048; // NOTE: don't allow the shadow map resolution to be changed during runtime. Lazy to handle it.
     };
     ShadowControllables m_ShadowControllables;
 
