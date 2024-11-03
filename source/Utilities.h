@@ -96,14 +96,12 @@ private:
 struct ScopedTimer
 {
     ScopedTimer(std::string_view name)
-    {
-        assert(name.size() < sizeof(m_Name));
-        strcpy_s(m_Name, sizeof(m_Name), name.data());
-    }
+        : m_Name(name.data())
+    {}
 
     ~ScopedTimer();
 
-    char m_Name[128];
+    const char* m_Name;
     Timer m_Timer;
 };
 #define SCOPED_TIMER_NAMED(name) ScopedTimer GENERATE_UNIQUE_VARIABLE(scopedTimer){name};
