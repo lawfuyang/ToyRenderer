@@ -364,7 +364,7 @@ static void CreateUnitCubeMesh()
     ReverseWinding(indices, vertices);
 
     Mesh* mesh = g_Graphic.CreateMesh();
-    mesh->Initialize(vertices, indices, "Default Unit Cube Mesh");
+    mesh->Initialize(vertices, indices, true /* bInitBV */, "Default Unit Cube Mesh");
 }
 
 static void CreateUnitSphereMesh()
@@ -437,7 +437,7 @@ static void CreateUnitSphereMesh()
     //    InvertNormals(vertices);
 
     Mesh* mesh = g_Graphic.CreateMesh();
-    mesh->Initialize(vertices, indices, "Default Unit Sphere Mesh");
+    mesh->Initialize(vertices, indices, true /* bInitBV */, "Default Unit Sphere Mesh");
 }
 
 static void CreateDefaultMaterial()

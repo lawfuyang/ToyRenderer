@@ -388,6 +388,10 @@ struct GLTFSceneLoader
                         std::vector<Vector4> vertexTangents;
                         std::vector<Vector2> vertexUVs;
 
+                        bool bInitBV = true;
+                        AABB meshAABB;
+                        Sphere meshBS;
+
                         for (size_t attrIdx = 0; attrIdx < gltfPrimitive.attributes_count; ++attrIdx)
                         {
                             const cgltf_attribute& attribute = gltfPrimitive.attributes[attrIdx];
@@ -396,6 +400,17 @@ struct GLTFSceneLoader
                             {
                                 vertexPositions.resize(attribute.data->count);
                                 verify(cgltf_accessor_unpack_floats(attribute.data, &vertexPositions[0].x, attribute.data->count * 3));
+
+                                if (attribute.data->has_min && attribute.data->has_max)
+                                {
+                                    const Vector3 extents{ attribute.data->max[0] - attribute.data->min[0], attribute.data->max[1] - attribute.data->min[1], attribute.data->max[2] - attribute.data->min[2] };
+                                    const Vector3 center{ attribute.data->min[0] + extents.x * 0.5f, attribute.data->min[1] + extents.y * 0.5f, attribute.data->min[2] + extents.z * 0.5f };
+
+                                    meshAABB = AABB{ center - extents * 0.5f, center + extents * 0.5f };
+                                    Sphere::CreateFromBoundingBox(meshBS, meshAABB);
+
+                                    bInitBV = false;
+                                }
                             }
                             else if (attribute.type == cgltf_attribute_type_normal)
                             {
@@ -440,7 +455,13 @@ struct GLTFSceneLoader
                         }
 
                         Mesh* sceneMesh = g_Graphic.CreateMesh();
-                        sceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
+                        sceneMesh->Initialize(vertices, indices, bInitBV, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
+
+                        if (!bInitBV)
+                        {
+                            sceneMesh->m_AABB = meshAABB;
+                            sceneMesh->m_BoundingSphere = meshBS;
+                        }
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
                         if (gltfPrimitive.material)

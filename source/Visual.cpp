@@ -264,7 +264,7 @@ void Visual::UpdatePrimitivesInScene()
     }
 }
 
-void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const uint32_t> indices, std::string_view meshName)
+void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const uint32_t> indices, bool bInitBV, std::string_view meshName)
 {
     PROFILE_FUNCTION();
 
@@ -272,8 +272,11 @@ void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const
     m_NbIndices = (uint32_t)indices.size();
 
     // init BV(s)
-    Sphere::CreateFromPoints(m_BoundingSphere, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
-    AABB::CreateFromPoints(m_AABB, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
+    if (bInitBV)
+    {
+        Sphere::CreateFromPoints(m_BoundingSphere, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
+        AABB::CreateFromPoints(m_AABB, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
+    }
 
     // append into virtual buffers
     uint64_t byteOffset = g_Graphic.m_VirtualVertexBuffer.QueueAppend(vertices.data(), vertices.size() * sizeof(RawVertexFormat));
