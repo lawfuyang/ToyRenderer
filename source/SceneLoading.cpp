@@ -457,8 +457,6 @@ struct GLTFSceneLoader
 
         Scene* scene = g_Graphic.m_Scene.get();
 
-        std::unordered_map<const cgltf_node*, uint32_t> nodeToSceneNodeIndex;
-
         {
             SCENE_LOAD_PROFILE("Add nodes to scene");
 
@@ -468,8 +466,6 @@ struct GLTFSceneLoader
 
                 Scene* scene = g_Graphic.m_Scene.get();
                 const uint32_t newNodeID = scene->m_Nodes.size();
-
-                nodeToSceneNodeIndex[&node] = newNodeID;
 
                 Node& newNode = scene->m_Nodes.emplace_back();
                 newNode.m_ID = newNodeID;
@@ -514,17 +510,17 @@ struct GLTFSceneLoader
             {
                 cgltf_node& node = m_GLTFData->nodes[i];
 
-                const uint32_t sceneNodeIdx = nodeToSceneNodeIndex.at(&node);
+                const uint32_t sceneNodeIdx = cgltf_node_index(m_GLTFData, &node);
                 Node& sceneNode = scene->m_Nodes.at(sceneNodeIdx);
 
                 if (node.parent)
                 {
-                    sceneNode.m_ParentNodeID = nodeToSceneNodeIndex.at(node.parent);
+                    sceneNode.m_ParentNodeID = cgltf_node_index(m_GLTFData, node.parent);
                 }
 
                 for (uint32_t i = 0; i < node.children_count; ++i)
                 {
-                    sceneNode.m_ChildrenNodeIDs.push_back(nodeToSceneNodeIndex.at(node.children[i]));
+                    sceneNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[i]));
                 }
             }
         }
