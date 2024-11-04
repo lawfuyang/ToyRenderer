@@ -27,16 +27,10 @@ struct GLTFSceneLoader
     std::string m_BaseFolderPath;
     cgltf_data* m_GLTFData = nullptr;
 
+    std::vector<nvrhi::SamplerAddressMode> m_AddressModes;
     std::vector<std::vector<Primitive>> m_SceneMeshPrimitives;
-    std::unordered_map<const cgltf_mesh*, uint32_t> m_GLTFMeshToSceneMeshPrimitivesIndex;
-
-    std::unordered_map<const cgltf_sampler*, nvrhi::SamplerAddressMode> m_AddressModes;
-
     std::vector<Texture> m_SceneTextures;
-    std::unordered_map<const cgltf_texture*, uint32_t> m_GLTFTextureToSceneTexturesIdx;
-
     std::vector<Material> m_SceneMaterials;
-    std::unordered_map<const cgltf_material*, uint32_t> m_GLTFMaterialToSceneMaterialsIdx;
 
     ~GLTFSceneLoader()
     {
@@ -170,6 +164,7 @@ struct GLTFSceneLoader
         PROFILE_FUNCTION();
         SCOPED_TIMER_FUNCTION();
 
+        m_AddressModes.resize(m_GLTFData->samplers_count);
         for (uint32_t i = 0; i < m_GLTFData->samplers_count; ++i)
         {
             const cgltf_sampler& gltfSampler = m_GLTFData->samplers[i];
@@ -199,8 +194,7 @@ struct GLTFSceneLoader
             // TODO: support different S&T address modes?
             assert(addressModeS == addressModeT);
 
-            assert(!m_AddressModes.contains(&gltfSampler));
-            m_AddressModes[&gltfSampler] = addressModeS;
+            m_AddressModes[i] = addressModeS;
         }
     }
 
@@ -223,15 +217,13 @@ struct GLTFSceneLoader
 
         for (uint32_t i = 0; i < m_GLTFData->textures_count; ++i)
         {
-            m_GLTFTextureToSceneTexturesIdx[&m_GLTFData->textures[i]] = i;
-
             taskflow.emplace([&, i]()
                 {
                     const cgltf_texture& gltfTexture = m_GLTFData->textures[i];
 
                     if (gltfTexture.sampler)
                     {
-                        m_SceneTextures[i].m_AddressMode = m_AddressModes.at(gltfTexture.sampler);
+                        m_SceneTextures[i].m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, gltfTexture.sampler));
                     }
 
                     const cgltf_image* image = gltfTexture.has_basisu ? gltfTexture.basisu_image : gltfTexture.image;
@@ -264,7 +256,7 @@ struct GLTFSceneLoader
 
         auto HandleTextureView = [&](Texture& texture, const cgltf_texture_view& textureView)
             {
-                texture = m_SceneTextures.at(m_GLTFTextureToSceneTexturesIdx.at(textureView.texture));
+                texture = m_SceneTextures.at(cgltf_texture_index(m_GLTFData, textureView.texture));
 
                 if (textureView.has_transform)
                 {
@@ -333,8 +325,6 @@ struct GLTFSceneLoader
             materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
 
             sceneMaterial.m_MaterialDataBufferIdx = g_Graphic.AppendOrRetrieveMaterialDataIndex(materialData);
-
-            m_GLTFMaterialToSceneMaterialsIdx[&gltfMaterial] = i;
         }
     }
 
@@ -361,7 +351,6 @@ struct GLTFSceneLoader
             const cgltf_mesh& mesh = m_GLTFData->meshes[modelMeshIdx];
 
             m_SceneMeshPrimitives[modelMeshIdx].resize(mesh.primitives_count);
-            m_GLTFMeshToSceneMeshPrimitivesIndex[&mesh] = modelMeshIdx;
 
             for (uint32_t primitiveIdx = 0; primitiveIdx < mesh.primitives_count; ++primitiveIdx)
             {
@@ -388,10 +377,6 @@ struct GLTFSceneLoader
                         std::vector<Vector4> vertexTangents;
                         std::vector<Vector2> vertexUVs;
 
-                        bool bInitBV = true;
-                        AABB meshAABB;
-                        Sphere meshBS;
-
                         for (size_t attrIdx = 0; attrIdx < gltfPrimitive.attributes_count; ++attrIdx)
                         {
                             const cgltf_attribute& attribute = gltfPrimitive.attributes[attrIdx];
@@ -400,17 +385,6 @@ struct GLTFSceneLoader
                             {
                                 vertexPositions.resize(attribute.data->count);
                                 verify(cgltf_accessor_unpack_floats(attribute.data, &vertexPositions[0].x, attribute.data->count * 3));
-
-                                if (attribute.data->has_min && attribute.data->has_max)
-                                {
-                                    const Vector3 extents{ attribute.data->max[0] - attribute.data->min[0], attribute.data->max[1] - attribute.data->min[1], attribute.data->max[2] - attribute.data->min[2] };
-                                    const Vector3 center{ attribute.data->min[0] + extents.x * 0.5f, attribute.data->min[1] + extents.y * 0.5f, attribute.data->min[2] + extents.z * 0.5f };
-
-                                    meshAABB = AABB{ center - extents * 0.5f, center + extents * 0.5f };
-                                    Sphere::CreateFromBoundingBox(meshBS, meshAABB);
-
-                                    bInitBV = false;
-                                }
                             }
                             else if (attribute.type == cgltf_attribute_type_normal)
                             {
@@ -455,18 +429,12 @@ struct GLTFSceneLoader
                         }
 
                         Mesh* sceneMesh = g_Graphic.CreateMesh();
-                        sceneMesh->Initialize(vertices, indices, bInitBV, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
-
-                        if (!bInitBV)
-                        {
-                            sceneMesh->m_AABB = meshAABB;
-                            sceneMesh->m_BoundingSphere = meshBS;
-                        }
+                        sceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
                         if (gltfPrimitive.material)
                         {
-                            primitive.m_Material = m_SceneMaterials.at(m_GLTFMaterialToSceneMaterialsIdx.at(gltfPrimitive.material));
+                            primitive.m_Material = m_SceneMaterials.at(cgltf_material_index(m_GLTFData, gltfPrimitive.material));
                         }
                         else
                         {
@@ -520,7 +488,7 @@ struct GLTFSceneLoader
                     newVisual.m_NodeID = newNodeID;
                     newVisual.m_Name = node.name ? node.name : "Un-named Visual";
 
-                    const uint32_t sceneMeshPrimitivesIdx = m_GLTFMeshToSceneMeshPrimitivesIndex.at(node.mesh);
+                    const uint32_t sceneMeshPrimitivesIdx = cgltf_mesh_index(m_GLTFData, node.mesh);
 
                     for (const Primitive& primitive : m_SceneMeshPrimitives.at(sceneMeshPrimitivesIdx))
                     {

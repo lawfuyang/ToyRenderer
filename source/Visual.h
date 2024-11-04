@@ -30,7 +30,7 @@ public:
 class Mesh
 {
 public:
-    void Initialize(std::span<const RawVertexFormat> rawVertices, std::span<const uint32_t> indices, bool bInitBV, std::string_view meshName);
+    void Initialize(std::span<const RawVertexFormat> rawVertices, std::span<const uint32_t> indices, std::string_view meshName);
 
     bool IsValid() const;
 

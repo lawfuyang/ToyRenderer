@@ -85,9 +85,8 @@ void PS_PostProcess(
     in float2 inUV : TEXCOORD0,
     out float4 outColor : SV_TARGET)
 {
-    // FXAA
-    //float3 HDRColor = g_ColorInput[inPosition.xy].rgb;
-    float3 rgb = FXAA(inPosition.xy, inUV);
+    float3 rgb = g_ColorInput[inPosition.xy].rgb;
+    //float3 rgb = FXAA(inPosition.xy, inUV);
     
     // bloom
     float3 bloomSrc = g_BloomTexture[inPosition.xy].rgb;
