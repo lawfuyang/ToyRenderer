@@ -471,10 +471,18 @@ struct GLTFSceneLoader
                 newNode.m_ID = newNodeID;
                 newNode.m_Name = node.name ? node.name : "Un-named Mode";
 
-                Matrix outMatrix;
-                cgltf_node_transform_local(&node, (cgltf_float*)&outMatrix);
+                Matrix outLocalMatrix;
+                cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
 
-                verify(outMatrix.Decompose(newNode.m_Scale, newNode.m_Rotation, newNode.m_Position));
+                verify(outLocalMatrix.Decompose(newNode.m_Scale, newNode.m_Rotation, newNode.m_Position));
+
+                Matrix outWorldMatrix;
+                cgltf_node_transform_world(&node, (cgltf_float*)&outWorldMatrix);
+
+                Vector3 worldScale;
+                Quaternion worldRotation;
+                Vector3 worldPosition;
+                verify(outWorldMatrix.Decompose(worldScale, worldRotation, worldPosition));
 
                 if (node.mesh)
                 {
@@ -498,6 +506,17 @@ struct GLTFSceneLoader
                     }
 
                     newNode.m_VisualIdx = visualIdx;
+                }
+
+                if (node.camera)
+                {
+                    assert(node.camera->type == cgltf_camera_type_perspective);
+
+                    Scene::Camera& newCamera = scene->m_Cameras.emplace_back();
+
+                    newCamera.m_Name = node.name ? node.name : "Un-named Camera";
+                    newCamera.m_Orientation = worldRotation;
+                    newCamera.m_Position = worldPosition;
                 }
             }
         }

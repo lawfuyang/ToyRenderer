@@ -25,6 +25,7 @@ class View
 public:
     void Initialize();
     void Update();
+    void UpdateVectors(float yaw, float pitch);
 
     float m_ZNearP = 0.1f;
     float m_ZFarP = 100.0f;
@@ -68,6 +69,13 @@ struct VisualProxy
 class Scene
 {
 public:
+    struct Camera
+    {
+        std::string m_Name;
+        Vector3 m_Position;
+        Quaternion m_Orientation;
+    };
+
     enum EView { Main, CSM0, CSM1, CSM2, CSM3 };
 
     void Initialize();
@@ -79,6 +87,7 @@ public:
     void UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t proxyIdx);
     void CalculateCSMSplitDistances();
     void PostRender();
+    void SetCamera(uint32_t idx);
 
     std::shared_ptr<RenderGraph> m_RenderGraph;
 
@@ -105,6 +114,8 @@ public:
     TileRenderingHelper m_DeferredLightingTileRenderingHelper;
 
     SimpleResizeableGPUBuffer m_InstanceConstsBuffer;
+
+    std::vector<Camera> m_Cameras;
 
 private:
     void UpdateMainViewCameraControls();

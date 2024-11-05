@@ -146,6 +146,28 @@ void View::Update()
     m_Frustum.Transform(m_Frustum, m_InvViewMatrix);
 }
 
+void View::UpdateVectors(float yaw, float pitch)
+{
+    const float PIBy2 = std::numbers::pi * 0.5f;
+
+    const float r = std::cos(pitch);
+    m_LookAt =
+    {
+        r * std::sin(yaw),
+        std::sin(pitch),
+        r * std::cos(yaw),
+    };
+
+    m_Right =
+    {
+        std::sin(yaw - PIBy2),
+        0,
+        std::cos(yaw - PIBy2),
+    };
+
+    m_Up = m_Right.Cross(m_LookAt);
+}
+
 void Scene::Initialize()
 {
     tf::Taskflow tf;
@@ -223,6 +245,23 @@ void Scene::PostRender()
     m_RenderGraph->PostRender();
 }
 
+void Scene::SetCamera(uint32_t idx)
+{
+    const Camera& camera = m_Cameras.at(idx);
+
+    View& view = m_Views[EView::Main];
+
+    view.m_Eye = camera.m_Position;
+
+    const Matrix matrix = Matrix::CreateFromQuaternion(camera.m_Orientation);
+    const Vector3 forwardVector = matrix.Forward();
+
+    m_Yaw = atan2f(forwardVector.x, forwardVector.z);
+    m_Pitch = asinf(forwardVector.y);
+
+    view.UpdateVectors(m_Yaw, m_Pitch);
+}
+
 void Scene::UpdateMainViewCameraControls()
 {
     // disable camera controls if imgui keyboard input is active... so we don't move the camera when inputing values to imgui
@@ -285,27 +324,7 @@ void Scene::UpdateMainViewCameraControls()
         m_Yaw -= s_MouseRotationSpeed * mouseDeltaVec.x;
         m_Pitch -= s_MouseRotationSpeed * mouseDeltaVec.y;
 
-        const float PIBy2 = std::numbers::pi * 0.5f;
-
-        // Prevent looking too far up or down.
-        m_Pitch = std::clamp(m_Pitch, -PIBy2, PIBy2);
-
-        const float r = std::cos(m_Pitch);
-        mainView.m_LookAt =
-        {
-            r * std::sin(m_Yaw),
-            std::sin(m_Pitch),
-            r * std::cos(m_Yaw),
-        };
-
-        mainView.m_Right =
-        {
-            std::sin(m_Yaw - PIBy2),
-            0,
-            std::cos(m_Yaw - PIBy2),
-        };
-
-        mainView.m_Up = mainView.m_Right.Cross(mainView.m_LookAt);
+        mainView.UpdateVectors(m_Yaw, m_Pitch);
     }
 }
 
@@ -532,6 +551,24 @@ void Scene::Shutdown()
 
 void Scene::UpdateIMGUIPropertyGrid()
 {
+    if (ImGui::TreeNode("Cameras"))
+    {
+        std::string cameraComboStr;
+        for (const Scene::Camera& camera : m_Cameras)
+        {
+            cameraComboStr += camera.m_Name + '\0';
+        }
+        cameraComboStr += '\0';
+
+        static int cameraIdx = 0;
+        if (ImGui::Combo("##SceneCameraCombo", &cameraIdx, cameraComboStr.c_str()))
+        {
+            SetCamera(cameraIdx);
+        }
+
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNode("Lighting"))
     {
         bool bUpdateDirection = false;
@@ -610,9 +647,10 @@ void Scene::OnSceneLoad()
     LOG_DEBUG("Camera Near Plane: %f", mainView.m_ZNearP);
 
     UpdateInstanceConstsBuffer();
-}
 
-void UpdateSceneIMGUI()
-{
-
+    // set to first camera if any
+    if (!m_Cameras.empty())
+    {
+        SetCamera(0);
+    }
 }

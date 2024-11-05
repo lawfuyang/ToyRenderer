@@ -1,6 +1,5 @@
 • fix GPU occlusion culling causing wrong results
 • fix GPU frustum culling causing wrong results for shadows (Bistro)
-• gltf camera selection
 • fix texture/image reading from cgltf
 • fix all -Wconversion Shader warnings
 • use low-poly occluders for depth prepass

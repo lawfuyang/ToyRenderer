@@ -132,10 +132,6 @@ void IMGUIManager::Update()
         ImGui::End();
     }
 
-    // defined in World.cpp
-    extern void UpdateSceneIMGUI();
-    UpdateSceneIMGUI();
-
     if (ImGui::BeginMainMenuBar())
     {
         UpdateMainMenuBar();
