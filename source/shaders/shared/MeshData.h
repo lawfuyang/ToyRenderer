@@ -10,7 +10,9 @@ struct MeshData
 	uint32_t m_StartVertexLocation;
 	uint32_t m_HasTangentData;
 	Vector3 m_AABBCenter;
+	uint32_t PAD0;
 	Vector3 m_AABBExtents;
+	uint32_t PAD1;
 	Vector4 m_BoundingSphere;
 };
 

@@ -5,7 +5,7 @@ option(ENABLE_IPO "" OFF)
 option(ENABLE_ADDRESS_SANITIZER "" OFF)
 
 # Set available build types
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
+set(CMAKE_CONFIGURATION_TYPES "Debug;RelWithDebInfo" CACHE STRING "Limited configurations" FORCE)
 
 project(ToyRenderer)
 

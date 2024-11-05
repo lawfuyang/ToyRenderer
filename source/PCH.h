@@ -43,9 +43,9 @@
 #define PRAGMA_OPTIMIZE_ON  __pragma(optimize("", on))
 
 #ifdef NDEBUG
-    #define verify(expr) assert(expr)
-#else
     #define verify(expr) expr
+#else
+    #define verify(expr) assert(expr)
 #endif
 
 using Microsoft::WRL::ComPtr;

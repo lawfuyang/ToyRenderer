@@ -26,11 +26,7 @@ struct SpinLock {
 };
 
 #define PROFILE_LOCK(NAME) MICROPROFILE_SCOPEI("Locks", NAME, 0xFF0000)
-
-#define AUTO_LOCK(lck)                   AUTO_SCOPE( [&]{ PROFILE_LOCK(TOSTRING(lck)); lck.lock(); }                                                , [&]{ lck.unlock(); } )
-#define AUTO_LOCK_READ(lck)              AUTO_SCOPE( [&]{ PROFILE_LOCK(TOSTRING(JOIN_MACROS(lck, _LockRead))); lck.lock_shared(); }                 , [&]{ lck.unlock_shared(); } )
-#define AUTO_LOCK_WRITE(lck)             AUTO_SCOPE( [&]{ PROFILE_LOCK(TOSTRING(JOIN_MACROS(lck, _LockWrite))); lck.lock(); }                       , [&]{ lck.unlock(); } )
-#define AUTO_LOCK_SCOPED_RW_UPGRADE(lck) AUTO_SCOPE( [&]{ PROFILE_LOCK(TOSTRING(JOIN_MACROS(lck, _LockUpgrade))); lck.unlock_shared(); lck.lock(); }, [&]{ lck.unlock(); lck.lock_shared(); } )
+#define AUTO_LOCK(lck) AUTO_SCOPE( [&]{ PROFILE_LOCK(TOSTRING(lck)); lck.lock(); } , [&]{ lck.unlock(); } )
 
 class MultithreadDetector
 {

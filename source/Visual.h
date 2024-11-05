@@ -85,7 +85,6 @@ public:
     void UpdateIMGUI();
     void OnSceneLoad();
 
-    std::string m_Name = "Un-named Visual";
     uint32_t m_NodeID = UINT_MAX;
     std::vector<uint32_t> m_PrimitivesIndices;
 };
@@ -107,8 +106,7 @@ public:
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
 
-    std::string m_Name = "Un-named Node";
-
+    uint32_t m_NameIdx = UINT_MAX;
     uint32_t m_VisualIdx = UINT_MAX;
 
 	uint32_t m_ParentNodeID = UINT_MAX;

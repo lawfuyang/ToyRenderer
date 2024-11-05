@@ -444,6 +444,7 @@ struct GLTFSceneLoader
 
         {
             SCENE_LOAD_PROFILE("Add nodes to scene");
+            scene->m_NodeNames.resize(m_GLTFData->nodes_count);
 
             for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
             {
@@ -454,7 +455,7 @@ struct GLTFSceneLoader
 
                 Node& newNode = scene->m_Nodes.emplace_back();
                 newNode.m_ID = newNodeID;
-                newNode.m_Name = node.name ? node.name : "Un-named Node";
+                scene->m_NodeNames[i] = node.name ? node.name : "Un-named Node";
 
                 Matrix outLocalMatrix;
                 cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
@@ -471,11 +472,15 @@ struct GLTFSceneLoader
 
                 if (node.mesh)
                 {
+                    if (scene->m_NodeNames[i].empty() && node.mesh->name)
+                    {
+                        scene->m_NodeNames[i] = node.mesh->name;
+                    }
+
                     const uint32_t visualIdx = scene->m_Visuals.size();
 
                     Visual& newVisual = scene->m_Visuals.emplace_back();
                     newVisual.m_NodeID = newNodeID;
-                    newVisual.m_Name = node.name ? node.name : "Un-named Visual";
 
                     for (const Primitive& primitive : m_SceneMeshPrimitives.at(cgltf_mesh_index(m_GLTFData, node.mesh)))
                     {

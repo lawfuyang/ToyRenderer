@@ -218,9 +218,11 @@ bool Material::IsValid() const
 
 void Node::UpdateIMGUI()
 {
+    Scene* scene = g_Graphic.m_Scene.get();
+
     bool bTransformDirty = false;
 
-    ImGui::InputText("Name", &m_Name, ImGuiInputTextFlags_EnterReturnsTrue);
+    ImGui::Text("Name: %s", m_NameIdx != UINT_MAX ? scene->m_NodeNames.at(m_NameIdx).c_str() : "");
     bTransformDirty |= ImGui::InputFloat3("Position", (float*)&m_Position, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
     bTransformDirty |= ImGui::InputFloat3("Scale", (float*)&m_Scale, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
     //ImGui::SliderFloat3("World Rotation (yaw, pitch, roll)", (float*)&m_Rotation, 0.0f, PI, "%.2f");
@@ -273,9 +275,11 @@ static void NodeIMGUIWidget(Node& node, bool bIsNodeList)
 {
     assert(node.m_ID != UINT_MAX);
 
+    Scene* scene = g_Graphic.m_Scene.get();
+
     ImGui::PushID(node.m_ID);
 
-    const char* nodeName = StringFormat("%s (ID: %d)", node.m_Name.c_str(), node.m_ID);
+    const char* nodeName = StringFormat("%s (ID: %d)", node.m_NameIdx != UINT_MAX ? scene->m_NodeNames.at(node.m_NameIdx).c_str() : "", node.m_ID);
 
     // only print node name on "top bar"
     if (!bIsNodeList)
@@ -300,6 +304,8 @@ static void RenderIMGUINodeList()
     ImGui::InputText("##NameFilter", &s_NodeNameSearchText);
     ImGui::Separator();
 
+    Scene* scene = g_Graphic.m_Scene.get();
+
     std::vector<Node*> s_FinalFilteredNodes;
 
     std::vector<Node>& allNodes = g_Graphic.m_Scene->m_Nodes;
@@ -314,7 +320,7 @@ static void RenderIMGUINodeList()
             std::string loweredSearchTxt = s_NodeNameSearchText;
             StringUtils::ToLower(loweredSearchTxt);
 
-            std::string nodeNameLowered = node.m_Name;
+            std::string nodeNameLowered = node.m_NameIdx != UINT_MAX ? scene->m_NodeNames.at(node.m_NameIdx).c_str() : "";
             StringUtils::ToLower(nodeNameLowered);
 
             if (nodeNameLowered.find(loweredSearchTxt.c_str()) != std::string::npos)
