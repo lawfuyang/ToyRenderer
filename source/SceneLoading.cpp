@@ -479,8 +479,10 @@ struct GLTFSceneLoader
 
                     for (const Primitive& primitive : m_SceneMeshPrimitives.at(cgltf_mesh_index(m_GLTFData, node.mesh)))
                     {
-                        newVisual.m_Primitives.push_back(primitive);
-                        newVisual.m_Primitives.back().m_VisualIdx = visualIdx;
+                        Primitive& newPrimitive = scene->m_Primitives.emplace_back();
+                        newPrimitive.m_VisualIdx = visualIdx;
+                        newPrimitive.m_MeshIdx = primitive.m_MeshIdx;
+                        newPrimitive.m_Material = primitive.m_Material;
 
                         Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 

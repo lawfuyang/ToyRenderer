@@ -59,13 +59,6 @@ public:
     GPUCullingCounters m_GPUCullingCounters;
 };
 
-struct VisualProxy
-{
-    uint32_t m_NodeID;
-    const Primitive* m_Primitive;
-    Matrix m_WorldMatrix;
-};
-
 class Scene
 {
 public:
@@ -83,8 +76,6 @@ public:
     void Shutdown();
     void UpdateIMGUIPropertyGrid();
     void OnSceneLoad();
-    uint32_t InsertPrimitive(Primitive* p, const Matrix& worldMatrix);
-    void UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t proxyIdx);
     void CalculateCSMSplitDistances();
     void PostRender();
     void SetCamera(uint32_t idx);
@@ -107,7 +98,7 @@ public:
 
     std::vector<Node> m_Nodes;
     std::vector<Visual> m_Visuals;
-    std::vector<VisualProxy> m_VisualProxies;
+    std::vector<Primitive> m_Primitives;
 
     nvrhi::BufferHandle m_LuminanceBuffer;
 

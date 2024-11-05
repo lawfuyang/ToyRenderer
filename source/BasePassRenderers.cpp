@@ -125,7 +125,7 @@ public:
             renderGraph.CreateTransientResource(m_CounterStatsRDGBufferHandle, desc);
 		}
 
-		const uint32_t nbInstances = g_Graphic.m_Scene->m_VisualProxies.size();
+		const uint32_t nbInstances = g_Graphic.m_Scene->m_Primitives.size();
 		if (nbInstances > 0)
 		{
 			{
@@ -175,7 +175,7 @@ public:
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
 
-        const uint32_t nbInstances = scene->m_VisualProxies.size();
+        const uint32_t nbInstances = scene->m_Primitives.size();
         assert(nbInstances > 0);
 
         {
@@ -299,7 +299,7 @@ public:
         commandList->setGraphicsState(drawState);
 
         // NOTE: treating the 2nd arg for 'drawIndexedIndirect' as 'MaxCommandCount' is only legit for d3d12!
-        const uint32_t maxCommandCount = scene->m_VisualProxies.size();
+        const uint32_t maxCommandCount = scene->m_Primitives.size();
         commandList->drawIndexedIndirect(0, maxCommandCount);
     }
 
@@ -429,7 +429,7 @@ public:
     {
         Scene* scene = g_Graphic.m_Scene.get();
 
-        if (scene->m_VisualProxies.empty())
+        if (scene->m_Primitives.empty())
         {
             return;
         }
@@ -556,7 +556,7 @@ public:
     {
         Scene* scene = g_Graphic.m_Scene.get();
 
-        if (scene->m_VisualProxies.empty())
+        if (scene->m_Primitives.empty())
         {
             return;
         }

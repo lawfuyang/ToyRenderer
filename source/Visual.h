@@ -77,7 +77,6 @@ public:
     uint32_t m_VisualIdx = UINT_MAX;
 	uint32_t m_MeshIdx = UINT_MAX;
     Material m_Material;
-    uint32_t m_ScenePrimitiveIndex = UINT_MAX;
 };
 
 class Visual
@@ -86,12 +85,9 @@ public:
     void UpdateIMGUI();
     void OnSceneLoad();
 
-    void InsertPrimitivesToScene();
-    void UpdatePrimitivesInScene();
-
     std::string m_Name = "Un-named Visual";
     uint32_t m_NodeID = UINT_MAX;
-    std::vector<Primitive> m_Primitives;
+    std::vector<uint32_t> m_PrimitivesIndices;
 };
 
 class Node

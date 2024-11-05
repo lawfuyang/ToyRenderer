@@ -104,9 +104,11 @@ bool Primitive::IsValid() const
 
 void Visual::UpdateIMGUI()
 {
-    for (uint32_t i = 0; i < m_Primitives.size(); ++i)
+    Scene* scene = g_Graphic.m_Scene.get();
+
+    for (uint32_t i : m_PrimitivesIndices)
     {
-        Primitive& primitive = m_Primitives[i];
+        Primitive& primitive = scene->m_Primitives[i];
         assert(primitive.IsValid());
 
         if (ImGui::CollapsingHeader(StringFormat("Primitive %d", i), ImGuiTreeNodeFlags_DefaultOpen))
@@ -146,45 +148,7 @@ void Visual::UpdateIMGUI()
 
 void Visual::OnSceneLoad()
 {
-    InsertPrimitivesToScene();
-}
 
-void Visual::InsertPrimitivesToScene()
-{
-    Scene* scene = g_Graphic.m_Scene.get();
-
-    const Matrix worldMatrix = scene->m_Nodes.at(m_NodeID).MakeLocalToWorldMatrix();
-
-    for (Primitive& p : m_Primitives)
-    {
-        assert(p.IsValid());
-
-        Mesh& primitiveMesh = g_Graphic.m_Meshes.at(p.m_MeshIdx);
-        assert(primitiveMesh.IsValid());
-
-        assert(p.m_ScenePrimitiveIndex == UINT_MAX);
-
-        p.m_ScenePrimitiveIndex = scene->InsertPrimitive(&p, worldMatrix);
-    }
-}
-
-void Visual::UpdatePrimitivesInScene()
-{
-    Scene* scene = g_Graphic.m_Scene.get();
-
-    const Matrix worldMatrix = scene->m_Nodes.at(m_NodeID).MakeLocalToWorldMatrix();
-
-    for (Primitive& p : m_Primitives)
-    {
-        assert(p.IsValid());
-
-        Mesh& primitiveMesh = g_Graphic.m_Meshes.at(p.m_MeshIdx);
-        assert(primitiveMesh.IsValid());
-
-        assert(p.m_ScenePrimitiveIndex != UINT_MAX);
-
-        scene->UpdatePrimitive(&p, worldMatrix, p.m_ScenePrimitiveIndex);
-    }
 }
 
 void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const uint32_t> indices, std::string_view meshName)
@@ -282,20 +246,7 @@ void Node::UpdateIMGUI()
 
     if (bTransformDirty && m_VisualIdx != UINT_MAX)
     {
-        Scene* scene = g_Graphic.m_Scene.get();
-        scene->m_Visuals.at(m_VisualIdx).UpdatePrimitivesInScene();
-
-        for (uint32_t childrenNodeID : m_ChildrenNodeIDs)
-        {
-			Node& child = scene->m_Nodes.at(childrenNodeID);
-
-            if (child.m_VisualIdx == UINT_MAX)
-            {
-                continue;
-            }
-
-            scene->m_Visuals.at(child.m_VisualIdx).UpdatePrimitivesInScene();
-        }
+        // TODO
     }
 }
 

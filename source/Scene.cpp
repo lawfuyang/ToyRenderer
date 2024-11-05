@@ -393,48 +393,47 @@ void Scene::UpdateInstanceConstsBuffer()
 {
     PROFILE_FUNCTION();
 
-    const uint32_t nbInstances = m_VisualProxies.size();
-    if (nbInstances == 0)
+    const uint32_t nbPrimitives = m_Primitives.size();
+    if (nbPrimitives == 0)
     {
         return;
     }
 
-    // TODO: upload only dirty proxies
+    // TODO: upload only dirty primitives
 
     std::vector<BasePassInstanceConstants> instanceConstsBytes;
-	instanceConstsBytes.resize(nbInstances);
+    instanceConstsBytes.resize(nbPrimitives);
 
-	for (uint32_t i = 0; i < nbInstances; ++i)
+	for (uint32_t i = 0; i < nbPrimitives; ++i)
 	{
-		VisualProxy& visualProxy = m_VisualProxies.at(i);
+        const Primitive& primitive = m_Primitives.at(i);
+        assert(primitive.IsValid());
 
-		const Primitive* primitive = visualProxy.m_Primitive;
-		assert(primitive->IsValid());
+        const Visual& visual = m_Visuals.at(primitive.m_VisualIdx);
+        const Node& node = m_Nodes.at(visual.m_NodeID);
+        const Material& material = primitive.m_Material;
+        const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
-		const Material& material = primitive->m_Material;
-		assert(material.IsValid());
+        const Matrix worldMatrix = node.MakeLocalToWorldMatrix();
 
-		const Mesh& mesh = g_Graphic.m_Meshes.at(primitive->m_MeshIdx);
+        Matrix inverseTransposeMatrix = worldMatrix;
+        inverseTransposeMatrix.Translation(Vector3::Zero);
+        inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
 
-		Matrix inverseTransposeMatrix = visualProxy.m_WorldMatrix;
-		inverseTransposeMatrix.Translation(Vector3::Zero);
-		inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
+        AABB instanceAABB;
+        mesh.m_AABB.Transform(instanceAABB, worldMatrix);
 
-		AABB instanceAABB;
-		mesh.m_AABB.Transform(instanceAABB, visualProxy.m_WorldMatrix);
+        // instance consts
+        BasePassInstanceConstants instanceConsts{};
+        instanceConsts.m_WorldMatrix = worldMatrix;
+        instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
+        instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
+        instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
+        instanceConsts.m_AABBCenter = instanceAABB.Center;
+        instanceConsts.m_AABBExtents = instanceAABB.Extents;
 
-		// instance consts
-		BasePassInstanceConstants instanceConsts{};
-		instanceConsts.m_NodeID = visualProxy.m_NodeID;
-		instanceConsts.m_WorldMatrix = visualProxy.m_WorldMatrix;
-		instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
-		instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
-		instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
-		instanceConsts.m_AABBCenter = instanceAABB.Center;
-		instanceConsts.m_AABBExtents = instanceAABB.Extents;
-
-		instanceConstsBytes[i] = instanceConsts;
-	}
+        instanceConstsBytes[i] = instanceConsts;
+    }
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload BasePassInstanceConstants");
@@ -504,24 +503,6 @@ void Scene::Update()
     m_RenderGraph->Compile();
 
     g_Engine.m_Executor->corun(tf);
-}
-
-uint32_t Scene::InsertPrimitive(Primitive* p, const Matrix& worldMatrix)
-{
-    const uint32_t proxyIdx = (uint32_t)m_VisualProxies.size();
-    VisualProxy& newProxy = m_VisualProxies.emplace_back();
-
-    newProxy.m_NodeID = m_Visuals.at(p->m_VisualIdx).m_NodeID;
-    newProxy.m_Primitive = p;
-    newProxy.m_WorldMatrix = worldMatrix;
-
-    return proxyIdx;
-}
-
-void Scene::UpdatePrimitive(Primitive* p, const Matrix& worldMatrix, uint32_t proxyIdx)
-{
-    VisualProxy& visualProxy = m_VisualProxies.at(proxyIdx);
-    visualProxy.m_WorldMatrix = worldMatrix;
 }
 
 void Scene::CalculateCSMSplitDistances()
@@ -604,12 +585,16 @@ void Scene::UpdateIMGUIPropertyGrid()
 
             ImGui::Text("[%s]:", EnumUtils::ToString((EView)i));
 
-            ImGui::Indent();
-			ImGui::Text("GPU Visible: Frustum:[%d]", InstanceRenderingControllables.m_bEnableFrustumCulling ? view.m_GPUCullingCounters.m_Frustum : g_Graphic.m_Scene->m_VisualProxies.size());
+            if (InstanceRenderingControllables.m_bEnableFrustumCulling)
+            {
+                ImGui::Indent();
+                ImGui::Text("GPU Visible: Frustum:[%d]", view.m_GPUCullingCounters.m_Frustum);
+                ImGui::SameLine();
+            }
 
-			ImGui::SameLine();
 			ImGui::Text("Occlusion: Phase 1:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase1);
 			ImGui::SameLine();
+
 			ImGui::Text("Phase 2:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase2);
 
             ImGui::Unindent();
