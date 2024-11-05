@@ -85,6 +85,12 @@ nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle command
     return newTexture;
 }
 
+bool IsSTBImage(const void* data, uint32_t nbBytes)
+{
+    int width = 0, height = 0, originalChannels = 0;
+    return !!stbi_info_from_memory((const stbi_uc*)data, (int)nbBytes, &width, &height, &originalChannels);
+}
+
 nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false)
 {
     PROFILE_FUNCTION();

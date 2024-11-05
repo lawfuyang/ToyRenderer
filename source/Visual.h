@@ -12,10 +12,9 @@ class Mesh;
 class Texture
 {
 public:
-    void LoadFromMemory(const void* rawData, uint32_t nbBytes, bool bIsKTX2, std::string_view debugName);
+    void LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_view debugName);
     void LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc);
-    bool LoadFromFile(std::string_view filePath);
-    bool LoadFromCache(bool bInsertEmptyTextureHandleIfNotFound = false, bool* bInserted = nullptr);
+    void LoadFromFile(std::string_view filePath);
 
     operator bool() const { return m_NVRHITextureHandle != nullptr && m_DescriptorIndex != UINT_MAX; }
 

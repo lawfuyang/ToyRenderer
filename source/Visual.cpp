@@ -20,7 +20,7 @@ static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
     return g_Graphic.m_DescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
 }
 
-void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, bool bIsKTX2, std::string_view debugName)
+void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_view debugName)
 {
     PROFILE_FUNCTION();
 
@@ -30,35 +30,24 @@ void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, bool bIsKTX2
         m_Hash = HashRange((std::byte*)rawData, std::min(nbBytes, 512u));
     }
 
-    const bool bRetrievedFromCache = LoadFromCache();
-    if (bRetrievedFromCache)
-    {
-        assert(*this);
-        return;
-    }
-
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Texture::LoadFromMemory");
 
     const char* finalDebugName = debugName.empty() ? StringFormat("0x%X", m_Hash) : debugName.data();
 
-    if (bIsKTX2)
+    extern bool IsSTBImage(const void* data, uint32_t nbBytes);
+    if (IsSTBImage(rawData, nbBytes))
+    {
+        extern nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false);
+        m_NVRHITextureHandle = CreateSTBITextureFromMemory(commandList, rawData, nbBytes, finalDebugName);
+    }
+    else
     {
         extern nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName);
         m_NVRHITextureHandle = CreateKTXTextureFromMemory(commandList, rawData, nbBytes, finalDebugName);
     }
-    else
-    {
-        extern nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false);
-        m_NVRHITextureHandle = CreateSTBITextureFromMemory(commandList, rawData, (uint32_t)nbBytes, finalDebugName);
-    }
+
     assert(m_NVRHITextureHandle);
-
-    {
-        AUTO_LOCK(g_Graphic.m_TextureCacheLock);
-
-        g_Graphic.m_TextureCache[m_Hash] = m_NVRHITextureHandle;
-    }
 
     m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
 
@@ -91,87 +80,21 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     commandList->commitBarriers();
 }
 
-bool Texture::LoadFromFile(std::string_view filePath)
+void Texture::LoadFromFile(std::string_view filePath)
 {
     PROFILE_FUNCTION();
 
-    // if load from file, hash file path
-    m_Hash = std::hash<std::string_view>{}(filePath);
+    // if loading is required, sanity check that texture handle & descriptor table index is invalid
+    assert(!*this);
 
-    // if the cache has a valid texture handle, means its fully loaded & ready to be retrieved
-    // if dummy texture was inserted by this function call. it's now responsible to load it
-    bool bDoLoad;
-    const bool bRetrievedFromCache = LoadFromCache(true /*bInsertEmptyTextureHandleIfNotFound*/, &bDoLoad);
+    std::string extStr = GetFileExtensionFromPath(filePath);
+    StringUtils::ToLower(extStr);
 
-    if (bRetrievedFromCache)
-    {
-        // do nothing
-        assert(*this);
-        return true;
+    std::vector<std::byte> imageBytes;
+    ReadDataFromFile(filePath, imageBytes);
 
-    }
-    else if (bDoLoad)
-    {
-        // if loading is required, sanity check that texture handle & descriptor table index is invalid
-        assert(!*this);
-
-        std::string extStr = GetFileExtensionFromPath(filePath);
-        StringUtils::ToLower(extStr);
-
-        const bool bIsKTX2 = extStr == ".ktx2";
-
-        std::vector<std::byte> imageBytes;
-        ReadDataFromFile(filePath, imageBytes);
-
-        const std::string debugName = std::filesystem::path{ filePath }.stem().string();
-        LoadFromMemory(imageBytes.data(), (uint32_t)imageBytes.size(), bIsKTX2, debugName);
-        return true;
-    }
-
-    // same texture file is currently being loaded in another thread...
-    return false;
-}
-
-bool Texture::LoadFromCache(bool bInsertEmptyTextureHandleIfNotFound, bool* bOutInserted)
-{
-    assert(m_Hash != 0);
-
-    if (bInsertEmptyTextureHandleIfNotFound)
-    {
-        AUTO_LOCK(g_Graphic.m_TextureCacheLock);
-        auto [insertIt, bInserted] = g_Graphic.m_TextureCache.insert({ m_Hash, nvrhi::TextureHandle{} });
-
-        if (bOutInserted)
-        {
-            *bOutInserted = bInserted;
-        }
-        else
-        {
-            m_NVRHITextureHandle = insertIt->second;
-        }
-    }
-    else
-    {
-        AUTO_LOCK(g_Graphic.m_TextureCacheLock);
-        auto it = g_Graphic.m_TextureCache.find(m_Hash);
-        if (it == g_Graphic.m_TextureCache.end())
-        {
-            return false;
-        }
-        else
-        {
-            m_NVRHITextureHandle = it->second;
-        }
-    }
-
-    // even if handle is cached, it could still be null as another thread might still be loading it
-    if (m_NVRHITextureHandle)
-    {
-        m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
-        return true;
-    }
-
-    return false;
+    const std::string debugName = std::filesystem::path{ filePath }.stem().string();
+    LoadFromMemory(imageBytes.data(), (uint32_t)imageBytes.size(), debugName);
 }
 
 bool Primitive::IsValid() const

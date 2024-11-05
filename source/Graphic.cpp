@@ -912,7 +912,6 @@ void Graphic::Shutdown()
     m_Scene->Shutdown();
     m_Scene.reset();
 
-    m_TextureCache.clear();
     m_AllShaders.clear();
     m_CachedGraphicPSOs.clear();
     m_CachedComputePSOs.clear();

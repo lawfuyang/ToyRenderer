@@ -29,7 +29,7 @@ struct GLTFSceneLoader
 
     std::vector<nvrhi::SamplerAddressMode> m_AddressModes;
     std::vector<std::vector<Primitive>> m_SceneMeshPrimitives;
-    std::vector<Texture> m_SceneTextures;
+    std::vector<Texture> m_SceneImages;
     std::vector<Material> m_SceneMaterials;
 
     ~GLTFSceneLoader()
@@ -42,7 +42,7 @@ struct GLTFSceneLoader
 
     void LoadScene(std::string_view filePath)
     {
-        PROFILE_FUNCTION();
+        SCENE_LOAD_PROFILE("Load Scene");
 
         cgltf_options options{};
         
@@ -88,7 +88,7 @@ struct GLTFSceneLoader
         m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
 
         LoadSamplers();
-        LoadTextures();
+        LoadImages();
         LoadMaterials();
         LoadMeshes();
         LoadNodes();
@@ -161,8 +161,7 @@ struct GLTFSceneLoader
 
     void LoadSamplers()
     {
-        PROFILE_FUNCTION();
-        SCOPED_TIMER_FUNCTION();
+        SCENE_LOAD_PROFILE("Load Samplers");
 
         m_AddressModes.resize(m_GLTFData->samplers_count);
         for (uint32_t i = 0; i < m_GLTFData->samplers_count; ++i)
@@ -198,50 +197,36 @@ struct GLTFSceneLoader
         }
     }
 
-    void LoadTextures()
+    void LoadImages()
     {
-        PROFILE_FUNCTION();
-        SCOPED_TIMER_FUNCTION();
+        SCENE_LOAD_PROFILE("Load Images");
 
-        if (m_GLTFData->textures_count == 0)
+        if (m_GLTFData->images_count == 0)
         {
             return;
         }
 
         tf::Taskflow taskflow;
 
-        // hacky assumption that images_count == textures_count
-        assert(m_GLTFData->images_count == m_GLTFData->textures_count);
-
-        m_SceneTextures.resize(m_GLTFData->textures_count);
-
-        for (uint32_t i = 0; i < m_GLTFData->textures_count; ++i)
+        m_SceneImages.resize(m_GLTFData->images_count);
+        for (uint32_t i = 0; i < m_GLTFData->images_count; ++i)
         {
             taskflow.emplace([&, i]()
                 {
-                    const cgltf_texture& gltfTexture = m_GLTFData->textures[i];
+                    const cgltf_image& image = m_GLTFData->images[i];
+                    const char* debugName = image.name ? image.name : "Un-Named Image";
 
-                    if (gltfTexture.sampler)
+                    if (image.buffer_view)
                     {
-                        m_SceneTextures[i].m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, gltfTexture.sampler));
-                    }
-
-                    const cgltf_image* image = gltfTexture.has_basisu ? gltfTexture.basisu_image : gltfTexture.image;
-
-                    const char* debugName = image->name ? image->name : gltfTexture.name ? gltfTexture.name : "Un-Named Texture";
-
-                    if (image->buffer_view)
-                    {
-                        debugName = !debugName ? image->buffer_view->name : debugName;
-                        m_SceneTextures[i].LoadFromMemory((std::byte*)image->buffer_view->buffer->data + image->buffer_view->offset, image->buffer_view->size, gltfTexture.has_basisu, debugName);
+                        debugName = !debugName ? image.buffer_view->name : debugName;
+                        m_SceneImages[i].LoadFromMemory((std::byte*)image.buffer_view->buffer->data + image.buffer_view->offset, image.buffer_view->size, debugName);
                     }
                     else
                     {
-                        std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image->uri).string();
+                        std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image.uri).string();
                         cgltf_decode_uri(filePath.data());
 
-                        const bool bResult = m_SceneTextures[i].LoadFromFile(filePath);
-                        assert(bResult);
+                        m_SceneImages[i].LoadFromFile(filePath);
                     }
                 });
         }
@@ -251,12 +236,14 @@ struct GLTFSceneLoader
 
     void LoadMaterials()
     {
-        PROFILE_FUNCTION();
-        SCOPED_TIMER_FUNCTION();
+        SCENE_LOAD_PROFILE("Load Materials");
 
         auto HandleTextureView = [&](Texture& texture, const cgltf_texture_view& textureView)
             {
-                texture = m_SceneTextures.at(cgltf_texture_index(m_GLTFData, textureView.texture));
+                const cgltf_image* image = textureView.texture->has_basisu ? textureView.texture->basisu_image : textureView.texture->image;
+                assert(image);
+
+                texture = m_SceneImages.at(cgltf_image_index(m_GLTFData, image));
 
                 if (textureView.has_transform)
                 {
@@ -330,8 +317,7 @@ struct GLTFSceneLoader
 
     void LoadMeshes()
     {
-        PROFILE_FUNCTION();
-        SCOPED_TIMER_FUNCTION();
+        SCENE_LOAD_PROFILE("Load Meshes");
 
         uint32_t nbPrimitives = 0;
         for (uint32_t i = 0; i < m_GLTFData->meshes_count; ++i)
@@ -452,8 +438,7 @@ struct GLTFSceneLoader
 
     void LoadNodes()
     {
-        PROFILE_FUNCTION();
-        SCOPED_TIMER_FUNCTION();
+        SCENE_LOAD_PROFILE("Load Nodes");
 
         Scene* scene = g_Graphic.m_Scene.get();
 
@@ -492,9 +477,7 @@ struct GLTFSceneLoader
                     newVisual.m_NodeID = newNodeID;
                     newVisual.m_Name = node.name ? node.name : "Un-named Visual";
 
-                    const uint32_t sceneMeshPrimitivesIdx = cgltf_mesh_index(m_GLTFData, node.mesh);
-
-                    for (const Primitive& primitive : m_SceneMeshPrimitives.at(sceneMeshPrimitivesIdx))
+                    for (const Primitive& primitive : m_SceneMeshPrimitives.at(cgltf_mesh_index(m_GLTFData, node.mesh)))
                     {
                         newVisual.m_Primitives.push_back(primitive);
                         newVisual.m_Primitives.back().m_VisualIdx = visualIdx;
@@ -569,8 +552,6 @@ struct GLTFSceneLoader
 
 void LoadScene(std::string_view filePath)
 {
-    SCOPED_TIMER_FUNCTION();
-
     GLTFSceneLoader loader;
     loader.LoadScene(filePath);
 

@@ -179,9 +179,6 @@ public:
     nvrhi::BindingLayoutHandle m_BindlessLayout;
     std::shared_ptr<DescriptorTableManager> m_DescriptorTableManager;
 
-    std::mutex m_TextureCacheLock;
-    std::unordered_map<size_t, nvrhi::TextureHandle> m_TextureCache;
-
     std::mutex m_MeshesArrayLock;
     std::vector<Mesh> m_Meshes;
 
