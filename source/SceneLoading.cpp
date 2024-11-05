@@ -477,15 +477,12 @@ struct GLTFSceneLoader
                         scene->m_NodeNames[i] = node.mesh->name;
                     }
 
-                    const uint32_t visualIdx = scene->m_Visuals.size();
-
-                    Visual& newVisual = scene->m_Visuals.emplace_back();
-                    newVisual.m_NodeID = newNodeID;
-
                     for (const Primitive& primitive : m_SceneMeshPrimitives.at(cgltf_mesh_index(m_GLTFData, node.mesh)))
                     {
+                        const uint32_t primitiveID = scene->m_Primitives.size();
+
                         Primitive& newPrimitive = scene->m_Primitives.emplace_back();
-                        newPrimitive.m_VisualIdx = visualIdx;
+                        newPrimitive.m_NodeID = newNodeID;
                         newPrimitive.m_MeshIdx = primitive.m_MeshIdx;
                         newPrimitive.m_Material = primitive.m_Material;
 
@@ -493,9 +490,9 @@ struct GLTFSceneLoader
 
                         AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
                         Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
-                    }
 
-                    newNode.m_VisualIdx = visualIdx;
+                        newNode.m_PrimitivesIDs.push_back(primitiveID);
+                    }
                 }
 
                 if (node.camera)

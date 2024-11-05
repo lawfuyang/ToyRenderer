@@ -408,9 +408,8 @@ void Scene::UpdateInstanceConstsBuffer()
 	{
         const Primitive& primitive = m_Primitives.at(i);
         assert(primitive.IsValid());
-
-        const Visual& visual = m_Visuals.at(primitive.m_VisualIdx);
-        const Node& node = m_Nodes.at(visual.m_NodeID);
+        
+        const Node& node = m_Nodes.at(primitive.m_NodeID);
         const Material& material = primitive.m_Material;
         const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
@@ -610,14 +609,6 @@ void Scene::OnSceneLoad()
     SCOPED_TIMER_FUNCTION();
 
     View& mainView = m_Views[EView::Main];
-
-    for (Node& node : m_Nodes)
-    {
-        if (node.m_VisualIdx != UINT_MAX)
-        {
-            m_Visuals.at(node.m_VisualIdx).OnSceneLoad();
-        }
-    }
 
     // empirically resize CSM distances based on scene BS radius
     g_GraphicPropertyGrid.m_ShadowControllables.m_MaxShadowDistance = std::min(300.0f, std::max(1.0f, m_BoundingSphere.Radius * 2));

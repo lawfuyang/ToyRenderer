@@ -6,9 +6,6 @@
 
 #include "shaders/shared/RawVertexFormat.h"
 
-class Mesh;
-
-// TODO: throw to its own file if it gets too big
 class Texture
 {
 public:
@@ -18,7 +15,6 @@ public:
 
     operator bool() const { return m_NVRHITextureHandle != nullptr && m_DescriptorIndex != UINT_MAX; }
 
-    std::size_t m_Hash = 0;
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;
     nvrhi::SamplerAddressMode m_AddressMode = nvrhi::SamplerAddressMode::Wrap;
@@ -47,7 +43,6 @@ public:
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
 };
 
-// TODO: throw to its own file if it gets too big
 class Material
 {
 public:
@@ -63,51 +58,36 @@ public:
     float m_ConstRoughness = 0.75f;
     float m_ConstMetallic = 0.1f;
 
-    bool m_EnableAlphaBlend = false;
-
     uint32_t m_MaterialDataBufferIdx = UINT_MAX;
 };
 
-// TODO: throw to its own file if it gets too big
 class Primitive
 {
 public:
     bool IsValid() const;
 
-    uint32_t m_VisualIdx = UINT_MAX;
+    uint32_t m_NodeID = UINT_MAX;
 	uint32_t m_MeshIdx = UINT_MAX;
     Material m_Material;
-};
-
-class Visual
-{
-public:
-    void UpdateIMGUI();
-    void OnSceneLoad();
-
-    uint32_t m_NodeID = UINT_MAX;
-    std::vector<uint32_t> m_PrimitivesIndices;
 };
 
 class Node
 {
 public:
-    void UpdateIMGUI();
-
     Matrix MakeLocalToWorldMatrix() const;
 
     uint32_t m_ID = UINT_MAX;
 
     Vector3 m_Position;
     Vector3 m_Scale = Vector3::One;
-    //Vector3 m_Rotation; // yaw pitch roll
     Quaternion m_Rotation;
 
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
 
     uint32_t m_NameIdx = UINT_MAX;
-    uint32_t m_VisualIdx = UINT_MAX;
+    
+    std::vector<uint32_t> m_PrimitivesIDs;
 
 	uint32_t m_ParentNodeID = UINT_MAX;
     std::vector<uint32_t> m_ChildrenNodeIDs;

@@ -97,7 +97,6 @@ public:
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
 
     std::vector<Node> m_Nodes;
-    std::vector<Visual> m_Visuals;
     std::vector<Primitive> m_Primitives;
 
     std::vector<std::string> m_NodeNames;

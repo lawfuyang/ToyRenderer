@@ -64,44 +64,6 @@ void IMGUIManager::ProcessWindowsMessage(HWND hwnd, UINT msg, WPARAM wParam, LPA
     ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam);
 }
 
-void IMGUIManager::UpdateMainMenuBar()
-{
-    if (ImGui::BeginMenu("Engine"))
-    {
-        if (ImGui::MenuItem("Toggle Node Editor"))
-        {
-            m_bShowNodeEditor = !m_bShowNodeEditor;
-        }
-
-        if (ImGui::MenuItem("Take Profiling Capture"))
-        {
-            Engine::TriggerDumpProfilingCapture("Frames");
-        }
-        ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Graphic"))
-    {
-        if (ImGui::MenuItem("Show Graphic Property Grid"))
-        {
-            m_bShowGraphicPropertyGrid = !m_bShowGraphicPropertyGrid;
-        }
-
-        ImGui::EndMenu();
-    }
-
-
-    if (ImGui::BeginMenu("Others"))
-    {
-        if (ImGui::MenuItem("Toggle IMGUI Demo Windows"))
-        {
-            m_bShowDemoWindows = !m_bShowDemoWindows;
-        }
-
-        ImGui::EndMenu();
-    }
-}
-
 void IMGUIManager::Update()
 {
     PROFILE_FUNCTION();
@@ -116,12 +78,6 @@ void IMGUIManager::Update()
         ImGui::ShowDemoWindow();
     }
 
-    if (m_bShowNodeEditor)
-    {
-        extern void UpdateNodeEditorWindow(bool& bWindowActive);
-        UpdateNodeEditorWindow(m_bShowNodeEditor);
-    }
-
     if (m_bShowGraphicPropertyGrid)
     {
         if (ImGui::Begin("Graphic Property Grid", &m_bShowGraphicPropertyGrid, ImGuiWindowFlags_AlwaysAutoResize))
@@ -134,7 +90,22 @@ void IMGUIManager::Update()
 
     if (ImGui::BeginMainMenuBar())
     {
-        UpdateMainMenuBar();
+        if (ImGui::BeginMenu("Menu"))
+        {
+            if (ImGui::MenuItem("Show Graphic Property Grid"))
+            {
+                m_bShowGraphicPropertyGrid = !m_bShowGraphicPropertyGrid;
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Toggle IMGUI Demo Windows"))
+            {
+                m_bShowDemoWindows = !m_bShowDemoWindows;
+            }
+
+            ImGui::EndMenu();
+        }
 
         ImGui::Text("\tCPU: [%.2f ms]", g_Engine.m_CPUFrameTimeMs);
         ImGui::SameLine();
