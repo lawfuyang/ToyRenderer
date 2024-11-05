@@ -469,7 +469,7 @@ struct GLTFSceneLoader
 
                 Node& newNode = scene->m_Nodes.emplace_back();
                 newNode.m_ID = newNodeID;
-                newNode.m_Name = node.name ? node.name : "Un-named Mode";
+                newNode.m_Name = node.name ? node.name : "Un-named Node";
 
                 Matrix outLocalMatrix;
                 cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
