@@ -719,24 +719,10 @@ nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelin
     return computePipeline;
 }
 
-uint32_t Graphic::AppendOrRetrieveMaterialDataIndex(const MaterialData& materialData)
-{
-    const size_t materialDataHash = HashRawMem(materialData);
-
-    static std::mutex s_CachedMaterialDataLock;
-    AUTO_LOCK(s_CachedMaterialDataLock);
-
-    if (!m_CachedMaterialDataIndices.contains(materialDataHash))
-    {
-        uint64_t byteOffset = m_VirtualMaterialDataBuffer.QueueAppend(&materialData, sizeof(MaterialData));
-        m_CachedMaterialDataIndices[materialDataHash] = (uint32_t)byteOffset / sizeof(MaterialData);
-    }
-    return m_CachedMaterialDataIndices.at(materialDataHash);
-}
-
 Mesh* Graphic::CreateMesh()
 {
-    AUTO_LOCK(m_MeshesArrayLock);
+    static std::mutex s_MeshesArrayLock;
+    AUTO_LOCK(s_MeshesArrayLock);
 
     // we're returning a pointer to an element in a vector, so we need to make sure it's not reallocated
     assert(m_Meshes.size() < m_Meshes.capacity());

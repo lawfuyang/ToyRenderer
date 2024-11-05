@@ -78,7 +78,6 @@ public:
     [[nodiscard]] nvrhi::BindingLayoutHandle GetOrCreateBindingLayout(const nvrhi::BindlessLayoutDesc& layoutDesc);
     [[nodiscard]] nvrhi::GraphicsPipelineHandle GetOrCreatePSO(const nvrhi::GraphicsPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer);
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
-    uint32_t AppendOrRetrieveMaterialDataIndex(const MaterialData& materialData);
 
     Mesh* CreateMesh();
 
@@ -179,7 +178,6 @@ public:
     nvrhi::BindingLayoutHandle m_BindlessLayout;
     std::shared_ptr<DescriptorTableManager> m_DescriptorTableManager;
 
-    std::mutex m_MeshesArrayLock;
     std::vector<Mesh> m_Meshes;
 
     GrowableGPUVirtualBuffer m_VirtualVertexBuffer;
@@ -217,7 +215,6 @@ private:
     std::unordered_map<size_t, nvrhi::GraphicsPipelineHandle> m_CachedGraphicPSOs;
     std::unordered_map<size_t, nvrhi::ComputePipelineHandle> m_CachedComputePSOs;
     std::unordered_map<size_t, nvrhi::BindingLayoutHandle> m_CachedBindingLayouts;
-    std::unordered_map<size_t, uint32_t> m_CachedMaterialDataIndices;
     
     std::mutex m_PendingCommandListsLock;
     std::vector<nvrhi::CommandListHandle> m_PendingCommandLists;

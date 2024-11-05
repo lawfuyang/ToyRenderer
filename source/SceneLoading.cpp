@@ -311,7 +311,8 @@ struct GLTFSceneLoader
             materialData.m_MetallicRoughnessUVOffset = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset;
             materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
 
-            sceneMaterial.m_MaterialDataBufferIdx = g_Graphic.AppendOrRetrieveMaterialDataIndex(materialData);
+            const uint64_t byteOffset = g_Graphic.m_VirtualMaterialDataBuffer.QueueAppend(&materialData, sizeof(MaterialData));
+            sceneMaterial.m_MaterialDataBufferIdx = byteOffset / sizeof(MaterialData);
         }
     }
 
@@ -345,7 +346,7 @@ struct GLTFSceneLoader
                         PROFILE_SCOPED("Load Primitive");
 
                         const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
-                        assert(gltfPrimitive.type == cgltf_primitive_type_triangles); // TODO: support more primitive topologies
+                        assert(gltfPrimitive.type == cgltf_primitive_type_triangles);
 
                         std::vector<Graphic::IndexBufferFormat_t> indices;
                         indices.resize(gltfPrimitive.indices->count);
@@ -427,8 +428,6 @@ struct GLTFSceneLoader
                             primitive.m_Material = g_CommonResources.DefaultMaterial;
                         }
                         primitive.m_MeshIdx = sceneMesh->m_Idx;
-
-                        assert(primitive.IsValid());
                     });
             }
         }
@@ -444,18 +443,15 @@ struct GLTFSceneLoader
 
         {
             SCENE_LOAD_PROFILE("Add nodes to scene");
-            scene->m_NodeNames.resize(m_GLTFData->nodes_count);
 
             for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
             {
                 cgltf_node& node = m_GLTFData->nodes[i];
 
                 Scene* scene = g_Graphic.m_Scene.get();
-                const uint32_t newNodeID = scene->m_Nodes.size();
 
+                const uint32_t newNodeID = scene->m_Nodes.size();
                 Node& newNode = scene->m_Nodes.emplace_back();
-                newNode.m_ID = newNodeID;
-                scene->m_NodeNames[i] = node.name ? node.name : "Un-named Node";
 
                 Matrix outLocalMatrix;
                 cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
@@ -472,11 +468,6 @@ struct GLTFSceneLoader
 
                 if (node.mesh)
                 {
-                    if (scene->m_NodeNames[i].empty() && node.mesh->name)
-                    {
-                        scene->m_NodeNames[i] = node.mesh->name;
-                    }
-
                     for (const Primitive& primitive : m_SceneMeshPrimitives.at(cgltf_mesh_index(m_GLTFData, node.mesh)))
                     {
                         const uint32_t primitiveID = scene->m_Primitives.size();

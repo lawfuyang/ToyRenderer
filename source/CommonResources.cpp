@@ -448,7 +448,9 @@ static void CreateDefaultMaterial()
     materialData.m_ConstMetallic = 0.0f;
 
     g_CommonResources.DefaultMaterial.m_MaterialFlags = materialData.m_MaterialFlags;
-    g_CommonResources.DefaultMaterial.m_MaterialDataBufferIdx = g_Graphic.AppendOrRetrieveMaterialDataIndex(materialData);
+
+    const uint64_t byteOffset = g_Graphic.m_VirtualMaterialDataBuffer.QueueAppend(&materialData, sizeof(MaterialData));
+    g_CommonResources.DefaultMaterial.m_MaterialDataBufferIdx = byteOffset / sizeof(MaterialData);
 }
 
 void CommonResources::Initialize()

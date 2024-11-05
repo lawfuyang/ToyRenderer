@@ -1,6 +1,5 @@
 #include "Scene.h"
 
-#include "extern/debug_draw/debug_draw.hpp"
 #include "extern/imgui/imgui.h"
 
 #include "Engine.h"

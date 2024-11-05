@@ -1,11 +1,7 @@
 #include "Visual.h"
 
-#include "extern/debug_draw/debug_draw.hpp"
-#include "extern/imgui/imgui.h"
-#include "extern/imgui/imgui_stdlib.h"
 #include "nvrhi/utils.h"
 
-#include "CommonResources.h"
 #include "DescriptorTableManager.h"
 #include "Engine.h"
 #include "Graphic.h"
@@ -77,7 +73,7 @@ void Texture::LoadFromFile(std::string_view filePath)
     PROFILE_FUNCTION();
 
     // if loading is required, sanity check that texture handle & descriptor table index is invalid
-    assert(!*this);
+    assert(!IsValid());
 
     std::string extStr = GetFileExtensionFromPath(filePath);
     StringUtils::ToLower(extStr);
@@ -89,9 +85,17 @@ void Texture::LoadFromFile(std::string_view filePath)
     LoadFromMemory(imageBytes.data(), (uint32_t)imageBytes.size(), debugName);
 }
 
+bool Texture::IsValid() const
+{
+    return m_NVRHITextureHandle != nullptr
+        && m_DescriptorIndex != UINT_MAX;
+}
+
 bool Primitive::IsValid() const
 {
-    return m_MeshIdx != UINT_MAX && m_Material.IsValid();
+    return m_NodeID != UINT_MAX
+        && m_MeshIdx != UINT_MAX
+        && m_Material.IsValid();
 }
 
 void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const uint32_t> indices, std::string_view meshName)
@@ -143,15 +147,15 @@ bool Material::IsValid() const
 
     if (m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
     {
-        bResult &= m_AlbedoTexture;
+        bResult &= m_AlbedoTexture.IsValid();
     }
     if (m_MaterialFlags & MaterialFlag_UseNormalTexture)
     {
-        bResult &= m_NormalTexture;
+        bResult &= m_NormalTexture.IsValid();
     }
     if (m_MaterialFlags & MaterialFlag_UseMetallicRoughnessTexture)
     {
-        bResult &= m_MetallicRoughnessTexture;
+        bResult &= m_MetallicRoughnessTexture.IsValid();
     }
 
     bResult &= m_MaterialDataBufferIdx != UINT_MAX;

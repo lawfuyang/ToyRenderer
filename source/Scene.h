@@ -99,8 +99,6 @@ public:
     std::vector<Node> m_Nodes;
     std::vector<Primitive> m_Primitives;
 
-    std::vector<std::string> m_NodeNames;
-
     nvrhi::BufferHandle m_LuminanceBuffer;
 
     TileRenderingHelper m_DeferredLightingTileRenderingHelper;

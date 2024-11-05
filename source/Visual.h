@@ -13,7 +13,7 @@ public:
     void LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc);
     void LoadFromFile(std::string_view filePath);
 
-    operator bool() const { return m_NVRHITextureHandle != nullptr && m_DescriptorIndex != UINT_MAX; }
+    bool IsValid() const;
 
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;
@@ -76,16 +76,12 @@ class Node
 public:
     Matrix MakeLocalToWorldMatrix() const;
 
-    uint32_t m_ID = UINT_MAX;
-
     Vector3 m_Position;
     Vector3 m_Scale = Vector3::One;
     Quaternion m_Rotation;
 
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
-
-    uint32_t m_NameIdx = UINT_MAX;
     
     std::vector<uint32_t> m_PrimitivesIDs;
 
