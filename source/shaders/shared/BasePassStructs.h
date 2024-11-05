@@ -22,12 +22,8 @@ struct BasePassInstanceConstants
 	Matrix m_InverseTransposeWorldMatrix;
 	uint32_t m_MeshDataIdx;
 	uint32_t m_MaterialDataIdx;
-	uint32_t PAD0;
-	uint32_t PAD1;
 	Vector3 m_AABBCenter;
-	uint32_t PAD2;
 	Vector3 m_AABBExtents;
-	uint32_t PAD3;
 };
 
 #endif // #define _BASE_PASS_CONSTANTS_

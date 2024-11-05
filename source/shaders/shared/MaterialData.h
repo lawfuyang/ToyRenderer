@@ -6,7 +6,6 @@
 struct MaterialData
 {
 	Vector3 m_ConstDiffuse;
-	uint32_t PAD0;
 	uint32_t m_MaterialFlags;
 	uint32_t m_AlbedoTextureSamplerAndDescriptorIndex;
 	uint32_t m_NormalTextureSamplerAndDescriptorIndex;
