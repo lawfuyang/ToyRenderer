@@ -16,8 +16,6 @@
 #include "shaders/shared/RawVertexFormat.h"
 #include "shaders/shared/MaterialData.h"
 
-CommandLineOption<bool> g_ProfileSceneLoading{ "profilesceneloading", false };
-
 #define SCENE_LOAD_PROFILE(x) \
     PROFILE_SCOPED(x);        \
     SCOPED_TIMER_NAMED(x);
@@ -549,11 +547,6 @@ void LoadScene(std::string_view filePath)
 {
     GLTFSceneLoader loader;
     loader.LoadScene(filePath);
-
-    if (g_ProfileSceneLoading.Get())
-    {
-        Engine::TriggerDumpProfilingCapture("SceneLoad");
-    }
 }
 
 #undef SCENE_LOAD_PROFILE

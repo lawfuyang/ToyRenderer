@@ -1,3 +1,4 @@
+• fix unreliable engine init profiling dump
 • fix GPU occlusion culling causing wrong results
 • fix GPU frustum culling causing wrong results for shadows (Bistro)
 • fix all -Wconversion Shader warnings
