@@ -446,8 +446,6 @@ struct GLTFSceneLoader
             {
                 cgltf_node& node = m_GLTFData->nodes[i];
 
-                Scene* scene = g_Graphic.m_Scene.get();
-
                 const uint32_t newNodeID = scene->m_Nodes.size();
                 Node& newNode = scene->m_Nodes.emplace_back();
 
