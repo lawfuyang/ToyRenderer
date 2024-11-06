@@ -169,68 +169,47 @@ void View::UpdateVectors(float yaw, float pitch)
 
 void Scene::Initialize()
 {
-    tf::Taskflow tf;
+    {
+        PROFILE_SCOPED("Init Luminance Buffer");
 
-    tf.emplace([this]
-        {
-            PROFILE_SCOPED("Init Luminance Buffer");
+        nvrhi::BufferDesc desc;
+        desc.byteSize = sizeof(float);
+        desc.structStride = sizeof(float);
+        desc.debugName = "Exposure Buffer";
+        desc.canHaveTypedViews = true;
+        desc.canHaveUAVs = true;
+        desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(float);
-            desc.structStride = sizeof(float);
-            desc.debugName = "Exposure Buffer";
-            desc.canHaveTypedViews = true;
-            desc.canHaveUAVs = true;
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+        m_LuminanceBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
 
-            m_LuminanceBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Init Exposure Buffer");
 
-            nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-            SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Init Exposure Buffer");
+        const float kInitialExposure = 1.0f;
+        commandList->writeBuffer(m_LuminanceBuffer, &kInitialExposure, sizeof(float));
+    }
 
-            const float kInitialExposure = 1.0f;
-            commandList->writeBuffer(m_LuminanceBuffer, &kInitialExposure, sizeof(float));
-        });
+    m_Views[Main].m_ZNearP = Graphic::kDefaultCameraNearPlane;
+    m_Views[Main].m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
+    m_Views[Main].m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };
+    m_Views[Main].m_LookAt = Vector3{ 0.0f, 0.0f, 1.0f };
+    m_Views[Main].m_Right = Vector3{ 1.0f, 0.0f, 0.0f };
+    m_Views[Main].Update();
 
-    tf.emplace([this]
-        {
-            PROFILE_SCOPED("Init Views");
+    for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
+    {
+        m_Views[CSM0 + i].m_bIsPerspective = false;
+    }
 
-            m_Views[Main].m_ZNearP = Graphic::kDefaultCameraNearPlane;
-            m_Views[Main].m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
-            m_Views[Main].m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };
-            m_Views[Main].m_LookAt = Vector3{ 0.0f, 0.0f, 1.0f };
-            m_Views[Main].m_Right = Vector3{ 1.0f, 0.0f, 0.0f };
-            m_Views[Main].Update();
+    for (View& view : m_Views)
+    {
+        view.Initialize();
+    }
+    m_InstanceConstsBuffer.m_BufferDesc.structStride = sizeof(BasePassInstanceConstants);
+    m_InstanceConstsBuffer.m_BufferDesc.debugName = "Instance Consts Buffer";
+    m_InstanceConstsBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-            for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
-            {
-                m_Views[CSM0 + i].m_bIsPerspective = false;
-            }
-
-            for (View& view : m_Views)
-            {
-                view.Initialize();
-            }
-        });
-
-    tf.emplace([this]
-        {
-            PROFILE_SCOPED("Init InstanceConstsBuffer stuff");
-
-            m_InstanceConstsBuffer.m_BufferDesc.structStride = sizeof(BasePassInstanceConstants);
-            m_InstanceConstsBuffer.m_BufferDesc.debugName = "Instance Consts Buffer";
-            m_InstanceConstsBuffer.m_BufferDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-        });
-
-    tf.emplace([this]
-        {
-            PROFILE_SCOPED("Init DeferredLightingTileRenderer");
-
-            m_DeferredLightingTileRenderingHelper.Initialize(g_Graphic.m_RenderResolution, Tile_ID_Count);
-        });
-
-    g_Engine.m_Executor->corun(tf);
+    m_DeferredLightingTileRenderingHelper.Initialize(g_Graphic.m_RenderResolution, Tile_ID_Count);
 
     m_RenderGraph = std::make_shared<RenderGraph>();
 
