@@ -12,6 +12,8 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+set TMP_FOLDER=%cd%\tmp
+
 rem check & download DXC
 set DXC_EXEC=%cd%\extern\dxc\dxc.exe
 set DXC_DEST_FOLDER=%cd%\extern\dxc
@@ -33,23 +35,11 @@ if exist "%DXC_EXEC%" (
     )
 )
 
-set DXC_URL=https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31_clang_cl.zip
-set DXC_ZIP_FILE=dxc.zip
-set DXC_TMP_FOLDER=%TEMP%\dxc
-
-echo Downloading DXC .zip file to '%DXC_TMP_FOLDER%'
-mkdir "%DXC_TMP_FOLDER%"
-powershell -Command "Invoke-WebRequest -Uri '%DXC_URL%' -OutFile '%DXC_TMP_FOLDER%\%DXC_ZIP_FILE%'"
-
-echo Extracting DXC .zip files
-powershell -Command "Expand-Archive -Path '%DXC_TMP_FOLDER%\%DXC_ZIP_FILE%' -DestinationPath '%DXC_TMP_FOLDER%'"
+call :DownloadPackage https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31_clang_cl.zip dxc
 
 echo Copying DXC files to '%DXC_DEST_FOLDER%'
 mkdir "%DXC_DEST_FOLDER%" 2>nul
-xcopy "%DXC_TMP_FOLDER%\bin\x64\*" "%DXC_DEST_FOLDER%\" /E /I /Y
-
-echo Deleting '%DXC_TMP_FOLDER%'
-rd /S /Q "%DXC_TMP_FOLDER%"
+xcopy "%TMP_FOLDER%\dxc\bin\x64\*" "%DXC_DEST_FOLDER%\" /E /I /Y
 
 :AfterDownloadDXC
 
@@ -62,27 +52,36 @@ if exist "%AFTERMATH_DEST_FOLDER%\GFSDK_Aftermath.h" (
 	goto :AfterDownloadAftermath
 )
 
-set AFTERMATH_URL=https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2024_2_0/windows/NVIDIA_Nsight_Aftermath_SDK_2024.2.0.24200.zip
-set AFTERMATH_ZIP_FILE=aftermath.zip
-set AFTERMATH_TMP_FOLDER=%TEMP%\aftermath
-
-echo Downloading Nvidia Aftermath .zip file to '%AFTERMATH_TMP_FOLDER%'
-mkdir "%AFTERMATH_TMP_FOLDER%"
-powershell -Command "Invoke-WebRequest -Uri '%AFTERMATH_URL%' -OutFile '%AFTERMATH_TMP_FOLDER%\%AFTERMATH_ZIP_FILE%'"
-
-echo Extracting Nvidia Aftermath .zip files
-powershell -Command "Expand-Archive -Path '%AFTERMATH_TMP_FOLDER%\%AFTERMATH_ZIP_FILE%' -DestinationPath '%AFTERMATH_TMP_FOLDER%'"
+call :DownloadPackage https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2024_2_0/windows/NVIDIA_Nsight_Aftermath_SDK_2024.2.0.24200.zip  aftermath
 
 echo Copying Nvidia Aftermath files to '%AFTERMATH_DEST_FOLDER%'
 mkdir "%AFTERMATH_DEST_FOLDER%" 2>nul
-xcopy "%AFTERMATH_TMP_FOLDER%\include\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
-xcopy "%AFTERMATH_TMP_FOLDER%\lib\x64\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
+xcopy "%TMP_FOLDER%\aftermath\include\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
+xcopy "%TMP_FOLDER%\aftermath\lib\x64\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
 xcopy "%AFTERMATH_DEST_FOLDER%\GFSDK_Aftermath_Lib.x64.dll" "%cd%\bin\" /E /I /Y
 
-echo Deleting '%AFTERMATH_TMP_FOLDER%'
-rd /S /Q "%AFTERMATH_TMP_FOLDER%"
-
 :AfterDownloadAftermath
+
+goto :AfterDownloadPackages
+
+:DownloadPackage
+set URL="%~1"
+set PACKAGE_NAME=%~2
+
+echo Downloading '%PACKAGE_NAME%' to '%TMP_FOLDER%\%PACKAGE_NAME%'
+mkdir "%TMP_FOLDER%\%PACKAGE_NAME%"
+powershell -Command "Invoke-WebRequest -Uri '%URL%' -OutFile '%TMP_FOLDER%\%PACKAGE_NAME%\tmp.zip'"
+
+echo Extracting '%PACKAGE_NAME%'
+powershell -Command "Expand-Archive -Path '%TMP_FOLDER%\%PACKAGE_NAME%\tmp.zip' -DestinationPath '%TMP_FOLDER%\%PACKAGE_NAME%'"
+goto :eof
+
+:AfterDownloadPackages
+
+if exist %TMP_FOLDER% (
+	echo Deleting tmp folder
+	rd /S /Q %TMP_FOLDER%"
+)
 
 rem generate projects
 call :CreateProject "%cd%" "%cd%\projects\ToyRenderer"
