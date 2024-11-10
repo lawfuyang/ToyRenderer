@@ -433,103 +433,75 @@ struct GLTFSceneLoader
 
         Scene* scene = g_Graphic.m_Scene.get();
 
+        for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
         {
-            SCENE_LOAD_PROFILE("Add nodes to scene");
+            cgltf_node& node = m_GLTFData->nodes[i];
 
-            for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
+            const uint32_t newNodeID = scene->m_Nodes.size();
+            Node& newNode = scene->m_Nodes.emplace_back();
+
+            Matrix outLocalMatrix;
+            cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
+
+            verify(outLocalMatrix.Decompose(newNode.m_Scale, newNode.m_Rotation, newNode.m_Position));
+
+            Matrix outWorldMatrix;
+            cgltf_node_transform_world(&node, (cgltf_float*)&outWorldMatrix);
+
+            Vector3 worldScale;
+            Quaternion worldRotation;
+            Vector3 worldPosition;
+            verify(outWorldMatrix.Decompose(worldScale, worldRotation, worldPosition));
+
+            AABB nodeAABB;
+            newNode.m_AABB.Transform(nodeAABB, outWorldMatrix);
+
+            AABB::CreateMerged(scene->m_AABB, scene->m_AABB, nodeAABB);
+
+            Sphere nodeBS;
+            newNode.m_BoundingSphere.Transform(nodeBS, outWorldMatrix);
+
+            Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, nodeBS);
+
+            if (node.mesh)
             {
-                cgltf_node& node = m_GLTFData->nodes[i];
-
-                const uint32_t newNodeID = scene->m_Nodes.size();
-                Node& newNode = scene->m_Nodes.emplace_back();
-
-                Matrix outLocalMatrix;
-                cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
-
-                verify(outLocalMatrix.Decompose(newNode.m_Scale, newNode.m_Rotation, newNode.m_Position));
-
-                Matrix outWorldMatrix;
-                cgltf_node_transform_world(&node, (cgltf_float*)&outWorldMatrix);
-
-                Vector3 worldScale;
-                Quaternion worldRotation;
-                Vector3 worldPosition;
-                verify(outWorldMatrix.Decompose(worldScale, worldRotation, worldPosition));
-
-                if (node.mesh)
+                for (const Primitive& primitive : m_SceneMeshPrimitives.at(cgltf_mesh_index(m_GLTFData, node.mesh)))
                 {
-                    for (const Primitive& primitive : m_SceneMeshPrimitives.at(cgltf_mesh_index(m_GLTFData, node.mesh)))
-                    {
-                        const uint32_t primitiveID = scene->m_Primitives.size();
+                    const uint32_t primitiveID = scene->m_Primitives.size();
 
-                        Primitive& newPrimitive = scene->m_Primitives.emplace_back();
-                        newPrimitive.m_NodeID = newNodeID;
-                        newPrimitive.m_MeshIdx = primitive.m_MeshIdx;
-                        newPrimitive.m_Material = primitive.m_Material;
+                    Primitive& newPrimitive = scene->m_Primitives.emplace_back();
+                    newPrimitive.m_NodeID = newNodeID;
+                    newPrimitive.m_MeshIdx = primitive.m_MeshIdx;
+                    newPrimitive.m_Material = primitive.m_Material;
 
-                        Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+                    Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
-                        AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
-                        Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
+                    AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
+                    Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
 
-                        newNode.m_PrimitivesIDs.push_back(primitiveID);
-                    }
-                }
-
-                if (node.camera)
-                {
-                    assert(node.camera->type == cgltf_camera_type_perspective);
-
-                    Scene::Camera& newCamera = scene->m_Cameras.emplace_back();
-
-                    newCamera.m_Name = node.name ? node.name : "Un-named Camera";
-                    newCamera.m_Orientation = worldRotation;
-                    newCamera.m_Position = worldPosition;
+                    newNode.m_PrimitivesIDs.push_back(primitiveID);
                 }
             }
-        }
 
-        // init hierarchy
-        {
-            SCENE_LOAD_PROFILE("Init nodes' hierarchy");
-
-            for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
+            if (node.camera)
             {
-                cgltf_node& node = m_GLTFData->nodes[i];
+                assert(node.camera->type == cgltf_camera_type_perspective);
 
-                const uint32_t sceneNodeIdx = cgltf_node_index(m_GLTFData, &node);
-                Node& sceneNode = scene->m_Nodes.at(sceneNodeIdx);
+                Scene::Camera& newCamera = scene->m_Cameras.emplace_back();
 
-                if (node.parent)
-                {
-                    sceneNode.m_ParentNodeID = cgltf_node_index(m_GLTFData, node.parent);
-                }
-
-                for (uint32_t i = 0; i < node.children_count; ++i)
-                {
-                    sceneNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[i]));
-                }
+                newCamera.m_Name = node.name ? node.name : "Un-named Camera";
+                newCamera.m_Orientation = worldRotation;
+                newCamera.m_Position = worldPosition;
             }
-        }
 
-        {
-            SCENE_LOAD_PROFILE("Update nodes' & scene BVs");
-
-            // need to be a separate loop due to 'MakeLocalToWorldMatrix' requiring all nodes to be loaded
-            for (Node& node : scene->m_Nodes)
+            if (node.parent)
             {
-                // update scene BS too
-                const Matrix nodeWorldMatrix = node.MakeLocalToWorldMatrix();
+                newNode.m_ParentNodeID = cgltf_node_index(m_GLTFData, node.parent);
+            }
 
-                AABB nodeAABB;
-                node.m_AABB.Transform(nodeAABB, nodeWorldMatrix);
-
-                AABB::CreateMerged(scene->m_AABB, scene->m_AABB, nodeAABB);
-
-                Sphere nodeBS;
-                node.m_BoundingSphere.Transform(nodeBS, nodeWorldMatrix);
-
-                Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, nodeBS);
+            for (uint32_t i = 0; i < node.children_count; ++i)
+            {
+                newNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[i]));
             }
         }
     }
