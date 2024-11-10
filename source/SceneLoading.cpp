@@ -30,17 +30,11 @@ struct GLTFSceneLoader
     std::vector<Texture> m_SceneImages;
     std::vector<Material> m_SceneMaterials;
 
-    ~GLTFSceneLoader()
-    {
-        if (m_GLTFData)
-        {
-            cgltf_free(m_GLTFData);
-        }
-    }
-
     void LoadScene(std::string_view filePath)
     {
         SCENE_LOAD_PROFILE("Load Scene");
+
+        ON_EXIT_SCOPE_LAMBDA([this] { cgltf_free(m_GLTFData); });
 
         cgltf_options options{};
         
