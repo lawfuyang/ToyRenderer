@@ -12,15 +12,15 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-set TMP_FOLDER=%cd%\tmp
+set "TMP_FOLDER=%cd%\tmp"
 
 :: IMGUI
-set IMGUI_DEST_FOLDER=%cd%\extern\imgui
+set "IMGUI_DEST_FOLDER=%cd%\extern\imgui"
 if not exist "%IMGUI_DEST_FOLDER%" (
 	call :DownloadAndExtractPackage https://github.com/ocornut/imgui/archive/refs/tags/v1.91.5.zip imgui
 	
 	:: .h/.cpp files in immediate dir
-	for %%f in (%TMP_FOLDER%\imgui\imgui-1.91.5\*.h %TMP_FOLDER%\imgui\imgui-1.91.5\*.cpp) do (
+	for %%f in ("%TMP_FOLDER%\imgui\imgui-1.91.5\*.h" "%TMP_FOLDER%\imgui\imgui-1.91.5\*.cpp") do (
 		xcopy "%%f" "%IMGUI_DEST_FOLDER%\"
 	)
 
@@ -31,7 +31,7 @@ if not exist "%IMGUI_DEST_FOLDER%" (
 )
 
 :: DXC
-set DXC_DEST_FOLDER=%cd%\extern\dxc
+set "DXC_DEST_FOLDER=%cd%\extern\dxc"
 if not exist "%DXC_DEST_FOLDER%" (
 	call :DownloadAndExtractPackage https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31_clang_cl.zip dxc
 	xcopy "%TMP_FOLDER%\dxc\bin\x64\*" "%DXC_DEST_FOLDER%\" /E /I /Y
