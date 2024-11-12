@@ -362,19 +362,15 @@ void Graphic::InitShaders()
 
     tf::Taskflow tf;
 
-    struct ShaderToStore
-    {
-        size_t m_Hash;
-        nvrhi::ShaderHandle m_ShaderHandle;
-    };
-    std::vector<ShaderToStore> allShaders;
-    std::mutex allShadersLck;
+    uint32_t nbShaders = 0;
 
     std::stringstream stringStream{ fileFullText };
     std::string shaderEntryLine;
     while (std::getline(stringStream, shaderEntryLine))
     {
-        tf.emplace([this, &allShaders, &allShadersLck, shaderEntryLine]
+        ++nbShaders;
+
+        tf.emplace([this, shaderEntryLine]
             {
                 PROFILE_SCOPED("Init Shader");
 
@@ -440,10 +436,7 @@ void Graphic::InitShaders()
                         nvrhi::ShaderHandle newShader = m_NVRHIDevice->createShader(shaderDesc, pBinary, binarySize);
                         assert(newShader);
 
-                        {
-                            AUTO_LOCK(allShadersLck);
-                            allShaders.push_back({ shaderHash, newShader });
-                        }
+                        m_AllShaders[shaderHash] = newShader;
 
                         LOG_DEBUG("Init %s Shader: %s", nvrhi::utils::ShaderStageToString(shaderDesc.shaderType), shaderDebugName.data());
                     };
@@ -498,13 +491,10 @@ void Graphic::InitShaders()
             });
     }
 
-    g_Engine.m_Executor->corun(tf);
+    // reserve for MT insertions next line
+    m_AllShaders.reserve(nbShaders);
 
-    for (const ShaderToStore& elem : allShaders)
-    {
-        assert(!m_AllShaders.contains(elem.m_Hash));
-        m_AllShaders[elem.m_Hash] = elem.m_ShaderHandle;
-    }
+    g_Engine.m_Executor->corun(tf);
 }
 
 void Graphic::InitDescriptorTable()
