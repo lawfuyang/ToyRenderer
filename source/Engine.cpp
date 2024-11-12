@@ -36,17 +36,16 @@ static void DumpProfilingCapture()
     const std::string fileName = (std::filesystem::path{ GetExecutableDirectory() } / gs_DumpProfilingCaptureFileName.c_str()).string() + ".html";
     LOG_DEBUG("Dumping profiler log: %s", fileName.c_str());
 
-    static uint32_t s_ProfilercaptureFrames = 30;
-    MicroProfileDumpFileImmediately(fileName.c_str(), nullptr, nullptr, s_ProfilercaptureFrames);
+    MicroProfileDumpFileImmediately(fileName.c_str(), nullptr, nullptr);
 
     gs_DumpProfilingCaptureFileName.clear();
     gs_TriggerDumpProfilingCapture = false;
 }
 
-void Engine::TriggerDumpProfilingCapture(std::string_view fileName)
+static void TriggerDumpProfilingCapture(std::string_view fileName)
 {
-    gs_DumpProfilingCaptureFileName = fileName;
     gs_TriggerDumpProfilingCapture = true;
+    gs_DumpProfilingCaptureFileName = fileName;
 }
 
 void Engine::Initialize()
@@ -96,9 +95,10 @@ void Engine::Initialize()
     // MT init & wait
     m_Executor->run(tf).wait();
 
+    // for some weird fucking reason, if i dont 'flip' here, the profiling capture will not reliably work (<10%) for init phase
     if (g_ProfileStartup.Get())
     {
-        TriggerDumpProfilingCapture("EngineInit");
+        MicroProfileFlip(nullptr);
     }
 
 	if (std::string_view sceneToLoad = g_SceneToLoad.Get();
@@ -108,6 +108,11 @@ void Engine::Initialize()
         LoadScene(sceneToLoad);
 
         m_Graphic->m_Scene->OnSceneLoad();
+    }
+
+    if (g_ProfileStartup.Get())
+    {
+        TriggerDumpProfilingCapture("EngineInit");
     }
 }
 
@@ -243,20 +248,14 @@ void Engine::MainLoop()
             Mouse::Tick();
         }
 
-        float elapsedMS = frameTimer.GetElapsedMilliSeconds();
-        m_CPUFrameTimeMs = elapsedMS;
-
-        m_CPUFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
-
-        BusyWaitUntilFPSLimit(frameTimer);
-
         if (gs_TriggerDumpProfilingCapture)
         {
             DumpProfilingCapture();
         }
 
-        elapsedMS = frameTimer.GetElapsedMilliSeconds();
-        m_CPUCappedFrameTimeMs = elapsedMS;
+        m_CPUFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
+        BusyWaitUntilFPSLimit(frameTimer);
+        m_CPUCappedFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
 
         MicroProfileFlip(nullptr);
     } while (!m_Exit);
