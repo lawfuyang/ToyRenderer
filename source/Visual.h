@@ -29,7 +29,7 @@ public:
 
     bool IsValid() const;
 
-    uint32_t m_Idx = UINT_MAX;
+    //uint32_t m_Idx = UINT_MAX;
 
     uint32_t m_NbVertices = 0;
     uint32_t m_NbIndices = 0;

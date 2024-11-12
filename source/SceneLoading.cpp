@@ -312,16 +312,6 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Load Meshes");
 
-        uint32_t nbPrimitives = 0;
-        for (uint32_t i = 0; i < m_GLTFData->meshes_count; ++i)
-        {
-            const cgltf_mesh& mesh = m_GLTFData->meshes[i];
-            nbPrimitives += mesh.primitives_count;
-        }
-
-        // NOTE: due to internal assert in 'CreateMesh' we need to reserve space for all meshes
-        g_Graphic.m_Meshes.reserve(g_Graphic.m_Meshes.size() + nbPrimitives);
-
         tf::Taskflow taskflow;
 
         m_SceneMeshPrimitives.resize(m_GLTFData->meshes_count);
@@ -333,7 +323,11 @@ struct GLTFSceneLoader
 
             for (uint32_t primitiveIdx = 0; primitiveIdx < mesh.primitives_count; ++primitiveIdx)
             {
-                taskflow.emplace([&, modelMeshIdx, primitiveIdx]
+                // pre-create empty Mesh objects here due to MT init
+                const uint32_t sceneMeshIdx = g_Graphic.m_Meshes.size();
+                g_Graphic.m_Meshes.emplace_back();
+
+                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
@@ -407,8 +401,8 @@ struct GLTFSceneLoader
                             }
                         }
 
-                        Mesh* sceneMesh = g_Graphic.CreateMesh();
-                        sceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
+                        Mesh* newSceneMesh = &g_Graphic.m_Meshes.at(sceneMeshIdx);
+                        newSceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
                         if (gltfPrimitive.material)
@@ -419,7 +413,7 @@ struct GLTFSceneLoader
                         {
                             primitive.m_Material = g_CommonResources.DefaultMaterial;
                         }
-                        primitive.m_MeshIdx = sceneMesh->m_Idx;
+                        primitive.m_MeshIdx = sceneMeshIdx;
                     });
             }
         }

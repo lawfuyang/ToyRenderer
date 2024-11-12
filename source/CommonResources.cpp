@@ -363,8 +363,7 @@ static void CreateUnitCubeMesh()
 
     ReverseWinding(indices, vertices);
 
-    Mesh* mesh = g_Graphic.CreateMesh();
-    mesh->Initialize(vertices, indices, "Default Unit Cube Mesh");
+    g_Graphic.m_Meshes.emplace_back().Initialize(vertices, indices, "Default Unit Cube Mesh");
 }
 
 static void CreateUnitSphereMesh()
@@ -436,8 +435,7 @@ static void CreateUnitSphereMesh()
     //if (invertn)
     //    InvertNormals(vertices);
 
-    Mesh* mesh = g_Graphic.CreateMesh();
-    mesh->Initialize(vertices, indices, "Default Unit Sphere Mesh");
+    g_Graphic.m_Meshes.emplace_back().Initialize(vertices, indices, "Default Unit Sphere Mesh");
 }
 
 static void CreateDefaultMaterial()
@@ -472,9 +470,9 @@ void CommonResources::Initialize()
 
     tf.emplace([this] { CreateDefaultBuffer("DummyUintStructuredBuffer", DummyUintStructuredBuffer, sizeof(uint32_t), sizeof(uint32_t), true); });
 
-    g_Graphic.m_Meshes.reserve(2); // NOTE: due to internal assert in 'CreateMesh' we need to reserve space for all meshes
-    tf.emplace([] { CreateUnitCubeMesh(); });
-    tf.emplace([] { CreateUnitSphereMesh(); });
+    // can't MT these due to direct modification of Graphic::m_Meshes
+    CreateUnitCubeMesh();
+    CreateUnitSphereMesh();
 
     tf.emplace([] { CreateDefaultSamplers(); });
     tf.emplace([] { CreateDefaultInputLayouts(); });

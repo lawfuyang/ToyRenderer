@@ -719,22 +719,6 @@ nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelin
     return computePipeline;
 }
 
-Mesh* Graphic::CreateMesh()
-{
-    static std::mutex s_MeshesArrayLock;
-    AUTO_LOCK(s_MeshesArrayLock);
-
-    // we're returning a pointer to an element in a vector, so we need to make sure it's not reallocated
-    assert(m_Meshes.size() < m_Meshes.capacity());
-
-    const uint32_t newMeshIdx = m_Meshes.size();
-
-    Mesh& newMesh = m_Meshes.emplace_back();
-    newMesh.m_Idx = newMeshIdx;
-
-    return &newMesh;
-}
-
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
 {
     PROFILE_FUNCTION();
