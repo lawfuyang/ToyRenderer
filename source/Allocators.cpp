@@ -53,6 +53,8 @@ void GrowableGPUVirtualBuffer::CommitPendingUploads(nvrhi::CommandListHandle com
         m_Buffer = newBuffer;
     }
 
+    STATIC_MULTITHREAD_DETECTOR();
+
     const uint64_t offsetStart = m_UploadedBytesOffset;
     for (const std::vector<std::byte>& uploadBatch : m_QueuedUploadBatches)
     {
@@ -62,7 +64,6 @@ void GrowableGPUVirtualBuffer::CommitPendingUploads(nvrhi::CommandListHandle com
 
     LOG_DEBUG("Virtual Buffer: [%s], Commit: [%f] MB", bufferDesc.debugName.c_str(), BYTES_TO_MB(m_UploadedBytesOffset - offsetStart));
 
-    AUTO_LOCK(m_QueuedUploadBatchesLck);
     m_QueuedUploadBatches.clear();
     m_QueuedUploadBatches.shrink_to_fit();
 }
