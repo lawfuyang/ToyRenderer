@@ -362,17 +362,13 @@ void Graphic::InitShaders()
 
     tf::Taskflow tf;
 
-    uint32_t nbShaders = 0;
-
     std::stringstream stringStream{ fileFullText };
     std::string shaderEntryLine;
     while (std::getline(stringStream, shaderEntryLine))
     {
-        ++nbShaders;
-
         tf.emplace([this, shaderEntryLine]
             {
-                PROFILE_SCOPED("Init Shader");
+                PROFILE_SCOPED("Process Shader Line");
 
                 // Tokenize for argparse to read
                 std::vector<const char*> configLineTokens;
@@ -411,9 +407,9 @@ void Graphic::InitShaders()
                 std::vector<std::string> permutationDefines;
                 ShaderMake::EnumeratePermutationsInBlob(shaderBlob.data(), shaderBlob.size(), permutationDefines);
 
-                auto InitShader = [&](const void* pBinary, uint32_t binarySize, std::string_view shaderDebugName)
+                auto InitShaderHandle = [&](const void* pBinary, uint32_t binarySize, std::string_view shaderDebugName)
                     {
-                        PROFILE_SCOPED("Init Shader");                        
+                        PROFILE_SCOPED("Init Shader Handle");
 
                         nvrhi::ShaderDesc shaderDesc;
                         shaderDesc.debugName = shaderDebugName;
@@ -444,7 +440,7 @@ void Graphic::InitShaders()
                 // no permutations
                 if (permutationDefines.empty())
                 {
-                    InitShader(shaderBlob.data(), (uint32_t)shaderBlob.size(), binFileName);
+                    InitShaderHandle(shaderBlob.data(), (uint32_t)shaderBlob.size(), binFileName);
                 }
 
                 // permutations. enumerate through all and init
@@ -484,17 +480,19 @@ void Graphic::InitShaders()
                             assert(false);
                         }
 
-
-                        InitShader(pBinary, (uint32_t)binarySize, StringFormat("%s %s", binFileName.c_str(), definesStringCopy.c_str()));
+                        InitShaderHandle(pBinary, (uint32_t)binarySize, StringFormat("%s %s", binFileName.c_str(), definesStringCopy.c_str()));
                     }
                 }
             });
     }
 
-    // reserve for MT insertions next line
-    m_AllShaders.reserve(nbShaders);
+    // NOTE: for safe MT insertion. just bump up this value when needed... i'm lazy to refactor this
+    const uint32_t kReserveCount = 64;
+    m_AllShaders.reserve(kReserveCount);
 
     g_Engine.m_Executor->corun(tf);
+
+	assert(m_AllShaders.size() < kReserveCount);
 }
 
 void Graphic::InitDescriptorTable()

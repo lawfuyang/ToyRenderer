@@ -98,7 +98,10 @@ void Engine::Initialize()
     // for some weird fucking reason, if i dont 'flip' here, the profiling capture will not reliably work (<10%) for init phase
     if (g_ProfileStartup.Get())
     {
-        MicroProfileFlip(nullptr);
+        for (uint32_t i = 0; i < 10; ++i)
+        {
+            MicroProfileFlip(nullptr);
+        }
     }
 
 	if (std::string_view sceneToLoad = g_SceneToLoad.Get();
