@@ -65,8 +65,9 @@ inline thread_local HRESULT tl_HResult;
         assert(!FAILED(tl_HResult)); \
     }
 
-// note: DON'T input formatted strings. It will cock up the profiling dump
+// note: DON'T input formatted strings from 'StringFormat'!!! It will cock up the profiling dump if the internal ring buffer of strings gets overwritten
 #define PROFILE_SCOPED(NAME) MICROPROFILE_SCOPE_CSTR(NAME)
+
 #define PROFILE_FUNCTION() PROFILE_SCOPED(__FUNCTION__)
 
 #define LOG_DEBUG(FORMAT, ...)                                    \
