@@ -95,15 +95,6 @@ void Engine::Initialize()
     // MT init & wait
     m_Executor->run(tf).wait();
 
-    // for some weird fucking reason, if i dont 'flip' here, the profiling capture will not reliably work (<10%) for init phase
-    if (g_ProfileStartup.Get())
-    {
-        for (uint32_t i = 0; i < 10; ++i)
-        {
-            MicroProfileFlip(nullptr);
-        }
-    }
-
 	if (std::string_view sceneToLoad = g_SceneToLoad.Get();
         !sceneToLoad.empty())
     {

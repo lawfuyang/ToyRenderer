@@ -65,6 +65,7 @@ inline thread_local HRESULT tl_HResult;
         assert(!FAILED(tl_HResult)); \
     }
 
+// note: DON'T input formatted strings. It will cock up the profiling dump
 #define PROFILE_SCOPED(NAME) MICROPROFILE_SCOPE_CSTR(NAME)
 #define PROFILE_FUNCTION() PROFILE_SCOPED(__FUNCTION__)
 
