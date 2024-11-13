@@ -458,13 +458,7 @@ void CommonResources::Initialize()
     tf::Taskflow tf;
 
     tf.emplace([this] { CreateDefaultTexture("Black 2D Texture",       BlackTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("Black 2D Array Texture", BlackArrayTexture,  nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 4, false/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("Gray 2D Texture",        GrayTexture,        nvrhi::Format::RGBA8_UNORM, Color{ 0.5f, 0.5f, 0.5f }.RGBA().v, 1, false/*bUAV*/); });
     tf.emplace([this] { CreateDefaultTexture("White 2D Texture",       WhiteTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("White 2D Aray Texture",  WhiteArrayTexture,  nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 4, false/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("Red 2D Texture",         RedTexture,         nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 0.0f, 0.0f }.RGBA().v, 1, false/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("Green 2D Texture",       GreenTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 1.0f, 0.0f }.RGBA().v, 1, false/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("Blue 2D Texture",        BlueTexture,        nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 1.0f }.RGBA().v, 1, false/*bUAV*/); });
     tf.emplace([this] { CreateDefaultTexture("Dummy UAV 2D Texture",   DummyUAV2DTexture,  nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true/*bUAV*/); });
     tf.emplace([this] { CreateDefaultTexture("R8 UInt Max 2D Texture", R8UIntMax2DTexture, nvrhi::Format::R8_UINT, UINT8_MAX, 1, false/*bUAV*/); });
 

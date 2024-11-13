@@ -195,9 +195,7 @@ void Graphic::InitDevice()
 
     auto CreateQueue = [this](nvrhi::CommandQueue queue)
     {
-        const char* queueName = nvrhi::utils::CommandQueueToString(queue);
-
-        PROFILE_SCOPED(StringFormat("Create Queue [%s]", queueName));
+        PROFILE_SCOPED("CreateQueue");
 
         static const D3D12_COMMAND_LIST_TYPE kD3D12QueueTypes[] = { D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_TYPE_COMPUTE, D3D12_COMMAND_LIST_TYPE_COPY };
 
@@ -210,7 +208,7 @@ void Graphic::InitDevice()
         ComPtr<ID3D12CommandQueue> outQueue;
         HRESULT_CALL(m_D3DDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&outQueue)));
 
-        m_GPUQueueLogs[(uint32_t)queue] = MicroProfileInitGpuQueue(queueName);
+        m_GPUQueueLogs[(uint32_t)queue] = MicroProfileInitGpuQueue(nvrhi::utils::CommandQueueToString(queue));
 
         return outQueue;
     };
@@ -360,139 +358,127 @@ void Graphic::InitShaders()
     std::string fileFullText;
     ReadTextFromFile(inputPath.string(), fileFullText);
 
-    tf::Taskflow tf;
-
     std::stringstream stringStream{ fileFullText };
     std::string shaderEntryLine;
     while (std::getline(stringStream, shaderEntryLine))
     {
-        tf.emplace([this, shaderEntryLine]
+        PROFILE_SCOPED("Process Shader Line");
+
+        // Tokenize for argparse to read
+        std::vector<const char*> configLineTokens;
+        TokenizeLine((char*)shaderEntryLine.c_str(), configLineTokens);
+
+        char* profile;
+        char* entryPoint;
+        char* unused;
+
+        // use argparse to retrieve shader type & entry point, so we can reconstruct bin file name
+        argparse_option options[] = {
+            OPT_STRING('T', "profile", &profile, "", nullptr, 0, 0),
+            OPT_STRING('E', "entryPoint", &entryPoint, "", nullptr, 0, 0),
+            OPT_STRING('D', "define", &unused, "", nullptr, 0, 0),
+            OPT_END(),
+        };
+
+        argparse argparse;
+        argparse_init(&argparse, options, nullptr, 0);
+        argparse_parse(&argparse, (int32_t)configLineTokens.size(), configLineTokens.data());
+
+        // reconstruct bin file name
+        // NOTE: after tokenization the line string is the 1st token of the line, which is the file name
+        std::string binFullPath = (std::filesystem::path{ GetExecutableDirectory() } / "shaders" / "").string();
+        binFullPath += std::filesystem::path{ shaderEntryLine }.stem().string() + "_" + entryPoint + ".bin";
+
+        const std::string binFileName = std::filesystem::path{ binFullPath }.stem().string();
+
+        std::vector<std::byte> shaderBlob;
+        {
+            PROFILE_SCOPED("Read Shader bin");
+            ReadDataFromFile(binFullPath, shaderBlob);
+        }
+        assert(!shaderBlob.empty());
+
+        std::vector<std::string> permutationDefines;
+        ShaderMake::EnumeratePermutationsInBlob(shaderBlob.data(), shaderBlob.size(), permutationDefines);
+
+        auto InitShaderHandle = [&](const void* pBinary, uint32_t binarySize, std::string_view shaderDebugName)
             {
-                PROFILE_SCOPED("Process Shader Line");
+                PROFILE_SCOPED("Init Shader Handle");
 
-                // Tokenize for argparse to read
-                std::vector<const char*> configLineTokens;
-                TokenizeLine((char*)shaderEntryLine.c_str(), configLineTokens);
+                nvrhi::ShaderDesc shaderDesc;
+                shaderDesc.debugName = shaderDebugName;
 
-                char* profile;
-                char* entryPoint;
-                char* unused;
-
-                // use argparse to retrieve shader type & entry point, so we can reconstruct bin file name
-                argparse_option options[] = {
-                    OPT_STRING('T', "profile", &profile, "", nullptr, 0, 0),
-                    OPT_STRING('E', "entryPoint", &entryPoint, "", nullptr, 0, 0),
-                    OPT_STRING('D', "define", &unused, "", nullptr, 0, 0),
-                    OPT_END(),
-                };
-
-                argparse argparse;
-                argparse_init(&argparse, options, nullptr, 0);
-                argparse_parse(&argparse, (int32_t)configLineTokens.size(), configLineTokens.data());
-
-                // reconstruct bin file name
-                // NOTE: after tokenization the line string is the 1st token of the line, which is the file name
-                std::string binFullPath = (std::filesystem::path{ GetExecutableDirectory() } / "shaders" / "").string();
-                binFullPath += std::filesystem::path{ shaderEntryLine }.stem().string() + "_" + entryPoint + ".bin";
-
-                const std::string binFileName = std::filesystem::path{ binFullPath }.stem().string();
-
-                std::vector<std::byte> shaderBlob;
-                {
-                    PROFILE_SCOPED("Read Shader bin");
-                    ReadDataFromFile(binFullPath, shaderBlob);
-                }
-                assert(!shaderBlob.empty());
-
-                std::vector<std::string> permutationDefines;
-                ShaderMake::EnumeratePermutationsInBlob(shaderBlob.data(), shaderBlob.size(), permutationDefines);
-
-                auto InitShaderHandle = [&](const void* pBinary, uint32_t binarySize, std::string_view shaderDebugName)
-                    {
-                        PROFILE_SCOPED("Init Shader Handle");
-
-                        nvrhi::ShaderDesc shaderDesc;
-                        shaderDesc.debugName = shaderDebugName;
-
-                        // kinda manual... but it's robust enough
-                        std::string profileStr = profile;
-                        StringUtils::ToLower(profileStr);
-                        if (profileStr == "vs")
-                            shaderDesc.shaderType = nvrhi::ShaderType::Vertex;
-                        else if (profileStr == "ps")
-                            shaderDesc.shaderType = nvrhi::ShaderType::Pixel;
-                        else if (profileStr == "cs")
-                            shaderDesc.shaderType = nvrhi::ShaderType::Compute;
-                        else
-                        {
-                            assert(0);
-                        }
-
-                        size_t shaderHash = std::hash<std::string_view>{}(shaderDebugName);
-                        nvrhi::ShaderHandle newShader = m_NVRHIDevice->createShader(shaderDesc, pBinary, binarySize);
-                        assert(newShader);
-
-                        m_AllShaders[shaderHash] = newShader;
-
-                        LOG_DEBUG("Init %s Shader: %s", nvrhi::utils::ShaderStageToString(shaderDesc.shaderType), shaderDebugName.data());
-                    };
-
-                // no permutations
-                if (permutationDefines.empty())
-                {
-                    InitShaderHandle(shaderBlob.data(), (uint32_t)shaderBlob.size(), binFileName);
-                }
-
-                // permutations. enumerate through all and init
+                // kinda manual... but it's robust enough
+                std::string profileStr = profile;
+                StringUtils::ToLower(profileStr);
+                if (profileStr == "vs")
+                    shaderDesc.shaderType = nvrhi::ShaderType::Vertex;
+                else if (profileStr == "ps")
+                    shaderDesc.shaderType = nvrhi::ShaderType::Pixel;
+                else if (profileStr == "cs")
+                    shaderDesc.shaderType = nvrhi::ShaderType::Compute;
                 else
                 {
-                    const uint32_t kNbMaxConstants = 8;
-
-                    // 'enumeratePermutationsInBlob' will return an array of strings of all combinations of permutation defines
-                    // assume each instance of '=' character represents a Shader #define
-                    const int64_t nbConstants = std::count(permutationDefines[0].begin(), permutationDefines[0].end(), '=');
-                    assert(nbConstants <= kNbMaxConstants);
-
-                    for (std::string permutationDefine : permutationDefines) // NOTE: deliberately not by const ref
-                    {
-                        // for debug name purposes
-                        const std::string definesStringCopy = permutationDefine;
-
-                        ShaderMake::ShaderConstant shaderConstants[kNbMaxConstants]{};
-
-                        std::vector<const char*> constantAndValueStrings;
-                        TokenizeLine((char*)permutationDefine.c_str(), constantAndValueStrings);
-
-                        uint32_t i = 0;
-                        for (const char* constantAndValueString : constantAndValueStrings)
-                        {
-                            ShaderMake::ShaderConstant& shaderConstant = shaderConstants[i++];
-
-                            shaderConstant.name = strtok((char*)constantAndValueString, "=");
-                            shaderConstant.value = strtok(nullptr, "=");
-                        }
-
-                        const void* pBinary = nullptr;
-                        size_t binarySize = 0;
-                        if (!ShaderMake::FindPermutationInBlob(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants, &pBinary, &binarySize))
-                        {
-                            LOG_DEBUG("%s", ShaderMake::FormatShaderNotFoundMessage(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants).c_str());
-                            assert(false);
-                        }
-
-                        InitShaderHandle(pBinary, (uint32_t)binarySize, StringFormat("%s %s", binFileName.c_str(), definesStringCopy.c_str()));
-                    }
+                    assert(0);
                 }
-            });
+
+                size_t shaderHash = std::hash<std::string_view>{}(shaderDebugName);
+                nvrhi::ShaderHandle newShader = m_NVRHIDevice->createShader(shaderDesc, pBinary, binarySize);
+                assert(newShader);
+
+                m_AllShaders[shaderHash] = newShader;
+
+                LOG_DEBUG("Init %s Shader: %s", nvrhi::utils::ShaderStageToString(shaderDesc.shaderType), shaderDebugName.data());
+            };
+
+        // no permutations
+        if (permutationDefines.empty())
+        {
+            InitShaderHandle(shaderBlob.data(), (uint32_t)shaderBlob.size(), binFileName);
+        }
+
+        // permutations. enumerate through all and init
+        else
+        {
+            const uint32_t kNbMaxConstants = 8;
+
+            // 'enumeratePermutationsInBlob' will return an array of strings of all combinations of permutation defines
+            // assume each instance of '=' character represents a Shader #define
+            const int64_t nbConstants = std::count(permutationDefines[0].begin(), permutationDefines[0].end(), '=');
+            assert(nbConstants <= kNbMaxConstants);
+
+            for (std::string permutationDefine : permutationDefines) // NOTE: deliberately not by const ref
+            {
+                // for debug name purposes
+                const std::string definesStringCopy = permutationDefine;
+
+                ShaderMake::ShaderConstant shaderConstants[kNbMaxConstants]{};
+
+                std::vector<const char*> constantAndValueStrings;
+                TokenizeLine((char*)permutationDefine.c_str(), constantAndValueStrings);
+
+                uint32_t i = 0;
+                for (const char* constantAndValueString : constantAndValueStrings)
+                {
+                    ShaderMake::ShaderConstant& shaderConstant = shaderConstants[i++];
+
+                    shaderConstant.name = strtok((char*)constantAndValueString, "=");
+                    shaderConstant.value = strtok(nullptr, "=");
+                }
+
+                const void* pBinary = nullptr;
+                size_t binarySize = 0;
+                if (!ShaderMake::FindPermutationInBlob(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants, &pBinary, &binarySize))
+                {
+                    LOG_DEBUG("%s", ShaderMake::FormatShaderNotFoundMessage(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants).c_str());
+                    assert(false);
+                }
+
+                const std::string shaderDebugName = StringFormat("%s %s", binFileName.c_str(), definesStringCopy.c_str());
+                InitShaderHandle(pBinary, (uint32_t)binarySize, shaderDebugName);
+            }
+        }
     }
-
-    // NOTE: for safe MT insertion. just bump up this value when needed... i'm lazy to refactor this
-    const uint32_t kReserveCount = 64;
-    m_AllShaders.reserve(kReserveCount);
-
-    g_Engine.m_Executor->corun(tf);
-
-	assert(m_AllShaders.size() < kReserveCount);
 }
 
 void Graphic::InitDescriptorTable()

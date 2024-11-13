@@ -52,6 +52,8 @@ nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle command
 
     for (uint32_t mip = 0; mip < nbMips; ++mip)
     {
+        PROFILE_SCOPED("Process Mip");
+
         // just whack BC7 for everything according to: https://github.com/KhronosGroup/3D-Formats-Guidelines/blob/main/KTXDeveloperGuide.md#primary-transcode-targets
         const basist::transcoder_texture_format kRequestedFormat = basist::transcoder_texture_format::cTFBC7_RGBA;
 

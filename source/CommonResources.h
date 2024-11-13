@@ -11,13 +11,7 @@ public:
 
     // Textures
     Texture BlackTexture;
-    Texture BlackArrayTexture;
-    Texture GrayTexture;
     Texture WhiteTexture;
-    Texture WhiteArrayTexture;
-    Texture RedTexture;
-    Texture GreenTexture;
-    Texture BlueTexture;
     Texture DummyUAV2DTexture;
     Texture R8UIntMax2DTexture;
 
