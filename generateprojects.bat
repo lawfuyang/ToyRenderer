@@ -39,7 +39,8 @@ if not exist "%DXC_DEST_FOLDER%" (
 
 :: Nvidia Aftermath
 set "AFTERMATH_DEST_FOLDER=%cd%\extern\nvidia\aftermath"
-if not exist %AFTERMATH_DEST_FOLDER% (
+if not exist "%AFTERMATH_DEST_FOLDER%" (
+    echo %AFTERMATH_DEST_FOLDER% doesn't exist!
 	call :DownloadAndExtractPackage https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2024_2_0/windows/NVIDIA_Nsight_Aftermath_SDK_2024.2.0.24200.zip aftermath
 
 	xcopy "%TMP_FOLDER%\aftermath\include\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
@@ -49,9 +50,9 @@ if not exist %AFTERMATH_DEST_FOLDER% (
 
 :: AMD FidelityFX SDK
 set "FFX_DEST_FOLDER=%cd%\extern\amd\FidelityFX"
-if not exist %FFX_DEST_FOLDER% (
+if not exist "%FFX_DEST_FOLDER%" (
 	call :DownloadAndExtractPackage https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/archive/refs/tags/v1.1.2.zip ffx
-	
+
 	xcopy "%TMP_FOLDER%\ffx\FidelityFX-SDK-1.1.2\sdk\include\FidelityFX\gpu\*" "%FFX_DEST_FOLDER%\include\FidelityFX\gpu\" /E /I /Y
 	xcopy "%TMP_FOLDER%\ffx\FidelityFX-SDK-1.1.2\sdk\src\backends\dx12\shaders\*" "%FFX_DEST_FOLDER%\src\backends\dx12\shaders\" /E /I /Y
 )
