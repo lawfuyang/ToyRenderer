@@ -6,4 +6,5 @@
 /extern/nvidia/aftermath
 /extern/amd/FidelityFX
 /extern/imgui
+/extern/magic_enum
 *.lnk
