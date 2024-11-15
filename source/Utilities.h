@@ -1,6 +1,6 @@
 #pragma once
 
-#include "extern/magic_enum/magic_enum.hpp"
+#include "magic_enum/magic_enum.hpp"
 
 const char* StringFormat(const char* format, ...);
 
