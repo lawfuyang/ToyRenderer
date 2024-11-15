@@ -8,7 +8,7 @@ cd /d "%~dp0"
 @SET DXC_PATH="%cd%/extern/dxc/dxc.exe"
 @SET CONFIG_FILE="%cd%/source/shaders/shaderstocompile.txt"
 @SET OUT="%cd%/bin/shaders/"
-@SET INCLUDE_DIRS=--include="%cd%/" --include="%cd%/source/shaders/" --include="%cd%/extern/amd/FidelityFX/include/FidelityFX/gpu/"
+@SET INCLUDE_DIRS=--include="%cd%/" --include="%cd%/source/shaders/" --include="%cd%/extern/amd/FidelityFX/sdk/include/FidelityFX/gpu/"
 @SET RELAXED_INCLUDES=--relaxedInclude=MathUtilities.h --relaxedInclude=vaShared.hlsl --relaxedInclude=XeGTAO.h
 rem @SET COMPILER_OPTIONS="-Wconversion -Wdouble-promotion -Whlsl-legacy-literal"
 rem @SET COMPILER_OPTIONS="-HV 202x"

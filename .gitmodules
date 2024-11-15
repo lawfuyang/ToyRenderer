@@ -7,3 +7,6 @@
 [submodule "extern/magic_enum"]
 	path = extern/magic_enum
 	url = https://github.com/Neargye/magic_enum/
+[submodule "extern/amd/FidelityFX"]
+	path = extern/amd/FidelityFX
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK

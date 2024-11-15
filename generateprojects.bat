@@ -32,15 +32,6 @@ if not exist "%AFTERMATH_DEST_FOLDER%" (
 	xcopy "%AFTERMATH_DEST_FOLDER%\GFSDK_Aftermath_Lib.x64.dll" "%cd%\bin\" /E /I /Y
 )
 
-:: AMD FidelityFX SDK
-set "FFX_DEST_FOLDER=%cd%\extern\amd\FidelityFX"
-if not exist "%FFX_DEST_FOLDER%" (
-	call :DownloadAndExtractPackage https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/archive/refs/tags/v1.1.2.zip ffx
-
-	xcopy "%TMP_FOLDER%\ffx\FidelityFX-SDK-1.1.2\sdk\include\FidelityFX\gpu\*" "%FFX_DEST_FOLDER%\include\FidelityFX\gpu\" /E /I /Y
-	xcopy "%TMP_FOLDER%\ffx\FidelityFX-SDK-1.1.2\sdk\src\backends\dx12\shaders\*" "%FFX_DEST_FOLDER%\src\backends\dx12\shaders\" /E /I /Y
-)
-
 goto :AfterDownloadPackages
 
 :DownloadAndExtractPackage
