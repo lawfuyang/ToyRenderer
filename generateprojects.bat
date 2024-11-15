@@ -41,14 +41,6 @@ if not exist "%FFX_DEST_FOLDER%" (
 	xcopy "%TMP_FOLDER%\ffx\FidelityFX-SDK-1.1.2\sdk\src\backends\dx12\shaders\*" "%FFX_DEST_FOLDER%\src\backends\dx12\shaders\" /E /I /Y
 )
 
-:: Magic Enum
-set "MAGIC_ENUM_DEST_FOLDER=%cd%\extern\magic_enum"
-if not exist "%MAGIC_ENUM_DEST_FOLDER%" (
-	call :DownloadAndExtractPackage https://github.com/Neargye/magic_enum/archive/refs/tags/v0.9.7.zip magic_enum
-
-	xcopy "%TMP_FOLDER%\magic_enum\magic_enum-0.9.7\include\magic_enum\*" "%MAGIC_ENUM_DEST_FOLDER%\" /E /I /Y
-)
-
 goto :AfterDownloadPackages
 
 :DownloadAndExtractPackage
