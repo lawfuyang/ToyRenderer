@@ -10,3 +10,6 @@
 [submodule "extern/amd/FidelityFX"]
 	path = extern/amd/FidelityFX
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/
+[submodule "extern/cxxopts"]
+	path = extern/cxxopts
+	url = https://github.com/jarro2783/cxxopts

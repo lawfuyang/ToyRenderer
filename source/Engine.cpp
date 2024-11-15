@@ -2,7 +2,7 @@
 
 #include <dxgidebug.h>
 
-#include "extern/cxxopts/cxxopts.hpp"
+#include "extern/cxxopts/include/cxxopts.hpp"
 
 #include "Graphic.h"
 #include "GraphicPropertyGrid.h"
