@@ -14,22 +14,6 @@ if %errorlevel% neq 0 (
 
 set "TMP_FOLDER=%cd%\tmp"
 
-:: IMGUI
-set "IMGUI_DEST_FOLDER=%cd%\extern\imgui"
-if not exist "%IMGUI_DEST_FOLDER%" (
-	call :DownloadAndExtractPackage https://github.com/ocornut/imgui/archive/refs/tags/v1.91.5.zip imgui
-	
-	:: .h/.cpp files in immediate dir
-	for %%f in ("%TMP_FOLDER%\imgui\imgui-1.91.5\*.h" "%TMP_FOLDER%\imgui\imgui-1.91.5\*.cpp") do (
-		xcopy "%%f" "%IMGUI_DEST_FOLDER%\"
-	)
-
-	xcopy "%TMP_FOLDER%\imgui\imgui-1.91.5\backends\imgui_impl_win32.h" "%IMGUI_DEST_FOLDER%\"
-	xcopy "%TMP_FOLDER%\imgui\imgui-1.91.5\backends\imgui_impl_win32.cpp" "%IMGUI_DEST_FOLDER%\"
-	xcopy "%TMP_FOLDER%\imgui\imgui-1.91.5\misc\cpp\imgui_stdlib.h" "%IMGUI_DEST_FOLDER%\"
-	xcopy "%TMP_FOLDER%\imgui\imgui-1.91.5\misc\cpp\imgui_stdlib.cpp" "%IMGUI_DEST_FOLDER%\"
-)
-
 :: DXC
 set "DXC_DEST_FOLDER=%cd%\extern\dxc"
 if not exist "%DXC_DEST_FOLDER%" (

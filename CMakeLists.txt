@@ -53,7 +53,7 @@ file(GLOB_RECURSE BASE_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${SRC_DIR}/*.hpp
 file(GLOB_RECURSE NVRHI_SRC "${EXTERN_DIR}/nvrhi/src/d3d12/*" "${EXTERN_DIR}/nvrhi/src/validation/*" "${EXTERN_DIR}/nvrhi/src/common/*" "${EXTERN_DIR}/nvrhi/*.h")
 file(GLOB_RECURSE TASKFLOW_SRC "${EXTERN_DIR}/taskflow/*.*")
 file(GLOB_RECURSE MICROPROFILE_SRC "${EXTERN_DIR}/microprofile/*.*")
-file(GLOB_RECURSE IMGUI_SRC "${EXTERN_DIR}/imgui/*.*")
+file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgui_impl_win32.*" )
 file(GLOB_RECURSE SIMPLEMATH_SRC "${EXTERN_DIR}/simplemath/*.*")
 file(GLOB_RECURSE STB_SRC "${EXTERN_DIR}/stb/*.*")
 file(GLOB_RECURSE SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.cpp" "${EXTERN_DIR}/ShaderMake/src/ShaderBlob.cpp")
@@ -94,6 +94,7 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvrhi/in
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/ShaderMake/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/FidelityFX/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/aftermath")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/imgui")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 # global preprocessor macros
