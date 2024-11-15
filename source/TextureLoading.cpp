@@ -1,4 +1,4 @@
-#include "extern/ktx_transcoder/basisu_transcoder.h"
+#include "extern/basis_universal/transcoder/basisu_transcoder.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG

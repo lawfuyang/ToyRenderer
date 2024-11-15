@@ -1,7 +1,7 @@
 #include "Graphic.h"
 
 #include "extern/debug_draw/debug_draw.hpp"
-#include "extern/ktx_transcoder/basisu_transcoder.h"
+#include "extern/basis_universal/transcoder/basisu_transcoder.h"
 #include "extern/ShaderMake/src/argparse.h"
 #include "nvrhi/d3d12.h"
 #include "nvrhi/validation.h"
