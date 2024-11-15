@@ -1,7 +1,7 @@
 #pragma once
 
 #include "extern/microprofile/microprofile.h"
-#include "extern/taskflow/taskflow.hpp"
+#include "extern/taskflow/taskflow/taskflow.hpp"
 
 #include "CriticalSection.h"
 

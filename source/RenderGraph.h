@@ -1,7 +1,7 @@
 #pragma once
 
 #include "nvrhi/nvrhi.h"
-#include "extern/taskflow/taskflow.hpp"
+#include "extern/taskflow/taskflow/taskflow.hpp"
 
 #include "SmallVector.h"
 
