@@ -196,6 +196,9 @@ void Graphic::InitDevice()
     {
         PROFILE_SCOPED("CreateQueue");
 
+        const char* queueName = nvrhi::utils::CommandQueueToString(queue);
+        PROFILE_SCOPED(queueName);
+
         static const D3D12_COMMAND_LIST_TYPE kD3D12QueueTypes[] = { D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_TYPE_COMPUTE, D3D12_COMMAND_LIST_TYPE_COPY };
 
         D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -207,7 +210,7 @@ void Graphic::InitDevice()
         ComPtr<ID3D12CommandQueue> outQueue;
         HRESULT_CALL(m_D3DDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&outQueue)));
 
-        m_GPUQueueLogs[(uint32_t)queue] = MicroProfileInitGpuQueue(nvrhi::utils::CommandQueueToString(queue));
+        m_GPUQueueLogs[(uint32_t)queue] = MicroProfileInitGpuQueue(queueName);
 
         return outQueue;
     };
