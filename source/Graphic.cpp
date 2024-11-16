@@ -1,6 +1,5 @@
 #include "Graphic.h"
 
-#include "extern/debug_draw/debug_draw.hpp"
 #include "extern/basis_universal/transcoder/basisu_transcoder.h"
 #include "extern/ShaderMake/src/argparse.h"
 #include "nvrhi/d3d12.h"
@@ -928,12 +927,6 @@ void Graphic::Update()
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Begin Frame Timer Query");
 
         commandList->beginTimerQuery(m_FrameTimerQuery);
-    }
-
-    // clear debug draw vertices' data if option to render debug primitives is disabled
-    if (!g_GraphicPropertyGrid.m_DebugControllables.m_bRenderDebugDraw)
-    {
-        dd::clear();
     }
 
     {

@@ -12,11 +12,6 @@ public:
     struct DebugControllables
     {
         uint32_t m_FPSLimit = 200.0f;
-        bool m_bRenderDebugDrawDemo = false;
-        bool m_bRenderDebugDraw = true;
-        bool m_bRenderGrid = false;
-        bool m_bRenderSceneAABB = false;
-        bool m_bRenderSceneBS = false;
     };
     DebugControllables m_DebugControllables;
 

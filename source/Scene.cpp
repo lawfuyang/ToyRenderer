@@ -442,7 +442,6 @@ void Scene::Update()
         extern IRenderer* g_TileClassificationDebugRenderer;
         extern IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
         extern IRenderer* g_TransparentForwardRenderer;
-        extern IRenderer* g_DebugDrawRenderer;
         extern IRenderer* g_IMGUIRenderer;
         extern IRenderer* g_SkyRenderer;
         extern IRenderer* g_PostProcessRenderer;
@@ -474,7 +473,6 @@ void Scene::Update()
         m_RenderGraph->AddRenderer(g_PostProcessRenderer);
 
         // DisplayResolution Debug Passes
-        m_RenderGraph->AddRenderer(g_DebugDrawRenderer);
         m_RenderGraph->AddRenderer(g_IMGUIRenderer);
     }
     m_RenderGraph->Compile();

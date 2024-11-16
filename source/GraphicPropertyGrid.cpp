@@ -91,11 +91,6 @@ void GraphicPropertyGrid::UpdateIMGUI()
         DebugControllables& params = m_DebugControllables;
 
         ImGui::SliderInt("FPS Limit", (int*)&params.m_FPSLimit, 0, 240);
-        ImGui::Checkbox("Render Debug Draw", &params.m_bRenderDebugDraw);
-        ImGui::Checkbox("Render Grid", &params.m_bRenderGrid);
-        ImGui::Checkbox("Draw Scene AABB", &params.m_bRenderSceneAABB);
-        ImGui::Checkbox("Draw Scene Bounding Sphere", &params.m_bRenderSceneBS);
-        ImGui::Checkbox("Render Debug Draw Demo", &params.m_bRenderDebugDrawDemo);
         ImGui::TreePop();
     }
 
