@@ -22,3 +22,6 @@
 [submodule "extern/taskflow"]
 	path = extern/taskflow
 	url = https://github.com/lawfuyang/taskflow
+[submodule "extern/microprofile"]
+	path = extern/microprofile
+	url = https://github.com/jonasmr/microprofile
