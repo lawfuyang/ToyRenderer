@@ -52,7 +52,6 @@ goto :eof
 
 :: generate projects
 call :CreateProject "%cd%" "%cd%\projects\ToyRenderer"
-call :CreateProject "%cd%\extern\ShaderMake" "%cd%\projects\ShaderMake"
 goto :AfterGenerateProjects
 
 :CreateProject
@@ -67,7 +66,6 @@ goto :eof
 
 :: create shortcuts to VS solutions in root folder
 call :CreateSlnShortcut "%cd%\projects\ToyRenderer\ToyRenderer.sln" "%cd%\ToyRenderer.sln.lnk"
-call :CreateSlnShortcut "%cd%\projects\ShaderMake\ShaderMake.sln" "%cd%\ShaderMake.sln.lnk"
 goto :AfterCreateSlnShortcuts
 
 :CreateSlnShortcut

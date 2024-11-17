@@ -5,7 +5,7 @@ option(ENABLE_IPO "" OFF)
 option(ENABLE_ADDRESS_SANITIZER "" OFF)
 
 # Set available build types
-set(CMAKE_CONFIGURATION_TYPES "Debug;RelWithDebInfo" CACHE STRING "Limited configurations" FORCE)
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE STRING "Build types" FORCE)
 
 project(ToyRenderer)
 
@@ -56,13 +56,14 @@ file(GLOB MICROPROFILE_SRC "${EXTERN_DIR}/microprofile/microprofile.*")
 file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgui_impl_win32.*" )
 file(GLOB_RECURSE SIMPLEMATH_SRC "${EXTERN_DIR}/simplemath/*.*")
 file(GLOB_RECURSE STB_SRC "${EXTERN_DIR}/stb/*.*")
-file(GLOB_RECURSE SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.cpp" "${EXTERN_DIR}/ShaderMake/src/ShaderBlob.cpp")
+file(GLOB SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.c" "${EXTERN_DIR}/ShaderMake/src/ShaderBlob.cpp")
 file(GLOB BASISU_TRANSCODER_SRC "${EXTERN_DIR}/basis_universal/transcoder/*.*")
 file(GLOB ZSTD_SRC "${EXTERN_DIR}/basis_universal/zstd/zstd.c")
 file(GLOB_RECURSE D3D12MA_SRC "${EXTERN_DIR}/d3d12ma/*.*")
 file(GLOB_RECURSE MESHOPTIMIZER_SRC "${EXTERN_DIR}/meshoptimizer/*.*")
 
 set_source_files_properties(${ZSTD_SRC} PROPERTIES LANGUAGE CXX)
+set_source_files_properties(${SHADERMAKE_SRC} PROPERTIES LANGUAGE CXX)
 
 set(TOYRENDERER_SRC ${BASE_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${NVRHI_SRC})
@@ -74,6 +75,8 @@ set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SHADERMAKE_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${BASISU_TRANSCODER_SRC} ${ZSTD_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${D3D12MA_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${MESHOPTIMIZER_SRC})
+
+add_subdirectory(extern/shadermake)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 

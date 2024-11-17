@@ -1,15 +1,14 @@
 #include "Graphic.h"
 
 #include "extern/basis_universal/transcoder/basisu_transcoder.h"
-#include "extern/ShaderMake/src/argparse.h"
+#include "extern/shadermake/src/argparse.h"
+#include "extern/shadermake/include/ShaderMake/ShaderBlob.h"
 #include "nvrhi/d3d12.h"
 #include "nvrhi/validation.h"
 
 #if NVRHI_WITH_AFTERMATH
 #include "nvrhi/common/aftermath.h"
 #endif
-
-#include "ShaderMake/ShaderBlob.h"
 
 #include "CommonResources.h"
 #include "DescriptorTableManager.h"

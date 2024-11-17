@@ -25,3 +25,6 @@
 [submodule "extern/microprofile"]
 	path = extern/microprofile
 	url = https://github.com/jonasmr/microprofile
+[submodule "extern/shadermake"]
+	path = extern/shadermake
+	url = https://github.com/NVIDIAGameWorks/ShaderMake
