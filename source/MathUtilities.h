@@ -1,6 +1,6 @@
 #pragma once
 
-#include "extern/simplemath/SimpleMath.h"
+#include "SimpleMath.h"
 
 using Vector2    = DirectX::SimpleMath::Vector2;
 using Vector2I   = DirectX::XMINT2;
@@ -30,17 +30,19 @@ constexpr float ConvertToRadians(float fDegrees) { return DirectX::XMConvertToRa
 constexpr float ConvertToDegrees(float fRadians) { return DirectX::XMConvertToDegrees(fRadians); }
 inline void ScalarSinCos(float& sinResult, float& cosResult, float value) { return DirectX::XMScalarSinCos(&sinResult, &cosResult, value); }
 
-constexpr uint32_t GetNextPow2(uint32_t n)
+constexpr uint32_t GetNextPow2(uint32_t x)
 {
-    --n;
-    n = n | (n >> 1);
-    n = n | (n >> 2);
-    n = n | (n >> 4);
-    n = n | (n >> 8);
-    n = n | (n >> 16);
-    ++n;
+    if (x == 0) return 1; // Special case: 0 returns 1 (2^0)
 
-    return n;
+    // Decrement x by 1, and then perform a series of bit shifts to propagate the highest bit.
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+
+    // Now x has all bits set to 1 from the most significant bit down to the least significant bit of the original number.
+    return x + 1;
 }
 
 /** Divides two integers and rounds up */
