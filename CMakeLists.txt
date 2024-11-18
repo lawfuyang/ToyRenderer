@@ -55,7 +55,6 @@ endforeach()
 file(GLOB_RECURSE BASE_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${SRC_DIR}/*.hpp" "${SRC_DIR}/*.inl")
 file(GLOB_RECURSE NVRHI_SRC "${EXTERN_DIR}/nvrhi/src/d3d12/*" "${EXTERN_DIR}/nvrhi/src/validation/*" "${EXTERN_DIR}/nvrhi/src/common/*" "${EXTERN_DIR}/nvrhi/*.h")
 file(GLOB_RECURSE TASKFLOW_SRC "${EXTERN_DIR}/taskflow/taskflow/*.*")
-file(GLOB MICROPROFILE_SRC "${EXTERN_DIR}/microprofile/microprofile.*")
 file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgui_impl_win32.*" )
 file(GLOB_RECURSE SIMPLEMATH_SRC "${EXTERN_DIR}/simplemath/*.*")
 file(GLOB STB_SRC "${EXTERN_DIR}/stb/*.h")
@@ -66,7 +65,6 @@ set_source_files_properties(${SHADERMAKE_SRC} PROPERTIES LANGUAGE CXX)
 set(TOYRENDERER_SRC ${BASE_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${NVRHI_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${TASKFLOW_SRC})
-set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${MICROPROFILE_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${IMGUI_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SIMPLEMATH_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SHADERMAKE_SRC})
@@ -75,6 +73,7 @@ add_subdirectory(extern/shadermake)
 add_subdirectory(extern/basis_universal)
 add_subdirectory(extern/meshoptimizer)
 add_subdirectory(extern/d3d12ma)
+add_subdirectory(extern/microprofile)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
@@ -86,6 +85,7 @@ set(TOYRENDERER_LIBRARIES
     basisu_encoder
     meshoptimizer
 	D3D12MemoryAllocator
+	microprofile
 	"${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64.lib"
 )
 
@@ -107,16 +107,16 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/Fide
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/aftermath")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/imgui")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/magic_enum/include")
-set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/d3d12ma/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 # global preprocessor macros
 target_compile_definitions(ToyRenderer PUBLIC _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
 target_compile_definitions(ToyRenderer PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
 target_compile_definitions(ToyRenderer PUBLIC IMGUI_DEFINE_MATH_OPERATORS IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
-target_compile_definitions(ToyRenderer PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
 target_compile_definitions(ToyRenderer PUBLIC BASISU_FORCE_DEVEL_MESSAGES)
 target_compile_definitions(ToyRenderer PUBLIC NVRHI_D3D12_WITH_D3D12MA NVRHI_WITH_AFTERMATH=1)
+
+target_compile_definitions(microprofile PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
 
 # disable as many transcoder formats as possible to save code size
 target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_ASTC=0)
