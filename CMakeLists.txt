@@ -60,7 +60,6 @@ file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgu
 file(GLOB_RECURSE SIMPLEMATH_SRC "${EXTERN_DIR}/simplemath/*.*")
 file(GLOB STB_SRC "${EXTERN_DIR}/stb/*.h")
 file(GLOB SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.c" "${EXTERN_DIR}/ShaderMake/src/ShaderBlob.cpp")
-file(GLOB D3D12MA_SRC "${EXTERN_DIR}/d3d12ma/include/D3D12MemAlloc.h" "${EXTERN_DIR}/d3d12ma/src/D3D12MemAlloc.cpp")
 
 set_source_files_properties(${SHADERMAKE_SRC} PROPERTIES LANGUAGE CXX)
 
@@ -71,11 +70,11 @@ set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${MICROPROFILE_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${IMGUI_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SIMPLEMATH_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SHADERMAKE_SRC})
-set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${D3D12MA_SRC})
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/basis_universal)
 add_subdirectory(extern/meshoptimizer)
+add_subdirectory(extern/d3d12ma)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
@@ -86,6 +85,7 @@ set(TOYRENDERER_LIBRARIES
     d3d12 dxgi dxguid Ws2_32
     basisu_encoder
     meshoptimizer
+	D3D12MemoryAllocator
 	"${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64.lib"
 )
 
