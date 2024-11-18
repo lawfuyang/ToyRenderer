@@ -60,7 +60,6 @@ file(GLOB SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.c" "${EXTERN_DIR
 file(GLOB BASISU_TRANSCODER_SRC "${EXTERN_DIR}/basis_universal/transcoder/*.*")
 file(GLOB ZSTD_SRC "${EXTERN_DIR}/basis_universal/zstd/zstd.c")
 file(GLOB D3D12MA_SRC "${EXTERN_DIR}/d3d12ma/include/D3D12MemAlloc.h" "${EXTERN_DIR}/d3d12ma/src/D3D12MemAlloc.cpp")
-file(GLOB_RECURSE MESHOPTIMIZER_SRC "${EXTERN_DIR}/meshoptimizer/*.*")
 
 set_source_files_properties(${ZSTD_SRC} PROPERTIES LANGUAGE CXX)
 set_source_files_properties(${SHADERMAKE_SRC} PROPERTIES LANGUAGE CXX)
@@ -74,9 +73,9 @@ set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SIMPLEMATH_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SHADERMAKE_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${BASISU_TRANSCODER_SRC} ${ZSTD_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${D3D12MA_SRC})
-set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${MESHOPTIMIZER_SRC})
 
 add_subdirectory(extern/shadermake)
+add_subdirectory(extern/meshoptimizer)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
@@ -84,7 +83,7 @@ add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ToyRenderer)
 
 # libs
-target_link_libraries(ToyRenderer PUBLIC d3d12 dxgi dxguid Ws2_32 "${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64.lib")
+target_link_libraries(ToyRenderer PUBLIC d3d12 dxgi dxguid Ws2_32 meshoptimizer "${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64.lib")
 
 # force include PCH.h
 set(PCH_FILE "${SRC_DIR}/PCH.h")

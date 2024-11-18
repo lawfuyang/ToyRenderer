@@ -2,7 +2,7 @@
 #define CGLTF_IMPLEMENTATION
 #include "extern/cgltf/cgltf.h"
 
-#include "extern/meshoptimizer/meshoptimizer.h"
+#include "extern/meshoptimizer/src/meshoptimizer.h"
 
 #include "CommonResources.h"
 #include "Engine.h"
