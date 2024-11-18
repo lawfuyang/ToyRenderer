@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include <nvrhi/nvrhi.h>
+#include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
 class DescriptorTableManager
 {

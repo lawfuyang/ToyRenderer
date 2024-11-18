@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "nvrhi/nvrhi.h"
+#include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
 // AftermathCrashDump contains all interactions with the Aftermath crash dump SDK,
 // and gathers all relevant information to package together with the dump

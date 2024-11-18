@@ -7,10 +7,12 @@
 #include "Engine.h"
 #include "Scene.h"
 
+#if 0
 namespace nvrhi::d3d12
 {
     extern D3D12MA::Allocator* g_D3D12MAAllocator;
 }
+#endif
 
 void UpdateIMGUIGraphicPropertyGrid()
 {
@@ -47,6 +49,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
         ImGui::TreePop();
     }
 
+#if 0
     if (ImGui::TreeNode("D3D12MA Stats"))
     {
         auto* allocator = nvrhi::d3d12::g_D3D12MAAllocator;
@@ -85,6 +88,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
 
         ImGui::TreePop();
     }
+#endif
 
     if (ImGui::TreeNode("Debug"))
     {

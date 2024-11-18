@@ -4,8 +4,8 @@
 #include <dxgi1_6.h>
 
 #include "extern/microprofile/microprofile.h"
-#include "nvrhi/nvrhi.h"
-#include "nvrhi/utils.h"
+#include "extern/nvrhi/include/nvrhi/nvrhi.h"
+#include "extern/nvrhi//include/nvrhi/utils.h"
 
 #if NVRHI_WITH_AFTERMATH
 #include "AftermathCrashDump.h"

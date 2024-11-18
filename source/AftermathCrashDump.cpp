@@ -20,6 +20,8 @@
 * DEALINGS IN THE SOFTWARE.
 */
 
+#if NVRHI_WITH_AFTERMATH
+
 #include "AftermathCrashDump.h"
 
 #include "nvrhi/common/aftermath.h"
@@ -29,8 +31,8 @@
 #include "Utilities.h"
 
 // NOTE: including the Aftermath SDK headers after Graphic.h because it requires '__d3d12_h__' to be defined
-#include <GFSDK_Aftermath_GpuCrashDump.h>
-#include <GFSDK_Aftermath_GpuCrashDumpDecoding.h>
+#include <extern/nvidia/aftermath/include/GFSDK_Aftermath_GpuCrashDump.h>
+#include <extern/nvidia/aftermath/include/GFSDK_Aftermath_GpuCrashDumpDecoding.h>
 
 static void DumpFileCallback(const void* pGpuCrashDump, const uint32_t gpuCrashDumpSize, void* pUserData)
 {
@@ -177,3 +179,5 @@ std::filesystem::path AftermathCrashDump::GetDumpFolder()
 {
     return m_dumpFolder;
 }
+
+#endif // NVRHI_WITH_AFTERMATH

@@ -21,17 +21,6 @@ if not exist "%DXC_DEST_FOLDER%" (
 	xcopy "%TMP_FOLDER%\dxc\bin\x64\*" "%DXC_DEST_FOLDER%\" /E /I /Y
 )
 
-:: Nvidia Aftermath
-set "AFTERMATH_DEST_FOLDER=%cd%\extern\nvidia\aftermath"
-if not exist "%AFTERMATH_DEST_FOLDER%" (
-    echo %AFTERMATH_DEST_FOLDER% doesn't exist!
-	call :DownloadAndExtractPackage https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2024_2_0/windows/NVIDIA_Nsight_Aftermath_SDK_2024.2.0.24200.zip aftermath
-
-	xcopy "%TMP_FOLDER%\aftermath\include\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
-	xcopy "%TMP_FOLDER%\aftermath\lib\x64\*" "%AFTERMATH_DEST_FOLDER%\" /E /I /Y
-	xcopy "%AFTERMATH_DEST_FOLDER%\GFSDK_Aftermath_Lib.x64.dll" "%cd%\bin\" /E /I /Y
-)
-
 goto :AfterDownloadPackages
 
 :DownloadAndExtractPackage
