@@ -2,7 +2,7 @@
 
 namespace HosekData
 {
-#include "extern/HosekWilkie/HosekDataRGB.h"
+#include "HosekDataRGB.h"
 }
 
 #include "GraphicPropertyGrid.h"
