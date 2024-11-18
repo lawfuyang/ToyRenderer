@@ -59,7 +59,7 @@ file(GLOB_RECURSE STB_SRC "${EXTERN_DIR}/stb/*.*")
 file(GLOB SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.c" "${EXTERN_DIR}/ShaderMake/src/ShaderBlob.cpp")
 file(GLOB BASISU_TRANSCODER_SRC "${EXTERN_DIR}/basis_universal/transcoder/*.*")
 file(GLOB ZSTD_SRC "${EXTERN_DIR}/basis_universal/zstd/zstd.c")
-file(GLOB_RECURSE D3D12MA_SRC "${EXTERN_DIR}/d3d12ma/*.*")
+file(GLOB D3D12MA_SRC "${EXTERN_DIR}/d3d12ma/include/D3D12MemAlloc.h" "${EXTERN_DIR}/d3d12ma/src/D3D12MemAlloc.cpp")
 file(GLOB_RECURSE MESHOPTIMIZER_SRC "${EXTERN_DIR}/meshoptimizer/*.*")
 
 set_source_files_properties(${ZSTD_SRC} PROPERTIES LANGUAGE CXX)
@@ -100,6 +100,7 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/Fide
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/aftermath")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/imgui")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/magic_enum/include")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/d3d12ma/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 # global preprocessor macros

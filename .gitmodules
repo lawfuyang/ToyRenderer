@@ -28,3 +28,6 @@
 [submodule "extern/shadermake"]
 	path = extern/shadermake
 	url = https://github.com/NVIDIAGameWorks/ShaderMake
+[submodule "extern/d3d12ma"]
+	path = extern/d3d12ma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator

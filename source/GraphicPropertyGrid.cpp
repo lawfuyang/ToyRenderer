@@ -1,7 +1,7 @@
 #include "GraphicPropertyGrid.h"
 
 #include "extern/imgui/imgui.h"
-#include "extern/d3d12ma/D3D12MemAlloc.h"
+#include "extern/d3d12ma/include/D3D12MemAlloc.h"
 
 #include "Graphic.h"
 #include "Engine.h"
