@@ -20,6 +20,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")     # Multi-Processor compilation
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")     # Level 4 warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX")     # Warnings as errors
 
+# Set iterator debug level to 0 for all targets (no iterator debugging)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_ITERATOR_DEBUG_LEVEL=0")
+
 if (ENABLE_ADDRESS_SANITIZER)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
@@ -57,11 +60,8 @@ file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgu
 file(GLOB_RECURSE SIMPLEMATH_SRC "${EXTERN_DIR}/simplemath/*.*")
 file(GLOB STB_SRC "${EXTERN_DIR}/stb/*.h")
 file(GLOB SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.c" "${EXTERN_DIR}/ShaderMake/src/ShaderBlob.cpp")
-file(GLOB BASISU_TRANSCODER_SRC "${EXTERN_DIR}/basis_universal/transcoder/*.*")
-file(GLOB ZSTD_SRC "${EXTERN_DIR}/basis_universal/zstd/zstd.c")
 file(GLOB D3D12MA_SRC "${EXTERN_DIR}/d3d12ma/include/D3D12MemAlloc.h" "${EXTERN_DIR}/d3d12ma/src/D3D12MemAlloc.cpp")
 
-set_source_files_properties(${ZSTD_SRC} PROPERTIES LANGUAGE CXX)
 set_source_files_properties(${SHADERMAKE_SRC} PROPERTIES LANGUAGE CXX)
 
 set(TOYRENDERER_SRC ${BASE_SRC})
@@ -71,10 +71,10 @@ set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${MICROPROFILE_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${IMGUI_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SIMPLEMATH_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SHADERMAKE_SRC})
-set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${BASISU_TRANSCODER_SRC} ${ZSTD_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${D3D12MA_SRC})
 
 add_subdirectory(extern/shadermake)
+add_subdirectory(extern/basis_universal)
 add_subdirectory(extern/meshoptimizer)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
@@ -82,8 +82,16 @@ add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 # startup proj = 'ToyRenderer'
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ToyRenderer)
 
+set(TOYRENDERER_LIBRARIES
+    d3d12 dxgi dxguid Ws2_32
+    basisu_encoder
+    meshoptimizer
+	"${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64.lib"
+)
+
+
 # libs
-target_link_libraries(ToyRenderer PUBLIC d3d12 dxgi dxguid Ws2_32 meshoptimizer "${EXTERN_DIR}/nvidia/aftermath/GFSDK_Aftermath_Lib.x64.lib")
+target_link_libraries(ToyRenderer PUBLIC ${TOYRENDERER_LIBRARIES})
 
 # force include PCH.h
 set(PCH_FILE "${SRC_DIR}/PCH.h")
@@ -121,9 +129,6 @@ target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_ETC2_EAC_RG11=0)
 target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_FXT1=0)
 target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_PVRTC1=0)
 target_compile_definitions(ToyRenderer PUBLIC BASISD_SUPPORT_PVRTC2=0)
-
-# disable checked iterators for perf
-target_compile_definitions(ToyRenderer PUBLIC _ITERATOR_DEBUG_LEVEL=0)
 
 if (ENABLE_UNITY_BUILD)
 	set_target_properties(ToyRenderer PROPERTIES UNITY_BUILD ON)

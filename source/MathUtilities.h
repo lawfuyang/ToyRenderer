@@ -35,6 +35,7 @@ constexpr uint32_t GetNextPow2(uint32_t x)
     if (x == 0) return 1; // Special case: 0 returns 1 (2^0)
 
     // Decrement x by 1, and then perform a series of bit shifts to propagate the highest bit.
+    --x;
     x |= x >> 1;
     x |= x >> 2;
     x |= x >> 4;
