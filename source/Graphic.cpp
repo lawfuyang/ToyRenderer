@@ -1,10 +1,10 @@
 #include "Graphic.h"
 
 #include "extern/basis_universal/transcoder/basisu_transcoder.h"
-#include "extern/shadermake/src/argparse.h"
+#include "extern/cxxopts/include/cxxopts.hpp"
+#include "extern/nvrhi/include/nvrhi/d3d12.h"
+#include "extern/nvrhi/include/nvrhi/validation.h"
 #include "extern/shadermake/include/ShaderMake/ShaderBlob.h"
-#include "nvrhi/d3d12.h"
-#include "nvrhi/validation.h"
 
 #if NVRHI_WITH_AFTERMATH
 #include "nvrhi/common/aftermath.h"
@@ -369,21 +369,17 @@ void Graphic::InitShaders()
         std::vector<const char*> configLineTokens;
         TokenizeLine((char*)shaderEntryLine.c_str(), configLineTokens);
 
-        char* profile;
-        char* entryPoint;
-        char* unused;
+        // use cxxopts lib to conveniently retrieve shader type & entry point, so we can reconstruct bin file name
+        cxxopts::Options options{ "Shader Line Parser", "" };
+        options.allow_unrecognised_options();
+        options.add_options()
+            ("T", "profile", cxxopts::value<std::string>())
+            ("E", "entryPoint", cxxopts::value<std::string>());
 
-        // use argparse to retrieve shader type & entry point, so we can reconstruct bin file name
-        argparse_option options[] = {
-            OPT_STRING('T', "profile", &profile, "", nullptr, 0, 0),
-            OPT_STRING('E', "entryPoint", &entryPoint, "", nullptr, 0, 0),
-            OPT_STRING('D', "define", &unused, "", nullptr, 0, 0),
-            OPT_END(),
-        };
+        const cxxopts::ParseResult parseResult = options.parse(configLineTokens.size(), configLineTokens.data());
 
-        argparse argparse;
-        argparse_init(&argparse, options, nullptr, 0);
-        argparse_parse(&argparse, (int32_t)configLineTokens.size(), configLineTokens.data());
+        const std::string profile = parseResult["T"].as<std::string>();
+        const std::string entryPoint = parseResult["E"].as<std::string>();
 
         // reconstruct bin file name
         // NOTE: after tokenization the line string is the 1st token of the line, which is the file name

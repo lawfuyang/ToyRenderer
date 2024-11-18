@@ -7,6 +7,8 @@ option(ENABLE_ADDRESS_SANITIZER "" OFF)
 # Set available build types
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE STRING "Build types" FORCE)
 
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL")
+
 project(ToyRenderer)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -58,13 +60,8 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 # src files
 file(GLOB_RECURSE BASE_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${SRC_DIR}/*.hpp" "${SRC_DIR}/*.inl")
 file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgui_impl_win32.*" )
-file(GLOB SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.c" "${EXTERN_DIR}/ShaderMake/src/ShaderBlob.cpp")
 
-set_source_files_properties(${SHADERMAKE_SRC} PROPERTIES LANGUAGE CXX)
-
-set(TOYRENDERER_SRC ${BASE_SRC})
-set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${IMGUI_SRC})
-set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SHADERMAKE_SRC})
+set(TOYRENDERER_SRC ${BASE_SRC} ${IMGUI_SRC})
 
 set(NVRHI_WITH_DX12 ON)
 set(NVRHI_WITH_AFTERMATH OFF)
@@ -86,9 +83,10 @@ add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ToyRenderer)
 
 set(TOYRENDERER_LIBRARIES
-    d3d12 dxgi dxguid Ws2_32
-    basisu_encoder
-    meshoptimizer
+	d3d12 dxgi dxguid Ws2_32
+	ShaderMakeBlob
+	basisu_encoder
+	meshoptimizer
 	D3D12MemoryAllocator
 	microprofile
 	nvrhi
