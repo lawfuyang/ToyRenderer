@@ -57,20 +57,20 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 
 # src files
 file(GLOB_RECURSE BASE_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${SRC_DIR}/*.hpp" "${SRC_DIR}/*.inl")
-file(GLOB_RECURSE TASKFLOW_SRC "${EXTERN_DIR}/taskflow/taskflow/*.*")
 file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgui_impl_win32.*" )
 file(GLOB SHADERMAKE_SRC "${EXTERN_DIR}/ShaderMake/src/argparse.c" "${EXTERN_DIR}/ShaderMake/src/ShaderBlob.cpp")
 
 set_source_files_properties(${SHADERMAKE_SRC} PROPERTIES LANGUAGE CXX)
 
 set(TOYRENDERER_SRC ${BASE_SRC})
-set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${TASKFLOW_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${IMGUI_SRC})
 set(TOYRENDERER_SRC ${TOYRENDERER_SRC} ${SHADERMAKE_SRC})
 
 set(NVRHI_WITH_DX12 ON)
 set(NVRHI_WITH_AFTERMATH OFF)
 set(AFTERMATH_SEARCH_PATHS "${EXTERN_DIR}/nvidia/aftermath")
+set(TF_BUILD_TESTS OFF)
+set(TF_BUILD_EXAMPLES OFF)
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/basis_universal)
@@ -78,6 +78,7 @@ add_subdirectory(extern/meshoptimizer)
 add_subdirectory(extern/d3d12ma)
 add_subdirectory(extern/microprofile)
 add_subdirectory(extern/nvrhi)
+add_subdirectory(extern/taskflow)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
@@ -92,6 +93,7 @@ set(TOYRENDERER_LIBRARIES
 	microprofile
 	nvrhi
 	nvrhi_d3d12
+	Taskflow
 )
 
 # libs
