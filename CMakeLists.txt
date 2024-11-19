@@ -4,10 +4,10 @@ option(ENABLE_UNITY_BUILD "" OFF)
 option(ENABLE_IPO "" OFF)
 option(ENABLE_ADDRESS_SANITIZER "" OFF)
 
-# Set available build types
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE STRING "Build types" FORCE)
-
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL")
+# i need to do this because shadermake manually & retardedly sets 'CMAKE_MSVC_RUNTIME_LIBRARY'
+set(CMAKE_MSVC_RUNTIME_LIBRARY 
+    "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" 
+    CACHE STRING "MSVC runtime library" FORCE)
 
 project(ToyRenderer)
 
