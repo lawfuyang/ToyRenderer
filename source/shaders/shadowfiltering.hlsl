@@ -13,20 +13,20 @@
 #define FR AMD_SHADOWS_FILTER_RADIUS  // abbreviation for Filter Radius
 
 #if   (AMD_SHADOWFX_FILTER_SIZE == AMD_SHADOWFX_FILTER_SIZE_7)
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_7_FIXED.inc"
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_7_POISSON.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_7_FIXED.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_7_POISSON.inc"
 #elif (AMD_SHADOWFX_FILTER_SIZE == AMD_SHADOWFX_FILTER_SIZE_9)
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_9_FIXED.inc"
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_9_POISSON.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_9_FIXED.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_9_POISSON.inc"
 #elif (AMD_SHADOWFX_FILTER_SIZE == AMD_SHADOWFX_FILTER_SIZE_11)
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_11_FIXED.inc"
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_11_POISSON.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_11_FIXED.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_11_POISSON.inc"
 #elif (AMD_SHADOWFX_FILTER_SIZE == AMD_SHADOWFX_FILTER_SIZE_13)
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_13_FIXED.inc"
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_13_POISSON.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_13_FIXED.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_13_POISSON.inc"
 #elif (AMD_SHADOWFX_FILTER_SIZE == AMD_SHADOWFX_FILTER_SIZE_15)
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_15_FIXED.inc"
-#include "extern/amd/shadowfx/AMD_SHADOWFX_FILTER_SIZE_15_POISSON.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_15_FIXED.inc"
+#include "extern/amd/shadowfx/amd_shadowfx/src/Shaders/AMD_SHADOWFX_FILTER_SIZE_15_POISSON.inc"
 #endif
 
 struct ShadowFilteringParams
