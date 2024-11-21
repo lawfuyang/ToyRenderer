@@ -9,7 +9,8 @@
 
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
-StructuredBuffer<MeshData> g_MeshData : register(t1);
+StructuredBuffer<uint> g_PrimitiveIndices : register(t1);
+StructuredBuffer<MeshData> g_MeshData : register(t2);
 RWStructuredBuffer<DrawIndexedIndirectArguments> g_DrawArgumentsOutput : register(u0);
 RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
@@ -122,7 +123,7 @@ void CS_GPUCulling(
         return;
     }
     
-    uint instanceConstsIdx = dispatchThreadID.x;
+    uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
     
     bool bIsVisible = true;

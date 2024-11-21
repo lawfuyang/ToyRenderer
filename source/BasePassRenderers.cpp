@@ -51,6 +51,7 @@ public:
     struct RenderBasePassParams
     {
         nvrhi::ShaderHandle m_PS;
+        nvrhi::ShaderHandle m_PSAlphaMask;
         View* m_View;
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
@@ -130,7 +131,7 @@ public:
 		{
 			{
 				nvrhi::BufferDesc desc;
-				desc.byteSize = sizeof(uint32_t) * nbInstances;
+                desc.byteSize = sizeof(uint32_t);
 				desc.structStride = sizeof(uint32_t);
 				desc.canHaveUAVs = true;
 				desc.isDrawIndirectArgs = true;
@@ -167,7 +168,14 @@ public:
 		return true;
 	}
 
-    void GPUCulling(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, nvrhi::BufferHandle counterStatsBuffer, const CullingBuffers& cullingBuffers)
+    void GPUCulling(
+        nvrhi::CommandListHandle commandList,
+        const RenderGraph& renderGraph,
+        const RenderBasePassParams& params,
+        nvrhi::BufferHandle counterStatsBuffer,
+        const CullingBuffers& cullingBuffers,
+        bool bLateCull,
+        bool bAlphaMaskPrimitives)
     {
         PROFILE_FUNCTION();
 
@@ -175,13 +183,10 @@ public:
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
 
-        const uint32_t nbInstances = scene->m_Primitives.size();
-        assert(nbInstances > 0);
+        const uint32_t nbInstances = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
 
         {
             PROFILE_GPU_SCOPED(commandList, "Clear Buffers");
-
-            commandList->clearBufferUInt(counterStatsBuffer, 0);
 
             for (uint32_t i = 0; i < 2; ++i)
             {
@@ -190,8 +195,6 @@ public:
 				commandList->clearBufferUInt(cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer, 0);
             }
         }
-
-        const auto& InstanceRenderingControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
         // read back nb visible instances from counter
         {
@@ -205,9 +208,14 @@ public:
             cullingCounters.m_OcclusionPhase2 = readbackResults[kOcclusionCullingPhase2BufferCounterIdx];
         }
 
+        if (nbInstances == 0)
+        {
+            return;
+        }
+
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
-        passParameters.m_EnableFrustumCulling = InstanceRenderingControllables.m_bEnableFrustumCulling;
+        passParameters.m_EnableFrustumCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableFrustumCulling;
         passParameters.m_OcclusionCullingFlags = 0;
         passParameters.m_WorldToClip = view.m_ViewProjectionMatrix;
         passParameters.m_PrevFrameWorldToClip = view.m_PrevFrameViewProjectionMatrix;
@@ -217,8 +225,9 @@ public:
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer.m_Buffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? scene->m_AlphaMaskInstanceIDsBuffer : scene->m_OpaqueInstanceIDsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, cullingBuffers.m_StartInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, cullingBuffers.m_InstanceCountBuffer),
@@ -230,7 +239,13 @@ public:
         g_Graphic.AddComputePass(commandList, "gpuculling_CS_GPUCulling", bindingSetDesc, dispatchGroupSize);
     }
 
-    void RenderInstances(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params, const CullingBuffers cullingBuffers)
+    void RenderInstances(
+        nvrhi::CommandListHandle commandList,
+        const RenderGraph& renderGraph,
+        const RenderBasePassParams& params,
+        const CullingBuffers cullingBuffers,
+        bool bLateResults,
+        bool bAlphaMaskPrimitives)
     {
         PROFILE_FUNCTION();
 
@@ -264,7 +279,7 @@ public:
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_VirtualVertexBuffer.m_Buffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Graphic.m_VirtualMaterialDataBuffer.m_Buffer),
@@ -281,7 +296,7 @@ public:
         // PSO
         nvrhi::GraphicsPipelineDesc PSODesc;
         PSODesc.VS = g_Graphic.GetShader("basepass_VS_Main");
-        PSODesc.PS = params.m_PS;
+        PSODesc.PS = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
         PSODesc.renderState = params.m_RenderState;
         PSODesc.inputLayout = g_CommonResources.GPUCullingLayout;
         PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
@@ -299,8 +314,8 @@ public:
         commandList->setGraphicsState(drawState);
 
         // NOTE: treating the 2nd arg for 'drawIndexedIndirect' as 'MaxCommandCount' is only legit for d3d12!
-        const uint32_t maxCommandCount = scene->m_Primitives.size();
-        commandList->drawIndexedIndirect(0, maxCommandCount);
+        const uint32_t maxCommandCount = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
+        commandList->drawIndexedIndirect(0, std::max(1U, maxCommandCount));
     }
 
     void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
@@ -334,7 +349,7 @@ public:
         m_SPDHelper.Execute(commandList, renderGraph, depthStencilBuffer, m_HZBParams.m_HZB, reductionType);
     }
 
-    void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
+    void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, RenderBasePassParams& params)
     {
         assert(params.m_View);
 
@@ -345,22 +360,34 @@ public:
         cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG.m_DrawIndexedIndirectArgumentsBuffer);
         cullingBuffers.m_StartInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_CullingBuffersRDG.m_StartInstanceConstsOffsetsBuffer);
 
+        commandList->clearBufferUInt(counterStatsBuffer, 0);
+
         // early cull: frustum cull & fill objects that *were* visible last frame
-        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers);
+        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
 
         // early render: render objects that were visible last frame
-        RenderInstances(commandList, renderGraph, params, cullingBuffers);
+        RenderInstances(commandList, renderGraph, params, cullingBuffers, false /* bLateResults */, false /* bAlphaMaskPrimitives */);
 
-        // depth pyramid generation
-		GenerateHZB(commandList, renderGraph, params);
+        // alpha mask primitives. TODO: remove after occlusion culling
+        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
+        RenderInstances(commandList, renderGraph, params, cullingBuffers, false /* bLateResults */, true /* bAlphaMaskPrimitives */);
 
-        if (m_HZBParams.m_HZB)
+        if (m_HZBParams.m_HZB && g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableOcclusionCulling)
         {
-            // late cull: frustum + occlusion cull & fill objects that were *not* visible last frame
-            //cull(taskSubmit ? taskculllatePipeline : drawculllatePipeline, 6, "late cull", /* late= */ true);
+            // depth pyramid generation
+            GenerateHZB(commandList, renderGraph, params);
 
-            // late render: render objects that are visible this frame but weren't drawn in the early pass
-            //render(/* late= */ true, colorClear, depthClear, 1, 10, "late render");
+            // late cull: frustum + occlusion cull & fill objects that were *not* visible last frame
+            GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, true /* bLateCull */, false /* bAlphaMaskPrimitives */);
+
+            // late render: render opaque objects that are visible this frame but weren't drawn in the early pass
+            RenderInstances(commandList, renderGraph, params, cullingBuffers, true /* bLateResults */, false /* bAlphaMaskPrimitives */);
+
+            // late cull: frustum + occlusion cull & fill alpha mask primitives
+            GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, true /* bLateCull */, true /* bAlphaMaskPrimitives */);
+
+            // late render: render alpha mask primitives that are visible this frame but weren't drawn in the early pass
+            RenderInstances(commandList, renderGraph, params, cullingBuffers, true /* bLateResults */, true /* bAlphaMaskPrimitives */);
         }
 
         // copy counter buffer, so that it can be read on CPU next frame
@@ -453,7 +480,8 @@ public:
         depthStencilState.frontFaceStencil.passOp = nvrhi::StencilOp::Replace;
 
         RenderBasePassParams params;
-        params.m_PS = g_Graphic.GetShader("basepass_PS_Main_GBuffer");
+        params.m_PS = g_Graphic.GetShader("basepass_PS_Main_GBuffer ALPHA_MASK_MODE=0");
+        params.m_PSAlphaMask = g_Graphic.GetShader("basepass_PS_Main_GBuffer ALPHA_MASK_MODE=1");
         params.m_View = &view;
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, Graphic::kFrontCCW ? g_CommonResources.CullClockwise : g_CommonResources.CullCounterClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;

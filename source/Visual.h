@@ -6,6 +6,14 @@
 
 #include "shaders/shared/RawVertexFormat.h"
 
+// NOTE: keep the values in sync with cgltf_alpha_mode
+enum class AlphaMode
+{
+    Opaque,
+    Mask,
+    Blend
+};
+
 class Texture
 {
 public:
@@ -57,6 +65,9 @@ public:
     Vector3 m_ConstDiffuse = Vector3{ 1.0f, 0.0f, 0.0f };
     float m_ConstRoughness = 0.75f;
     float m_ConstMetallic = 0.1f;
+
+    AlphaMode m_AlphaMode = AlphaMode::Opaque;
+    float m_AlphaCutoff = 1.0f;
 
     uint32_t m_MaterialDataBufferIdx = UINT_MAX;
 };

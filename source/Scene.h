@@ -11,8 +11,6 @@
 class Primitive;
 class RenderGraph;
 
-enum EVisualBucketType { Opaque, Transparent };
-
 struct GPUCullingCounters
 {
     uint32_t m_Frustum;
@@ -98,12 +96,16 @@ public:
 
     std::vector<Node> m_Nodes;
     std::vector<Primitive> m_Primitives;
+    std::vector<uint32_t> m_OpaquePrimitiveIDs;
+    std::vector<uint32_t> m_AlphaMaskPrimitiveIDs;
 
     nvrhi::BufferHandle m_LuminanceBuffer;
 
     TileRenderingHelper m_DeferredLightingTileRenderingHelper;
 
-    SimpleResizeableGPUBuffer m_InstanceConstsBuffer;
+    nvrhi::BufferHandle m_InstanceConstsBuffer;
+    nvrhi::BufferHandle m_OpaqueInstanceIDsBuffer;
+    nvrhi::BufferHandle m_AlphaMaskInstanceIDsBuffer;
 
     std::vector<Camera> m_Cameras;
 

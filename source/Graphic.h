@@ -178,6 +178,7 @@ public:
 
     std::vector<Mesh> m_Meshes;
 
+    // todo: simplify to basic nvrhi::BufferHandle
     GrowableGPUVirtualBuffer m_VirtualVertexBuffer;
     GrowableGPUVirtualBuffer m_VirtualIndexBuffer;
     GrowableGPUVirtualBuffer m_VirtualMeshDataBuffer;

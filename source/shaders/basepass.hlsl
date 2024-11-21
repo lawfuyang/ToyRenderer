@@ -133,6 +133,13 @@ GBufferParams GetGBufferParams(
         result.m_Alpha = textureSample.a;
     }
     
+#if ALPHA_MASK_MODE
+    if (result.m_Alpha < materialData.m_AlphaCutoff)
+    {
+        discard;
+    }
+#endif
+    
     // Set the default normal value
     result.m_Normal = inNormal;
     

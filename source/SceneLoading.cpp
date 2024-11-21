@@ -258,6 +258,9 @@ struct GLTFSceneLoader
 
             const cgltf_material& gltfMaterial = m_GLTFData->materials[i];
 
+            sceneMaterial.m_AlphaMode = (AlphaMode)gltfMaterial.alpha_mode;
+            sceneMaterial.m_AlphaCutoff = gltfMaterial.alpha_cutoff;
+
             if (gltfMaterial.has_pbr_metallic_roughness)
             {
                 if (gltfMaterial.pbr_metallic_roughness.base_color_texture.texture)
@@ -302,6 +305,7 @@ struct GLTFSceneLoader
             materialData.m_NormalUVScale = sceneMaterial.m_NormalTexture.m_UVScale;
             materialData.m_MetallicRoughnessUVOffset = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset;
             materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
+            materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;
 
             const uint64_t byteOffset = g_Graphic.m_VirtualMaterialDataBuffer.QueueAppend(&materialData, sizeof(MaterialData));
             sceneMaterial.m_MaterialDataBufferIdx = byteOffset / sizeof(MaterialData);
@@ -474,6 +478,16 @@ struct GLTFSceneLoader
                     Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
 
                     newNode.m_PrimitivesIDs.push_back(primitiveID);
+
+                    // todo: support transparent materials
+                    if (primitive.m_Material.m_AlphaMode == AlphaMode::Opaque)
+                    {
+                        scene->m_OpaquePrimitiveIDs.push_back(primitiveID);
+                    }
+                    else
+                    {
+                        scene->m_AlphaMaskPrimitiveIDs.push_back(primitiveID);
+                    }
                 }
             }
 

@@ -18,6 +18,7 @@ struct MaterialData
     Vector2 m_NormalUVScale;
     Vector2 m_MetallicRoughnessUVOffset;
     Vector2 m_MetallicRoughnessUVScale;
+	float m_AlphaCutoff;
 };
 
 #endif // _MATERIAL_DATA_H_

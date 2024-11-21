@@ -1,6 +1,7 @@
 • fix GPU occlusion culling causing wrong results
 • fix GPU frustum culling causing wrong results for shadows (Bistro)
 • fix all -Wconversion Shader warnings
+• get rid of GrowableGPUVirtualBuffer uses. whatever... keep the codebase simple
 • use low-poly occluders for depth prepass
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
@@ -29,7 +30,7 @@
 	• discard empty indirect draw arguments
 • cull overly small primitives in every view in GPU culling (contribution culling)
 • DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-• GLTF AlphaBlendModeTest
+• Transparent support
 	• implement binning of opaque/transparent instances after gpuculling
 	• OIT: https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
 • snap shadow projector area to texel
