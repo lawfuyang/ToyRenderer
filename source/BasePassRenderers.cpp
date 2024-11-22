@@ -227,7 +227,7 @@ public:
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? scene->m_AlphaMaskInstanceIDsBuffer : scene->m_OpaqueInstanceIDsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, cullingBuffers.m_StartInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, cullingBuffers.m_InstanceCountBuffer),
@@ -280,9 +280,9 @@ public:
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_VirtualVertexBuffer.m_Buffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_VirtualMeshDataBuffer.m_Buffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Graphic.m_VirtualMaterialDataBuffer.m_Buffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_GlobalVertexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Graphic.m_GlobalMaterialDataBuffer),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
@@ -304,7 +304,7 @@ public:
         nvrhi::GraphicsState drawState;
         drawState.framebuffer = frameBuffer;
         drawState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
-        drawState.indexBuffer = { g_Graphic.m_VirtualIndexBuffer.m_Buffer, g_Graphic.m_VirtualIndexBuffer.m_Buffer->getDesc().format, 0 };
+        drawState.indexBuffer = { g_Graphic.m_GlobalIndexBuffer, g_Graphic.m_GlobalIndexBuffer->getDesc().format, 0 };
         drawState.vertexBuffers = { { cullingBuffers.m_StartInstanceConstsOffsetsBuffer, 0, 0} };
         drawState.indirectParams = cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer;
         drawState.indirectCountBuffer = cullingBuffers.m_InstanceCountBuffer;

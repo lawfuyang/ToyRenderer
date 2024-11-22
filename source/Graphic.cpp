@@ -491,40 +491,6 @@ void Graphic::InitDescriptorTable()
     m_DescriptorTableManager = std::make_shared<DescriptorTableManager>(m_NVRHIDevice, m_BindlessLayout);
 }
 
-void Graphic::InitVirtualBuffers()
-{
-    PROFILE_FUNCTION();
-
-    // byte size amounts are sufficient for Sponza gltf
-
-    nvrhi::BufferDesc desc;
-    desc.byteSize = MB_TO_BYTES(16);
-    desc.structStride = sizeof(RawVertexFormat);
-    desc.debugName = "Virtual Vertex Buffer";
-    desc.initialState = nvrhi::ResourceStates::ShaderResource;
-    m_VirtualVertexBuffer.m_Buffer = m_NVRHIDevice->createBuffer(desc);
-
-    desc.byteSize = MB_TO_BYTES(4);
-    desc.debugName = "Virtual Index Buffer";
-    desc.format = kIndexBufferFormat;
-    desc.isVertexBuffer = false;
-    desc.isIndexBuffer = true;
-    desc.initialState = nvrhi::ResourceStates::IndexBuffer;
-    m_VirtualIndexBuffer.m_Buffer = m_NVRHIDevice->createBuffer(desc);
-
-    desc.byteSize = KB_TO_BYTES(8);
-    desc.structStride = sizeof(MeshData);
-    desc.debugName = "Mesh Data Buffer";
-    desc.initialState = nvrhi::ResourceStates::ShaderResource;
-    m_VirtualMeshDataBuffer.m_Buffer = m_NVRHIDevice->createBuffer(desc);
-
-    desc.byteSize = KB_TO_BYTES(1);
-    desc.structStride = sizeof(MaterialData);
-    desc.debugName = "Material Data Buffer";
-    desc.initialState = nvrhi::ResourceStates::ShaderResource;
-    m_VirtualMaterialDataBuffer.m_Buffer = m_NVRHIDevice->createBuffer(desc);
-}
-
 nvrhi::ShaderHandle Graphic::GetShader(std::string_view shaderBinName)
 {
     const size_t hash = std::hash<std::string_view>{}(shaderBinName);
@@ -819,7 +785,6 @@ void Graphic::Initialize()
         tf::Task initDescriptorTable = tf.emplace([this] { InitDescriptorTable(); });
         tf::Task initCommonResources = tf.emplace([this] { m_CommonResources = std::make_shared<CommonResources>(); g_CommonResources.Initialize(); });
         tf.emplace([this] { m_Scene = std::make_shared<Scene>(); m_Scene->Initialize(); });
-        tf.emplace([this] { InitVirtualBuffers(); });
 
         for (IRenderer* renderer : IRenderer::ms_AllRenderers)
         {
@@ -925,16 +890,6 @@ void Graphic::Update()
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Begin Frame Timer Query");
 
         commandList->beginTimerQuery(m_FrameTimerQuery);
-    }
-
-    {
-        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "VirtualBuffers CommitPendingUploads");
-
-        m_VirtualVertexBuffer.CommitPendingUploads(commandList);
-        m_VirtualIndexBuffer.CommitPendingUploads(commandList);
-        m_VirtualMeshDataBuffer.CommitPendingUploads(commandList);
-        m_VirtualMaterialDataBuffer.CommitPendingUploads(commandList);
     }
 
     tf::Taskflow tf;

@@ -64,7 +64,6 @@ public:
     void InitSwapChain();
     void InitShaders();
     void InitDescriptorTable();
-    void InitVirtualBuffers();
     void Present();
 
     // same functionality as the one from Engine.h to prevent unnecessary #include
@@ -178,11 +177,10 @@ public:
 
     std::vector<Mesh> m_Meshes;
 
-    // todo: simplify to basic nvrhi::BufferHandle
-    GrowableGPUVirtualBuffer m_VirtualVertexBuffer;
-    GrowableGPUVirtualBuffer m_VirtualIndexBuffer;
-    GrowableGPUVirtualBuffer m_VirtualMeshDataBuffer;
-    GrowableGPUVirtualBuffer m_VirtualMaterialDataBuffer;
+    nvrhi::BufferHandle m_GlobalVertexBuffer;
+    nvrhi::BufferHandle m_GlobalIndexBuffer;
+    nvrhi::BufferHandle m_GlobalMeshDataBuffer;
+    nvrhi::BufferHandle m_GlobalMaterialDataBuffer;
 
     Vector2U m_RenderResolution;
     Vector2U m_DisplayResolution;

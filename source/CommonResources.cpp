@@ -438,43 +438,23 @@ static void CreateUnitSphereMesh()
     g_Graphic.m_Meshes.emplace_back().Initialize(vertices, indices, "Default Unit Sphere Mesh");
 }
 
-static void CreateDefaultMaterial()
-{
-    MaterialData materialData{};
-    materialData.m_ConstDiffuse = Vector3{ 1.0f, 0.078f, 0.576f };
-    materialData.m_ConstRoughness = 1.0f;
-    materialData.m_ConstMetallic = 0.0f;
-
-    g_CommonResources.DefaultMaterial.m_MaterialFlags = materialData.m_MaterialFlags;
-
-    const uint64_t byteOffset = g_Graphic.m_VirtualMaterialDataBuffer.QueueAppend(&materialData, sizeof(MaterialData));
-    g_CommonResources.DefaultMaterial.m_MaterialDataBufferIdx = byteOffset / sizeof(MaterialData);
-}
-
 void CommonResources::Initialize()
 {
     PROFILE_FUNCTION();
 
-    tf::Taskflow tf;
+    CreateDefaultTexture("Black 2D Texture",       BlackTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture("White 2D Texture",       WhiteTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture("Dummy UAV 2D Texture",   DummyUAV2DTexture,  nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true /*bUAV*/);
+    CreateDefaultTexture("R8 UInt Max 2D Texture", R8UIntMax2DTexture, nvrhi::Format::R8_UINT, UINT8_MAX, 1, false /*bUAV*/);
 
-    tf.emplace([this] { CreateDefaultTexture("Black 2D Texture",       BlackTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("White 2D Texture",       WhiteTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("Dummy UAV 2D Texture",   DummyUAV2DTexture,  nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true/*bUAV*/); });
-    tf.emplace([this] { CreateDefaultTexture("R8 UInt Max 2D Texture", R8UIntMax2DTexture, nvrhi::Format::R8_UINT, UINT8_MAX, 1, false/*bUAV*/); });
+    CreateDefaultBuffer("DummyUintStructuredBuffer", DummyUintStructuredBuffer, sizeof(uint32_t), sizeof(uint32_t), true);
 
-    tf.emplace([this] { CreateDefaultBuffer("DummyUintStructuredBuffer", DummyUintStructuredBuffer, sizeof(uint32_t), sizeof(uint32_t), true); });
-
-    // can't MT these due to direct modification of Graphic::m_Meshes
     CreateUnitCubeMesh();
     CreateUnitSphereMesh();
 
-    tf.emplace([] { CreateDefaultSamplers(); });
-    tf.emplace([] { CreateDefaultInputLayouts(); });
-    tf.emplace([] { CreateDefaultDepthStencilStates(); });
-
-    g_Engine.m_Executor->corun(tf);
-
-    CreateDefaultMaterial();
+    CreateDefaultSamplers();
+    CreateDefaultInputLayouts();
+    CreateDefaultDepthStencilStates();
 }
 
 #pragma warning(pop)

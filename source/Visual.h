@@ -37,14 +37,8 @@ public:
 
     bool IsValid() const;
 
-    //uint32_t m_Idx = UINT_MAX;
-
-    uint32_t m_NbVertices = 0;
-    uint32_t m_NbIndices = 0;
-
     uint32_t m_StartVertexLocation = UINT_MAX;
     uint32_t m_StartIndexLocation = UINT_MAX;
-
     uint32_t m_MeshDataBufferIdx = UINT_MAX;
 
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
@@ -62,9 +56,9 @@ public:
     Texture m_NormalTexture;
     Texture m_MetallicRoughnessTexture;
 
-    Vector3 m_ConstDiffuse = Vector3{ 1.0f, 0.0f, 0.0f };
-    float m_ConstRoughness = 0.75f;
-    float m_ConstMetallic = 0.1f;
+    Vector3 m_ConstDiffuse = Vector3{ 1.0f, 0.078f, 0.576f };
+    float m_ConstRoughness = 1.0f;
+    float m_ConstMetallic = 0.0f;
 
     AlphaMode m_AlphaMode = AlphaMode::Opaque;
     float m_AlphaCutoff = 1.0f;

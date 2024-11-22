@@ -15,6 +15,7 @@
 #include "shaders/shared/CommonConsts.h"
 #include "shaders/shared/RawVertexFormat.h"
 #include "shaders/shared/MaterialData.h"
+#include "shaders/shared/MeshData.h"
 
 #define SCENE_LOAD_PROFILE(x) \
     PROFILE_SCOPED(x);        \
@@ -29,6 +30,13 @@ struct GLTFSceneLoader
     std::vector<std::vector<Primitive>> m_SceneMeshPrimitives;
     std::vector<Texture> m_SceneImages;
     std::vector<Material> m_SceneMaterials;
+
+    std::mutex m_GlobalVerticesMutex;
+    std::mutex m_GlobalIndicesMutex;
+    std::vector<RawVertexFormat> m_GlobalVertices;
+    std::vector<Graphic::IndexBufferFormat_t> m_GlobalIndices;
+    std::vector<MeshData> m_GlobalMeshData;
+    std::vector<MaterialData> m_GlobalMaterialData;
 
     void LoadScene(std::string_view filePath)
     {
@@ -84,6 +92,7 @@ struct GLTFSceneLoader
         LoadMaterials();
         LoadMeshes();
         LoadNodes();
+        UploadGlobalBuffers();
     }
 
     // referred from meshoptimizer
@@ -251,6 +260,7 @@ struct GLTFSceneLoader
             };
 
         m_SceneMaterials.resize(m_GLTFData->materials_count);
+        m_GlobalMaterialData.resize(m_GLTFData->materials_count + 1); // +1 for default material
 
         for (uint32_t i = 0; i < m_GLTFData->materials_count; ++i)
         {
@@ -291,7 +301,9 @@ struct GLTFSceneLoader
                 HandleTextureView(sceneMaterial.m_NormalTexture, gltfMaterial.normal_texture);
             }
 
-            MaterialData materialData{};
+            sceneMaterial.m_MaterialDataBufferIdx = i;
+
+            MaterialData& materialData = m_GlobalMaterialData[i];
             materialData.m_ConstDiffuse = sceneMaterial.m_ConstDiffuse;
             materialData.m_MaterialFlags = sceneMaterial.m_MaterialFlags;
             materialData.m_AlbedoTextureSamplerAndDescriptorIndex = (sceneMaterial.m_AlbedoTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_AlbedoTexture.m_AddressMode) << 30));
@@ -306,10 +318,15 @@ struct GLTFSceneLoader
             materialData.m_MetallicRoughnessUVOffset = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset;
             materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;
-
-            const uint64_t byteOffset = g_Graphic.m_VirtualMaterialDataBuffer.QueueAppend(&materialData, sizeof(MaterialData));
-            sceneMaterial.m_MaterialDataBufferIdx = byteOffset / sizeof(MaterialData);
         }
+
+        MaterialData defaultMaterialData{};
+        defaultMaterialData.m_ConstDiffuse = g_CommonResources.DefaultMaterial.m_ConstDiffuse;
+        defaultMaterialData.m_ConstRoughness = g_CommonResources.DefaultMaterial.m_ConstRoughness;
+        defaultMaterialData.m_ConstMetallic = g_CommonResources.DefaultMaterial.m_ConstMetallic;
+
+        g_CommonResources.DefaultMaterial.m_MaterialDataBufferIdx = m_GlobalMaterialData.size();
+        m_GlobalMaterialData.back() = defaultMaterialData;
     }
 
     void LoadMeshes()
@@ -331,7 +348,10 @@ struct GLTFSceneLoader
                 const uint32_t sceneMeshIdx = g_Graphic.m_Meshes.size();
                 g_Graphic.m_Meshes.emplace_back();
 
-                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx]
+                const uint32_t globalMeshDataIdx = m_GlobalMeshData.size();
+                m_GlobalMeshData.emplace_back();
+
+                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
@@ -407,6 +427,31 @@ struct GLTFSceneLoader
 
                         Mesh* newSceneMesh = &g_Graphic.m_Meshes.at(sceneMeshIdx);
                         newSceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
+
+                        newSceneMesh->m_MeshDataBufferIdx = globalMeshDataIdx;
+
+                        {
+                            AUTO_LOCK(m_GlobalVerticesMutex);
+                            newSceneMesh->m_StartVertexLocation = m_GlobalVertices.size();
+                            m_GlobalVertices.resize(m_GlobalVertices.size() + vertices.size());
+                            memcpy(&m_GlobalVertices[newSceneMesh->m_StartVertexLocation], vertices.data(), vertices.size() * sizeof(RawVertexFormat));
+                        }
+                        
+                        {
+                            AUTO_LOCK(m_GlobalIndicesMutex);
+                            newSceneMesh->m_StartIndexLocation = m_GlobalIndices.size();
+                            m_GlobalIndices.resize(m_GlobalIndices.size() + indices.size());
+                            memcpy(&m_GlobalIndices[newSceneMesh->m_StartIndexLocation], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
+                        }
+
+                        MeshData& meshData = m_GlobalMeshData[globalMeshDataIdx];
+                        meshData.m_IndexCount = indices.size();
+                        meshData.m_StartIndexLocation = newSceneMesh->m_StartIndexLocation;
+                        meshData.m_StartVertexLocation = newSceneMesh->m_StartVertexLocation;
+                        meshData.m_HasTangentData = !vertexTangents.empty();
+                        meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
+                        meshData.m_AABBCenter = newSceneMesh->m_AABB.Center;
+                        meshData.m_AABBExtents = newSceneMesh->m_AABB.Extents;
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
                         if (gltfPrimitive.material)
@@ -512,6 +557,61 @@ struct GLTFSceneLoader
                 newNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[i]));
             }
         }
+    }
+
+    void UploadGlobalBuffers()
+    {
+        SCENE_LOAD_PROFILE("Upload Global Buffers");
+
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = m_GlobalVertices.size() * sizeof(RawVertexFormat);
+            desc.structStride = sizeof(RawVertexFormat);
+            desc.debugName = "Global Vertex Buffer";
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            g_Graphic.m_GlobalVertexBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        }
+
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t);
+            desc.debugName = "Global Index Buffer";
+            desc.format = Graphic::kIndexBufferFormat;
+            desc.isIndexBuffer = true;
+            desc.initialState = nvrhi::ResourceStates::IndexBuffer;
+            g_Graphic.m_GlobalIndexBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        }
+
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = m_GlobalMeshData.size() * sizeof(MeshData);
+            desc.structStride = sizeof(MeshData);
+            desc.debugName = "Global Mesh Data Buffer";
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            g_Graphic.m_GlobalMeshDataBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        }
+
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = m_GlobalMaterialData.size() * sizeof(MaterialData);
+            desc.structStride = sizeof(MaterialData);
+            desc.debugName = "Global Material Data Buffer";
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            g_Graphic.m_GlobalMaterialDataBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        }
+
+        LOG_DEBUG("Global vertices = [%d] vertices, [%f] MB", m_GlobalVertices.size(), BYTES_TO_MB(m_GlobalVertices.size() * sizeof(RawVertexFormat)));
+        LOG_DEBUG("Global indices = [%d] indices, [%f] MB", m_GlobalIndices.size(), BYTES_TO_MB(m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t)));
+        LOG_DEBUG("Global mesh data = [%d] entries, [%f] MB", m_GlobalMeshData.size(), BYTES_TO_MB(m_GlobalMeshData.size() * sizeof(MeshData)));
+        LOG_DEBUG("Global material data = [%d] entries, [%f] MB", m_GlobalMaterialData.size(), BYTES_TO_MB(m_GlobalMaterialData.size() * sizeof(MaterialData)));
+
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload Global Buffers");
+
+        commandList->writeBuffer(g_Graphic.m_GlobalVertexBuffer, m_GlobalVertices.data(), m_GlobalVertices.size() * sizeof(RawVertexFormat));
+        commandList->writeBuffer(g_Graphic.m_GlobalIndexBuffer, m_GlobalIndices.data(), m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t));
+        commandList->writeBuffer(g_Graphic.m_GlobalMeshDataBuffer, m_GlobalMeshData.data(), m_GlobalMeshData.size() * sizeof(MeshData));
+        commandList->writeBuffer(g_Graphic.m_GlobalMaterialDataBuffer, m_GlobalMaterialData.data(), m_GlobalMaterialData.size() * sizeof(MaterialData));
     }
 };
 
