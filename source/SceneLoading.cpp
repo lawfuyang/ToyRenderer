@@ -31,8 +31,6 @@ struct GLTFSceneLoader
     std::vector<Texture> m_SceneImages;
     std::vector<Material> m_SceneMaterials;
 
-    std::mutex m_GlobalVerticesMutex;
-    std::mutex m_GlobalIndicesMutex;
     std::vector<RawVertexFormat> m_GlobalVertices;
     std::vector<Graphic::IndexBufferFormat_t> m_GlobalIndices;
     std::vector<MeshData> m_GlobalMeshData;
@@ -64,6 +62,17 @@ struct GLTFSceneLoader
                 {
                     assert(0);
                 }
+            }
+        }
+
+        {
+            SCENE_LOAD_PROFILE("Validate gltf data");
+
+            cgltf_result result = cgltf_validate(m_GLTFData);
+            if (result != cgltf_result_success)
+            {
+                LOG_DEBUG("GLTF - Failed to validate '%s': [%s]", filePath.data(), EnumUtils::ToString(result));
+                return;
             }
         }
 
@@ -346,10 +355,21 @@ struct GLTFSceneLoader
             {
                 // pre-create empty Mesh objects here due to MT init
                 const uint32_t sceneMeshIdx = g_Graphic.m_Meshes.size();
-                g_Graphic.m_Meshes.emplace_back();
+                Mesh* newSceneMesh = &g_Graphic.m_Meshes.emplace_back();
 
                 const uint32_t globalMeshDataIdx = m_GlobalMeshData.size();
                 m_GlobalMeshData.emplace_back();
+
+                const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
+
+                const cgltf_accessor* positionAccessor = cgltf_find_accessor(&gltfPrimitive, cgltf_attribute_type_position, 0);
+                assert(positionAccessor);
+
+                newSceneMesh->m_StartVertexLocation = m_GlobalVertices.size();
+                newSceneMesh->m_StartIndexLocation = m_GlobalIndices.size();
+
+                m_GlobalVertices.resize(m_GlobalVertices.size() + positionAccessor->count);
+                m_GlobalIndices.resize(m_GlobalIndices.size() + gltfPrimitive.indices->count);
 
                 taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx]
                     {
@@ -427,22 +447,10 @@ struct GLTFSceneLoader
 
                         Mesh* newSceneMesh = &g_Graphic.m_Meshes.at(sceneMeshIdx);
                         newSceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
-
                         newSceneMesh->m_MeshDataBufferIdx = globalMeshDataIdx;
 
-                        {
-                            AUTO_LOCK(m_GlobalVerticesMutex);
-                            newSceneMesh->m_StartVertexLocation = m_GlobalVertices.size();
-                            m_GlobalVertices.resize(m_GlobalVertices.size() + vertices.size());
-                            memcpy(&m_GlobalVertices[newSceneMesh->m_StartVertexLocation], vertices.data(), vertices.size() * sizeof(RawVertexFormat));
-                        }
-                        
-                        {
-                            AUTO_LOCK(m_GlobalIndicesMutex);
-                            newSceneMesh->m_StartIndexLocation = m_GlobalIndices.size();
-                            m_GlobalIndices.resize(m_GlobalIndices.size() + indices.size());
-                            memcpy(&m_GlobalIndices[newSceneMesh->m_StartIndexLocation], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
-                        }
+                        memcpy(&m_GlobalVertices[newSceneMesh->m_StartVertexLocation], vertices.data(), vertices.size() * sizeof(RawVertexFormat));
+                        memcpy(&m_GlobalIndices[newSceneMesh->m_StartIndexLocation], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
 
                         MeshData& meshData = m_GlobalMeshData[globalMeshDataIdx];
                         meshData.m_IndexCount = indices.size();

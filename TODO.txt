@@ -1,6 +1,7 @@
 • fix GPU occlusion culling causing wrong results
 • fix GPU frustum culling causing wrong results for shadows (Bistro)
 • fix all -Wconversion Shader warnings
+• quantize normal, tangent & UVs in RawVertexFormat. See Niagara
 • use low-poly occluders for depth prepass
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
