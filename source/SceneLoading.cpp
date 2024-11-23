@@ -255,6 +255,8 @@ struct GLTFSceneLoader
 
                 texture = m_SceneImages.at(cgltf_image_index(m_GLTFData, image));
 
+                texture.m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, textureView.texture->sampler));
+
                 if (textureView.has_transform)
                 {
                     // sanity check to see if 1 texture view per image
