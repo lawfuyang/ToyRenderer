@@ -453,12 +453,12 @@ struct GLTFSceneLoader
 
                             if (!vertexNormals.empty())
                             {
-                                vertices[i].m_Normal.v = PackVector4ToUint32(Vector4{ vertexNormals[i] });
+                                vertices[i].m_PackedNormal = PackVector4ToUint32(Vector4{ vertexNormals[i] });
                             }
 
                             if (!vertexTangents.empty())
                             {
-                                vertices[i].m_Tangent.v = PackVector4ToUint32(vertexTangents[i]);
+                                vertices[i].m_PackedTangent = PackVector4ToUint32(vertexTangents[i]);
                             }
 
                             if (!vertexUVs.empty())

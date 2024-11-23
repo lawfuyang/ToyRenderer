@@ -79,13 +79,13 @@ void VS_Main(
     outInstanceConstsIdx = inInstanceConstIndex;
     
     // Transform the vertex normal to world space and normalize it
-    float3 UnpackedNormal = UnpackVector4FromUint32(vertexInfo.m_Normal).xyz;
+    float3 UnpackedNormal = UnpackVector4FromUint32(vertexInfo.m_PackedNormal).xyz;
     outNormal = normalize(mul(float4(UnpackedNormal, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz);
 	
 	outTangent = float4(0, 0, 0, 1);
 	if (meshData.m_HasTangentData)
 	{
-        float4 UnpackedTangent = UnpackVector4FromUint32(vertexInfo.m_Tangent);
+        float4 UnpackedTangent = UnpackVector4FromUint32(vertexInfo.m_PackedTangent);
         outTangent = float4(normalize(mul(float4(UnpackedTangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), UnpackedTangent.w);
     }
     
