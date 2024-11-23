@@ -6,8 +6,8 @@
 struct RawVertexFormat
 {
     Vector3 m_Position;
-    Vector3 m_Normal;
-    Vector4 m_Tangent;
+    UByte4N m_Normal;
+    UByte4N m_Tangent;
     Half2 m_TexCoord;
 };
 

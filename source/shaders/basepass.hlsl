@@ -24,6 +24,30 @@ sampler g_PointClampSampler : register(s4);
 SamplerComparisonState g_PointComparisonLessSampler : register(s5);
 SamplerComparisonState g_LinearComparisonLessSampler : register(s6);
 
+float4 UnpackVector4FromUint32(uint packed)
+{
+    // Extract each component
+    uint xInt = (packed >> 20) & 0x3FF; // 10 bits for x
+    uint yInt = (packed >> 10) & 0x3FF; // 10 bits for y
+    uint zInt = packed & 0x3FF; // 10 bits for z
+    uint wInt = (packed >> 30) & 0x1; // 1 bit for w
+
+    // Convert back to [0, 1] by dividing by 1023
+    float x = (float) xInt / 1023.0f;
+    float y = (float) yInt / 1023.0f;
+    float z = (float) zInt / 1023.0f;
+
+    // Map from [0, 1] back to [-1, 1]
+    x = (x * 2.0f) - 1.0f;
+    y = (y * 2.0f) - 1.0f;
+    z = (z * 2.0f) - 1.0f;
+
+    // Unpack w, convert to either 1 or -1
+    float w = (wInt == 1) ? 1.0f : -1.0f;
+
+    return float4(x, y, z, w);
+}
+
 void VS_Main(
     uint inInstanceConstIndex : INSTANCE_START_LOCATION, // per-instance attribute
     uint inVertexID : SV_VertexID,
@@ -55,13 +79,15 @@ void VS_Main(
     outInstanceConstsIdx = inInstanceConstIndex;
     
     // Transform the vertex normal to world space and normalize it
-    outNormal = normalize(mul(float4(vertexInfo.m_Normal, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz);
+    float3 UnpackedNormal = UnpackVector4FromUint32(vertexInfo.m_Normal).xyz;
+    outNormal = normalize(mul(float4(UnpackedNormal, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz);
 	
 	outTangent = float4(0, 0, 0, 1);
 	if (meshData.m_HasTangentData)
 	{
-		outTangent = float4(normalize(mul(float4(vertexInfo.m_Tangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), vertexInfo.m_Tangent.w);
-	}
+        float4 UnpackedTangent = UnpackVector4FromUint32(vertexInfo.m_Tangent);
+        outTangent = float4(normalize(mul(float4(UnpackedTangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), UnpackedTangent.w);
+    }
     
     // Pass the vertex texture coordinates to the pixel shader
     outUV = vertexInfo.m_TexCoord;

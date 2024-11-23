@@ -2,6 +2,11 @@
 
 #include "SimpleMath.h"
 
+using UByte4  = DirectX::PackedVector::XMUBYTE4;
+using UByte4N = DirectX::PackedVector::XMUBYTEN4;
+using Byte4   = DirectX::PackedVector::XMBYTE4;
+using Byte4N  = DirectX::PackedVector::XMBYTEN4;
+
 using Half  = DirectX::PackedVector::HALF;
 using Half2 = DirectX::PackedVector::XMHALF2;
 using Half4 = DirectX::PackedVector::XMHALF4;

@@ -431,14 +431,34 @@ struct GLTFSceneLoader
                         {
                             vertices[i].m_Position = vertexPositions[i];
 
+                            static auto PackVector4ToUint32 = [](Vector4 v)
+                                {
+                                    // Normalize x, y, z from [-1, 1] to [0, 1]
+                                    v.x = (v.x + 1.0f) * 0.5f;
+                                    v.y = (v.y + 1.0f) * 0.5f;
+                                    v.z = (v.z + 1.0f) * 0.5f;
+
+                                    // Scale to 10-bit integers (0-1023)
+                                    uint32_t xInt = (uint32_t)(v.x * 1023.0f);
+                                    uint32_t yInt = (uint32_t)(v.y * 1023.0f);
+                                    uint32_t zInt = (uint32_t)(v.z * 1023.0f);
+
+                                    // Encode w as 1 if w > 0, otherwise 0
+                                    uint32_t wInt = (v.w > 0.0f) ? 1 : 0;
+
+                                    // Pack components into a uint32_t (10 bits each for x, y, z, and 1 bit for w)
+                                    uint32_t packed = (xInt << 20) | (yInt << 10) | (zInt) | (wInt << 30);
+                                    return packed;
+                                };
+
                             if (!vertexNormals.empty())
                             {
-                                vertices[i].m_Normal = vertexNormals[i];
+                                vertices[i].m_Normal.v = PackVector4ToUint32(Vector4{ vertexNormals[i] });
                             }
 
                             if (!vertexTangents.empty())
                             {
-                                vertices[i].m_Tangent = vertexTangents[i];
+                                vertices[i].m_Tangent.v = PackVector4ToUint32(vertexTangents[i]);
                             }
 
                             if (!vertexUVs.empty())

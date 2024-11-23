@@ -64,9 +64,6 @@ public:
     nvrhi::DepthStencilState DepthWriteStencilRead;
     nvrhi::DepthStencilState DepthWriteStencilWrite;
 
-    Primitive UnitCube;
-    Primitive UnitSphere;
-
 private:
     void Initialize();
 
