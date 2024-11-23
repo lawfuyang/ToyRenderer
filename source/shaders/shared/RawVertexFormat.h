@@ -8,7 +8,7 @@ struct RawVertexFormat
     Vector3 m_Position;
     Vector3 m_Normal;
     Vector4 m_Tangent;
-    Vector2 m_TexCoord;
+    Half2 m_TexCoord;
 };
 
 #endif // #define _RAW_VERTEX_FORMAT_H_

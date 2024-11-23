@@ -34,7 +34,6 @@ public:
 
     // Input Layouts
     nvrhi::InputLayoutHandle IMGUILayout;
-    nvrhi::InputLayoutHandle RawVertexLayout;
     nvrhi::InputLayoutHandle DebugDrawLayout;
     nvrhi::InputLayoutHandle GPUCullingLayout;
 

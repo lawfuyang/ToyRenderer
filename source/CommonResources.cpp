@@ -194,14 +194,6 @@ static void CreateDefaultInputLayouts()
         { "TEXCOORD", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,uv),  sizeof(ImDrawVert), false },
         { "COLOR",    nvrhi::Format::RGBA8_UNORM, 1, 0, offsetof(ImDrawVert,col), sizeof(ImDrawVert), false },
     };
-    
-    // TODO: update this
-    static const nvrhi::VertexAttributeDesc s_RawVertexFormatLayout[] =
-    {
-        { "POSITION"    , nvrhi::Format::RGB32_FLOAT, 1, 0, offsetof(RawVertexFormat, m_Position)   , sizeof(RawVertexFormat), false },
-        { "NORMAL"      , nvrhi::Format::RGB32_FLOAT, 1, 0, offsetof(RawVertexFormat, m_Normal)     , sizeof(RawVertexFormat), false },
-        { "TEXCOORD"    , nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(RawVertexFormat, m_TexCoord)   , sizeof(RawVertexFormat), false }
-    };
 
     static const nvrhi::VertexAttributeDesc s_DebugDrawLayout[] =
     {
@@ -220,7 +212,6 @@ static void CreateDefaultInputLayouts()
 
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
     g_CommonResources.IMGUILayout = device->createInputLayout(s_ImguiLayout, (uint32_t)std::size(s_ImguiLayout), dummyVS);
-    g_CommonResources.RawVertexLayout = device->createInputLayout(s_RawVertexFormatLayout, (uint32_t)std::size(s_RawVertexFormatLayout), dummyVS);
     g_CommonResources.DebugDrawLayout = device->createInputLayout(s_DebugDrawLayout, (uint32_t)std::size(s_DebugDrawLayout), dummyVS);
     g_CommonResources.GPUCullingLayout = device->createInputLayout(s_GPUCullingLayout, (uint32_t)std::size(s_GPUCullingLayout), dummyVS);
 }
@@ -288,7 +279,7 @@ static void ReverseWinding(std::vector<Graphic::IndexBufferFormat_t>& indices, s
 
     for (RawVertexFormat& v : vertices)
     {
-        v.m_TexCoord.x = (1.0f - v.m_TexCoord.x);
+        v.m_TexCoord.x = ConvertFloatToHalf(1.0f - ConvertHalfToFloat(v.m_TexCoord.x));
     }
 }
 
@@ -317,12 +308,14 @@ static void CreateUnitCubeMesh()
         { 1, 0, 0, 1 },
     };
 
-    const Vector2 textureCoordinates[] =
+    const uint16_t kHalfPrecision1 = 0x3C00; // 1.0f
+
+    const Half2 textureCoordinates[] =
     {
-        { 1, 0 },
-        { 1, 1 },
-        { 0, 1 },
-        { 0, 0 },
+        { 1.0f, 0.0f },
+        { 1.0f, 1.0f },
+        { 0.0f, 1.0f },
+        { 0.0f, 0.0f },
     };
 
     std::vector<RawVertexFormat> vertices;
@@ -403,7 +396,7 @@ static void CreateUnitSphereMesh()
 
             const Vector3 normal{ dx, dy, dz };
             const Vector4 tangent{ -dz, 0, dx, 1 };
-            const Vector2 textureCoordinate{ u, v };
+            const Half2 textureCoordinate{ u, v };
 
             vertices.push_back(RawVertexFormat{ { normal* radius }, normal, tangent, textureCoordinate });
         }

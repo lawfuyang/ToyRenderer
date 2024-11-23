@@ -2,6 +2,10 @@
 
 #include "SimpleMath.h"
 
+using Half  = DirectX::PackedVector::HALF;
+using Half2 = DirectX::PackedVector::XMHALF2;
+using Half4 = DirectX::PackedVector::XMHALF4;
+
 using Vector2    = DirectX::SimpleMath::Vector2;
 using Vector2I   = DirectX::XMINT2;
 using Vector2U   = DirectX::XMUINT2;
@@ -26,6 +30,8 @@ using Frustum     = DirectX::BoundingFrustum;
 #define KINDA_SMALL_NUMBER                   1e-4f
 #define KINDA_BIG_NUMBER                     1e10f
 
+inline Half ConvertFloatToHalf(float f) { return DirectX::PackedVector::XMConvertFloatToHalf(f); }
+inline float ConvertHalfToFloat(Half h) { return DirectX::PackedVector::XMConvertHalfToFloat(h); }
 constexpr float ConvertToRadians(float fDegrees) { return DirectX::XMConvertToRadians(fDegrees); }
 constexpr float ConvertToDegrees(float fRadians) { return DirectX::XMConvertToDegrees(fRadians); }
 inline void ScalarSinCos(float& sinResult, float& cosResult, float value) { return DirectX::XMScalarSinCos(&sinResult, &cosResult, value); }

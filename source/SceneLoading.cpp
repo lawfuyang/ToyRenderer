@@ -441,7 +441,8 @@ struct GLTFSceneLoader
 
                             if (!vertexUVs.empty())
                             {
-                                vertices[i].m_TexCoord = vertexUVs[i];
+                                vertices[i].m_TexCoord.x = ConvertFloatToHalf(vertexUVs[i].x);
+                                vertices[i].m_TexCoord.y = ConvertFloatToHalf(vertexUVs[i].y);
                             }
                         }
 
