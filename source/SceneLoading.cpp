@@ -458,6 +458,7 @@ struct GLTFSceneLoader
 
                             if (!vertexTangents.empty())
                             {
+                                vertexTangents[i].w *= -1.0f; // flip the handedness
                                 vertices[i].m_PackedTangent = PackVector4ToUint32(vertexTangents[i]);
                             }
 
@@ -487,7 +488,6 @@ struct GLTFSceneLoader
                         meshData.m_IndexCount = indices.size();
                         meshData.m_StartIndexLocation = newSceneMesh->m_StartIndexLocation;
                         meshData.m_StartVertexLocation = newSceneMesh->m_StartVertexLocation;
-                        meshData.m_HasTangentData = !vertexTangents.empty();
                         meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
                         meshData.m_AABBCenter = newSceneMesh->m_AABB.Center;
                         meshData.m_AABBExtents = newSceneMesh->m_AABB.Extents;
