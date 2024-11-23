@@ -463,8 +463,16 @@ struct GLTFSceneLoader
 
                             if (!vertexUVs.empty())
                             {
-                                vertices[i].m_TexCoord.x = ConvertFloatToHalf(vertexUVs[i].x);
-                                vertices[i].m_TexCoord.y = ConvertFloatToHalf(vertexUVs[i].y);
+                                static auto PackUV = [](Vector2 UV)
+                                    {
+                                        uint16_t uInt = static_cast<uint16_t>(UV.x * 65535.0f); // Scale to [0, 65535]
+                                        uint16_t vInt = static_cast<uint16_t>(UV.y * 65535.0f); // Scale to [0, 65535]
+
+                                        // Pack into a single 32-bit integer: U in the high 16 bits, V in the low 16 bits
+                                        return (static_cast<uint32_t>(uInt) << 16) | vInt;
+                                    };
+
+                                vertices[i].m_PackedTexCoord = PackUV(vertexUVs[i]);
                             }
                         }
 

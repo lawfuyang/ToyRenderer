@@ -24,7 +24,7 @@ sampler g_PointClampSampler : register(s4);
 SamplerComparisonState g_PointComparisonLessSampler : register(s5);
 SamplerComparisonState g_LinearComparisonLessSampler : register(s6);
 
-float4 UnpackVector4FromUint32(uint packed)
+float4 UnpackVectorFromUint32(uint packed)
 {
     // Extract each component
     uint xInt = (packed >> 20) & 0x3FF; // 10 bits for x
@@ -46,6 +46,18 @@ float4 UnpackVector4FromUint32(uint packed)
     float w = (wInt == 1) ? 1.0f : -1.0f;
 
     return float4(x, y, z, w);
+}
+
+float2 UnpackTexCoord(uint packedUV)
+{
+    uint uInt = (packedUV >> 16) & 0xFFFF; // Extract the upper 16 bits (U)
+    uint vInt = packedUV & 0xFFFF; // Extract the lower 16 bits (V)
+
+    // Convert back to float
+    float u = uInt / 65535.0f;
+    float v = vInt / 65535.0f;
+
+    return float2(u, v);
 }
 
 void VS_Main(
@@ -79,18 +91,18 @@ void VS_Main(
     outInstanceConstsIdx = inInstanceConstIndex;
     
     // Transform the vertex normal to world space and normalize it
-    float3 UnpackedNormal = UnpackVector4FromUint32(vertexInfo.m_PackedNormal).xyz;
+    float3 UnpackedNormal = UnpackVectorFromUint32(vertexInfo.m_PackedNormal).xyz;
     outNormal = normalize(mul(float4(UnpackedNormal, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz);
 	
 	outTangent = float4(0, 0, 0, 1);
 	if (meshData.m_HasTangentData)
 	{
-        float4 UnpackedTangent = UnpackVector4FromUint32(vertexInfo.m_PackedTangent);
+        float4 UnpackedTangent = UnpackVectorFromUint32(vertexInfo.m_PackedTangent);
         outTangent = float4(normalize(mul(float4(UnpackedTangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), UnpackedTangent.w);
     }
     
     // Pass the vertex texture coordinates to the pixel shader
-    outUV = vertexInfo.m_TexCoord;
+    outUV = UnpackTexCoord(vertexInfo.m_PackedTexCoord);
     
     // Pass the world space position to the pixel shader
     outWorldPosition = worldPos.xyz;
