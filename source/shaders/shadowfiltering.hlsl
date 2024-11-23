@@ -238,7 +238,7 @@ float ShadowFiltering(ShadowFilteringParams params)
     
     // beyond last cascade
     if (cameraDistance >= params.m_CSMDistances.w)
-        return 1.0f;
+        return 0.0f;
     
     int CSMIndex = 0;
     for (uint i = 0; i < 4; ++i)
