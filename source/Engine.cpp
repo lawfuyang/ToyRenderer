@@ -397,8 +397,16 @@ struct LeakDetector
 static LeakDetector gs_LeakDetector;
 #endif // ENABLE_MEM_LEAK_DETECTION
 
+static std::string gs_ExecutableDirectory;
+const char* GetExecutableDirectory()
+{
+    return gs_ExecutableDirectory.c_str();
+}
+
 int SDL_main(int argc, char** argv)
 {
+    gs_ExecutableDirectory = std::filesystem::path{ argv[0] }.parent_path().string();
+
 #if 1
     Engine e;
     e.Initialize(argc, argv);

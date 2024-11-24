@@ -21,18 +21,6 @@ const char* StringFormat(const char* format, ...)
     return buffer[bufferIdx];
 }
 
-const char* GetExecutableDirectory()
-{
-    static std::string path = []
-        {
-            char buffer[512];
-            GetModuleFileNameA(NULL, buffer, sizeof(buffer));
-
-            return std::filesystem::path{ buffer }.parent_path().string();
-        }();
-    return path.c_str();
-}
-
 const char* GetRootDirectory()
 {
     static std::string path = std::filesystem::path{ GetExecutableDirectory() }.parent_path().string();
