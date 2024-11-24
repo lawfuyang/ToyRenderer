@@ -346,6 +346,9 @@ struct GLTFSceneLoader
 
         tf::Taskflow taskflow;
 
+        uint32_t totalVertices = 0;
+        uint32_t totalIndices = 0;
+
         m_SceneMeshPrimitives.resize(m_GLTFData->meshes_count);
         for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_GLTFData->meshes_count; ++modelMeshIdx)
         {
@@ -367,13 +370,15 @@ struct GLTFSceneLoader
                 const cgltf_accessor* positionAccessor = cgltf_find_accessor(&gltfPrimitive, cgltf_attribute_type_position, 0);
                 assert(positionAccessor);
 
-                newSceneMesh->m_StartVertexLocation = m_GlobalVertices.size();
-                newSceneMesh->m_StartIndexLocation = m_GlobalIndices.size();
+                newSceneMesh->m_StartVertexLocation = totalVertices;
+                newSceneMesh->m_StartIndexLocation = totalIndices;
 
-                m_GlobalVertices.resize(m_GlobalVertices.size() + positionAccessor->count);
-                m_GlobalIndices.resize(m_GlobalIndices.size() + gltfPrimitive.indices->count);
+                const uint32_t nbVertices = positionAccessor->count;
 
-                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx]
+                totalVertices += nbVertices;
+                totalIndices += gltfPrimitive.indices->count;
+
+                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx, nbVertices]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
@@ -391,46 +396,14 @@ struct GLTFSceneLoader
                             indices[i + 2] = cgltf_accessor_read_index(gltfPrimitive.indices, i + indexMap[2]);
                         }
 
-                        std::vector<Vector3> vertexPositions;
-                        std::vector<Vector3> vertexNormals;
-                        std::vector<Vector4> vertexTangents;
-                        std::vector<Vector2> vertexUVs;
+                        std::vector<RawVertexFormat> vertices;
+                        vertices.resize(nbVertices);
+
+                        std::vector<float> scratchBuffer;
+                        scratchBuffer.resize(nbVertices * 4);
 
                         for (size_t attrIdx = 0; attrIdx < gltfPrimitive.attributes_count; ++attrIdx)
                         {
-                            const cgltf_attribute& attribute = gltfPrimitive.attributes[attrIdx];
-
-                            if (attribute.type == cgltf_attribute_type_position)
-                            {
-                                vertexPositions.resize(attribute.data->count);
-                                verify(cgltf_accessor_unpack_floats(attribute.data, &vertexPositions[0].x, attribute.data->count * 3));
-                            }
-                            else if (attribute.type == cgltf_attribute_type_normal)
-                            {
-                                vertexNormals.resize(attribute.data->count);
-                                verify(cgltf_accessor_unpack_floats(attribute.data, &vertexNormals[0].x, attribute.data->count * 3));
-                            }
-                            else if (attribute.type == cgltf_attribute_type_tangent)
-                            {
-                                vertexTangents.resize(attribute.data->count);
-                                verify(cgltf_accessor_unpack_floats(attribute.data, &vertexTangents[0].x, attribute.data->count * 4));
-                            }
-                            else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 0) // only read the first UV set
-                            {
-                                vertexUVs.resize(attribute.data->count);
-                                verify(cgltf_accessor_unpack_floats(attribute.data, &vertexUVs[0].x, attribute.data->count * 3));
-                            }
-
-                            // TODO: cgltf_attribute_type_weights, cgltf_attribute_type_joints
-                        }
-
-                        std::vector<RawVertexFormat> vertices;
-                        vertices.resize(vertexPositions.size());
-
-                        for (size_t i = 0; i < vertices.size(); ++i)
-                        {
-                            vertices[i].m_Position = vertexPositions[i];
-
                             static auto PackVector4ToUint32 = [](Vector4 v)
                                 {
                                     // Normalize x, y, z from [-1, 1] to [0, 1]
@@ -451,30 +424,58 @@ struct GLTFSceneLoader
                                     return packed;
                                 };
 
-                            if (!vertexNormals.empty())
+                            const cgltf_attribute& attribute = gltfPrimitive.attributes[attrIdx];
+                            const uint32_t nbFloats = cgltf_num_components(attribute.data->type);
+
+                            if (attribute.type == cgltf_attribute_type_position)
                             {
-                                vertices[i].m_PackedNormal = PackVector4ToUint32(Vector4{ vertexNormals[i] });
+                                verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
+                                for (size_t j = 0; j < nbVertices; ++j)
+                                {
+                                    vertices[j].m_Position.x = scratchBuffer[j * nbFloats + 0];
+                                    vertices[j].m_Position.y = scratchBuffer[j * nbFloats + 1];
+                                    vertices[j].m_Position.z = scratchBuffer[j * nbFloats + 2];
+                                }
+                            }
+                            else if (attribute.type == cgltf_attribute_type_normal)
+                            {
+                                verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
+                                for (size_t j = 0; j < nbVertices; ++j)
+                                {
+                                    vertices[j].m_PackedNormal = PackVector4ToUint32(Vector4{ &scratchBuffer[j * nbFloats] });
+                                }
+                            }
+                            else if (attribute.type == cgltf_attribute_type_tangent)
+                            {
+                                verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
+                                for (size_t j = 0; j < nbVertices; ++j)
+                                {
+                                    Vector4 tangent{ &scratchBuffer[j * nbFloats] };
+                                    tangent.w *= -1.0f; // flip the bitangent sign
+
+                                    vertices[j].m_PackedTangent = PackVector4ToUint32(tangent);
+                                }
+                            }
+                            else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 0) // only read the first UV set
+                            {
+                                verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
+
+                                for (size_t j = 0; j < nbVertices; ++j)
+                                {
+                                    static auto PackUV = [](Vector2 UV)
+                                        {
+                                            uint16_t uInt = static_cast<uint16_t>(UV.x * UINT16_MAX); // Scale to [0, 65535]
+                                            uint16_t vInt = static_cast<uint16_t>(UV.y * UINT16_MAX); // Scale to [0, 65535]
+
+                                            // Pack into a single 32-bit integer: U in the high 16 bits, V in the low 16 bits
+                                            return (static_cast<uint32_t>(uInt) << 16) | vInt;
+                                        };
+
+                                    vertices[j].m_PackedTexCoord = PackUV(Vector2{ &scratchBuffer[j * nbFloats] });
+                                }
                             }
 
-                            if (!vertexTangents.empty())
-                            {
-                                vertexTangents[i].w *= -1.0f; // flip the handedness
-                                vertices[i].m_PackedTangent = PackVector4ToUint32(vertexTangents[i]);
-                            }
-
-                            if (!vertexUVs.empty())
-                            {
-                                static auto PackUV = [](Vector2 UV)
-                                    {
-                                        uint16_t uInt = static_cast<uint16_t>(UV.x * 65535.0f); // Scale to [0, 65535]
-                                        uint16_t vInt = static_cast<uint16_t>(UV.y * 65535.0f); // Scale to [0, 65535]
-
-                                        // Pack into a single 32-bit integer: U in the high 16 bits, V in the low 16 bits
-                                        return (static_cast<uint32_t>(uInt) << 16) | vInt;
-                                    };
-
-                                vertices[i].m_PackedTexCoord = PackUV(vertexUVs[i]);
-                            }
+                            // TODO: cgltf_attribute_type_weights, cgltf_attribute_type_joints
                         }
 
                         Mesh* newSceneMesh = &g_Graphic.m_Meshes.at(sceneMeshIdx);
@@ -505,6 +506,9 @@ struct GLTFSceneLoader
                     });
             }
         }
+
+        m_GlobalVertices.resize(totalVertices);
+        m_GlobalIndices.resize(totalIndices);
 
         g_Engine.m_Executor->run(taskflow).wait();
     }
