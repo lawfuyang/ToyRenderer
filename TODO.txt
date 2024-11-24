@@ -1,7 +1,6 @@
 • fix GPU occlusion culling causing wrong results
-• fix GPU frustum culling causing wrong results for shadows (Bistro)
 • fix all -Wconversion Shader warnings
-• use low-poly occluders for depth prepass
+• Mesh LODs
     • generate using meshoptimizer
 • SDL3
 • Render Graph: D3D12_Research\Graphics\RenderGraph
