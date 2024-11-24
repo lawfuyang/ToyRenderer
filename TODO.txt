@@ -3,6 +3,7 @@
 • fix all -Wconversion Shader warnings
 • use low-poly occluders for depth prepass
     • generate using meshoptimizer
+• SDL3
 • Render Graph: D3D12_Research\Graphics\RenderGraph
 	• Transient resource allocation
 		• Validation of resource dependencies

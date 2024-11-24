@@ -3,6 +3,8 @@
 #include <dxgidebug.h>
 
 #include "extern/cxxopts/include/cxxopts.hpp"
+#include "extern/SDL/SDL3/SDL.h"
+#include "extern/SDL/SDL3/SDL_main.h"
 
 #include "Graphic.h"
 #include "GraphicPropertyGrid.h"
@@ -48,7 +50,7 @@ static void TriggerDumpProfilingCapture(std::string_view fileName)
     gs_DumpProfilingCaptureFileName = fileName;
 }
 
-void Engine::Initialize()
+void Engine::Initialize(int argc, char** argv)
 {
     SCOPED_TIMER_FUNCTION();
     PROFILE_FUNCTION();
@@ -57,22 +59,7 @@ void Engine::Initialize()
     LOG_DEBUG("Executable Directory: %s", GetExecutableDirectory());
     LOG_DEBUG("Application Directory: %s", GetApplicationDirectory());
 
-    // Look in the Windows Registry to determine if Developer Mode is enabled
-    {
-        HKEY hKey;
-        LSTATUS result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", 0, KEY_READ, &hKey);
-        if (result == ERROR_SUCCESS)
-        {
-            DWORD keyValue, keySize = sizeof(DWORD);
-            result = RegQueryValueEx(hKey, "AllowDevelopmentWithoutDevLicense", 0, NULL, (byte*)&keyValue, &keySize);
-            m_bDeveloperModeEnabled = (result == ERROR_SUCCESS && keyValue == 1);
-            RegCloseKey(hKey);
-        }
-
-        LOG_DEBUG("Windows Developer Mode: [%d]", m_bDeveloperModeEnabled);
-    }
-
-    ParseCommandlineArguments();
+    ParseCommandlineArguments(argc, argv);
 
     // init background engine window thread for message windows pump
     new(&m_EngineWindowThread) std::thread{[this]() { RunEngineWindowThread(); }};
@@ -110,9 +97,9 @@ void Engine::Initialize()
     }
 }
 
-void Engine::ParseCommandlineArguments()
+void Engine::ParseCommandlineArguments(int argc, char** argv)
 {
-    cxxopts::Options options{ __argv[0], "Argument Parser" };
+    cxxopts::Options options{ argv[0], "Argument Parser" };
 
     options.allow_unrecognised_options();
 
@@ -131,7 +118,7 @@ void Engine::ParseCommandlineArguments()
     RegisterCmdLineOptsMap(CommandLineOption<std::vector<int>>::ms_CachedArgs);
     RegisterCmdLineOptsMap(CommandLineOption<std::string>::ms_CachedArgs);
 
-    const cxxopts::ParseResult parseResult = options.parse(__argc, (const char**)__argv);
+    const cxxopts::ParseResult parseResult = options.parse(argc, argv);
 
     std::string printArgsStr = "Command Line Arguments: ";
     for (const cxxopts::KeyValue& arg : parseResult.arguments())
@@ -410,12 +397,32 @@ struct LeakDetector
 static LeakDetector gs_LeakDetector;
 #endif // ENABLE_MEM_LEAK_DETECTION
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+int SDL_main(int argc, char** argv)
 {
+#if 1
     Engine e;
-    e.Initialize();
+    e.Initialize(argc, argv);
     e.MainLoop();
     e.Shutdown();
+#else
+    SDL_Init(SDL_INIT_EVENTS);
+    SDL_Window* window = SDL_CreateWindow("Hello SDL", g_DisplayResolution.Get()[0], g_DisplayResolution.Get()[1], 0);
 
+    bool bQuit = false;
+    SDL_Event e;
+    while (!bQuit)
+    {
+        while (SDL_PollEvent(&e))
+        {
+            if (e.type == SDL_EVENT_QUIT)
+            {
+                bQuit = true;
+            }
+        }
+    }
+
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+#endif
     return 0;
 }

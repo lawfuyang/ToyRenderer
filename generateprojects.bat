@@ -21,6 +21,14 @@ if not exist "%DXC_DEST_FOLDER%" (
 	xcopy "%TMP_FOLDER%\dxc\bin\x64\*" "%DXC_DEST_FOLDER%\" /E /I /Y
 )
 
+:: SDL3
+set "SDL3_DEST_FOLDER=%cd%\extern\SDL"
+if not exist "%SDL3_DEST_FOLDER%" (
+	call :DownloadAndExtractPackage https://github.com/libsdl-org/SDL/releases/download/preview-3.1.6/SDL3-devel-3.1.6-VC.zip SDL
+	xcopy "%TMP_FOLDER%\SDL\SDL3-3.1.6\include\*" "%SDL3_DEST_FOLDER%\" /E /I /Y
+	xcopy "%TMP_FOLDER%\SDL\SDL3-3.1.6\lib\x64\*" "%cd%\bin\"
+)
+
 goto :AfterDownloadPackages
 
 :DownloadAndExtractPackage

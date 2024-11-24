@@ -18,7 +18,7 @@ class Engine
     SingletonFunctionsSimple(Engine);
 
 public:
-    void Initialize();
+    void Initialize(int argc, char** argv);
     void Shutdown();
     void MainLoop();
 
@@ -29,8 +29,6 @@ public:
 
     template <typename Lambda> void AddCommand(Lambda&& lambda) { AUTO_LOCK(m_CommandsLock); m_PendingCommands.push_back(lambda); }
     template <typename Lambda> void AddCommand(Lambda& lambda) { static_assert(sizeof(Lambda) == 0); /* enforce use of rvalue and therefore move to avoid an extra copy of the Lambda */ }
-
-    bool m_bDeveloperModeEnabled = false;
 
     float m_CPUFrameTimeMs = 0.0f;
     float m_CPUCappedFrameTimeMs = 0.0f;
@@ -43,7 +41,7 @@ public:
 private:
     static ::LRESULT CALLBACK ProcessWindowsMessagePump(::HWND hWnd, ::UINT message, ::WPARAM wParam, ::LPARAM lParam);
     void RunEngineWindowThread();
-    void ParseCommandlineArguments();
+    void ParseCommandlineArguments(int argc, char** argv);
     void ConsumeCommands();
 
     bool m_Exit = false;
