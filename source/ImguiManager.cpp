@@ -5,50 +5,17 @@
 #include "Engine.h"
 #include "Utilities.h"
 
-::HANDLE g_IMGUIContextCreatedEvent;
-
-struct IMGUICreateContextEventCreator
-{
-    IMGUICreateContextEventCreator()
-    {
-        assert(!g_IMGUIContextCreatedEvent);
-
-        const bool kManualReset = true;
-        const bool kInitialState = false;
-        g_IMGUIContextCreatedEvent = ::CreateEvent(nullptr, kManualReset, kInitialState, nullptr);
-        assert(g_IMGUIContextCreatedEvent);
-    }
-};
-static IMGUICreateContextEventCreator g_IMGUICreateContextEventCreator;
-
 void IMGUIManager::Initialize()
 {
     PROFILE_FUNCTION();
 
     ImGui::CreateContext();
-    ::SetEvent(g_IMGUIContextCreatedEvent);
-
-    ::HWND windowHandle = g_Engine.m_WindowHandle;
-    while (windowHandle == 0)
-    {
-        //g_Log.info("Engine window handle not ready for IMGUI yet... sleeping for 1 ms");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        windowHandle = g_Engine.m_WindowHandle;
-    }
-
-    if (!ImGui_ImplWin32_Init(windowHandle))
-    {
-        assert(0);
-    }
-
-    m_bInitDone = true;
+    verify(ImGui_ImplWin32_Init(g_Engine.m_WindowHandle));
 }
 
 void IMGUIManager::ShutDown()
 {
     PROFILE_FUNCTION();
-
-    ::CloseHandle(g_IMGUIContextCreatedEvent);
 
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
@@ -56,10 +23,6 @@ void IMGUIManager::ShutDown()
 
 void IMGUIManager::ProcessWindowsMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    // this function may be called during init phase...
-    if (!m_bInitDone)
-        return;
-
     extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
     ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam);
 }

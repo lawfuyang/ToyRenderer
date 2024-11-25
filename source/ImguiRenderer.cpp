@@ -23,17 +23,6 @@ public:
 
     void Initialize() override
     {
-        //'ImGui::CreateContext()' is required to be called first
-        // this loop should never happenas Renderers' init runs after Device init which takes a long time, which in turn runs together with IMGUIManager's init
-        // but wait here just in case
-        extern ::HANDLE g_IMGUIContextCreatedEvent;
-        assert(g_IMGUIContextCreatedEvent);
-
-        {
-            const DWORD result = WaitForSingleObject(g_IMGUIContextCreatedEvent, 1000);
-            assert(result == WAIT_OBJECT_0);
-        }
-
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
         ImGuiIO& io = ImGui::GetIO();

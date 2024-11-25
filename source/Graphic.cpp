@@ -876,7 +876,7 @@ void Graphic::Update()
         // run as a task due to the usage of "corun" in the InitShaders function
         tf::Taskflow tf;
         tf.emplace([this] { InitShaders(); });
-        g_Engine.m_Executor->run(tf).wait();
+        g_Engine.m_Executor->corun(tf);
 
         m_bTriggerReloadShaders = false;
     }
@@ -915,7 +915,7 @@ void Graphic::Update()
     tf.emplace([this] { m_Scene->Update(); });
 
     // MT execute all graphic update tasks
-    g_Engine.m_Executor->run(tf).wait();
+    g_Engine.m_Executor->corun(tf);
 
     m_Scene->PostRender();
 

@@ -61,8 +61,7 @@ void Engine::Initialize(int argc, char** argv)
 
     ParseCommandlineArguments(argc, argv);
 
-    // init background engine window thread for message windows pump
-    new(&m_EngineWindowThread) std::thread{[this]() { RunEngineWindowThread(); }};
+    CreateAppWindow();
 
     MicroProfileOnThreadCreate("Main");
     MicroProfileSetEnableAllGroups(true);
@@ -74,12 +73,12 @@ void Engine::Initialize(int argc, char** argv)
     m_Executor = std::make_shared<tf::Executor>(nbWorkerThreads);
     LOG_DEBUG("%d Worker Threads initialized", m_Executor->num_workers());
 
-    // MT init tasks
+    // NOTE: init imgui in isolation
+	m_IMGUIManager = std::make_shared<IMGUIManager>();
+    m_IMGUIManager->Initialize();
+
     tf::Taskflow tf;
     tf.emplace([this] { m_Graphic = std::make_shared<Graphic>(); m_Graphic->Initialize(); });
-    tf.emplace([this] { m_IMGUIManager = std::make_shared<IMGUIManager>(); m_IMGUIManager->Initialize(); });
-
-    // MT init & wait
     m_Executor->run(tf).wait();
 
 	if (std::string_view sceneToLoad = g_SceneToLoad.Get();
@@ -154,8 +153,6 @@ void Engine::Shutdown()
 	m_Graphic->Shutdown();
 	m_Graphic.reset();
 
-	m_EngineWindowThread.join();
-
 	MicroProfileShutdown();
 
 	// check for any leftover dxgi stuff
@@ -214,10 +211,19 @@ void Engine::MainLoop()
             // consume commands first at the very beginning of the frame
             ConsumeCommands();
 
+            ::MSG msg;
+            while ((::PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) != 0)
+			{
+				::TranslateMessage(&msg);
+				::DispatchMessage(&msg);
+			}
+
             // for the sake of UI & property-editing stability, IMGUI must be updated in isolation single-threaded
             m_IMGUIManager->Update();
 
-            m_Graphic->Update();
+            tf::Taskflow tf;
+            tf.emplace([this] { m_Graphic->Update(); });
+            m_Executor->run(tf).wait();
 
             if (Keyboard::IsKeyPressed(Keyboard::KEY_CTRL) && Keyboard::IsKeyPressed(Keyboard::KEY_SHIFT) && Keyboard::WasKeyPressed(Keyboard::KEY_COMMA))
             {
@@ -300,16 +306,12 @@ void Engine::ConsumeCommands()
     case WM_MOUSEWHEEL: Mouse::ProcessMouseWheel(wParam); break;
     }
 
-    // imguimanager may have already been freed during shutdown phase
-    if (g_Engine.m_IMGUIManager)
-    {
-        g_Engine.m_IMGUIManager->ProcessWindowsMessage(hWnd, message, wParam, lParam);
-    }
+    g_Engine.m_IMGUIManager->ProcessWindowsMessage(hWnd, message, wParam, lParam);
 
     return ::DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-void Engine::RunEngineWindowThread()
+void Engine::CreateAppWindow()
 {
     const char* s_AppName = "ToyRenderer";
 
@@ -363,23 +365,6 @@ void Engine::RunEngineWindowThread()
 
     ::ShowCursor(true);
     ::SetCursor(::LoadCursor(NULL, IDC_ARROW));
-
-    ::MSG msg;
-    ::BOOL bRet;
-    while ((bRet = ::GetMessage(&msg, NULL, 0, 0)) != 0)
-    {
-        if (bRet == -1)
-        {
-            CriticalWindowsError();
-        }
-        else
-        {
-            ::TranslateMessage(&msg);
-            ::DispatchMessage(&msg);
-        }
-    }
-
-    LOG_DEBUG("Leaving Engine Window Thread");
 }
 
 #if ENABLE_MEM_LEAK_DETECTION

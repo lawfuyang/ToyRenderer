@@ -13,7 +13,6 @@ public:
     void ProcessWindowsMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
     void Update();
 
-    bool m_bInitDone = false;
     bool m_bShowDemoWindows = false;
     bool m_bShowGraphicPropertyGrid = false;
 

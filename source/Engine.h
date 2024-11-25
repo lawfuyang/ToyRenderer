@@ -40,13 +40,12 @@ public:
 
 private:
     static ::LRESULT CALLBACK ProcessWindowsMessagePump(::HWND hWnd, ::UINT message, ::WPARAM wParam, ::LPARAM lParam);
-    void RunEngineWindowThread();
+    void CreateAppWindow();
     void ParseCommandlineArguments(int argc, char** argv);
     void ConsumeCommands();
 
     bool m_Exit = false;
     std::shared_ptr<Graphic> m_Graphic;
-    std::thread m_EngineWindowThread;
 
     SpinLock m_CommandsLock;
     std::vector<std::function<void()>> m_PendingCommands;
