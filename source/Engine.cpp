@@ -5,8 +5,9 @@
 #include "extern/cxxopts/include/cxxopts.hpp"
 #include "extern/SDL/SDL3/SDL.h"
 #include "extern/SDL/SDL3/SDL_main.h"
+#include "extern/SDL/SDL3/SDL_keyboard.h"
 #include "extern/imgui/imgui.h"
-#include "extern/imgui/backends/imgui_impl_win32.h"
+#include "extern/imgui/backends/imgui_impl_sdl3.h"
 
 #include "Graphic.h"
 #include "GraphicPropertyGrid.h"
@@ -14,6 +15,8 @@
 #include "Mouse.h"
 #include "Scene.h"
 #include "Utilities.h"
+
+#define SDL_CALL(x) if (!(x)) { LOG_DEBUG("SDL Error: %s", SDL_GetError()); assert(false); }
 
 CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", {1600, 900} };
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
@@ -53,10 +56,18 @@ static void TriggerDumpProfilingCapture(std::string_view fileName)
     gs_DumpProfilingCaptureFileName = fileName;
 }
 
+static std::string gs_ExecutableDirectory;
+const char* GetExecutableDirectory()
+{
+    return gs_ExecutableDirectory.c_str();
+}
+
 void Engine::Initialize(int argc, char** argv)
 {
     SCOPED_TIMER_FUNCTION();
     PROFILE_FUNCTION();
+
+    gs_ExecutableDirectory = std::filesystem::path{ argv[0] }.parent_path().string();
 
     LOG_DEBUG("Root Directory: %s", GetRootDirectory());
     LOG_DEBUG("Executable Directory: %s", GetExecutableDirectory());
@@ -64,7 +75,12 @@ void Engine::Initialize(int argc, char** argv)
 
     ParseCommandlineArguments(argc, argv);
 
-    CreateAppWindow();
+    SDL_CALL(SDL_Init(SDL_INIT_EVENTS));
+    m_SDLWindow = SDL_CreateWindow("Visord", g_DisplayResolution.Get()[0], g_DisplayResolution.Get()[1], 0);
+    SDL_CALL(m_SDLWindow);
+
+    SDL_CALL(SDL_SetWindowPosition(m_SDLWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED));
+    SDL_CALL(SDL_ShowWindow(m_SDLWindow));
 
     MicroProfileOnThreadCreate("Main");
     MicroProfileSetEnableAllGroups(true);
@@ -78,7 +94,7 @@ void Engine::Initialize(int argc, char** argv)
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    verify(ImGui_ImplWin32_Init(m_WindowHandle));
+    verify(ImGui_ImplSDL3_InitForD3D(m_SDLWindow));
 
     tf::Taskflow tf;
     tf.emplace([this] { m_Graphic = std::make_shared<Graphic>(); m_Graphic->Initialize(); });
@@ -151,7 +167,7 @@ void Engine::Shutdown()
 		ConsumeCommands();
 	}
 
-    ImGui_ImplWin32_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 
 	m_Graphic->Shutdown();
@@ -159,8 +175,8 @@ void Engine::Shutdown()
 
 	MicroProfileShutdown();
 
-    ::DestroyWindow(m_WindowHandle);
-    ::UnregisterClassA(gs_AppName, m_WindowInstance);
+    SDL_DestroyWindow(m_SDLWindow);
+    SDL_Quit();
 
 	// check for any leftover dxgi stuff
 	ComPtr<IDXGIDebug1> dxgiDebug;
@@ -168,34 +184,6 @@ void Engine::Shutdown()
 	{
 		HRESULT_CALL(dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL | DXGI_DEBUG_RLO_IGNORE_INTERNAL)));
 	}
-}
-
-static void SleepCPUWhileWindowIsInactive()
-{
-    PROFILE_FUNCTION();
-
-    DWORD ForegroundProcess{};
-    ::GetWindowThreadProcessId(::GetForegroundWindow(), &ForegroundProcess);
-    while (ForegroundProcess != ::GetCurrentProcessId() && !g_Engine.IsExiting())
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
-        ::GetWindowThreadProcessId(::GetForegroundWindow(), &ForegroundProcess);
-    }
-}
-
-static void BusyWaitUntilFPSLimit(Timer& timer)
-{
-    const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
-
-    const uint32_t fpsLimit = debugControllables.m_FPSLimit;
-    if (fpsLimit == 0)
-        return;
-
-    const std::chrono::microseconds frameDuration{ 1000000 / fpsLimit };
-
-    PROFILE_FUNCTION();
-
-    while (timer.GetElapsedMicroSeconds() < frameDuration.count()) { YieldProcessor(); }
 }
 
 void Engine::MainLoop()
@@ -208,7 +196,14 @@ void Engine::MainLoop()
     {
         PROFILE_SCOPED("Frame");
 
-        SleepCPUWhileWindowIsInactive();
+        // sleep cpu if window is inactive
+        // NOTE: windowFlag will be '0' without any mouse or keyboard input
+        const SDL_WindowFlags windowFlags = SDL_GetWindowFlags(g_Engine.m_SDLWindow);
+        if (windowFlags == 0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
+            continue;
+        }
 
         Timer frameTimer;
 
@@ -218,12 +213,20 @@ void Engine::MainLoop()
             // consume commands first at the very beginning of the frame
             ConsumeCommands();
 
-            ::MSG msg;
-            while ((::PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) != 0)
-			{
-				::TranslateMessage(&msg);
-				::DispatchMessage(&msg);
-			}
+            SDL_Event event;
+            while (SDL_PollEvent(&event))
+            {
+                if (event.type == SDL_EVENT_QUIT)
+                {
+                    m_Exit = true;
+                }
+                if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(m_SDLWindow))
+                {
+                    m_Exit = true;
+                }
+
+                ImGui_ImplSDL3_ProcessEvent(&event);
+            }
 
             // for the sake of UI & property-editing stability, IMGUI must be updated in isolation single-threaded
             UpdateIMGUI();
@@ -232,14 +235,15 @@ void Engine::MainLoop()
             tf.emplace([this] { m_Graphic->Update(); });
             m_Executor->run(tf).wait();
 
-            if (Keyboard::IsKeyPressed(Keyboard::KEY_CTRL) && Keyboard::IsKeyPressed(Keyboard::KEY_SHIFT) && Keyboard::WasKeyPressed(Keyboard::KEY_COMMA))
+			const SDL_Keymod keyMod = SDL_GetModState();
+			const bool* keyboardStates = SDL_GetKeyboardState(nullptr);
+
+            if ((keyMod & SDL_KMOD_LCTRL) &&
+                (keyMod & SDL_KMOD_LSHIFT) &&
+                keyboardStates[SDL_SCANCODE_COMMA])
             {
                 TriggerDumpProfilingCapture("Frames");
             }
-
-            // make sure I/O ticks happen last
-            Keyboard::Tick();
-            Mouse::Tick();
         }
 
         if (gs_TriggerDumpProfilingCapture)
@@ -248,7 +252,16 @@ void Engine::MainLoop()
         }
 
         m_CPUFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
-        BusyWaitUntilFPSLimit(frameTimer);
+
+		if (const uint32_t fpsLimit = g_GraphicPropertyGrid.m_DebugControllables.m_FPSLimit;
+            fpsLimit != 0)
+		{
+			const std::chrono::microseconds frameDuration{ 1000000 / fpsLimit };
+
+			PROFILE_SCOPED("Busy Wait Until FPS Limit");
+			while (frameTimer.GetElapsedMicroSeconds() < frameDuration.count()) { YieldProcessor(); }
+		}
+
         m_CPUCappedFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
 
         MicroProfileFlip(nullptr);
@@ -286,7 +299,7 @@ void Engine::UpdateIMGUI()
 {
     PROFILE_FUNCTION();
 
-    ImGui_ImplWin32_NewFrame();
+	ImGui_ImplSDL3_NewFrame();
 
     ImGui::NewFrame();
 
@@ -342,95 +355,6 @@ void Engine::UpdateIMGUI()
     }
 }
 
-::LRESULT CALLBACK Engine::ProcessWindowsMessagePump(::HWND hWnd, ::UINT message, ::WPARAM wParam, ::LPARAM lParam)
-{
-    switch (message)
-    {
-    case WM_CLOSE:
-        ::DestroyWindow(hWnd);
-        g_Engine.m_Exit = true;
-        break;
-
-    case WM_DESTROY:
-        ::PostQuitMessage(0);
-        g_Engine.m_Exit = true;
-        break;
-
-    case WM_MOUSEMOVE:
-    {
-        ::RECT rect;
-        ::GetClientRect(g_Engine.m_WindowHandle, &rect);
-        Mouse::ProcessMouseMove(lParam, rect);
-        // NO BREAK HERE!
-    }
-
-    case WM_KEYUP: Keyboard::ProcessKeyUp((uint32_t)wParam); break;
-    case WM_KEYDOWN: Keyboard::ProcessKeyDown((uint32_t)wParam); break;
-    case WM_LBUTTONDOWN: Mouse::UpdateButton(Mouse::Left, true); break;
-    case WM_LBUTTONUP: Mouse::UpdateButton(Mouse::Left, false); break;
-    case WM_RBUTTONDOWN: Mouse::UpdateButton(Mouse::Right, true); break;
-    case WM_RBUTTONUP: Mouse::UpdateButton(Mouse::Right, false); break;
-    case WM_MOUSEWHEEL: Mouse::ProcessMouseWheel(wParam); break;
-    }
-
-    extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam);
-
-    return ::DefWindowProc(hWnd, message, wParam, lParam);
-}
-
-void Engine::CreateAppWindow()
-{
-    ::WNDCLASS wc = { 0 };
-    wc.lpfnWndProc = ProcessWindowsMessagePump;
-    wc.hInstance = m_WindowInstance;
-    wc.hbrBackground = (::HBRUSH)(COLOR_BACKGROUND);
-    wc.lpszClassName = gs_AppName;
-
-	auto CriticalWindowsError = []
-        {
-            DWORD err = GetLastError();
-            LPTSTR lpBuffer = 0;
-            FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 0, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&lpBuffer, 0, 0);
-			LOG_DEBUG("Windows Error : %s", lpBuffer);
-            LocalFree(lpBuffer);
-            assert(0);
-        };
-
-    if (FAILED(RegisterClass(&wc)))
-    {
-        CriticalWindowsError();
-    }
-
-    const uint32_t kWindowWidth = g_DisplayResolution.Get()[0];
-    const uint32_t kWindowHeight = g_DisplayResolution.Get()[1];
-
-    const ::DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_VISIBLE;
-    ::RECT rect{ 0, 0, (LONG)kWindowWidth, (LONG)kWindowHeight };
-    ::AdjustWindowRect(&rect, style, false);
-
-    const int posX = (GetSystemMetrics(SM_CXSCREEN) - kWindowWidth) / 2;
-    const int posY = (GetSystemMetrics(SM_CYSCREEN) - kWindowHeight) / 2;
-
-    ::HWND engineWindowHandle = CreateWindow(wc.lpszClassName,
-        gs_AppName,
-        style,
-        posX, posY,
-        rect.right - rect.left,
-        rect.bottom - rect.top,
-        0, 0, m_WindowInstance, NULL);
-
-    if (engineWindowHandle == 0)
-    {
-        CriticalWindowsError();
-    }
-
-    m_WindowHandle = engineWindowHandle;
-
-    ::ShowCursor(true);
-    ::SetCursor(::LoadCursor(NULL, IDC_ARROW));
-}
-
 #if ENABLE_MEM_LEAK_DETECTION
 
 #define STB_LEAKCHECK_IMPLEMENTATION
@@ -446,40 +370,12 @@ struct LeakDetector
 static LeakDetector gs_LeakDetector;
 #endif // ENABLE_MEM_LEAK_DETECTION
 
-static std::string gs_ExecutableDirectory;
-const char* GetExecutableDirectory()
-{
-    return gs_ExecutableDirectory.c_str();
-}
-
 int SDL_main(int argc, char** argv)
 {
-    gs_ExecutableDirectory = std::filesystem::path{ argv[0] }.parent_path().string();
-
-#if 1
     Engine e;
     e.Initialize(argc, argv);
     e.MainLoop();
     e.Shutdown();
-#else
-    SDL_Init(SDL_INIT_EVENTS);
-    SDL_Window* window = SDL_CreateWindow("Hello SDL", g_DisplayResolution.Get()[0], g_DisplayResolution.Get()[1], 0);
 
-    bool bQuit = false;
-    SDL_Event e;
-    while (!bQuit)
-    {
-        while (SDL_PollEvent(&e))
-        {
-            if (e.type == SDL_EVENT_QUIT)
-            {
-                bQuit = true;
-            }
-        }
-    }
-
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-#endif
     return 0;
 }

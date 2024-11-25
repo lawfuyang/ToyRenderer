@@ -23,8 +23,6 @@ public:
 
     static bool IsMainThread();
     static uint32_t GetThreadID();
-    
-	bool IsExiting() const { return m_Exit; }
 
     template <typename Lambda> void AddCommand(Lambda&& lambda) { AUTO_LOCK(m_CommandsLock); m_PendingCommands.push_back(lambda); }
     template <typename Lambda> void AddCommand(Lambda& lambda) { static_assert(sizeof(Lambda) == 0); /* enforce use of rvalue and therefore move to avoid an extra copy of the Lambda */ }
@@ -33,13 +31,11 @@ public:
     float m_CPUCappedFrameTimeMs = 0.0f;
     float m_GPUTimeMs = 0.0f;
 
-    ::HWND m_WindowHandle = nullptr;
-	::HINSTANCE m_WindowInstance = nullptr;
+	struct SDL_Window* m_SDLWindow = nullptr;
+
     std::shared_ptr<tf::Executor> m_Executor;
 
 private:
-    static ::LRESULT CALLBACK ProcessWindowsMessagePump(::HWND hWnd, ::UINT message, ::WPARAM wParam, ::LPARAM lParam);
-    void CreateAppWindow();
     void ParseCommandlineArguments(int argc, char** argv);
     void ConsumeCommands();
     void UpdateIMGUI();

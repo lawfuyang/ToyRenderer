@@ -6,6 +6,9 @@
 #include "extern/nvrhi/include/nvrhi/validation.h"
 #include "extern/shadermake/include/ShaderMake/ShaderBlob.h"
 
+#include "extern/SDL/SDL3/SDL.h"
+#include "extern/SDL/SDL3/SDL_properties.h"
+
 #if NVRHI_WITH_AFTERMATH
 #include "nvrhi/common/aftermath.h"
 #endif
@@ -329,16 +332,18 @@ void Graphic::InitSwapChain()
     SwapChainDesc.SampleDesc.Count = 1; // >1 valid only with bit-block transfer (bitblt) model swap chains.
     SwapChainDesc.Flags = m_bTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
+    ::HWND hwnd = (::HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(g_Engine.m_SDLWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+
     ComPtr<IDXGISwapChain1> SwapChain;
     HRESULT_CALL(m_DXGIFactory->CreateSwapChainForHwnd(m_GraphicsQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
-        g_Engine.m_WindowHandle,
+        hwnd,
         &SwapChainDesc,
         nullptr,
         nullptr,
         &SwapChain));
 
     // Disable Alt-Enter and other DXGI trickery...
-    HRESULT_CALL(m_DXGIFactory->MakeWindowAssociation(g_Engine.m_WindowHandle, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER));
+    HRESULT_CALL(m_DXGIFactory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER));
 
     HRESULT_CALL(SwapChain.As(&m_SwapChain));
     SwapChain->QueryInterface(IID_PPV_ARGS(&m_SwapChain));

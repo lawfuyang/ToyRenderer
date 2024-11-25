@@ -59,7 +59,7 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 
 # src files
 file(GLOB_RECURSE BASE_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${SRC_DIR}/*.hpp" "${SRC_DIR}/*.inl")
-file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgui_impl_win32.*" )
+file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgui_impl_sdl3.*")
 
 set(TOYRENDERER_SRC ${BASE_SRC} ${IMGUI_SRC})
 
