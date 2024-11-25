@@ -349,13 +349,15 @@ void Scene::UpdateCSMViews()
         float maxZ = -KINDA_BIG_NUMBER;
         for (const Vector3& v : frustumCorners)
         {
+            static const float kExpansionBuffer = 1.1f;
+
             const Vector3 trf = Vector3::Transform(v, CSMView.m_ViewMatrix);
-            minX = std::min(minX, trf.x);
-            maxX = std::max(maxX, trf.x);
-            minY = std::min(minY, trf.y);
-            maxY = std::max(maxY, trf.y);
-            minZ = std::min(minZ, trf.z);
-            maxZ = std::max(maxZ, trf.z);
+            minX = std::min(minX, trf.x) * kExpansionBuffer;
+            maxX = std::max(maxX, trf.x) * kExpansionBuffer;
+            minY = std::min(minY, trf.y) * kExpansionBuffer;
+            maxY = std::max(maxY, trf.y) * kExpansionBuffer;
+            minZ = std::min(minZ, trf.z) * kExpansionBuffer;
+            maxZ = std::max(maxZ, trf.z) * kExpansionBuffer;
         }
 
         CSMView.m_Width = std::max(1.0f, maxX - minX);
