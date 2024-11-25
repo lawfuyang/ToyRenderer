@@ -1,8 +1,9 @@
 #include "Graphic.h"
 
+#include "extern/imgui/imgui.h"
+
 #include "Engine.h"
 #include "CommonResources.h"
-#include "Imguimanager.h"
 
 class IMGUIRenderer : public IRenderer
 {

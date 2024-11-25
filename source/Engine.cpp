@@ -5,10 +5,11 @@
 #include "extern/cxxopts/include/cxxopts.hpp"
 #include "extern/SDL/SDL3/SDL.h"
 #include "extern/SDL/SDL3/SDL_main.h"
+#include "extern/imgui/imgui.h"
+#include "extern/imgui/backends/imgui_impl_win32.h"
 
 #include "Graphic.h"
 #include "GraphicPropertyGrid.h"
-#include "ImguiManager.h"
 #include "Keyboard.h"
 #include "Mouse.h"
 #include "Scene.h"
@@ -18,6 +19,8 @@ CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", {1
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
 CommandLineOption<int> g_MaxWorkerThreads{ "maxworkerthreads", 12 };
 CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
+
+static const char* gs_AppName = "ToyRenderer";
 
 thread_local uint32_t tl_ThreadID = 0;
 
@@ -73,9 +76,9 @@ void Engine::Initialize(int argc, char** argv)
     m_Executor = std::make_shared<tf::Executor>(nbWorkerThreads);
     LOG_DEBUG("%d Worker Threads initialized", m_Executor->num_workers());
 
-    // NOTE: init imgui in isolation
-	m_IMGUIManager = std::make_shared<IMGUIManager>();
-    m_IMGUIManager->Initialize();
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    verify(ImGui_ImplWin32_Init(m_WindowHandle));
 
     tf::Taskflow tf;
     tf.emplace([this] { m_Graphic = std::make_shared<Graphic>(); m_Graphic->Initialize(); });
@@ -148,12 +151,16 @@ void Engine::Shutdown()
 		ConsumeCommands();
 	}
 
-	m_IMGUIManager->ShutDown();
-	m_IMGUIManager.reset();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+
 	m_Graphic->Shutdown();
 	m_Graphic.reset();
 
 	MicroProfileShutdown();
+
+    ::DestroyWindow(m_WindowHandle);
+    ::UnregisterClassA(gs_AppName, m_WindowInstance);
 
 	// check for any leftover dxgi stuff
 	ComPtr<IDXGIDebug1> dxgiDebug;
@@ -219,7 +226,7 @@ void Engine::MainLoop()
 			}
 
             // for the sake of UI & property-editing stability, IMGUI must be updated in isolation single-threaded
-            m_IMGUIManager->Update();
+            UpdateIMGUI();
 
             tf::Taskflow tf;
             tf.emplace([this] { m_Graphic->Update(); });
@@ -275,6 +282,66 @@ void Engine::ConsumeCommands()
     }
 }
 
+void Engine::UpdateIMGUI()
+{
+    PROFILE_FUNCTION();
+
+    ImGui_ImplWin32_NewFrame();
+
+    ImGui::NewFrame();
+
+    // Show all IMGUI widget demos
+    static bool bShowDemoWindows = false;
+    if (bShowDemoWindows)
+    {
+        ImGui::ShowDemoWindow();
+    }
+
+	static bool bShowGraphicPropertyGrid = true;
+    if (bShowGraphicPropertyGrid)
+    {
+        if (ImGui::Begin("Graphic Property Grid", &bShowGraphicPropertyGrid, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            g_GraphicPropertyGrid.UpdateIMGUI();
+        }
+        ImGui::End();
+    }
+
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("Menu"))
+        {
+            if (ImGui::MenuItem("Show Graphic Property Grid"))
+            {
+                bShowGraphicPropertyGrid = !bShowGraphicPropertyGrid;
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Toggle IMGUI Demo Windows"))
+            {
+                bShowDemoWindows = !bShowDemoWindows;
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Text("\tCPU: [%.2f ms]", m_CPUFrameTimeMs);
+        ImGui::SameLine();
+        ImGui::Text("\tGPU: [%.2f] ms", m_GPUTimeMs);
+        ImGui::Text("\tFPS: [%.1f]", 1000.0f / std::max((float)m_CPUFrameTimeMs, m_GPUTimeMs));
+
+        extern CommandLineOption<bool> g_EnableD3DDebug;
+        if (g_EnableD3DDebug.Get())
+        {
+            ImGui::SameLine();
+            ImGui::Text("\tD3D12 DEBUG LAYER ENABLED!");
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
 ::LRESULT CALLBACK Engine::ProcessWindowsMessagePump(::HWND hWnd, ::UINT message, ::WPARAM wParam, ::LPARAM lParam)
 {
     switch (message)
@@ -306,22 +373,19 @@ void Engine::ConsumeCommands()
     case WM_MOUSEWHEEL: Mouse::ProcessMouseWheel(wParam); break;
     }
 
-    g_Engine.m_IMGUIManager->ProcessWindowsMessage(hWnd, message, wParam, lParam);
+    extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam);
 
     return ::DefWindowProc(hWnd, message, wParam, lParam);
 }
 
 void Engine::CreateAppWindow()
 {
-    const char* s_AppName = "ToyRenderer";
-
-    ::HINSTANCE hInstance = 0;
-
     ::WNDCLASS wc = { 0 };
     wc.lpfnWndProc = ProcessWindowsMessagePump;
-    wc.hInstance = hInstance;
+    wc.hInstance = m_WindowInstance;
     wc.hbrBackground = (::HBRUSH)(COLOR_BACKGROUND);
-    wc.lpszClassName = s_AppName;
+    wc.lpszClassName = gs_AppName;
 
 	auto CriticalWindowsError = []
         {
@@ -349,12 +413,12 @@ void Engine::CreateAppWindow()
     const int posY = (GetSystemMetrics(SM_CYSCREEN) - kWindowHeight) / 2;
 
     ::HWND engineWindowHandle = CreateWindow(wc.lpszClassName,
-        s_AppName,
+        gs_AppName,
         style,
         posX, posY,
         rect.right - rect.left,
         rect.bottom - rect.top,
-        0, 0, hInstance, NULL);
+        0, 0, m_WindowInstance, NULL);
 
     if (engineWindowHandle == 0)
     {

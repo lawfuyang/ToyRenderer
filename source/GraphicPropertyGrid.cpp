@@ -14,11 +14,6 @@ namespace nvrhi::d3d12
 }
 #endif
 
-void UpdateIMGUIGraphicPropertyGrid()
-{
-    g_GraphicPropertyGrid.UpdateIMGUI();
-}
-
 void GraphicPropertyGrid::UpdateIMGUI()
 {
     Scene* scene = g_Graphic.m_Scene.get();

@@ -6,7 +6,6 @@
 #include "CriticalSection.h"
 
 class Graphic;
-class IMGUIManager;
 
 // forward declare 'StringFormat' here so that logging macros can compile without including Utilities.h
 const char* StringFormat(const char* format, ...);
@@ -35,14 +34,15 @@ public:
     float m_GPUTimeMs = 0.0f;
 
     ::HWND m_WindowHandle = nullptr;
+	::HINSTANCE m_WindowInstance = nullptr;
     std::shared_ptr<tf::Executor> m_Executor;
-    std::shared_ptr<IMGUIManager> m_IMGUIManager;
 
 private:
     static ::LRESULT CALLBACK ProcessWindowsMessagePump(::HWND hWnd, ::UINT message, ::WPARAM wParam, ::LPARAM lParam);
     void CreateAppWindow();
     void ParseCommandlineArguments(int argc, char** argv);
     void ConsumeCommands();
+    void UpdateIMGUI();
 
     bool m_Exit = false;
     std::shared_ptr<Graphic> m_Graphic;
