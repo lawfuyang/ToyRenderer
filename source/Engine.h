@@ -35,6 +35,7 @@ public:
 
     std::shared_ptr<tf::Executor> m_Executor;
 
+    float m_MouseWheelY = 0.0f;
 private:
     void ParseCommandlineArguments(int argc, char** argv);
     void ConsumeCommands();

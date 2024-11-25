@@ -2,7 +2,6 @@
 • fix all -Wconversion Shader warnings
 • Mesh LODs
     • generate using meshoptimizer
-• SDL3
 • Render Graph: D3D12_Research\Graphics\RenderGraph
 	• Transient resource allocation
 		• Validation of resource dependencies

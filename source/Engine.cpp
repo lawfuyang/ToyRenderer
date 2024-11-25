@@ -214,6 +214,12 @@ void Engine::MainLoop()
                     m_Exit = true;
                 }
 
+				// ghetto way to store mouse wheel input
+                if (event.type == SDL_EVENT_MOUSE_WHEEL)
+                {
+					m_MouseWheelY = event.wheel.y;
+                }
+
                 ImGui_ImplSDL3_ProcessEvent(&event);
             }
 
@@ -242,6 +248,9 @@ void Engine::MainLoop()
             {
                 TriggerDumpProfilingCapture("Frames");
             }
+
+			// reset mouse wheel input
+			m_MouseWheelY = 0.0f;
         }
 
         if (gs_TriggerDumpProfilingCapture)

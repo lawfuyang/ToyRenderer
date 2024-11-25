@@ -1,13 +1,13 @@
 #include "Scene.h"
 
 #include "extern/imgui/imgui.h"
+#include "extern/SDL/SDL3/SDL_keyboard.h"
+#include "extern/SDL/SDL3/SDL_mouse.h"
 
 #include "CommonResources.h"
 #include "Engine.h"
 #include "Graphic.h"
 #include "GraphicPropertyGrid.h"
-#include "Keyboard.h"
-#include "Mouse.h"
 #include "RenderGraph.h"
 #include "Visual.h"
 
@@ -246,19 +246,26 @@ void Scene::UpdateMainViewCameraControls()
         return;
     }
 
+    const bool* keyboardStates = SDL_GetKeyboardState(nullptr);
+
+    float mouseX, mouseY;
+	const SDL_MouseButtonFlags mouseButtonFlags = SDL_GetMouseState(&mouseX, &mouseY);
+
     View& mainView = m_Views[EView::Main];
 
     // right click + mouse wheel changes camera movement speed, like UE
     static float s_CameraMoveSpeed = 0.1f;
-    if (Mouse::IsButtonPressed(Mouse::Right) && (Mouse::GetWheel() != 0.0f))
+
+    if ((mouseButtonFlags & SDL_BUTTON_RMASK) && (g_Engine.m_MouseWheelY != 0.0f))
     {
-        s_CameraMoveSpeed *= (Mouse::GetWheel() > 0.0f) ? 2.0f : 0.5f;
+        s_CameraMoveSpeed *= (g_Engine.m_MouseWheelY > 0.0f) ? 2.0f : 0.5f;
         s_CameraMoveSpeed = std::max(KINDA_SMALL_NUMBER, s_CameraMoveSpeed);
         LOG_DEBUG("CameraMoveSpeed is now: %f", s_CameraMoveSpeed);
     }
 
     m_MouseLastPos = m_CurrentMousePos;
-    m_CurrentMousePos = { Mouse::GetX(), Mouse::GetY() };
+    m_CurrentMousePos = { mouseX, mouseY };
+
 
     // for some weird reason, windows underflows to 65535 when cursor is crosses left/top window
     m_CurrentMousePos.x = m_CurrentMousePos.x > 60000.0f ? 0.0f : m_CurrentMousePos.x;
@@ -268,19 +275,19 @@ void Scene::UpdateMainViewCameraControls()
     // Calculate the move vector in camera space.
     Vector3 finalMoveVector;
 
-    if (Keyboard::IsKeyPressed(Keyboard::KEY_A))
+    if (keyboardStates[SDL_SCANCODE_A])
     {
         finalMoveVector -= mainView.m_Right;
     }
-    if (Keyboard::IsKeyPressed(Keyboard::KEY_D))
+	if (keyboardStates[SDL_SCANCODE_D])
     {
         finalMoveVector += mainView.m_Right;
     }
-    if (Keyboard::IsKeyPressed(Keyboard::KEY_W))
+	if (keyboardStates[SDL_SCANCODE_W])
     {
         finalMoveVector += mainView.m_LookAt;
     }
-    if (Keyboard::IsKeyPressed(Keyboard::KEY_S))
+	if (keyboardStates[SDL_SCANCODE_S])
     {
         finalMoveVector -= mainView.m_LookAt;
     }
@@ -291,7 +298,7 @@ void Scene::UpdateMainViewCameraControls()
         mainView.m_Eye += finalMoveVector * s_CameraMoveSpeed * g_Engine.m_CPUCappedFrameTimeMs;
     }
 
-    if (Mouse::IsButtonPressed(Mouse::Right))
+    if (mouseButtonFlags & SDL_BUTTON_RMASK)
     {
         const Vector2 mouseDeltaVec = m_CurrentMousePos - m_MouseLastPos;
 
