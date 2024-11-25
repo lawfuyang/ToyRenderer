@@ -11,8 +11,6 @@
 
 #include "Graphic.h"
 #include "GraphicPropertyGrid.h"
-#include "Keyboard.h"
-#include "Mouse.h"
 #include "Scene.h"
 #include "Utilities.h"
 
@@ -196,15 +194,6 @@ void Engine::MainLoop()
     {
         PROFILE_SCOPED("Frame");
 
-        // sleep cpu if window is inactive
-        // NOTE: windowFlag will be '0' without any mouse or keyboard input
-        const SDL_WindowFlags windowFlags = SDL_GetWindowFlags(g_Engine.m_SDLWindow);
-        if (windowFlags == 0)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
-            continue;
-        }
-
         Timer frameTimer;
 
         {
@@ -226,6 +215,15 @@ void Engine::MainLoop()
                 }
 
                 ImGui_ImplSDL3_ProcessEvent(&event);
+            }
+
+            // sleep cpu if window is inactive
+            // NOTE: windowFlag will be '0' without any mouse or keyboard input
+            const SDL_WindowFlags windowFlags = SDL_GetWindowFlags(g_Engine.m_SDLWindow);
+            if (windowFlags == 0)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
+                continue;
             }
 
             // for the sake of UI & property-editing stability, IMGUI must be updated in isolation single-threaded
