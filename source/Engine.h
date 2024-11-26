@@ -46,11 +46,8 @@ private:
 
     SpinLock m_CommandsLock;
     std::vector<std::function<void()>> m_PendingCommands;
-
-    friend class IMGUIManager;
 };
 #define g_Engine Engine::GetInstance()
-#define g_IMGUIManager (*(g_Engine.m_IMGUIManager))
 
 inline thread_local HRESULT tl_HResult;
 #define HRESULT_CALL(call)           \
