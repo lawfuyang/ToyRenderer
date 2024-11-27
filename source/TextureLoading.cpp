@@ -100,11 +100,20 @@ nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle command
     return newTexture;
 }
 
+bool IsKTX2Image(const void* data, uint32_t nbBytes)
+{
+    basist::ktx2_transcoder transcoder;
+    ON_EXIT_SCOPE_LAMBDA([&] { transcoder.clear(); });
+
+    return transcoder.init((const uint8_t*)data, nbBytes);
+}
+
 nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName)
 {
     PROFILE_FUNCTION();
 
     basist::ktx2_transcoder transcoder;
+    ON_EXIT_SCOPE_LAMBDA([&] { transcoder.clear(); });
 
     if (!transcoder.init(data, nbBytes))
     {

@@ -8,4 +8,5 @@ nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle command
 bool IsSTBImage(const void* data, uint32_t nbBytes);
 nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false);
 
+bool IsKTX2Image(const void* data, uint32_t nbBytes);
 nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName);
