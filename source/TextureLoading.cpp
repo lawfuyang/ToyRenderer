@@ -8,7 +8,7 @@
 #include "extern/stb/stb_image.h"
 
 #define TINYDDSLOADER_IMPLEMENTATION
-#include "tinyddsloader.h"
+#include "extern/tinyddsloader/tinyddsloader.h"
 
 #include "Engine.h"
 #include "Graphic.h"
@@ -25,29 +25,39 @@ bool IsDDSImage(const void* data)
     return true;
 }
 
-static nvrhi::Format ConvertFromDXGIFormat(tinyddsloader::DDSFile::DXGIFormat format)
+static nvrhi::Format ConvertFromDXGIFormat(DXGI_FORMAT format)
 {
     switch (format)
     {
-    case tinyddsloader::DDSFile::DXGIFormat::R8G8B8A8_UNorm:
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
         return nvrhi::Format::RGBA8_UNORM;
-    case tinyddsloader::DDSFile::DXGIFormat::R8G8B8A8_UNorm_SRGB:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
         return nvrhi::Format::SRGBA8_UNORM;
-    case tinyddsloader::DDSFile::DXGIFormat::BC1_UNorm:
-        return nvrhi::Format::BC1_UNORM;
-    case tinyddsloader::DDSFile::DXGIFormat::BC1_UNorm_SRGB:
+
+        // NOTE: we assume that if BC1_UNORM is requested, its for albedo texture, so we force it to SRGB
+    case DXGI_FORMAT_BC1_UNORM:        
+    case DXGI_FORMAT_BC1_UNORM_SRGB:
         return nvrhi::Format::BC1_UNORM_SRGB;
-    case tinyddsloader::DDSFile::DXGIFormat::BC3_UNorm:
+
+    case DXGI_FORMAT_BC2_UNORM:
+        return nvrhi::Format::BC2_UNORM;
+    case DXGI_FORMAT_BC2_UNORM_SRGB:
+        return nvrhi::Format::BC2_UNORM_SRGB;
+    case DXGI_FORMAT_BC3_UNORM:
         return nvrhi::Format::BC3_UNORM;
-    case tinyddsloader::DDSFile::DXGIFormat::BC3_UNorm_SRGB:
+    case DXGI_FORMAT_BC3_UNORM_SRGB:
         return nvrhi::Format::BC3_UNORM_SRGB;
-    case tinyddsloader::DDSFile::DXGIFormat::BC5_UNorm:
+    case DXGI_FORMAT_BC4_UNORM:
+        return nvrhi::Format::BC4_UNORM;
+    case DXGI_FORMAT_BC4_SNORM:
+        return nvrhi::Format::BC4_SNORM;
+    case DXGI_FORMAT_BC5_UNORM:
         return nvrhi::Format::BC5_UNORM;
-    case tinyddsloader::DDSFile::DXGIFormat::BC5_SNorm:
+    case DXGI_FORMAT_BC5_SNORM:
         return nvrhi::Format::BC5_SNORM;
-    case tinyddsloader::DDSFile::DXGIFormat::BC7_UNorm:
+    case DXGI_FORMAT_BC7_UNORM:
         return nvrhi::Format::BC7_UNORM;
-    case tinyddsloader::DDSFile::DXGIFormat::BC7_UNorm_SRGB:
+    case DXGI_FORMAT_BC7_UNORM_SRGB:
         return nvrhi::Format::BC7_UNORM_SRGB;
     default:
         assert(0);
@@ -67,7 +77,7 @@ nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle command
     const uint32_t nbMips = ddsFile.GetMipCount();
     
     nvrhi::TextureDesc textureDesc;
-    textureDesc.format = ConvertFromDXGIFormat(ddsFile.GetFormat());
+    textureDesc.format = ConvertFromDXGIFormat((DXGI_FORMAT)ddsFile.GetFormat());
     textureDesc.width = ddsFile.GetWidth();
     textureDesc.height = ddsFile.GetHeight();
     textureDesc.mipLevels = nbMips;
@@ -78,8 +88,6 @@ nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle command
 
     for (uint32_t mip = 0; mip < nbMips; ++mip)
     {
-        PROFILE_SCOPED("Process Mip");
-
         const tinyddsloader::DDSFile::ImageData* imageData = ddsFile.GetImageData(mip);
         assert(imageData);
 
