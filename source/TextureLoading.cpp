@@ -1,3 +1,5 @@
+#include "TextureLoading.h"
+
 #include "extern/basis_universal/transcoder/basisu_transcoder.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -5,8 +7,90 @@
 #define STBI_ONLY_PNG
 #include "extern/stb/stb_image.h"
 
+#define TINYDDSLOADER_IMPLEMENTATION
+#include "tinyddsloader.h"
+
 #include "Engine.h"
 #include "Graphic.h"
+
+bool IsDDSImage(const void* data)
+{
+    for (uint32_t i = 0; i < 4; i++)
+    {
+        if (((const char*)data)[i] != tinyddsloader::DDSFile::Magic[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static nvrhi::Format ConvertFromDXGIFormat(tinyddsloader::DDSFile::DXGIFormat format)
+{
+    switch (format)
+    {
+    case tinyddsloader::DDSFile::DXGIFormat::R8G8B8A8_UNorm:
+        return nvrhi::Format::RGBA8_UNORM;
+    case tinyddsloader::DDSFile::DXGIFormat::R8G8B8A8_UNorm_SRGB:
+        return nvrhi::Format::SRGBA8_UNORM;
+    case tinyddsloader::DDSFile::DXGIFormat::BC1_UNorm:
+        return nvrhi::Format::BC1_UNORM;
+    case tinyddsloader::DDSFile::DXGIFormat::BC1_UNorm_SRGB:
+        return nvrhi::Format::BC1_UNORM_SRGB;
+    case tinyddsloader::DDSFile::DXGIFormat::BC3_UNorm:
+        return nvrhi::Format::BC3_UNORM;
+    case tinyddsloader::DDSFile::DXGIFormat::BC3_UNorm_SRGB:
+        return nvrhi::Format::BC3_UNORM_SRGB;
+    case tinyddsloader::DDSFile::DXGIFormat::BC5_UNorm:
+        return nvrhi::Format::BC5_UNORM;
+    case tinyddsloader::DDSFile::DXGIFormat::BC5_SNorm:
+        return nvrhi::Format::BC5_SNORM;
+    case tinyddsloader::DDSFile::DXGIFormat::BC7_UNorm:
+        return nvrhi::Format::BC7_UNORM;
+    case tinyddsloader::DDSFile::DXGIFormat::BC7_UNorm_SRGB:
+        return nvrhi::Format::BC7_UNORM_SRGB;
+    default:
+        assert(0);
+    }
+
+    return nvrhi::Format::UNKNOWN;
+}
+
+nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName)
+{
+    PROFILE_FUNCTION();
+
+    tinyddsloader::DDSFile ddsFile;
+    const tinyddsloader::Result result = ddsFile.Load((const uint8_t*)data, nbBytes);
+    assert(result == tinyddsloader::Result::Success);
+
+    const uint32_t nbMips = ddsFile.GetMipCount();
+    
+    nvrhi::TextureDesc textureDesc;
+    textureDesc.format = ConvertFromDXGIFormat(ddsFile.GetFormat());
+    textureDesc.width = ddsFile.GetWidth();
+    textureDesc.height = ddsFile.GetHeight();
+    textureDesc.mipLevels = nbMips;
+    textureDesc.debugName = debugName;
+    textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+    nvrhi::TextureHandle newTexture = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
+
+    for (uint32_t mip = 0; mip < nbMips; ++mip)
+    {
+        PROFILE_SCOPED("Process Mip");
+
+        const tinyddsloader::DDSFile::ImageData* imageData = ddsFile.GetImageData(mip);
+        assert(imageData);
+
+        commandList->writeTexture(newTexture, 0, mip, imageData->m_mem, imageData->m_memPitch);
+    }
+
+    commandList->setPermanentTextureState(newTexture, nvrhi::ResourceStates::ShaderResource);
+    commandList->commitBarriers();
+
+    return newTexture;
+}
 
 nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName)
 {
@@ -92,7 +176,7 @@ bool IsSTBImage(const void* data, uint32_t nbBytes)
     return !!stbi_info_from_memory((const stbi_uc*)data, (int)nbBytes, nullptr, nullptr, nullptr);
 }
 
-nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false)
+nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB)
 {
     PROFILE_FUNCTION();
 

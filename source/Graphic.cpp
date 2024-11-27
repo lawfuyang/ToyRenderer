@@ -1104,6 +1104,11 @@ void Graphic::AddComputePass(
 
     commandList->setComputeState(computeState);
 
+    if (dispatchGroupSize.x == 0 || dispatchGroupSize.y == 0 || dispatchGroupSize.z == 0)
+    {
+        return;
+    }
+
     if (pushConstantsData)
     {
         commandList->setPushConstants(pushConstantsData, pushConstantsBytes);

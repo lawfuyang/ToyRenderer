@@ -6,6 +6,7 @@
 #include "Engine.h"
 #include "Graphic.h"
 #include "Scene.h"
+#include "TextureLoading.h"
 #include "Utilities.h"
 
 #include "shaders/shared/CommonConsts.h"
@@ -23,15 +24,16 @@ void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Texture::LoadFromMemory");
 
-    extern bool IsSTBImage(const void* data, uint32_t nbBytes);
     if (IsSTBImage(rawData, nbBytes))
     {
-        extern nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false);
         m_NVRHITextureHandle = CreateSTBITextureFromMemory(commandList, rawData, nbBytes, debugName.data());
+    }
+    else if (IsDDSImage(rawData))
+    {
+        m_NVRHITextureHandle = CreateDDSTextureFromMemory(commandList, rawData, nbBytes, debugName.data());
     }
     else
     {
-        extern nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName);
         m_NVRHITextureHandle = CreateKTXTextureFromMemory(commandList, rawData, nbBytes, debugName.data());
     }
 
