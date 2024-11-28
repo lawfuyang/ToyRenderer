@@ -329,6 +329,8 @@ struct GLTFSceneLoader
             materialData.m_MetallicRoughnessUVOffset = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset;
             materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;
+
+			LOG_DEBUG("New Material: [%s]", gltfMaterial.name ? gltfMaterial.name : "Un-Named Material");
         }
 
         MaterialData defaultMaterialData{};
@@ -599,6 +601,8 @@ struct GLTFSceneLoader
             {
                 newNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[i]));
             }
+
+			LOG_DEBUG("New Node: [%s]", node.name ? node.name : "Un-named Node");
         }
     }
 

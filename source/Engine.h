@@ -10,8 +10,6 @@ class Graphic;
 // forward declare 'StringFormat' here so that logging macros can compile without including Utilities.h
 const char* StringFormat(const char* format, ...);
 
-enum class LogLevel { Debug, Warning, Error };
-
 class Engine
 {
     SingletonFunctionsSimple(Engine);
@@ -61,12 +59,7 @@ inline thread_local HRESULT tl_HResult;
 
 #define PROFILE_FUNCTION() PROFILE_SCOPED(__FUNCTION__)
 
-#define LOG_DEBUG(FORMAT, ...)                                    \
-{                                                                 \
-    const char* formattedStr = StringFormat(FORMAT, __VA_ARGS__); \
-    const char* finalStr = StringFormat("%s\n", formattedStr);    \
-    OutputDebugString(finalStr);                                  \
-}
+#define LOG_DEBUG(FORMAT, ...) { thread_local std::string tl_Buffer; tl_Buffer = StringFormat(FORMAT, __VA_ARGS__); tl_Buffer += '\n'; OutputDebugStringA(tl_Buffer.c_str()); }
 
 template <typename T>
 class CommandLineOption

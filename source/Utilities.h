@@ -4,19 +4,6 @@
 
 const char* StringFormat(const char* format, ...);
 
-// In case you need to format huge strings (>256 chars)
-template<typename... Args>
-inline std::string StringFormatBig(const char* format, Args&&... args)
-{
-    thread_local std::string tl_Result;
-
-    const size_t size = snprintf(nullptr, 0, format, args...) + 1; // Extra space for '\0'
-    tl_Result.resize(size);
-    snprintf(tl_Result.data(), size, format, args ...);
-
-    return tl_Result;
-}
-
 const char* GetExecutableDirectory();
 const char* GetRootDirectory();
 const char* GetApplicationDirectory();
@@ -38,10 +25,6 @@ namespace StringUtils
 {
     const wchar_t* Utf8ToWide(std::string_view strView);
     const char* WideToUtf8(std::wstring_view strView);
-
-    // In case you need to convert huge strings > 1kb in length
-    const wchar_t* Utf8ToWideBig(std::string_view strView);
-    const char* WideToUtf8Big(std::wstring_view strView);
 
     // TODO: wstrings
     inline void TransformStrInplace(std::string& str, int (*transformFunc)(int)) { std::transform(str.begin(), str.end(), str.begin(), [transformFunc](char c) { return static_cast<char>(transformFunc(static_cast<int>(c))); }); }

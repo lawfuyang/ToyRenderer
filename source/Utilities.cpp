@@ -1,24 +1,24 @@
 #include "Utilities.h"
-
 #include "Engine.h"
 
 const char* StringFormat(const char* format, ...)
 {
-    const uint32_t kBufferSize = 256;
-    const uint32_t kNbBuffers = 16;
-    thread_local uint32_t bufferIdx = 0;
-    thread_local char buffer[kBufferSize][kNbBuffers]{};
+    thread_local static std::string buffer;
 
-    bufferIdx = (bufferIdx + 1) % kNbBuffers;
+    va_list args_list;
+    va_start(args_list, format);
 
-    va_list marker;
-    va_start(marker, format);
-    const int result = _vsnprintf_s(buffer[bufferIdx], kBufferSize, _TRUNCATE, format, marker);
-    va_end(marker);
+    if (int len = std::vsnprintf(nullptr, 0, format, args_list);
+        len > 0)
+    {
+        buffer.resize(len);
+        std::vsnprintf(&buffer[0], len + 1, format, args_list);
+    }
 
-    assert(result >= 0);
+    va_end(args_list);
 
-    return buffer[bufferIdx];
+    // Return a pointer to the underlying char array of the string
+    return buffer.c_str();
 }
 
 const char* GetRootDirectory()

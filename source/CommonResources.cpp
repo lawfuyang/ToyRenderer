@@ -6,9 +6,6 @@
 #include "Graphic.h"
 #include "MathUtilities.h"
 
-#include "shaders/shared/RawVertexFormat.h"
-#include "shaders/shared/MaterialData.h"
-
 #pragma warning(push)
 #pragma warning (disable: 4244) // conversion warning
 #pragma warning (disable: 4267) // conversion warning

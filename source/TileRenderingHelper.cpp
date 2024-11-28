@@ -9,7 +9,7 @@
 
 void TileRenderingHelper::Initialize(Vector2U screenDimensions, uint32_t nbTilesTypes)
 {
-    PROFILE_SCOPED();
+    PROFILE_FUNCTION();
 
     m_ScreenDimensions = screenDimensions;
     m_GroupCount = ComputeShaderUtils::GetGroupCount(m_ScreenDimensions, Vector2U{ kTileSize, kTileSize });

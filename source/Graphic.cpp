@@ -16,14 +16,10 @@
 #include "CommonResources.h"
 #include "DescriptorTableManager.h"
 #include "Engine.h"
-#include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
 #include "Scene.h"
 #include "SmallVector.h"
 #include "Utilities.h"
-
-#include "shaders/shared/MaterialData.h"
-#include "shaders/shared/MeshData.h"
 
 CommandLineOption<bool> g_EnableD3DDebug{ "d3ddebug", false };
 CommandLineOption<bool> g_EnableGPUValidation{ "enablegpuvalidation", false };
