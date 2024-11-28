@@ -36,6 +36,7 @@
 	• or "moveLightTexelSize" brach in 'LightComponent::CalculateCascadeShadowProjection' in FFX Samples
 • separate top mip streaming
     • integrate D3DX12Residency into nvrhi
+    • Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
 • volumetric clouds
 • convert RawVertexFormat into Array of Structs: https://wickedengine.net/2023/11/16/dynamic-vertex-formats/ (?)
 • Static Animations
@@ -83,7 +84,6 @@
   • https://github.com/GameTechDev/VALAR-API
   • https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/variable-shading.md
 • Depth of Field: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/depth-of-field.md
-• Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
 • Utilize Bent Normals from XeGTAO to further attenuate lighting
 • AMD Brixelizer GI: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/brixelizer-gi.md
 • AMD Breadcrumbs: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/breadcrumbs.md
