@@ -226,7 +226,6 @@ struct GLTFSceneLoader
                     const cgltf_texture& texture = m_GLTFData->textures[i];
                     const cgltf_image* image = texture.image;
                     assert(image);
-                    assert(image->uri);
 
                     const char* debugName = image->name ? image->name : "Un-Named Image";
 
@@ -237,6 +236,8 @@ struct GLTFSceneLoader
                     }
                     else
                     {
+                        assert(image->uri);
+
                         std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image->uri).string();
                         cgltf_decode_uri(filePath.data());
 
