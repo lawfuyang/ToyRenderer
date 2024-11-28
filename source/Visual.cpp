@@ -86,6 +86,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     std::vector<std::byte> imageBytes;
     ReadDataFromFile(filePath, imageBytes);
+    assert(!imageBytes.empty());
 
     const std::string debugName = std::filesystem::path{ filePath }.stem().string();
     LoadFromMemory(imageBytes.data(), (uint32_t)imageBytes.size(), debugName);

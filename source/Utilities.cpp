@@ -60,6 +60,8 @@ void ReadDataFromFile(std::string_view filename, std::vector<std::byte>& data)
     if (!ifs)
         return;
 
+    PROFILE_FUNCTION();
+
     const std::streampos fileSize = ifs.tellg();
     data.resize(fileSize);
 

@@ -211,30 +211,52 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Load Images");
 
-        if (m_GLTFData->images_count == 0)
+        if (m_GLTFData->textures_count == 0)
         {
             return;
         }
 
         tf::Taskflow taskflow;
 
-        m_SceneImages.resize(m_GLTFData->images_count);
-        for (uint32_t i = 0; i < m_GLTFData->images_count; ++i)
+        m_SceneImages.resize(m_GLTFData->textures_count);
+        for (uint32_t i = 0; i < m_GLTFData->textures_count; ++i)
         {
             taskflow.emplace([&, i]()
                 {
-                    const cgltf_image& image = m_GLTFData->images[i];
-                    const char* debugName = image.name ? image.name : "Un-Named Image";
+                    const cgltf_texture& texture = m_GLTFData->textures[i];
+                    const cgltf_image* image = texture.image;
+                    assert(image);
+                    assert(image->uri);
 
-                    if (image.buffer_view)
+                    const char* debugName = image->name ? image->name : "Un-Named Image";
+
+                    if (image->buffer_view)
                     {
-                        debugName = !debugName ? image.buffer_view->name : debugName;
-                        m_SceneImages[i].LoadFromMemory((std::byte*)image.buffer_view->buffer->data + image.buffer_view->offset, image.buffer_view->size, debugName);
+                        debugName = !debugName ? image->buffer_view->name : debugName;
+                        m_SceneImages[i].LoadFromMemory((std::byte*)image->buffer_view->buffer->data + image->buffer_view->offset, image->buffer_view->size, debugName);
                     }
                     else
                     {
-                        std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image.uri).string();
+                        std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image->uri).string();
                         cgltf_decode_uri(filePath.data());
+
+                        // ghetto hack to handle "MSFT_texture_dds" extension with 2 image URIs
+                        for (uint32_t j = 0; j < texture.extensions_count; ++j)
+                        {
+                            if (strcmp(texture.extensions[j].name, "MSFT_texture_dds") == 0)
+                            {
+                                filePath = std::filesystem::path{ filePath }.replace_extension(".dds").string();
+                            }
+                        }
+
+                        // ghetto hack to handle if "MSFT_texture_dds" extension was stripped away by MeshOptimizer
+                        if (!std::filesystem::exists(filePath))
+                        {
+                            filePath = std::filesystem::path{ filePath }.replace_extension(".dds").string();
+                        }
+
+                        // final sanity check
+                        assert(std::filesystem::exists(filePath));
 
                         m_SceneImages[i].LoadFromFile(filePath);
                     }
@@ -253,9 +275,12 @@ struct GLTFSceneLoader
                 const cgltf_image* image = textureView.texture->has_basisu ? textureView.texture->basisu_image : textureView.texture->image;
                 assert(image);
 
-                texture = m_SceneImages.at(cgltf_image_index(m_GLTFData, image));
+                texture = m_SceneImages.at(cgltf_texture_index(m_GLTFData, textureView.texture));
 
-                texture.m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, textureView.texture->sampler));
+                if (textureView.texture->sampler)
+                {
+                    texture.m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, textureView.texture->sampler));
+                }
 
                 if (textureView.has_transform)
                 {
@@ -295,15 +320,26 @@ struct GLTFSceneLoader
                     HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
                 }
 
-                sceneMaterial.m_ConstDiffuse.x = gltfMaterial.pbr_metallic_roughness.base_color_factor[0];
-                sceneMaterial.m_ConstDiffuse.y = gltfMaterial.pbr_metallic_roughness.base_color_factor[1];
-                sceneMaterial.m_ConstDiffuse.z = gltfMaterial.pbr_metallic_roughness.base_color_factor[2];
+                sceneMaterial.m_ConstDiffuse = Vector3{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
                 sceneMaterial.m_ConstMetallic = gltfMaterial.pbr_metallic_roughness.metallic_factor;
                 sceneMaterial.m_ConstRoughness = gltfMaterial.pbr_metallic_roughness.roughness_factor;
             }
             else if (gltfMaterial.has_pbr_specular_glossiness)
             {
-                assert(0); // TODO?
+                if (gltfMaterial.pbr_specular_glossiness.diffuse_texture.texture)
+                {
+                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
+                    HandleTextureView(sceneMaterial.m_AlbedoTexture, gltfMaterial.pbr_specular_glossiness.diffuse_texture);
+                }
+                if (gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture.texture)
+                {
+                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
+                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture);
+                }
+
+                sceneMaterial.m_ConstDiffuse = Vector3{ &gltfMaterial.pbr_specular_glossiness.diffuse_factor[0] };
+                sceneMaterial.m_ConstMetallic = std::max(std::max(gltfMaterial.pbr_specular_glossiness.specular_factor[0], gltfMaterial.pbr_specular_glossiness.specular_factor[1]), gltfMaterial.pbr_specular_glossiness.specular_factor[2]);
+                sceneMaterial.m_ConstRoughness = 1.0f - gltfMaterial.pbr_specular_glossiness.glossiness_factor;
             }
 
             if (gltfMaterial.normal_texture.texture)
