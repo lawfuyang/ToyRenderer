@@ -21,6 +21,8 @@ void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_
 {
     PROFILE_FUNCTION();
 
+    assert(!IsValid());
+
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Texture::LoadFromMemory");
 
@@ -53,6 +55,8 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
 {
     PROFILE_FUNCTION();
 
+    assert(!IsValid());
+
     // TODO: extend this function to accomodate the following asserts
     assert(textureDesc.depth == 1);
 
@@ -78,11 +82,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 {
     PROFILE_FUNCTION();
 
-    // if loading is required, sanity check that texture handle & descriptor table index is invalid
     assert(!IsValid());
-
-    std::string extStr = GetFileExtensionFromPath(filePath);
-    StringUtils::ToLower(extStr);
 
     std::vector<std::byte> imageBytes;
     ReadDataFromFile(filePath, imageBytes);
