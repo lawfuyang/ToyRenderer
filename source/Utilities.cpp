@@ -1,6 +1,8 @@
 #include "Utilities.h"
 #include "Engine.h"
 
+static_assert(magic_enum::is_magic_enum_supported);
+
 const char* StringFormat(const char* format, ...)
 {
     thread_local static std::string buffer;
