@@ -5,13 +5,12 @@
 
 #include "extern/microprofile/microprofile.h"
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
-#include "extern/nvrhi//include/nvrhi/utils.h"
+#include "extern/nvrhi/include/nvrhi/utils.h"
 
 #if NVRHI_WITH_AFTERMATH
 #include "AftermathCrashDump.h"
 #endif
 
-#include "Allocators.h"
 #include "CriticalSection.h"
 #include "MathUtilities.h"
 #include "Visual.h"
