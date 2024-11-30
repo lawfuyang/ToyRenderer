@@ -97,6 +97,7 @@ public:
     std::vector<Primitive> m_Primitives;
     std::vector<uint32_t> m_OpaquePrimitiveIDs;
     std::vector<uint32_t> m_AlphaMaskPrimitiveIDs;
+    std::vector<uint32_t> m_TransparentPrimitiveIDs;
 
     nvrhi::BufferHandle m_LuminanceBuffer;
 
@@ -105,6 +106,7 @@ public:
     nvrhi::BufferHandle m_InstanceConstsBuffer;
     nvrhi::BufferHandle m_OpaqueInstanceIDsBuffer;
     nvrhi::BufferHandle m_AlphaMaskInstanceIDsBuffer;
+    nvrhi::BufferHandle m_TransparentInstanceIDsBuffer;
 
     std::vector<Camera> m_Cameras;
 

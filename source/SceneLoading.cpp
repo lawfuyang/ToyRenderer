@@ -606,14 +606,19 @@ struct GLTFSceneLoader
 
                     newNode.m_PrimitivesIDs.push_back(primitiveID);
 
-                    // todo: support transparent materials
-                    if (primitive.m_Material.m_AlphaMode == AlphaMode::Opaque)
+                    switch (primitive.m_Material.m_AlphaMode)
                     {
+                    case AlphaMode::Opaque:
                         scene->m_OpaquePrimitiveIDs.push_back(primitiveID);
-                    }
-                    else
-                    {
+                        break;
+                    case AlphaMode::Mask:
                         scene->m_AlphaMaskPrimitiveIDs.push_back(primitiveID);
+                        break;
+                    case AlphaMode::Blend:
+                        scene->m_TransparentPrimitiveIDs.push_back(primitiveID);
+                        break;
+                    default:
+                        assert(0);
                     }
                 }
             }

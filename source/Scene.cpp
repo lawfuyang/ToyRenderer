@@ -389,12 +389,13 @@ void Scene::UpdateInstanceConstsBuffer()
     std::vector<BasePassInstanceConstants> instanceConstsBytes;
     std::vector<uint32_t> opaqueInstanceIDs;
     std::vector<uint32_t> alphaMaskInstanceIDs;
+    std::vector<uint32_t> transparentInstanceIDs;
 
-	for (uint32_t i = 0; i < nbPrimitives; ++i)
-	{
+    for (uint32_t i = 0; i < nbPrimitives; ++i)
+    {
         const Primitive& primitive = m_Primitives.at(i);
         assert(primitive.IsValid());
-        
+
         const Node& node = m_Nodes.at(primitive.m_NodeID);
         const Material& material = primitive.m_Material;
         const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
@@ -419,14 +420,20 @@ void Scene::UpdateInstanceConstsBuffer()
 
         instanceConstsBytes.push_back(instanceConsts);
 
-        // todo: transparent
-        if (material.m_AlphaMode == AlphaMode::Opaque)
+        switch (material.m_AlphaMode)
         {
+        case AlphaMode::Opaque:
             opaqueInstanceIDs.push_back(i);
-        }
-        else
-        {
+            break;
+        case AlphaMode::Mask:
             alphaMaskInstanceIDs.push_back(i);
+            break;
+        case AlphaMode::Blend   :
+            transparentInstanceIDs.push_back(i);
+            break;
+        default:
+            assert(0);
+            break;
         }
     }
 
@@ -468,6 +475,19 @@ void Scene::UpdateInstanceConstsBuffer()
 
         m_AlphaMaskInstanceIDsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         commandList->writeBuffer(m_AlphaMaskInstanceIDsBuffer, alphaMaskInstanceIDs.data(), alphaMaskInstanceIDs.size() * sizeof(uint32_t));
+    }
+
+    m_TransparentInstanceIDsBuffer = g_CommonResources.DummyUintStructuredBuffer;
+    if (!transparentInstanceIDs.empty())
+    {
+        nvrhi::BufferDesc desc;
+        desc.byteSize = transparentInstanceIDs.size() * sizeof(uint32_t);
+        desc.structStride = sizeof(uint32_t);
+        desc.debugName = "Transparent Instance IDs Buffer";
+        desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+        m_TransparentInstanceIDsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        commandList->writeBuffer(m_TransparentInstanceIDsBuffer, transparentInstanceIDs.data(), transparentInstanceIDs.size() * sizeof(uint32_t));
     }
 }
 
