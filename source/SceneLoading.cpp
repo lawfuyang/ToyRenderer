@@ -634,6 +634,25 @@ struct GLTFSceneLoader
                 newCamera.m_Position = worldPosition;
             }
 
+            if (node.light)
+            {
+                if (node.light->type == cgltf_light_type_directional)
+                {
+                    scene->m_DirLightVec = -outWorldMatrix.Forward();
+
+                    // Ensure the vector has valid length
+                    assert(scene->m_DirLightVec.LengthSquared() <= (1 + KINDA_SMALL_NUMBER));
+
+                    // Step 1: Calculate m_SunInclination (phi)
+                    scene->m_SunInclination = std::asin(scene->m_DirLightVec.y);  // Asin returns radians
+                    scene->m_SunInclination = ConvertToDegrees(scene->m_SunInclination); // Convert to degrees
+
+                    // Step 2: Calculate m_SunOrientation (theta)
+                    scene->m_SunOrientation = std::atan2(scene->m_DirLightVec.z, scene->m_DirLightVec.x); // Atan2 returns radians
+                    scene->m_SunOrientation = ConvertToDegrees(scene->m_SunOrientation); // Convert to degrees
+                }
+            }
+
             if (node.parent)
             {
                 newNode.m_ParentNodeID = cgltf_node_index(m_GLTFData, node.parent);
