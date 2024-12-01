@@ -130,7 +130,12 @@ void CS_GPUCulling(
     
     if (g_GPUCullingPassConstants.m_EnableFrustumCulling)
     {
-        bIsVisible &= ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
+        bIsVisible &= ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClipInclusive);
+        
+        if (g_GPUCullingPassConstants.m_WorldToClipExclusive._11 != 1.0f)
+        {
+            bIsVisible &= !ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClipExclusive);
+        }
         
         if(bIsVisible)
         {

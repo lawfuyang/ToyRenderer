@@ -20,8 +20,8 @@ struct GPUCullingPassConstants
 	uint32_t m_OcclusionCullingFlags;
 	uint32_t m_EnableMeshletConeCulling;
 
-	Matrix m_WorldToClip;
-	Matrix m_PrevFrameWorldToClip;
+    Matrix m_WorldToClipInclusive; // Culling with this matrix includes the entire primitive
+    Matrix m_WorldToClipExclusive; // Culling with this matrix excludes the entire primitive (make _11 to 1.0f to ignore)
 
 	Vector2U m_HZBDimensions;
 	uint32_t m_HZBMipCount;

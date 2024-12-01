@@ -55,6 +55,7 @@ public:
         View* m_View;
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
+        Matrix m_CullingWorldToClipExclusive;
     };
 
     struct HZBParams
@@ -212,8 +213,8 @@ public:
         passParameters.m_NbInstances = nbInstances;
         passParameters.m_EnableFrustumCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableFrustumCulling;
         passParameters.m_OcclusionCullingFlags = 0;
-        passParameters.m_WorldToClip = view.m_ViewProjectionMatrix;
-        passParameters.m_PrevFrameWorldToClip = view.m_PrevFrameViewProjectionMatrix;
+        passParameters.m_WorldToClipInclusive = view.m_ViewProjectionMatrix;
+        passParameters.m_WorldToClipExclusive = params.m_CullingWorldToClipExclusive;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -243,6 +244,7 @@ public:
         bool bAlphaMaskPrimitives)
     {
         PROFILE_FUNCTION();
+        PROFILE_GPU_SCOPED(commandList, "Render Instances");
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
@@ -599,6 +601,10 @@ public:
         params.m_View = &scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, shadowDepthStencilState, Graphic::kFrontCCW ? g_CommonResources.CullCounterClockwise : g_CommonResources.CullClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
+        if (m_CSMIndex > 0)
+        {
+            params.m_CullingWorldToClipExclusive = scene->m_Views[m_CSMIndex - 1].m_ViewProjectionMatrix;
+        }
 
         RenderBasePass(commandList, renderGraph, params);
     }
