@@ -13,8 +13,7 @@ postprocess.hlsl -T ps -E PS_PostProcess
 ambientocclusion.hlsl -T cs -E CS_XeGTAO_PrefilterDepths
 ambientocclusion.hlsl -T cs -E CS_XeGTAO_MainPass -D DEBUG_OUTPUT_MODE={0,1,2,3}
 ambientocclusion.hlsl -T cs -E CS_XeGTAO_Denoise
-gpuculling.hlsl -T cs -E CS_GPUCulling
-gpuculling.hlsl -T cs -E CS_BuildPhaseTwoIndirectArgs
+gpuculling.hlsl -T cs -E CS_GPUCulling -D LATE={0,1}
 ../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 minmaxdownsample.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T cs -E CS_Main

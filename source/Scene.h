@@ -13,8 +13,8 @@ class RenderGraph;
 struct GPUCullingCounters
 {
     uint32_t m_Frustum;
-    uint32_t m_OcclusionPhase1;
-    uint32_t m_OcclusionPhase2;
+    uint32_t m_OcclusionEarly;
+    uint32_t m_OcclusionLate;
 };
 
 class View
@@ -107,6 +107,8 @@ public:
     nvrhi::BufferHandle m_OpaqueInstanceIDsBuffer;
     nvrhi::BufferHandle m_AlphaMaskInstanceIDsBuffer;
     nvrhi::BufferHandle m_TransparentInstanceIDsBuffer;
+
+    nvrhi::BufferHandle m_InstanceVisibilityBuffer;
 
     std::vector<Camera> m_Cameras;
 

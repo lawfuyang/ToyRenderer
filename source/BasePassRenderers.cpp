@@ -205,8 +205,8 @@ public:
             // TODO: support transparent
             GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
             cullingCounters.m_Frustum = readbackResults[kFrustumCullingBufferCounterIdx];
-            cullingCounters.m_OcclusionPhase1 = readbackResults[kOcclusionCullingPhase1BufferCounterIdx];
-            cullingCounters.m_OcclusionPhase2 = readbackResults[kOcclusionCullingPhase2BufferCounterIdx];
+            cullingCounters.m_OcclusionEarly = readbackResults[kOcclusionCullingEarlyBufferCounterIdx];
+            cullingCounters.m_OcclusionLate = readbackResults[kOcclusionCullingLateBufferCounterIdx];
         }
 
         GPUCullingPassConstants passParameters{};
@@ -231,8 +231,10 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
+        const char* shaderName = bLateCull ? "gpuculling_CS_GPUCulling LATE=1" : "gpuculling_CS_GPUCulling LATE=0";
+
         const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNbGPUCullingGroupThreads);
-        g_Graphic.AddComputePass(commandList, "gpuculling_CS_GPUCulling", bindingSetDesc, dispatchGroupSize);
+        g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, dispatchGroupSize);
     }
 
     void RenderInstances(
@@ -359,18 +361,14 @@ public:
 
         commandList->clearBufferUInt(counterStatsBuffer, 0);
 
-        // early cull: frustum cull & fill objects that *were* visible last frame
-        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
-
-        // early render: render objects that were visible last frame
-        RenderInstances(commandList, renderGraph, params, cullingBuffers, false /* bLateResults */, false /* bAlphaMaskPrimitives */);
-
-        // alpha mask primitives. TODO: remove after occlusion culling
-        GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
-        RenderInstances(commandList, renderGraph, params, cullingBuffers, false /* bLateResults */, true /* bAlphaMaskPrimitives */);
-
         if (m_HZBParams.m_HZB && g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableOcclusionCulling)
         {
+            // early cull: frustum cull & fill objects that *were* visible last frame
+            GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
+
+            // early render: render objects that were visible last frame
+            RenderInstances(commandList, renderGraph, params, cullingBuffers, false /* bLateResults */, false /* bAlphaMaskPrimitives */);
+
             // depth pyramid generation
             GenerateHZB(commandList, renderGraph, params);
 
@@ -380,11 +378,18 @@ public:
             // late render: render opaque objects that are visible this frame but weren't drawn in the early pass
             RenderInstances(commandList, renderGraph, params, cullingBuffers, true /* bLateResults */, false /* bAlphaMaskPrimitives */);
 
-            // late cull: frustum + occlusion cull & fill alpha mask primitives
+            // late cull: alpha mask primitives
             GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, true /* bLateCull */, true /* bAlphaMaskPrimitives */);
 
-            // late render: render alpha mask primitives that are visible this frame but weren't drawn in the early pass
+            // late render: alpha mask primitives
             RenderInstances(commandList, renderGraph, params, cullingBuffers, true /* bLateResults */, true /* bAlphaMaskPrimitives */);
+        }
+        else
+        {
+            GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, cullingBuffers, false /* bLateResults */, false /* bAlphaMaskPrimitives */);
+            GPUCulling(commandList, renderGraph, params, counterStatsBuffer, cullingBuffers, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, cullingBuffers, false /* bLateResults */, true /* bAlphaMaskPrimitives */);
         }
 
         // copy counter buffer, so that it can be read on CPU next frame
@@ -509,6 +514,8 @@ public:
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
+        m_HZBParams.m_HZBResolution.x = m_HZBParams.m_HZBResolution.y = 0;
+
         // TODO
         return false;
 	}
@@ -535,8 +542,7 @@ public:
 
     void Initialize() override
 	{
-		// TODO: support occlusion culling after inverse shadow depth buffer is implemented.
-        m_HZBParams.m_HZBResolution.x = m_HZBParams.m_HZBResolution.y = 0;// g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
+        m_HZBParams.m_HZBResolution.x = m_HZBParams.m_HZBResolution.y = 0;
 
 		BasePassRenderer::Initialize();
 	}

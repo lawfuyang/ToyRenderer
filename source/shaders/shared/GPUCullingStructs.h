@@ -4,8 +4,8 @@
 #include "StructsCommon.h"
 
 static const uint32_t kFrustumCullingBufferCounterIdx = 0;
-static const uint32_t kOcclusionCullingPhase1BufferCounterIdx = 1;
-static const uint32_t kOcclusionCullingPhase2BufferCounterIdx = 2;
+static const uint32_t kOcclusionCullingEarlyBufferCounterIdx = 1;
+static const uint32_t kOcclusionCullingLateBufferCounterIdx = 2;
 static const uint32_t kNbGPUCullingBufferCounters = 3;
 
 static const uint32_t OcclusionCullingFlag_Enable = (1 << 0);

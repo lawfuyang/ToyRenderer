@@ -130,8 +130,10 @@ void CS_GPUCulling(
     
     if (g_GPUCullingPassConstants.m_EnableFrustumCulling)
     {
+        // cull against outer frustum
         bIsVisible &= ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClipInclusive);
         
+        // cull against inner frustum
         if (g_GPUCullingPassConstants.m_WorldToClipExclusive._11 != 1.0f)
         {
             bIsVisible &= !ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClipExclusive);
@@ -162,17 +164,4 @@ void CS_GPUCulling(
     
     g_DrawArgumentsOutput[outInstanceIdx] = newArgs;
     g_StartInstanceConstsOffsets[outInstanceIdx] = instanceConstsIdx;
-}
-
-StructuredBuffer<uint> g_NbPhaseTwoInstances : register(t0);
-RWStructuredBuffer<DispatchIndirectArguments> g_DispatchIndirectArguments : register(u0);
-
-[numthreads(1, 1, 1)]
-void CS_BuildPhaseTwoIndirectArgs()
-{
-    DispatchIndirectArguments args;
-    args.m_ThreadGroupCountX = DivideAndRoundUp(g_NbPhaseTwoInstances[0], kNbGPUCullingGroupThreads);
-    args.m_ThreadGroupCountY = 1;
-    args.m_ThreadGroupCountZ = 1;
-    g_DispatchIndirectArguments[0] = args;
 }

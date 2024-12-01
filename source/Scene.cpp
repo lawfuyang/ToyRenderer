@@ -524,6 +524,18 @@ void Scene::UpdateInstanceConstsBuffer()
         m_TransparentInstanceIDsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         commandList->writeBuffer(m_TransparentInstanceIDsBuffer, transparentInstanceIDs.data(), transparentInstanceIDs.size() * sizeof(uint32_t));
     }
+
+    {
+        nvrhi::BufferDesc desc;
+        desc.byteSize = nbPrimitives * sizeof(uint32_t);
+        desc.structStride = sizeof(uint32_t);
+        desc.debugName = "Instance Visibility Buffer";
+        desc.canHaveUAVs = true;
+        desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+        m_InstanceVisibilityBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        commandList->clearBufferUInt(m_InstanceVisibilityBuffer, 0);
+    }
 }
 
 void Scene::Update()
@@ -675,10 +687,10 @@ void Scene::UpdateIMGUIPropertyGrid()
                 ImGui::SameLine();
             }
 
-			ImGui::Text("Occlusion: Phase 1:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase1);
+			ImGui::Text("Occlusion: Early:[%d]", view.m_GPUCullingCounters.m_OcclusionEarly);
 			ImGui::SameLine();
 
-			ImGui::Text("Phase 2:[%d]", view.m_GPUCullingCounters.m_OcclusionPhase2);
+			ImGui::Text("Late:[%d]", view.m_GPUCullingCounters.m_OcclusionLate);
 
             ImGui::Unindent();
         }
