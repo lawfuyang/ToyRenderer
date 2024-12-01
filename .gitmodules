@@ -37,9 +37,6 @@
 [submodule "extern/meshoptimizer"]
 	path = extern/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer
-[submodule "extern/amd/ShadowFX"]
-	path = extern/amd/ShadowFX
-	url = https://github.com/GPUOpen-Effects/ShadowFX
 [submodule "extern/tinyddsloader"]
 	path = extern/tinyddsloader
 	url = https://github.com/benikabocha/tinyddsloader

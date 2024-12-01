@@ -40,6 +40,7 @@
 • volumetric clouds
 • convert RawVertexFormat into Array of Structs: https://wickedengine.net/2023/11/16/dynamic-vertex-formats/ (?)
 • Static Animations
+• fix shadow edge shimmering & jitter: scene CSM View snap to texel
 • Shadows: Penumbra + cascade blending: https://github.com/GPUOpen-Effects/Hybrid-Shadows/blob/master/src/Shaders/CustomShadowResolve.hlsl
 • Skinning:
 	• https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
