@@ -24,6 +24,7 @@ struct BasePassInstanceConstants
 	uint32_t m_MaterialDataIdx;
 	Vector3 m_AABBCenter;
 	Vector3 m_AABBExtents;
+    Vector4 m_BoundingSphere;
 };
 
 #endif // #define _BASE_PASS_CONSTANTS_

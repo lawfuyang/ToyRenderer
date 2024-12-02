@@ -3,28 +3,28 @@
 
 #include "StructsCommon.h"
 
-static const uint32_t kFrustumCullingBufferCounterIdx = 0;
-static const uint32_t kOcclusionCullingEarlyBufferCounterIdx = 1;
-static const uint32_t kOcclusionCullingLateBufferCounterIdx = 2;
-static const uint32_t kNbGPUCullingBufferCounters = 3;
+static const uint32_t kCullingEarlyBufferCounterIdx = 0;
+static const uint32_t kCullingLateBufferCounterIdx = 1;
+static const uint32_t kNbGPUCullingBufferCounters = 2;
 
-static const uint32_t OcclusionCullingFlag_Enable = (1 << 0);
-static const uint32_t OcclusionCullingFlag_IsFirstPhase = (1 << 1);
+static const uint32_t CullingFlag_FrustumCullingEnable = (1 << 0);
+static const uint32_t CullingFlag_OcclusionCullingEnable = (1 << 1);
 
 static const uint32_t kNbGPUCullingGroupThreads = 64;
 
 struct GPUCullingPassConstants
 {
 	uint32_t m_NbInstances;
-	uint32_t m_EnableFrustumCulling;
+	uint32_t m_Flags;
 	uint32_t m_OcclusionCullingFlags;
-	uint32_t m_EnableMeshletConeCulling;
+	uint32_t PAD0;
+	Matrix m_WorldToClip;
 
-    Matrix m_WorldToClipInclusive; // Culling with this matrix includes the entire primitive
-    Matrix m_WorldToClipExclusive; // Culling with this matrix excludes the entire primitive (make _11 to 1.0f to ignore)
+	// symmetrc projection parameters
+	float m_Projection00;
+    float m_Projection11;
 
-	Vector2U m_HZBDimensions;
-	uint32_t m_HZBMipCount;
+	Vector2 m_HZBDimensions;
 };
 
 #endif

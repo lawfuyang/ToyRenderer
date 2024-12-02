@@ -7,33 +7,40 @@
 #include "shared/GPUCullingStructs.h"
 #include "shared/IndirectArguments.h"
 
+#if __INTELLISENSE__
+#define LATE 1
+#endif
+
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
 StructuredBuffer<uint> g_PrimitiveIndices : register(t1);
 StructuredBuffer<MeshData> g_MeshData : register(t2);
+Texture2D g_HZB : register(t3);
 RWStructuredBuffer<DrawIndexedIndirectArguments> g_DrawArgumentsOutput : register(u0);
 RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
+RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u4);
 SamplerState g_PointClampSampler : register(s0);
 
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
-bool ProjectSphere(float3 center, float radius, float znear, float P00, float P11, out float4 aabb)
+bool ProjectSphere(float3 c, float r, float znear, float P00, float P11, out float4 aabb)
 {
-    if (center.z < radius + znear)
+    if (c.z < r + znear)
         return false;
 
-    float2 cx = -center.xz;
-    float2 vx = float2(sqrt(dot(cx, cx) - radius * radius), radius);
-    float2 minx = mul(cx, float2x2(vx.x, vx.y, -vx.y, vx.x));
-    float2 maxx = mul(cx, float2x2(vx.x, -vx.y, vx.y, vx.x));
+    float3 cr = c * r;
+    float czr2 = c.z * c.z - r * r;
 
-    float2 cy = -center.yz;
-    float2 vy = float2(sqrt(dot(cy, cy) - radius * radius), radius);
-    float2 miny = mul(cy, float2x2(vy.x, vy.y, -vy.y, vy.x));
-    float2 maxy = mul(cy, float2x2(vy.x, -vy.y, vy.y, vy.x));
+    float vx = sqrt(c.x * c.x + czr2);
+    float minx = (vx * c.x - cr.z) / (vx * c.z + cr.x);
+    float maxx = (vx * c.x + cr.z) / (vx * c.z - cr.x);
 
-    aabb = float4(minx.x / minx.y * P00, miny.x / miny.y * P11, maxx.x / maxx.y * P00, maxy.x / maxy.y * P11);
+    float vy = sqrt(c.y * c.y + czr2);
+    float miny = (vy * c.y - cr.z) / (vy * c.z + cr.y);
+    float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
+
+    aabb = float4(minx * P00, miny * P11, maxx * P00, maxy * P11);
     aabb = aabb.xwzy * float4(0.5f, -0.5f, 0.5f, -0.5f) + float4(0.5f, 0.5f, 0.5f, 0.5f); // clip space -> uv space
 
     return true;
@@ -123,32 +130,73 @@ void CS_GPUCulling(
         return;
     }
     
+    bool bDoOcclusionCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_OcclusionCullingEnable;
+    
     uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];
+    
+    // not visible last frame, skip early culling
+#if !LATE
+    if (bDoOcclusionCulling)
+    {
+        if (g_InstanceVisibilityBuffer[instanceConstsIdx] == 0)
+        {
+            return;
+        }
+    }
+#endif // !LATE
+    
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
     
     bool bIsVisible = true;
     
-    if (g_GPUCullingPassConstants.m_EnableFrustumCulling)
+    if (g_GPUCullingPassConstants.m_Flags & CullingFlag_FrustumCullingEnable)
     {
         // cull against outer frustum
-        bIsVisible &= ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClipInclusive);
+        bIsVisible &= ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
+    }
+    
+#if LATE
+    if (bIsVisible && bDoOcclusionCulling)
+    {
+        bIsVisible = false;
         
-        // cull against inner frustum
-        if (g_GPUCullingPassConstants.m_WorldToClipExclusive._11 != 1.0f)
-        {
-            bIsVisible &= !ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClipExclusive);
-        }
+        // todo: pass in as constant?
+        const float kZNear = 0.1f;
         
-        if(bIsVisible)
+        float3 sphereCenter = instanceConsts.m_BoundingSphere.xyz;
+        float sphereRadius = instanceConsts.m_BoundingSphere.w;
+        
+        float4 aabb;
+        if (ProjectSphere(sphereCenter, sphereRadius, kZNear, g_GPUCullingPassConstants.m_Projection00, g_GPUCullingPassConstants.m_Projection11, aabb))
         {
-            InterlockedAdd(g_CullingCounters[kFrustumCullingBufferCounterIdx], 1);
+            float width = (aabb.z - aabb.x) * g_GPUCullingPassConstants.m_HZBDimensions.x;
+            float height = (aabb.w - aabb.y) * g_GPUCullingPassConstants.m_HZBDimensions.y;
+
+			// Because we only consider 2x2 pixels, we need to make sure we are sampling from a mip that reduces the rectangle to 1x1 texel or smaller.
+			// Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area. Using floor() here would require sampling 4 corners
+			// of AABB (using bilinear fetch), which is a little slower.
+            float level = ceil(log2(max(width, height)));
+
+			// Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+            float depth = g_HZB.SampleLevel(g_PointClampSampler, (aabb.xy + aabb.zw) * 0.5f, level).x;
+            float depthSphere = kZNear / (sphereCenter.z - sphereRadius);
+
+            bIsVisible = depthSphere > depth;
         }
     }
+#endif // LATE
     
     if (!bIsVisible)
     {
         return;
     }
+    
+#if LATE
+    g_InstanceVisibilityBuffer[instanceConstsIdx] = 1;
+    InterlockedAdd(g_CullingCounters[kCullingLateBufferCounterIdx], 1);
+#else
+    InterlockedAdd(g_CullingCounters[kCullingEarlyBufferCounterIdx], 1);
+#endif
     
     uint outInstanceIdx;
     InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);

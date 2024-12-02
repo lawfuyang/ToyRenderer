@@ -55,7 +55,6 @@ public:
         View* m_View;
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
-        Matrix m_CullingWorldToClipExclusive;
     };
 
     struct HZBParams
@@ -183,6 +182,7 @@ public:
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
+        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
         const uint32_t nbInstances = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
 
@@ -204,17 +204,21 @@ public:
 
             // TODO: support transparent
             GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
-            cullingCounters.m_Frustum = readbackResults[kFrustumCullingBufferCounterIdx];
-            cullingCounters.m_OcclusionEarly = readbackResults[kOcclusionCullingEarlyBufferCounterIdx];
-            cullingCounters.m_OcclusionLate = readbackResults[kOcclusionCullingLateBufferCounterIdx];
+            cullingCounters.m_Early = readbackResults[kCullingEarlyBufferCounterIdx];
+            cullingCounters.m_Late = readbackResults[kCullingLateBufferCounterIdx];
         }
+
+        uint32_t flags = controllables.m_bEnableFrustumCulling ? CullingFlag_FrustumCullingEnable : 0;
+        flags |= (controllables.m_bEnableOcclusionCulling && m_HZBParams.m_HZB) ? CullingFlag_OcclusionCullingEnable : 0;
 
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
-        passParameters.m_EnableFrustumCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableFrustumCulling;
+        passParameters.m_Flags = flags;
         passParameters.m_OcclusionCullingFlags = 0;
-        passParameters.m_WorldToClipInclusive = view.m_ViewProjectionMatrix;
-        passParameters.m_WorldToClipExclusive = params.m_CullingWorldToClipExclusive;
+        passParameters.m_WorldToClip = view.m_ViewProjectionMatrix;
+        passParameters.m_Projection00 = view.m_ProjectionMatrix.m[0][0];
+        passParameters.m_Projection11 = view.m_ProjectionMatrix.m[1][1];
+        passParameters.m_HZBDimensions = Vector2{ (float)m_HZBParams.m_HZBResolution.x, (float)m_HZBParams.m_HZBResolution.y };
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -224,10 +228,12 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? scene->m_AlphaMaskInstanceIDsBuffer : scene->m_OpaqueInstanceIDsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
+            nvrhi::BindingSetItem::Texture_SRV(3, m_HZBParams.m_HZB ? m_HZBParams.m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, cullingBuffers.m_DrawIndexedIndirectArgumentsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, cullingBuffers.m_StartInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, cullingBuffers.m_InstanceCountBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, scene->m_InstanceVisibilityBuffer),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
@@ -607,10 +613,6 @@ public:
         params.m_View = &scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, shadowDepthStencilState, Graphic::kFrontCCW ? g_CommonResources.CullCounterClockwise : g_CommonResources.CullClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
-        if (m_CSMIndex > 0)
-        {
-            params.m_CullingWorldToClipExclusive = scene->m_Views[m_CSMIndex - 1].m_ViewProjectionMatrix;
-        }
 
         RenderBasePass(commandList, renderGraph, params);
     }

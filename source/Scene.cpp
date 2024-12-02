@@ -452,6 +452,7 @@ void Scene::UpdateInstanceConstsBuffer()
         instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
         instanceConsts.m_AABBCenter = instanceAABB.Center;
         instanceConsts.m_AABBExtents = instanceAABB.Extents;
+        instanceConsts.m_BoundingSphere = Vector4{ mesh.m_BoundingSphere.Center.x, mesh.m_BoundingSphere.Center.x, mesh.m_BoundingSphere.Center.x, mesh.m_BoundingSphere.Radius };
 
         instanceConstsBytes.push_back(instanceConsts);
 
@@ -680,17 +681,11 @@ void Scene::UpdateIMGUIPropertyGrid()
 
             ImGui::Text("[%s]:", EnumUtils::ToString((EView)i));
 
-            if (InstanceRenderingControllables.m_bEnableFrustumCulling)
-            {
-                ImGui::Indent();
-                ImGui::Text("GPU Visible: Frustum:[%d]", view.m_GPUCullingCounters.m_Frustum);
-                ImGui::SameLine();
-            }
-
-			ImGui::Text("Occlusion: Early:[%d]", view.m_GPUCullingCounters.m_OcclusionEarly);
+            ImGui::Indent();
+			ImGui::Text("Culling: Early:[%d]", view.m_GPUCullingCounters.m_Early);
 			ImGui::SameLine();
 
-			ImGui::Text("Late:[%d]", view.m_GPUCullingCounters.m_OcclusionLate);
+			ImGui::Text("Late:[%d]", view.m_GPUCullingCounters.m_Late);
 
             ImGui::Unindent();
         }
