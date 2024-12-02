@@ -14,6 +14,7 @@
 		• requires custom memory management of nvrhi::HeapHandle, & usage of bindTextureMemory & bindBufferMemory
 		• resource lifetime management & tracking
 	• Scheduling of asynchronous compute fences
+• emissive pipeline
 • local lights
 	• light volumes w/ point, spot lights
 	• local light shadows
