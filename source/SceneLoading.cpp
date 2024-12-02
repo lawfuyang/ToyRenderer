@@ -304,9 +304,24 @@ struct GLTFSceneLoader
             Material& sceneMaterial = m_SceneMaterials[i];
 
             const cgltf_material& gltfMaterial = m_GLTFData->materials[i];
+            const char* materialName = gltfMaterial.name ? gltfMaterial.name : "Un-Named Material";
 
             sceneMaterial.m_AlphaMode = (AlphaMode)gltfMaterial.alpha_mode;
             sceneMaterial.m_AlphaCutoff = gltfMaterial.alpha_cutoff;
+
+            // todo: emissive
+            if (Vector3{ gltfMaterial.emissive_factor }.LengthSquared() > KINDA_SMALL_NUMBER)
+            {
+				LOG_DEBUG("Unhandled emissive_factor: [%s][%f, %f, %f]", materialName, gltfMaterial.emissive_factor[0], gltfMaterial.emissive_factor[1], gltfMaterial.emissive_factor[2]);
+            }
+            if (gltfMaterial.emissive_texture.texture)
+            {
+				LOG_DEBUG("Unhandled emissive_texture: [%s][%s]", materialName, gltfMaterial.emissive_texture.texture->name ? gltfMaterial.emissive_texture.texture->name : "");
+            }
+            if (gltfMaterial.has_emissive_strength)
+            {
+				LOG_DEBUG("Unhandled emissive_strength: [%s][%f]", materialName, gltfMaterial.emissive_strength.emissive_strength);
+            }
 
             if (gltfMaterial.has_pbr_metallic_roughness)
             {
@@ -367,7 +382,7 @@ struct GLTFSceneLoader
             materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;
 
-			LOG_DEBUG("New Material: [%s]", gltfMaterial.name ? gltfMaterial.name : "Un-Named Material");
+			LOG_DEBUG("New Material: [%s]", materialName);
         }
 
         MaterialData defaultMaterialData{};
