@@ -518,11 +518,11 @@ struct GLTFSceneLoader
                                 {
                                     static auto PackUV = [](Vector2 UV)
                                         {
-                                            uint16_t uInt = static_cast<uint16_t>(UV.x * UINT16_MAX); // Scale to [0, 65535]
-                                            uint16_t vInt = static_cast<uint16_t>(UV.y * UINT16_MAX); // Scale to [0, 65535]
-
-                                            // Pack into a single 32-bit integer: U in the high 16 bits, V in the low 16 bits
-                                            return (static_cast<uint32_t>(uInt) << 16) | vInt;
+											UV.x = std::clamp(UV.x, 0.0f, 1.0f);
+											UV.y = std::clamp(UV.y, 0.0f, 1.0f);
+											Vector2 scaledUV = UV * 65535.0f;
+											uint32_t packed = (uint32_t(scaledUV.x) | (uint32_t(scaledUV.y) << 16u));
+											return packed;
                                         };
 
                                     vertices[j].m_PackedTexCoord = PackUV(Vector2{ &scratchBuffer[j * nbFloats] });

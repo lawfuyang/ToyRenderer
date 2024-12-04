@@ -1,4 +1,5 @@
 #include "common.hlsli"
+#include "packunpack.hlsli"
 
 #include "shared/AmbientOcclusionStructs.h"
 
@@ -100,7 +101,7 @@ void CS_XeGTAO_MainPass(
     
     // compute view space normals for XeGTAO input
     // NOTE: this assumes AO pass is full render resolution
-    float3 worldNormals = DecodeNormal(g_GBufferNormals[dispatchThreadID.xy].xy);
+    float3 worldNormals = UnpackOctadehron(g_GBufferNormals[dispatchThreadID.xy].xy);
     float3 viewSpaceNormals = mul(float4(worldNormals, 1.0f), g_XeGTAOMainPassConstantBuffer.m_ViewMatrixNoTranslate).xyz;
     
     // XeGTAO follows LHS, so we need to flip Z

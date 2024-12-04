@@ -2,6 +2,7 @@
 #include "shadowfiltering.hlsl"
 #include "lightingcommon.hlsli"
 #include "random.hlsli"
+#include "packunpack.hlsli"
 
 #include "shared/MeshData.h"
 #include "shared/BasePassStructs.h"
@@ -23,42 +24,6 @@ Texture2D<uint> g_SSAOTexture : register(t5);
 sampler g_PointClampSampler : register(s4);
 SamplerComparisonState g_PointComparisonLessSampler : register(s5);
 SamplerComparisonState g_LinearComparisonLessSampler : register(s6);
-
-float4 UnpackVectorFromUint32(uint packed)
-{
-    // Extract each component
-    uint xInt = (packed >> 20) & 0x3FF; // 10 bits for x
-    uint yInt = (packed >> 10) & 0x3FF; // 10 bits for y
-    uint zInt = packed & 0x3FF; // 10 bits for z
-    uint wInt = (packed >> 30) & 0x1; // 1 bit for w
-
-    // Convert back to [0, 1] by dividing by 1023
-    float x = (float) xInt / 1023.0f;
-    float y = (float) yInt / 1023.0f;
-    float z = (float) zInt / 1023.0f;
-
-    // Map from [0, 1] back to [-1, 1]
-    x = (x * 2.0f) - 1.0f;
-    y = (y * 2.0f) - 1.0f;
-    z = (z * 2.0f) - 1.0f;
-
-    // Unpack w, convert to either 1 or -1
-    float w = (wInt == 1) ? 1.0f : -1.0f;
-
-    return float4(x, y, z, w);
-}
-
-float2 UnpackTexCoord(uint packedUV)
-{
-    uint uInt = (packedUV >> 16) & 0xFFFF; // Extract the upper 16 bits (U)
-    uint vInt = packedUV & 0xFFFF; // Extract the lower 16 bits (V)
-
-    // Convert back to float
-    float u = uInt / 65535.0f;
-    float v = vInt / 65535.0f;
-
-    return float2(u, v);
-}
 
 void VS_Main(
     uint inInstanceConstIndex : INSTANCE_START_LOCATION, // per-instance attribute
@@ -91,14 +56,14 @@ void VS_Main(
     outInstanceConstsIdx = inInstanceConstIndex;
     
     // Transform the vertex normal to world space and normalize it
-    float3 UnpackedNormal = UnpackVectorFromUint32(vertexInfo.m_PackedNormal).xyz;
+    float3 UnpackedNormal = UnpackR10G10B10A2F(vertexInfo.m_PackedNormal).xyz;
     outNormal = normalize(mul(float4(UnpackedNormal, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz);
     
-    float4 UnpackedTangent = UnpackVectorFromUint32(vertexInfo.m_PackedTangent);
+    float4 UnpackedTangent = UnpackR10G10B10A2F(vertexInfo.m_PackedTangent);
     outTangent = float4(normalize(mul(float4(UnpackedTangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), UnpackedTangent.w);
     
     // Pass the vertex texture coordinates to the pixel shader
-    outUV = UnpackTexCoord(vertexInfo.m_PackedTexCoord);
+    outUV = UnpackUnorm2x16(vertexInfo.m_PackedTexCoord);
     
     // Pass the world space position to the pixel shader
     outWorldPosition = worldPos.xyz;
@@ -250,7 +215,7 @@ void PS_Main_GBuffer(
     
     // Output to G-buffer targets
     outGBufferA = float4(gbufferParams.m_Albedo, randFloat);
-    outGBufferB = float4(EncodeNormal(gbufferParams.m_Normal), 1, 1);
+    outGBufferB = float4(PackOctadehron(gbufferParams.m_Normal), 1, 1);
     outGBufferC = float4(gbufferParams.m_Occlusion, gbufferParams.m_Roughness, gbufferParams.m_Metallic, 1);
 }
 

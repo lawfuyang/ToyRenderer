@@ -3,6 +3,7 @@
 #include "shadowfiltering.hlsl"
 #include "lightingcommon.hlsli"
 #include "random.hlsli"
+#include "packunpack.hlsli"
 
 #include "shared/CommonConsts.h"
 #include "shared/DeferredLightingStructs.h"
@@ -33,7 +34,7 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     }
 
     float3 albedo = g_GBufferAlbedo[screenTexel].rgb;
-    float3 normal = DecodeNormal(g_GBufferNormal[screenTexel].rg); // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
+    float3 normal = UnpackOctadehron(g_GBufferNormal[screenTexel].rg); // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
     float3 ambientTerm = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? screenTexel : uint2(0, 0), albedo, normal);
     
     // If the tile is fully shadowed, return the lighting result with only ambient
@@ -118,7 +119,7 @@ void PS_Main_Debug(
    
     if (bLightingOnlyOutput)
     {
-        float3 normal = DecodeNormal(g_GBufferNormal[inPosition.xy].rg);
+        float3 normal = UnpackOctadehron(g_GBufferNormal[inPosition.xy].rg);
         float shadowFactor = g_ShadowMaskTexture[inPosition.xy].r;
         float lightingOnlyShadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
         rgb = dot(normal, g_DeferredLightingConsts.m_DirectionalLightVector).xxx * lightingOnlyShadowFactor;
