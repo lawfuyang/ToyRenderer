@@ -156,23 +156,24 @@ void CS_GPUCulling(
 #endif // !LATE
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
-    float3 sphereCenterViewSpace = mul(g_GPUCullingPassConstants.m_ViewMatrix, float4(instanceConsts.m_BoundingSphere.xyz, 1.0f)).xyz;
-    float sphereRadius = instanceConsts.m_BoundingSphere.w;
     
     bool bIsVisible = true;
     
     if (bDoFrustumCulling)
     {
         bIsVisible = ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
+        //bIsVisible = ScreenSpaceFrustumCull(instanceConsts.m_BoundingSphere.xyz, instanceConsts.m_BoundingSphere.www, g_GPUCullingPassConstants.m_WorldToClip);
     }
     
 #if LATE
     if (bIsVisible && bDoOcclusionCulling)
     {
         bIsVisible = false;
+        
+        float3 sphereCenterViewSpace = mul(g_GPUCullingPassConstants.m_ViewMatrix, float4(instanceConsts.m_BoundingSphere.xyz, 1.0f)).xyz;
 
         float4 aabb;
-        if (ProjectSphereView(sphereCenterViewSpace, sphereRadius, g_GPUCullingPassConstants.m_Projection00, g_GPUCullingPassConstants.m_Projection11, aabb))
+        if (ProjectSphereView(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w, g_GPUCullingPassConstants.m_Projection00, g_GPUCullingPassConstants.m_Projection11, aabb))
         {
             float width = (aabb.z - aabb.x) * g_GPUCullingPassConstants.m_HZBDimensions.x;
             float height = (aabb.w - aabb.y) * g_GPUCullingPassConstants.m_HZBDimensions.y;
@@ -186,7 +187,9 @@ void CS_GPUCulling(
             // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
             float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, UV, level).x;
         
-            float depthSphere = kNearPlane / (sphereCenterViewSpace.z - sphereRadius);
+            // this only works for inversed infinite projection matrix
+            float depthSphere = kNearPlane / (sphereCenterViewSpace.z - instanceConsts.m_BoundingSphere.w);
+            
             bIsVisible = depthSphere > depth;
         }
     }
