@@ -16,15 +16,13 @@ struct GPUCullingPassConstants
 {
 	uint32_t m_NbInstances;
 	uint32_t m_Flags;
-	uint32_t m_OcclusionCullingFlags;
-	uint32_t PAD0;
+	Vector2U m_HZBDimensions;
+	Matrix m_ViewMatrix;
 	Matrix m_WorldToClip;
 
-	// symmetrc projection parameters
+	// symmetric projection parameters
 	float m_Projection00;
     float m_Projection11;
-
-	Vector2 m_HZBDimensions;
 };
 
 #endif

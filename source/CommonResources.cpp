@@ -158,6 +158,10 @@ static void CreateDefaultSamplers()
     samplerDesc.setAllFilters(true);
     g_CommonResources.LinearClampSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
 
+    samplerDesc.setReductionType(nvrhi::SamplerReductionType::Minimum);
+	g_CommonResources.LinearClampMinReductionSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
+    samplerDesc.setReductionType(nvrhi::SamplerReductionType::Standard);
+
     samplerDesc.setAllAddressModes(nvrhi::SamplerAddressMode::Wrap);
     g_CommonResources.LinearWrapSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
 

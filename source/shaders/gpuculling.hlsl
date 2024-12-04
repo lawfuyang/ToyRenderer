@@ -20,13 +20,20 @@ RWStructuredBuffer<DrawIndexedIndirectArguments> g_DrawArgumentsOutput : registe
 RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
-RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u4);
-SamplerState g_PointClampSampler : register(s0);
+SamplerState g_LinearClampMinReductionSampler : register(s0);
+
+#if LATE
+RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u10);
+#else
+StructuredBuffer<uint> g_InstanceVisibilityBuffer : register(t10);
+#endif
+
+static const float kNearPlane = 0.1f;
 
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
-bool ProjectSphere(float3 c, float r, float znear, float P00, float P11, out float4 aabb)
+bool ProjectSphereView(float3 c, float r, float P00, float P11, out float4 aabb)
 {
-    if (c.z < r + znear)
+    if (c.z < r + kNearPlane)
         return false;
 
     float3 cr = c * r;
@@ -130,60 +137,61 @@ void CS_GPUCulling(
         return;
     }
     
-    bool bDoOcclusionCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_OcclusionCullingEnable;
+    const bool bDoOcclusionCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_OcclusionCullingEnable;
+    const bool bDoFrustumCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_FrustumCullingEnable;
     
     uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];
     
-    // not visible last frame, skip early culling
 #if !LATE
-    if (bDoOcclusionCulling)
+    if (!bDoOcclusionCulling)
     {
-        if (g_InstanceVisibilityBuffer[instanceConstsIdx] == 0)
-        {
-            return;
-        }
+        return;
+    }
+    
+    // not visible last frame, skip early culling
+    if (g_InstanceVisibilityBuffer[instanceConstsIdx] == 0)
+    {
+        return;
     }
 #endif // !LATE
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
+    float3 sphereCenterViewSpace = mul(g_GPUCullingPassConstants.m_ViewMatrix, float4(instanceConsts.m_BoundingSphere.xyz, 1.0f)).xyz;
+    float sphereRadius = instanceConsts.m_BoundingSphere.w;
     
     bool bIsVisible = true;
     
-    if (g_GPUCullingPassConstants.m_Flags & CullingFlag_FrustumCullingEnable)
+    if (bDoFrustumCulling)
     {
-        // cull against outer frustum
-        bIsVisible &= ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
+        bIsVisible = ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
     }
     
 #if LATE
     if (bIsVisible && bDoOcclusionCulling)
     {
         bIsVisible = false;
-        
-        // todo: pass in as constant?
-        const float kZNear = 0.1f;
-        
-        float3 sphereCenter = instanceConsts.m_BoundingSphere.xyz;
-        float sphereRadius = instanceConsts.m_BoundingSphere.w;
-        
+
         float4 aabb;
-        if (ProjectSphere(sphereCenter, sphereRadius, kZNear, g_GPUCullingPassConstants.m_Projection00, g_GPUCullingPassConstants.m_Projection11, aabb))
+        if (ProjectSphereView(sphereCenterViewSpace, sphereRadius, g_GPUCullingPassConstants.m_Projection00, g_GPUCullingPassConstants.m_Projection11, aabb))
         {
             float width = (aabb.z - aabb.x) * g_GPUCullingPassConstants.m_HZBDimensions.x;
             float height = (aabb.w - aabb.y) * g_GPUCullingPassConstants.m_HZBDimensions.y;
+            float2 UV = (aabb.xy + aabb.zw) * 0.5f;
 
-			// Because we only consider 2x2 pixels, we need to make sure we are sampling from a mip that reduces the rectangle to 1x1 texel or smaller.
-			// Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area. Using floor() here would require sampling 4 corners
-			// of AABB (using bilinear fetch), which is a little slower.
+            // Because we only consider 2x2 pixels, we need to make sure we are sampling from a mip that reduces the rectangle to 1x1 texel or smaller.
+            // Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area. Using floor() here would require sampling 4 corners
+            // of AABB (using bilinear fetch), which is a little slower.
             float level = ceil(log2(max(width, height)));
 
-			// Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-            float depth = g_HZB.SampleLevel(g_PointClampSampler, (aabb.xy + aabb.zw) * 0.5f, level).x;
-            float depthSphere = kZNear / (sphereCenter.z - sphereRadius);
-
+            // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+            float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, UV, level).x;
+        
+            float depthSphere = kNearPlane / (sphereCenterViewSpace.z - sphereRadius);
             bIsVisible = depthSphere > depth;
         }
     }
+    
+    g_InstanceVisibilityBuffer[instanceConstsIdx] = bIsVisible ? 1 : 0;
 #endif // LATE
     
     if (!bIsVisible)
@@ -192,7 +200,6 @@ void CS_GPUCulling(
     }
     
 #if LATE
-    g_InstanceVisibilityBuffer[instanceConstsIdx] = 1;
     InterlockedAdd(g_CullingCounters[kCullingLateBufferCounterIdx], 1);
 #else
     InterlockedAdd(g_CullingCounters[kCullingEarlyBufferCounterIdx], 1);
