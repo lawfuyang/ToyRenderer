@@ -490,7 +490,7 @@ void Scene::UpdateInstanceConstsBuffer()
         commandList->writeBuffer(m_InstanceConstsBuffer, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
     }
 
-    m_OpaqueInstanceIDsBuffer = g_CommonResources.DummyUintStructuredBuffer;
+    m_OpaqueInstanceIDsBuffer = g_CommonResources.DummyUIntStructuredBuffer;
     if (!opaqueInstanceIDs.empty())
     {
         nvrhi::BufferDesc desc;
@@ -503,7 +503,7 @@ void Scene::UpdateInstanceConstsBuffer()
         commandList->writeBuffer(m_OpaqueInstanceIDsBuffer, opaqueInstanceIDs.data(), opaqueInstanceIDs.size() * sizeof(uint32_t));
     }
 
-    m_AlphaMaskInstanceIDsBuffer = g_CommonResources.DummyUintStructuredBuffer;
+    m_AlphaMaskInstanceIDsBuffer = g_CommonResources.DummyUIntStructuredBuffer;
     if (!alphaMaskInstanceIDs.empty())
     {
         nvrhi::BufferDesc desc;
@@ -516,7 +516,7 @@ void Scene::UpdateInstanceConstsBuffer()
         commandList->writeBuffer(m_AlphaMaskInstanceIDsBuffer, alphaMaskInstanceIDs.data(), alphaMaskInstanceIDs.size() * sizeof(uint32_t));
     }
 
-    m_TransparentInstanceIDsBuffer = g_CommonResources.DummyUintStructuredBuffer;
+    m_TransparentInstanceIDsBuffer = g_CommonResources.DummyUIntStructuredBuffer;
     if (!transparentInstanceIDs.empty())
     {
         nvrhi::BufferDesc desc;
@@ -538,7 +538,7 @@ void Scene::UpdateInstanceConstsBuffer()
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
         m_InstanceVisibilityBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-        commandList->clearBufferUInt(m_InstanceVisibilityBuffer, 0);
+        commandList->clearBufferUInt(m_InstanceVisibilityBuffer, 1);
     }
 }
 

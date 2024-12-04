@@ -117,7 +117,8 @@ static void CreateDefaultBuffer(
     nvrhi::BufferHandle& destBuffer,
     uint32_t byteSize,
     uint32_t structStride,
-    bool bUAV)
+    bool bUAV,
+    bool bRaw)
 {
     PROFILE_FUNCTION();
 
@@ -125,9 +126,10 @@ static void CreateDefaultBuffer(
 
     nvrhi::BufferDesc desc;
     desc.byteSize = byteSize;
-    desc.structStride = structStride; // if non-zero it's structured
+    desc.structStride = bRaw ? 0 : structStride; // if non-zero it's structured
     desc.debugName = name;
     desc.canHaveUAVs = bUAV;
+    desc.canHaveRawViews = bRaw;
     desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
     // TODO: support these
@@ -279,7 +281,8 @@ void CommonResources::Initialize()
     CreateDefaultTexture("Dummy UAV 2D Texture",   DummyUAV2DTexture,  nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true /*bUAV*/);
     CreateDefaultTexture("R8 UInt Max 2D Texture", R8UIntMax2DTexture, nvrhi::Format::R8_UINT, UINT8_MAX, 1, false /*bUAV*/);
 
-    CreateDefaultBuffer("DummyUintStructuredBuffer", DummyUintStructuredBuffer, sizeof(uint32_t), sizeof(uint32_t), true);
+    CreateDefaultBuffer("DummyUIntStructuredBuffer", DummyUIntStructuredBuffer, sizeof(uint32_t), sizeof(uint32_t), true /*bUAV*/, false /*bRaw*/);
+	CreateDefaultBuffer("DummyRawBuffer", DummyRawBuffer, sizeof(uint32_t), 0, true /*bUAV*/, true /*bRaw*/);
 
     CreateDefaultSamplers();
     CreateDefaultInputLayouts();

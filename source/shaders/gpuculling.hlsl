@@ -148,7 +148,7 @@ void CS_GPUCulling(
         return;
     }
     
-    // not visible last frame, skip early culling
+    // in early pass, we have to *only* render clusters that were visible last frame, to build a reasonable depth pyramid out of visible triangles
     if (g_InstanceVisibilityBuffer.Load(instanceConstsIdx) == 0)
     {
         return;
@@ -179,8 +179,8 @@ void CS_GPUCulling(
             float2 UV = (aabb.xy + aabb.zw) * 0.5f;
 
             // Because we only consider 2x2 pixels, we need to make sure we are sampling from a mip that reduces the rectangle to 1x1 texel or smaller.
-            // Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area. Using floor() here would require sampling 4 corners
-            // of AABB (using bilinear fetch), which is a little slower.
+            // Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area.
+            // Using floor() here would require sampling 4 corners of AABB (using bilinear fetch), which is a little slower.
             float level = ceil(log2(max(width, height)));
 
             // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad

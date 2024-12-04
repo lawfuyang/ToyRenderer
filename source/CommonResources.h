@@ -19,7 +19,8 @@ public:
     Material DefaultMaterial;
 
     // Buffers
-    nvrhi::BufferHandle DummyUintStructuredBuffer;
+    nvrhi::BufferHandle DummyUIntStructuredBuffer;
+    nvrhi::BufferHandle DummyRawBuffer;
 
     // Samplers
     nvrhi::SamplerHandle PointClampSampler;
