@@ -21,8 +21,6 @@ CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
 CommandLineOption<int> g_MaxWorkerThreads{ "maxworkerthreads", 12 };
 CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
 
-static const char* gs_AppName = "ToyRenderer";
-
 thread_local uint32_t tl_ThreadID = 0;
 
 void OnThreadCreateCB()
@@ -74,7 +72,7 @@ void Engine::Initialize(int argc, char** argv)
     ParseCommandlineArguments(argc, argv);
 
     SDL_CALL(SDL_Init(SDL_INIT_EVENTS));
-    m_SDLWindow = SDL_CreateWindow("Visord", g_DisplayResolution.Get()[0], g_DisplayResolution.Get()[1], 0);
+    m_SDLWindow = SDL_CreateWindow("Toy Renderer", g_DisplayResolution.Get()[0], g_DisplayResolution.Get()[1], 0);
     SDL_CALL(m_SDLWindow);
 
     SDL_CALL(SDL_SetWindowPosition(m_SDLWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED));
