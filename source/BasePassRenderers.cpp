@@ -217,11 +217,11 @@ public:
 
         if (bLateCull)
         {
-			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::StructuredBuffer_UAV(10, scene->m_InstanceVisibilityBuffer));
+			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::RawBuffer_UAV(10, scene->m_InstanceVisibilityBuffer));
         }
         else
         {
-			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::StructuredBuffer_SRV(10, scene->m_InstanceVisibilityBuffer));
+			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::RawBuffer_SRV(10, scene->m_InstanceVisibilityBuffer));
         }
 
         const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d", bLateCull ? 1 : 0);

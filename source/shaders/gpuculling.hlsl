@@ -23,9 +23,9 @@ RWStructuredBuffer<uint> g_CullingCounters : register(u3);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 #if LATE
-RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u10);
+RWByteAddressBuffer g_InstanceVisibilityBuffer : register(u10);
 #else
-StructuredBuffer<uint> g_InstanceVisibilityBuffer : register(t10);
+ByteAddressBuffer g_InstanceVisibilityBuffer : register(t10);
 #endif
 
 static const float kNearPlane = 0.1f;
@@ -149,7 +149,7 @@ void CS_GPUCulling(
     }
     
     // not visible last frame, skip early culling
-    if (g_InstanceVisibilityBuffer[instanceConstsIdx] == 0)
+    if (g_InstanceVisibilityBuffer.Load(instanceConstsIdx) == 0)
     {
         return;
     }
@@ -191,7 +191,7 @@ void CS_GPUCulling(
         }
     }
     
-    g_InstanceVisibilityBuffer[instanceConstsIdx] = bIsVisible ? 1 : 0;
+    g_InstanceVisibilityBuffer.Store(instanceConstsIdx, bIsVisible ? 1 : 0);
 #endif // LATE
     
     if (!bIsVisible)

@@ -531,8 +531,8 @@ void Scene::UpdateInstanceConstsBuffer()
 
     {
         nvrhi::BufferDesc desc;
-        desc.byteSize = nbPrimitives * sizeof(uint32_t);
-        desc.structStride = sizeof(uint32_t);
+        desc.byteSize = nbPrimitives * sizeof(uint8_t);
+        desc.canHaveRawViews = true;
         desc.debugName = "Instance Visibility Buffer";
         desc.canHaveUAVs = true;
         desc.initialState = nvrhi::ResourceStates::ShaderResource;

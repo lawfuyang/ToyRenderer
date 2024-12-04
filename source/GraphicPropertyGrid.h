@@ -18,7 +18,7 @@ public:
     struct InstanceRenderingControllables
     {
         bool m_bEnableFrustumCulling = true;
-        bool m_bEnableOcclusionCulling = false;
+        bool m_bEnableOcclusionCulling = true;
         bool m_bColorizeInstances = false;
     };
 	InstanceRenderingControllables m_InstanceRenderingControllables;
