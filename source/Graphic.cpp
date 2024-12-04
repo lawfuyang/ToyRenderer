@@ -168,7 +168,7 @@ void Graphic::InitDevice()
 
         // enforce requirment of 12_0 feature level at least
         static const D3D_FEATURE_LEVEL kMinimumFeatureLevel = D3D_FEATURE_LEVEL_12_0;
-        HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_D3DDevice)));
+        HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, kMinimumFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
 
         const D3D_FEATURE_LEVEL maxSupportedFeatureLevel = QueryHighestFeatureLevel(m_D3DDevice.Get());
 
@@ -262,6 +262,12 @@ void Graphic::InitDevice()
             deviceDesc.pCopyCommandQueue = m_CopyQueue.Get();
 
             m_NVRHIDevice = nvrhi::d3d12::createDevice(deviceDesc);
+
+            for (constexpr auto kFeatures = magic_enum::enum_entries<nvrhi::Feature>();
+                const auto& feature : kFeatures)
+            {
+                LOG_DEBUG("Feature Support for [%s]: [%d]", feature.second.data(), m_NVRHIDevice->queryFeatureSupport(feature.first));
+            }
 
             m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();
 
