@@ -177,10 +177,7 @@ public:
         passParameters.m_NbInstances = nbInstances;
         passParameters.m_Flags = flags;
         passParameters.m_HZBDimensions = HZBDims;
-        passParameters.m_ViewMatrix = view.m_ViewMatrix;
         passParameters.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
-        passParameters.m_Projection00 = view.m_ProjectionMatrix.m[0][0];
-        passParameters.m_Projection11 = view.m_ProjectionMatrix.m[1][1];
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
         nvrhi::BufferHandle instanceLateVisibilityBuffer = params.m_InstanceLateVisibilityBuffer ? params.m_InstanceLateVisibilityBuffer : g_CommonResources.DummyUIntStructuredBuffer;
@@ -198,8 +195,7 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(4, scene->m_InstanceVisibilityBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(5, instanceLateVisibilityBuffer),
-            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler),
-			nvrhi::BindingSetItem::Sampler(1, g_CommonResources.PointClampSampler)
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
         const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d", bLateCull ? 1 : 0);

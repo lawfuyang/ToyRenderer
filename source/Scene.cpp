@@ -444,9 +444,6 @@ void Scene::UpdateInstanceConstsBuffer()
         AABB instanceAABB;
         mesh.m_AABB.Transform(instanceAABB, worldMatrix);
 
-        Sphere instanceBS;
-		mesh.m_BoundingSphere.Transform(instanceBS, worldMatrix);
-
         // instance consts
         BasePassInstanceConstants instanceConsts{};
         instanceConsts.m_WorldMatrix = worldMatrix;
@@ -455,7 +452,6 @@ void Scene::UpdateInstanceConstsBuffer()
         instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
         instanceConsts.m_AABBCenter = instanceAABB.Center;
         instanceConsts.m_AABBExtents = instanceAABB.Extents;
-        instanceConsts.m_BoundingSphere = Vector4{ instanceBS.Center.x, instanceBS.Center.y, instanceBS.Center.z, instanceBS.Radius };
 
         instanceConstsBytes.push_back(instanceConsts);
 
