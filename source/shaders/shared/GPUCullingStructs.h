@@ -18,7 +18,7 @@ struct GPUCullingPassConstants
 	uint32_t m_Flags;
 	Vector2U m_HZBDimensions;
 	Matrix m_ViewMatrix;
-	Matrix m_WorldToClip;
+	Matrix m_ViewProjMatrix;
 
 	// symmetric projection parameters
 	float m_Projection00;

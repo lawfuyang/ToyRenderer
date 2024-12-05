@@ -20,40 +20,14 @@ RWStructuredBuffer<DrawIndexedIndirectArguments> g_DrawArgumentsOutput : registe
 RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
+RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u4);
+RWStructuredBuffer<uint> g_InstanceLateVisibilityBuffer : register(u5);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
-
-#if LATE
-RWByteAddressBuffer g_InstanceVisibilityBuffer : register(u10);
-#else
-ByteAddressBuffer g_InstanceVisibilityBuffer : register(t10);
-#endif
+SamplerState g_PointClampSampler : register(s1);
 
 static const float kNearPlane = 0.1f;
 
-// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
-bool ProjectSphereView(float3 c, float r, float P00, float P11, out float4 aabb)
-{
-    if (c.z < r + kNearPlane)
-        return false;
-
-    float3 cr = c * r;
-    float czr2 = c.z * c.z - r * r;
-
-    float vx = sqrt(c.x * c.x + czr2);
-    float minx = (vx * c.x - cr.z) / (vx * c.z + cr.x);
-    float maxx = (vx * c.x + cr.z) / (vx * c.z - cr.x);
-
-    float vy = sqrt(c.y * c.y + czr2);
-    float miny = (vy * c.y - cr.z) / (vy * c.z + cr.y);
-    float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
-
-    aabb = float4(minx * P00, miny * P11, maxx * P00, maxy * P11);
-    aabb = aabb.xwzy * float4(0.5f, -0.5f, 0.5f, -0.5f) + float4(0.5f, 0.5f, 0.5f, 0.5f); // clip space -> uv space
-
-    return true;
-}
-
-bool ScreenSpaceFrustumCull(float3 aabbCenter, float3 aabbExtents, float4x4 worldToClip)
+bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents)
 {
     float3 ext = 2.0f * aabbExtents;
     float4x4 extentsBasis = float4x4(
@@ -64,11 +38,11 @@ bool ScreenSpaceFrustumCull(float3 aabbCenter, float3 aabbExtents, float4x4 worl
         );
 
     float3x4 axis;
-    axis[0] = mul(float4(aabbExtents.x * 2, 0, 0, 0), worldToClip);
-    axis[1] = mul(float4(0, aabbExtents.y * 2, 0, 0), worldToClip);
-    axis[2] = mul(float4(0, 0, aabbExtents.z * 2, 0), worldToClip);
+    axis[0] = mul(float4(aabbExtents.x * 2, 0, 0, 0), g_GPUCullingPassConstants.m_ViewProjMatrix);
+    axis[1] = mul(float4(0, aabbExtents.y * 2, 0, 0), g_GPUCullingPassConstants.m_ViewProjMatrix);
+    axis[2] = mul(float4(0, 0, aabbExtents.z * 2, 0), g_GPUCullingPassConstants.m_ViewProjMatrix);
 
-    float4 pos000 = mul(float4(aabbCenter - aabbExtents, 1), worldToClip);
+    float4 pos000 = mul(float4(aabbCenter - aabbExtents, 1), g_GPUCullingPassConstants.m_ViewProjMatrix);
     float4 pos100 = pos000 + axis[0];
     float4 pos010 = pos000 + axis[1];
     float4 pos110 = pos010 + axis[0];
@@ -124,6 +98,123 @@ bool ScreenSpaceFrustumCull(float3 aabbCenter, float3 aabbExtents, float4x4 worl
     return bIsVisible;
 }
 
+// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
+bool OcclusionCullBS(float4 bs)
+{
+    float3 c = mul(g_GPUCullingPassConstants.m_ViewMatrix, float4(bs.xyz, 1.0f)).xyz;
+    float r = bs.w;
+    
+    if (c.z < r + kNearPlane)
+        return false;
+
+    float3 cr = c * r;
+    float czr2 = c.z * c.z - r * r;
+
+    float vx = sqrt(c.x * c.x + czr2);
+    float minx = (vx * c.x - cr.z) / (vx * c.z + cr.x);
+    float maxx = (vx * c.x + cr.z) / (vx * c.z - cr.x);
+
+    float vy = sqrt(c.y * c.y + czr2);
+    float miny = (vy * c.y - cr.z) / (vy * c.z + cr.y);
+    float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
+    
+    float P00 = g_GPUCullingPassConstants.m_Projection00;
+    float P11 = g_GPUCullingPassConstants.m_Projection11;
+
+    float4 aabb = float4(minx * P00, miny * P11, maxx * P00, maxy * P11);
+    aabb = aabb.xwzy * float4(0.5f, -0.5f, 0.5f, -0.5f) + float4(0.5f, 0.5f, 0.5f, 0.5f); // clip space -> uv space
+    
+    float width = (aabb.z - aabb.x) * g_GPUCullingPassConstants.m_HZBDimensions.x;
+    float height = (aabb.w - aabb.y) * g_GPUCullingPassConstants.m_HZBDimensions.y;
+    float2 UV = (aabb.xy + aabb.zw) * 0.5f;
+
+    // Because we only consider 2x2 pixels, we need to make sure we are sampling from a mip that reduces the rectangle to 1x1 texel or smaller.
+    // Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area.
+    // Using floor() here would require sampling 4 corners of AABB (using bilinear fetch), which is a little slower.
+    float level = ceil(log2(max(width, height)));
+
+    // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+    float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, UV, level).x;
+        
+    // this only works for inversed infinite projection matrix
+    float depthSphere = kNearPlane / (c.z - r);
+
+    return depthSphere > depth;
+}
+
+// https://blog.selfshadow.com/publications/practical-visibility/, modified for inversed depth buffer
+bool OcclusionCullAABB(float3 aabbCenter, float3 aabbExtents)
+{
+    float3 aabbCorners[] =
+    {
+        aabbCenter + float3(-aabbExtents.x, -aabbExtents.y, -aabbExtents.z),
+        aabbCenter + float3(-aabbExtents.x, -aabbExtents.y,  aabbExtents.z),
+        aabbCenter + float3(-aabbExtents.x,  aabbExtents.y, -aabbExtents.z),
+        aabbCenter + float3(-aabbExtents.x,  aabbExtents.y,  aabbExtents.z),
+        aabbCenter + float3( aabbExtents.x, -aabbExtents.y, -aabbExtents.z),
+        aabbCenter + float3( aabbExtents.x, -aabbExtents.y,  aabbExtents.z),
+        aabbCenter + float3( aabbExtents.x,  aabbExtents.y, -aabbExtents.z),
+        aabbCenter + float3( aabbExtents.x,  aabbExtents.y,  aabbExtents.z)
+    };
+    
+    float nearestZ = 0.0f;
+    float2 minXY = float2(1.0f, 1.0f);
+    float2 maxXY = float2(0.0f, 0.0f);
+ 
+    [unroll]
+    for (int i = 0; i < 8; i++)
+    {
+        // transform world space aaBox to NDC
+        float4 clipPos = mul(float4(aabbCorners[i], 1.0f), g_GPUCullingPassConstants.m_ViewProjMatrix);
+        clipPos.xyz /= clipPos.w;
+        clipPos.xy = UVToClipXY(clipPos.xy);
+ 
+        minXY.x = min(minXY.x, clipPos.x);
+        minXY.y = min(minXY.y, clipPos.y);
+        maxXY.x = max(maxXY.x, clipPos.x);
+        maxXY.y = max(maxXY.y, clipPos.y);
+ 
+        nearestZ = max(nearestZ, clipPos.z);
+    }
+ 
+    float4 boxUVs = float4(minXY, maxXY);
+ 
+    // Calculate hi-Z buffer mip
+    int2 size = (maxXY - minXY) * g_GPUCullingPassConstants.m_HZBDimensions;
+    float mip = ceil(log2(max(size.x, size.y)));
+    
+#if 1
+    // Texel footprint for the lower (finer-grained) level
+    float level_lower = max(mip - 1, 0);
+    float2 scale = exp2(-level_lower);
+    float2 a = floor(boxUVs.xy * scale);
+    float2 b = ceil(boxUVs.zw * scale);
+    float2 dims = b - a;
+ 
+    // Use the lower level if we only touch <= 2 texels in both dimensions
+    if (dims.x <= 2 && dims.y <= 2)
+        mip = level_lower;
+#endif
+ 
+    //load depths from high z buffer
+#if 1
+    float4 depth =
+    {
+        g_HZB.SampleLevel(g_PointClampSampler, boxUVs.xy, mip).x,
+        g_HZB.SampleLevel(g_PointClampSampler, boxUVs.zy, mip).x,
+        g_HZB.SampleLevel(g_PointClampSampler, boxUVs.xw, mip).x,
+        g_HZB.SampleLevel(g_PointClampSampler, boxUVs.zw, mip).x
+    };
+ 
+    // find the furthest depth
+    float furthestDepth = Min4(depth.x, depth.y, depth.z, depth.w);
+ #else   
+    float furthestDepth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (boxUVs.xy + boxUVs.zw) * 0.5f, mip).x;
+ #endif
+ 
+    return (nearestZ >= furthestDepth);
+}
+
 [numthreads(kNbGPUCullingGroupThreads, 1, 1)]
 void CS_GPUCulling(
     uint3 dispatchThreadID : SV_DispatchThreadID,
@@ -149,7 +240,7 @@ void CS_GPUCulling(
     }
     
     // in early pass, we have to *only* render clusters that were visible last frame, to build a reasonable depth pyramid out of visible triangles
-    if (g_InstanceVisibilityBuffer.Load(instanceConstsIdx) == 0)
+    if (bDoOcclusionCulling && g_InstanceVisibilityBuffer[instanceConstsIdx] == 0)
     {
         return;
     }
@@ -161,40 +252,34 @@ void CS_GPUCulling(
     
     if (bDoFrustumCulling)
     {
-        bIsVisible = ScreenSpaceFrustumCull(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, g_GPUCullingPassConstants.m_WorldToClip);
-        //bIsVisible = ScreenSpaceFrustumCull(instanceConsts.m_BoundingSphere.xyz, instanceConsts.m_BoundingSphere.www, g_GPUCullingPassConstants.m_WorldToClip);
+        bIsVisible = FrustumCullAABB(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents);
+        //bIsVisible = FrustumCullAABB(instanceConsts.m_BoundingSphere.xyz, instanceConsts.m_BoundingSphere.www);
     }
     
 #if LATE
     if (bIsVisible && bDoOcclusionCulling)
     {
-        bIsVisible = false;
-        
-        float3 sphereCenterViewSpace = mul(g_GPUCullingPassConstants.m_ViewMatrix, float4(instanceConsts.m_BoundingSphere.xyz, 1.0f)).xyz;
-
-        float4 aabb;
-        if (ProjectSphereView(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w, g_GPUCullingPassConstants.m_Projection00, g_GPUCullingPassConstants.m_Projection11, aabb))
-        {
-            float width = (aabb.z - aabb.x) * g_GPUCullingPassConstants.m_HZBDimensions.x;
-            float height = (aabb.w - aabb.y) * g_GPUCullingPassConstants.m_HZBDimensions.y;
-            float2 UV = (aabb.xy + aabb.zw) * 0.5f;
-
-            // Because we only consider 2x2 pixels, we need to make sure we are sampling from a mip that reduces the rectangle to 1x1 texel or smaller.
-            // Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area.
-            // Using floor() here would require sampling 4 corners of AABB (using bilinear fetch), which is a little slower.
-            float level = ceil(log2(max(width, height)));
-
-            // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-            float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, UV, level).x;
-        
-            // this only works for inversed infinite projection matrix
-            float depthSphere = kNearPlane / (sphereCenterViewSpace.z - instanceConsts.m_BoundingSphere.w);
-            
-            bIsVisible = depthSphere > depth;
-        }
+        bIsVisible = OcclusionCullAABB(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents);
+        //bIsVisible = OcclusionCullBS(instanceConsts.m_BoundingSphere);
     }
     
-    g_InstanceVisibilityBuffer.Store(instanceConstsIdx, bIsVisible ? 1 : 0);
+    if (bDoOcclusionCulling)
+    {
+        g_InstanceVisibilityBuffer[instanceConstsIdx] = bIsVisible;
+        
+        // in late pass, we have to process objects visible last frame again (after rendering them in early pass)
+        // in early pass, we render previously visible clusters
+        // in late pass, we must invert the test to *not* render previously visible clusters of previously visible objects because they were rendered in early pass.
+        if (g_InstanceLateVisibilityBuffer[instanceConstsIdx] == 1)
+        {
+            bIsVisible = false;
+        }
+    }
+#else
+    if (bDoOcclusionCulling)
+    {
+        g_InstanceLateVisibilityBuffer[instanceConstsIdx] = bIsVisible;
+    }
 #endif // LATE
     
     if (!bIsVisible)

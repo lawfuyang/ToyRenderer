@@ -50,6 +50,7 @@ public:
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
         nvrhi::TextureHandle m_HZB;
+        nvrhi::BufferHandle m_InstanceLateVisibilityBuffer;
     };
 
     BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
@@ -132,6 +133,11 @@ public:
 
         const uint32_t nbInstances = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
 
+        if (nbInstances == 0)
+        {
+            return;
+        }
+
         nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
         nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_StartInstanceConstsOffsetsRDGBufferHandle);
@@ -172,11 +178,12 @@ public:
         passParameters.m_Flags = flags;
         passParameters.m_HZBDimensions = HZBDims;
         passParameters.m_ViewMatrix = view.m_ViewMatrix;
-        passParameters.m_WorldToClip = view.m_ViewProjectionMatrix;
+        passParameters.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
         passParameters.m_Projection00 = view.m_ProjectionMatrix.m[0][0];
         passParameters.m_Projection11 = view.m_ProjectionMatrix.m[1][1];
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
+        nvrhi::BufferHandle instanceLateVisibilityBuffer = params.m_InstanceLateVisibilityBuffer ? params.m_InstanceLateVisibilityBuffer : g_CommonResources.DummyUIntStructuredBuffer;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
@@ -189,18 +196,11 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, startInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
-            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, scene->m_InstanceVisibilityBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(5, instanceLateVisibilityBuffer),
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler),
+			nvrhi::BindingSetItem::Sampler(1, g_CommonResources.PointClampSampler)
         };
-
-        nvrhi::BufferHandle instanceVisibilityBuffer = bDoOcclusionCulling ? scene->m_InstanceVisibilityBuffer : g_CommonResources.DummyRawBuffer;
-        if (bLateCull)
-        {
-			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::RawBuffer_UAV(10, instanceVisibilityBuffer));
-        }
-        else
-        {
-			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::RawBuffer_SRV(10, instanceVisibilityBuffer));
-        }
 
         const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d", bLateCull ? 1 : 0);
 
@@ -220,6 +220,13 @@ public:
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
+
+        const uint32_t nbInstances = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
+
+        if (nbInstances == 0)
+        {
+            return;
+        }
 
         nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
@@ -286,7 +293,7 @@ public:
         commandList->setGraphicsState(drawState);
 
         // NOTE: treating the 2nd arg for 'drawIndexedIndirect' as 'MaxCommandCount' is only legit for d3d12!
-        const uint32_t maxCommandCount = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
+        const uint32_t maxCommandCount = nbInstances;
         commandList->drawIndexedIndirect(0, std::max(1U, maxCommandCount));
     }
 
@@ -356,6 +363,7 @@ public:
 class GBufferRenderer : public BasePassRenderer
 {
 	RenderGraph::ResourceHandle m_HZBRDGTextureHandle;
+	RenderGraph::ResourceHandle m_LateVisibilityRDGBufferHandle;
 
 public:
     GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
@@ -414,6 +422,13 @@ public:
 			renderGraph.CreateTransientResource(m_HZBRDGTextureHandle, desc);
         }
 
+        {
+            nvrhi::BufferDesc desc = g_Graphic.m_Scene->m_InstanceVisibilityBuffer->getDesc();
+            desc.debugName = "Instance Late Visibility Buffer";
+
+            renderGraph.CreateTransientResource(m_LateVisibilityRDGBufferHandle, desc);
+        }
+
         return true;
     }
 
@@ -433,6 +448,7 @@ public:
         nvrhi::TextureHandle GBufferCTexture = renderGraph.GetTexture(g_GBufferCRDGTextureHandle);
         nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 		nvrhi::TextureHandle HZB = renderGraph.GetTexture(m_HZBRDGTextureHandle);
+		nvrhi::BufferHandle instanceLateVisibilityBuffer = renderGraph.GetBuffer(m_LateVisibilityRDGBufferHandle);
 
         nvrhi::FramebufferDesc frameBufferDesc;
         frameBufferDesc.addColorAttachment(GBufferATexture);
@@ -452,6 +468,7 @@ public:
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, Graphic::kFrontCCW ? g_CommonResources.CullClockwise : g_CommonResources.CullCounterClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
 		params.m_HZB = HZB;
+		params.m_InstanceLateVisibilityBuffer = instanceLateVisibilityBuffer;
 
         RenderBasePass(commandList, renderGraph, params);
 

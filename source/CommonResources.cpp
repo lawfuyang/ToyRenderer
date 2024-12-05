@@ -135,7 +135,6 @@ static void CreateDefaultBuffer(
     // TODO: support these
     //desc.format = nvrhi::Format::UNKNOWN; // for typed buffer views
     //desc.canHaveTypedViews = false;
-    //desc.canHaveRawViews = false;
     //desc.isVertexBuffer = false;
     //desc.isIndexBuffer = false;
     //desc.isConstantBuffer = false;
