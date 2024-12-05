@@ -14,6 +14,7 @@
 		• requires custom memory management of nvrhi::HeapHandle, & usage of bindTextureMemory & bindBufferMemory
 		• resource lifetime management & tracking
 	• Scheduling of asynchronous compute fences
+• pack occlusion culling visibility bit into each integer in buffer nicely
 • Packed GBuffer: https://docs.google.com/presentation/d/1kaeg2qMi3_8nQqoR3Y2Ax9fJKUYLigPLPfdjfuEGowY/edit#slide=id.g27be1a2457b_0_128
     • emissive pipeline
 • RT shadows for directional light
