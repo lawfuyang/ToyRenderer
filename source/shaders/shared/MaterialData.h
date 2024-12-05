@@ -10,6 +10,7 @@ struct MaterialData
 	uint32_t m_AlbedoTextureSamplerAndDescriptorIndex;
 	uint32_t m_NormalTextureSamplerAndDescriptorIndex;
 	uint32_t m_MetallicRoughnessTextureSamplerAndDescriptorIndex;
+	float m_AlphaCutoff;
 	float m_ConstRoughness;
 	float m_ConstMetallic;
 	Vector2 m_AlbedoUVOffset;
@@ -18,7 +19,7 @@ struct MaterialData
     Vector2 m_NormalUVScale;
     Vector2 m_MetallicRoughnessUVOffset;
     Vector2 m_MetallicRoughnessUVScale;
-	float m_AlphaCutoff;
+
 };
 
 #endif // _MATERIAL_DATA_H_

@@ -20,10 +20,10 @@ struct BasePassInstanceConstants
 {
 	Matrix m_WorldMatrix;
 	Matrix m_InverseTransposeWorldMatrix;
-	uint32_t m_MeshDataIdx;
-	uint32_t m_MaterialDataIdx;
 	Vector3 m_AABBCenter;
+	uint32_t m_MeshDataIdx;
 	Vector3 m_AABBExtents;
+	uint32_t m_MaterialDataIdx;
     Vector4 m_BoundingSphere;
 };
 

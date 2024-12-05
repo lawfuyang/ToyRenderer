@@ -8,8 +8,11 @@ struct MeshData
 	uint32_t m_IndexCount;
 	uint32_t m_StartIndexLocation;
 	uint32_t m_StartVertexLocation;
+	uint32_t PAD0;
 	Vector3 m_AABBCenter;
+	uint32_t PAD1;
 	Vector3 m_AABBExtents;
+	uint32_t PAD2;
 	Vector4 m_BoundingSphere;
 };
 
