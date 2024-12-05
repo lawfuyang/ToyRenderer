@@ -1,4 +1,3 @@
-• fix GPU occlusion culling causing wrong results
 • fix all -Wconversion Shader warnings
 • Mesh LODs
     • generate using meshoptimizer
