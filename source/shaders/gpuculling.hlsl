@@ -20,9 +20,6 @@ RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
 RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u4);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
-SamplerState g_PointClampSampler : register(s1);
-
-static const float kNearPlane = 0.1f;
 
 bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpaceAABBCorners[8])
 {
@@ -47,15 +44,7 @@ bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpace
     float4 pos101 = pos100 + axis[2];
     float4 pos011 = pos010 + axis[2];
     float4 pos111 = pos110 + axis[2];
-
-    float minW = Min3(Min3(pos000.w, pos100.w, pos010.w),
-                      Min3(pos110.w, pos001.w, pos101.w),
-                      min(pos011.w, pos111.w));
-
-    float maxW = Max3(Max3(pos000.w, pos100.w, pos010.w),
-                      Max3(pos110.w, pos001.w, pos101.w),
-                      max(pos011.w, pos111.w));
-
+    
     // Plane inequalities
     float4 planeMins = Min3(
                         Min3(float4(pos000.xy, -pos000.xy) - pos000.w, float4(pos001.xy, -pos001.xy) - pos001.w, float4(pos010.xy, -pos010.xy) - pos010.w),
@@ -73,23 +62,16 @@ bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpace
     clipSpaceAABBCorners[6] = pos011.xyz / pos011.w;
     clipSpaceAABBCorners[7] = pos111.xyz / pos111.w;
 
-    float3 rectMax = Max3(
-                    Max3(clipSpaceAABBCorners[0], clipSpaceAABBCorners[1], clipSpaceAABBCorners[2]),
-                    Max3(clipSpaceAABBCorners[3], clipSpaceAABBCorners[4], clipSpaceAABBCorners[5]),
-                    Max3(clipSpaceAABBCorners[6], clipSpaceAABBCorners[7], float3(-1, -1, -1))
-                    );
+    float rectMinZ = Min3(
+                     Min3(clipSpaceAABBCorners[0].z, clipSpaceAABBCorners[1].z, clipSpaceAABBCorners[2].z),
+                     Min3(clipSpaceAABBCorners[3].z, clipSpaceAABBCorners[4].z, clipSpaceAABBCorners[5].z),
+                     Min3(clipSpaceAABBCorners[6].z, clipSpaceAABBCorners[7].z, 1.0f)
+                     );
 
-    bool bIsVisible = rectMax.z > 0;
+    // in front of near plane
+    bool bIsVisible = rectMinZ <= 1.0f;
 
-    if (minW <= 0 && maxW > 0)
-    {
-        bIsVisible = true;
-    }
-    else
-    {
-        bIsVisible &= maxW > 0.0f;
-    }
-
+    // within left/right/top/bottom plane
     bIsVisible &= !any(planeMins > 0.0f);
 
     return bIsVisible;
@@ -119,10 +101,13 @@ bool OcclusionCullAABB(float3 clipSpaceAABBCorners[8])
     int2 size = (maxUV - minUV) * g_GPUCullingPassConstants.m_HZBDimensions;
     float mip = ceil(log2(max(size.x, size.y)));
     
-    mip = clamp(mip, 0, g_GPUCullingPassConstants.m_MaxHZBMips);
+    const float kLowestHZBMip = 3.0f;
+    
+    // don't bother sampling too high of a mip. 8x8 pixel blockers are fine-grained enough
+    mip = max(mip, kLowestHZBMip);
     
     // Texel footprint for the lower (finer-grained) level
-    if (mip > 0)
+    if (mip > kLowestHZBMip)
     {
         float level_lower = mip - 1;
         float2 scale = exp2(-level_lower);
@@ -136,7 +121,7 @@ bool OcclusionCullAABB(float3 clipSpaceAABBCorners[8])
     }
     
     //load depths from high z buffer
-    float furthestDepth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (boxUVs.xy + boxUVs.zw) * 0.5f, mip).x;
+    float furthestDepth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (minUV + maxUV) * 0.5f, mip).x;
  
     return (nearestZ >= furthestDepth);
 }

@@ -1,3 +1,4 @@
+• fix gpu occlusion flickering
 • fix all -Wconversion Shader warnings
 • Mesh LODs
     • generate using meshoptimizer

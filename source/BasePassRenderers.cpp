@@ -175,7 +175,6 @@ public:
         passParameters.m_Flags = flags;
         passParameters.m_HZBDimensions = HZBDims;
         passParameters.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
-		passParameters.m_MaxHZBMips = params.m_HZB ? params.m_HZB->getDesc().mipLevels : 0;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
