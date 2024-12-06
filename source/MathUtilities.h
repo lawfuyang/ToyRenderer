@@ -32,8 +32,8 @@ using AABB        = DirectX::BoundingBox;
 using OBB         = DirectX::BoundingOrientedBox;
 using Frustum     = DirectX::BoundingFrustum;
 
-#define KINDA_SMALL_NUMBER                   1e-4f
-#define KINDA_BIG_NUMBER                     1e10f
+constexpr float kKindaSmallNumber = 1e-4f;
+constexpr float kKindaBigNumber = 1e10f;
 
 inline Half ConvertFloatToHalf(float f) { return DirectX::PackedVector::XMConvertFloatToHalf(f); }
 inline float ConvertHalfToFloat(Half h) { return DirectX::PackedVector::XMConvertHalfToFloat(h); }

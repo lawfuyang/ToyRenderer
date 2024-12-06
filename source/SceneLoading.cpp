@@ -310,7 +310,7 @@ struct GLTFSceneLoader
             sceneMaterial.m_AlphaCutoff = gltfMaterial.alpha_cutoff;
 
             // todo: emissive
-            if (Vector3{ gltfMaterial.emissive_factor }.LengthSquared() > KINDA_SMALL_NUMBER)
+            if (Vector3{ gltfMaterial.emissive_factor }.LengthSquared() > kKindaSmallNumber)
             {
 				LOG_DEBUG("Unhandled emissive_factor: [%s][%f, %f, %f]", materialName, gltfMaterial.emissive_factor[0], gltfMaterial.emissive_factor[1], gltfMaterial.emissive_factor[2]);
             }
@@ -656,7 +656,7 @@ struct GLTFSceneLoader
                     scene->m_DirLightVec = -outWorldMatrix.Forward();
 
                     // Ensure the vector has valid length
-                    assert(scene->m_DirLightVec.LengthSquared() <= (1 + KINDA_SMALL_NUMBER));
+                    assert(scene->m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
 
                     // Step 1: Calculate m_SunInclination (phi)
                     scene->m_SunInclination = std::asin(scene->m_DirLightVec.y);  // Asin returns radians

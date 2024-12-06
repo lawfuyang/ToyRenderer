@@ -349,13 +349,6 @@ void Engine::UpdateIMGUI()
         ImGui::Text("\tGPU: [%.2f] ms", m_GPUTimeMs);
         ImGui::Text("\tFPS: [%.1f]", 1000.0f / std::max((float)m_CPUFrameTimeMs, m_GPUTimeMs));
 
-        extern CommandLineOption<bool> g_EnableD3DDebug;
-        if (g_EnableD3DDebug.Get())
-        {
-            ImGui::SameLine();
-            ImGui::Text("\tD3D12 DEBUG LAYER ENABLED!");
-        }
-
         ImGui::EndMainMenuBar();
     }
 }

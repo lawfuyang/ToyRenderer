@@ -10,6 +10,9 @@ static const uint32_t kNbGPUCullingBufferCounters = 2;
 static const uint32_t CullingFlag_FrustumCullingEnable = (1 << 0);
 static const uint32_t CullingFlag_OcclusionCullingEnable = (1 << 1);
 
+static const uint32_t InstanceVisibilityFlag_VisibleLastFrame = (1 << 0);
+static const uint32_t InstanceVisibilityFlag_VisibleThisFrame = (1 << 1);
+
 static const uint32_t kNbGPUCullingGroupThreads = 64;
 
 struct GPUCullingPassConstants
@@ -18,6 +21,7 @@ struct GPUCullingPassConstants
 	uint32_t m_Flags;
 	Vector2U m_HZBDimensions;
 	Matrix m_ViewProjMatrix;
+	uint32_t m_MaxHZBMips;
 };
 
 #endif

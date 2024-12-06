@@ -259,7 +259,7 @@ void Scene::UpdateMainViewCameraControls()
     if ((mouseButtonFlags & SDL_BUTTON_RMASK) && (g_Engine.m_MouseWheelY != 0.0f))
     {
         s_CameraMoveSpeed *= (g_Engine.m_MouseWheelY > 0.0f) ? 2.0f : 0.5f;
-        s_CameraMoveSpeed = std::max(KINDA_SMALL_NUMBER, s_CameraMoveSpeed);
+        s_CameraMoveSpeed = std::max(kKindaSmallNumber, s_CameraMoveSpeed);
         LOG_DEBUG("CameraMoveSpeed is now: %f", s_CameraMoveSpeed);
     }
 
@@ -341,14 +341,15 @@ void Scene::UpdateCSMViews()
         CSMView.m_LookAt = -m_DirLightVec;
         CSMView.m_ViewMatrix = Matrix::CreateLookAt(CSMView.m_Eye, CSMView.m_Eye + CSMView.m_LookAt, Vector3::Up);
 
-        float minX = KINDA_BIG_NUMBER;
-        float maxX = -KINDA_BIG_NUMBER;
-        float minY = KINDA_BIG_NUMBER;
-        float maxY = -KINDA_BIG_NUMBER;
-        float minZ = KINDA_BIG_NUMBER;
-        float maxZ = -KINDA_BIG_NUMBER;
+        float minX = kKindaBigNumber;
+        float maxX = -kKindaBigNumber;
+        float minY = kKindaBigNumber;
+        float maxY = -kKindaBigNumber;
+        float minZ = kKindaBigNumber;
+        float maxZ = -kKindaBigNumber;
         for (const Vector3& v : frustumCorners)
         {
+            // hack
             static const float kExpansionBuffer = 1.1f;
 
             const Vector3 trf = Vector3::Transform(v, CSMView.m_ViewMatrix);
@@ -463,7 +464,7 @@ void Scene::UpdateInstanceConstsBuffer()
         case AlphaMode::Mask:
             alphaMaskInstanceIDs.push_back(i);
             break;
-        case AlphaMode::Blend   :
+        case AlphaMode::Blend:
             transparentInstanceIDs.push_back(i);
             break;
         default:
@@ -660,7 +661,7 @@ void Scene::UpdateIMGUIPropertyGrid()
             const float sinphi = sinf(inclinationRadians);
             m_DirLightVec = Vector3{ costheta * cosphi, sinphi, sintheta * cosphi };
 
-            assert(m_DirLightVec.LengthSquared() <= (1 + KINDA_SMALL_NUMBER));
+            assert(m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
         }
 
         ImGui::InputFloat3("Directional Light Color", (float*)&m_DirLightColor, "%.1f");

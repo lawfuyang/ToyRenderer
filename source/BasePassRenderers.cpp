@@ -15,9 +15,7 @@
 #include "shaders/shared/MinMaxDownsampleStructs.h"
 
 static_assert(sizeof(DrawIndirectArguments) == sizeof(nvrhi::DrawIndirectArguments));
-static_assert(sizeof(DrawIndirectArguments) == sizeof(D3D12_DRAW_ARGUMENTS));
 static_assert(sizeof(DrawIndexedIndirectArguments) == sizeof(nvrhi::DrawIndexedIndirectArguments));
-static_assert(sizeof(DrawIndexedIndirectArguments) == sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
 
 static_assert(SamplerIdx_AnisotropicClamp == (int)nvrhi::SamplerAddressMode::Clamp);
 static_assert(SamplerIdx_AnisotropicWrap == (int)nvrhi::SamplerAddressMode::Wrap);
@@ -50,7 +48,6 @@ public:
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
         nvrhi::TextureHandle m_HZB;
-        nvrhi::BufferHandle m_InstanceLateVisibilityBuffer;
     };
 
     BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
@@ -178,9 +175,9 @@ public:
         passParameters.m_Flags = flags;
         passParameters.m_HZBDimensions = HZBDims;
         passParameters.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
+		passParameters.m_MaxHZBMips = params.m_HZB ? params.m_HZB->getDesc().mipLevels : 0;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
-        nvrhi::BufferHandle instanceLateVisibilityBuffer = params.m_InstanceLateVisibilityBuffer ? params.m_InstanceLateVisibilityBuffer : g_CommonResources.DummyUIntStructuredBuffer;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
@@ -194,8 +191,8 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(4, scene->m_InstanceVisibilityBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(5, instanceLateVisibilityBuffer),
-            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler),
+            nvrhi::BindingSetItem::Sampler(1, g_CommonResources.PointClampSampler)
         };
 
         const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d", bLateCull ? 1 : 0);
@@ -359,7 +356,6 @@ public:
 class GBufferRenderer : public BasePassRenderer
 {
 	RenderGraph::ResourceHandle m_HZBRDGTextureHandle;
-	RenderGraph::ResourceHandle m_LateVisibilityRDGBufferHandle;
 
 public:
     GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
@@ -418,13 +414,6 @@ public:
 			renderGraph.CreateTransientResource(m_HZBRDGTextureHandle, desc);
         }
 
-        {
-            nvrhi::BufferDesc desc = g_Graphic.m_Scene->m_InstanceVisibilityBuffer->getDesc();
-            desc.debugName = "Instance Late Visibility Buffer";
-
-            renderGraph.CreateTransientResource(m_LateVisibilityRDGBufferHandle, desc);
-        }
-
         return true;
     }
 
@@ -444,7 +433,6 @@ public:
         nvrhi::TextureHandle GBufferCTexture = renderGraph.GetTexture(g_GBufferCRDGTextureHandle);
         nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 		nvrhi::TextureHandle HZB = renderGraph.GetTexture(m_HZBRDGTextureHandle);
-		nvrhi::BufferHandle instanceLateVisibilityBuffer = renderGraph.GetBuffer(m_LateVisibilityRDGBufferHandle);
 
         nvrhi::FramebufferDesc frameBufferDesc;
         frameBufferDesc.addColorAttachment(GBufferATexture);
@@ -464,7 +452,6 @@ public:
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, Graphic::kFrontCCW ? g_CommonResources.CullClockwise : g_CommonResources.CullCounterClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
 		params.m_HZB = HZB;
-		params.m_InstanceLateVisibilityBuffer = instanceLateVisibilityBuffer;
 
         RenderBasePass(commandList, renderGraph, params);
 

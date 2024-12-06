@@ -19,12 +19,12 @@ RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
 RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u4);
-RWStructuredBuffer<uint> g_InstanceLateVisibilityBuffer : register(u5);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
+SamplerState g_PointClampSampler : register(s1);
 
 static const float kNearPlane = 0.1f;
 
-bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpaceAABB[8])
+bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpaceAABBCorners[8])
 {
     float3 ext = 2.0f * aabbExtents;
     float4x4 extentsBasis = float4x4(
@@ -64,19 +64,19 @@ bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpace
                         );
 
     // Clip space AABB
-    float3 csPos000 = pos000.xyz / pos000.w;
-    float3 csPos100 = pos100.xyz / pos100.w;
-    float3 csPos010 = pos010.xyz / pos010.w;
-    float3 csPos110 = pos110.xyz / pos110.w;
-    float3 csPos001 = pos001.xyz / pos001.w;
-    float3 csPos101 = pos101.xyz / pos101.w;
-    float3 csPos011 = pos011.xyz / pos011.w;
-    float3 csPos111 = pos111.xyz / pos111.w;
+    clipSpaceAABBCorners[0] = pos000.xyz / pos000.w;
+    clipSpaceAABBCorners[1] = pos100.xyz / pos100.w;
+    clipSpaceAABBCorners[2] = pos010.xyz / pos010.w;
+    clipSpaceAABBCorners[3] = pos110.xyz / pos110.w;
+    clipSpaceAABBCorners[4] = pos001.xyz / pos001.w;
+    clipSpaceAABBCorners[5] = pos101.xyz / pos101.w;
+    clipSpaceAABBCorners[6] = pos011.xyz / pos011.w;
+    clipSpaceAABBCorners[7] = pos111.xyz / pos111.w;
 
     float3 rectMax = Max3(
-                    Max3(csPos000, csPos100, csPos010),
-                    Max3(csPos110, csPos001, csPos101),
-                    Max3(csPos011, csPos111, float3(-1, -1, -1))
+                    Max3(clipSpaceAABBCorners[0], clipSpaceAABBCorners[1], clipSpaceAABBCorners[2]),
+                    Max3(clipSpaceAABBCorners[3], clipSpaceAABBCorners[4], clipSpaceAABBCorners[5]),
+                    Max3(clipSpaceAABBCorners[6], clipSpaceAABBCorners[7], float3(-1, -1, -1))
                     );
 
     bool bIsVisible = rectMax.z > 0;
@@ -91,21 +91,12 @@ bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpace
     }
 
     bIsVisible &= !any(planeMins > 0.0f);
-    
-    clipSpaceAABB[0] = csPos000;
-    clipSpaceAABB[1] = csPos100;
-    clipSpaceAABB[2] = csPos010;
-    clipSpaceAABB[3] = csPos110;
-    clipSpaceAABB[4] = csPos001;
-    clipSpaceAABB[5] = csPos101;
-    clipSpaceAABB[6] = csPos011;
-    clipSpaceAABB[7] = csPos111;
 
     return bIsVisible;
 }
 
 // https://blog.selfshadow.com/publications/practical-visibility/, modified for inversed depth buffer
-bool OcclusionCullAABB(float3 clipSpaceAABB[8])
+bool OcclusionCullAABB(float3 clipSpaceAABBCorners[8])
 {
     float nearestZ = 0.0f;
     float2 minUV = float2(1.0f, 1.0f);
@@ -114,13 +105,12 @@ bool OcclusionCullAABB(float3 clipSpaceAABB[8])
     [unroll]
     for (int i = 0; i < 8; i++)
     {
-        // transform world space aaBox to NDC
-        float3 clipPos = clipSpaceAABB[i];
-        clipPos.xy = ClipXYToUV(clipPos.xy);
+        float3 clipPos = clipSpaceAABBCorners[i];
+        clipPos.xy = ClipXYToUV(clamp(clipPos.xy, -1, 1));
  
         minUV = min(minUV, clipPos.xy);
         maxUV = max(maxUV, clipPos.xy);
-        nearestZ = max(nearestZ, clipPos.z);
+        nearestZ = saturate(max(nearestZ, clipPos.z));
     }
  
     float4 boxUVs = float4(minUV, maxUV);
@@ -129,17 +119,22 @@ bool OcclusionCullAABB(float3 clipSpaceAABB[8])
     int2 size = (maxUV - minUV) * g_GPUCullingPassConstants.m_HZBDimensions;
     float mip = ceil(log2(max(size.x, size.y)));
     
+    mip = clamp(mip, 0, g_GPUCullingPassConstants.m_MaxHZBMips);
+    
     // Texel footprint for the lower (finer-grained) level
-    float level_lower = max(mip - 1, 0);
-    float2 scale = exp2(-level_lower);
-    float2 a = floor(boxUVs.xy * scale);
-    float2 b = ceil(boxUVs.zw * scale);
-    float2 dims = b - a;
+    if (mip > 0)
+    {
+        float level_lower = mip - 1;
+        float2 scale = exp2(-level_lower);
+        float2 a = floor(boxUVs.xy * scale);
+        float2 b = ceil(boxUVs.zw * scale);
+        float2 dims = b - a;
  
-    // Use the lower level if we only touch <= 2 texels in both dimensions
-    if (dims.x <= 2 && dims.y <= 2)
-        mip = level_lower;
- 
+        // Use the lower level if we only touch <= 2 texels in both dimensions
+        if (dims.x <= 2 && dims.y <= 2)
+            mip = level_lower;
+    }
+    
     //load depths from high z buffer
     float furthestDepth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (boxUVs.xy + boxUVs.zw) * 0.5f, mip).x;
  
@@ -171,7 +166,7 @@ void CS_GPUCulling(
     }
     
     // in early pass, we have to *only* render clusters that were visible last frame, to build a reasonable depth pyramid out of visible triangles
-    if (bDoOcclusionCulling && g_InstanceVisibilityBuffer[instanceConstsIdx] == 0)
+    if (bDoOcclusionCulling && ((g_InstanceVisibilityBuffer[instanceConstsIdx] & InstanceVisibilityFlag_VisibleLastFrame) == 0))
     {
         return;
     }
@@ -181,27 +176,35 @@ void CS_GPUCulling(
     
     bool bIsVisible = true;
     
-    float3 clipSpaceAABB[8];
+    float3 clipSpaceAABBCorners[8];
+    bool bFrustumCullPassed = FrustumCullAABB(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, clipSpaceAABBCorners);
+    
     if (bDoFrustumCulling)
     {
-        bIsVisible = FrustumCullAABB(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, clipSpaceAABB);
-        //bIsVisible = FrustumCullAABB(instanceConsts.m_BoundingSphere.xyz, instanceConsts.m_BoundingSphere.www);
+        bIsVisible = bFrustumCullPassed;
     }
     
 #if LATE
     if (bIsVisible && bDoOcclusionCulling)
     {
-        bIsVisible = OcclusionCullAABB(clipSpaceAABB);
+        bIsVisible = OcclusionCullAABB(clipSpaceAABBCorners);
     }
     
     if (bDoOcclusionCulling)
     {
-        g_InstanceVisibilityBuffer[instanceConstsIdx] = bIsVisible;
+        if (bIsVisible)
+        {
+            InterlockedOr(g_InstanceVisibilityBuffer[instanceConstsIdx], InstanceVisibilityFlag_VisibleLastFrame);
+        }
+        else
+        {
+            InterlockedAnd(g_InstanceVisibilityBuffer[instanceConstsIdx], ~InstanceVisibilityFlag_VisibleLastFrame);
+        }
         
         // in late pass, we have to process objects visible last frame again (after rendering them in early pass)
         // in early pass, we render previously visible clusters
         // in late pass, we must invert the test to *not* render previously visible clusters of previously visible objects because they were rendered in early pass.
-        if (g_InstanceLateVisibilityBuffer[instanceConstsIdx] == 1)
+        if (g_InstanceVisibilityBuffer[instanceConstsIdx] & InstanceVisibilityFlag_VisibleThisFrame)
         {
             bIsVisible = false;
         }
@@ -209,7 +212,7 @@ void CS_GPUCulling(
 #else
     if (bDoOcclusionCulling)
     {
-        g_InstanceLateVisibilityBuffer[instanceConstsIdx] = bIsVisible;
+        InterlockedOr(g_InstanceVisibilityBuffer[instanceConstsIdx], InstanceVisibilityFlag_VisibleThisFrame);
     }
 #endif // LATE
     
