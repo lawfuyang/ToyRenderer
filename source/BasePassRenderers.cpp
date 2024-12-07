@@ -187,6 +187,8 @@ public:
         passParameters.m_ViewMatrix = view.m_ViewMatrix;
         passParameters.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
         passParameters.m_NearPlane = view.m_ZNearP;
+        passParameters.m_P00 = view.m_ProjectionMatrix.m[0][0];
+        passParameters.m_P11 = view.m_ProjectionMatrix.m[1][1];
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 

@@ -1,5 +1,5 @@
-• fix gpu occlusion flickering
 • fix all -Wconversion Shader warnings
+• fix inverted view-space Z coord
 • Mesh LODs
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph

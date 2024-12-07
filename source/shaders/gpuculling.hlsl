@@ -21,19 +21,78 @@ RWStructuredBuffer<uint> g_CullingCounters : register(u3);
 RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u4);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
+// occlusion culling with AABB is completely busted when an object is extremely near the camera
+// also, not exactly accurate for overly large objects.
+#define CULL_WITH_BS 1
+
+// Niagara's frustum culling
 bool FrustumCullBS(float3 sphereCenterViewSpace, float radius)
 {
     bool visible = true;
     
 	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-    visible &= sphereCenterViewSpace.z * g_GPUCullingPassConstants.m_Frustum.y - abs(sphereCenterViewSpace.x) * g_GPUCullingPassConstants.m_Frustum.x > -radius;
-    visible &= sphereCenterViewSpace.z * g_GPUCullingPassConstants.m_Frustum.w - abs(sphereCenterViewSpace.y) * g_GPUCullingPassConstants.m_Frustum.z > -radius;
+    visible &= sphereCenterViewSpace.z * g_GPUCullingPassConstants.m_Frustum.y + abs(sphereCenterViewSpace.x) * g_GPUCullingPassConstants.m_Frustum.x < radius;
+    visible &= sphereCenterViewSpace.z * g_GPUCullingPassConstants.m_Frustum.w + abs(sphereCenterViewSpace.y) * g_GPUCullingPassConstants.m_Frustum.z < radius;
     
 	// the near plane culling uses camera space Z directly
     // NOTE: this seems unnecessary?
     //visible &= (sphereCenterViewSpace.z - radius) < g_GPUCullingPassConstants.m_NearPlane;
     
     return visible;
+}
+
+// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
+bool OcclusionCullBS(float3 sphereCenterViewSpace, float radius)
+{
+    // NOTE: this seems unnecessary?
+#if 0
+    if (c.z - r < g_GPUCullingPassConstants.m_NearPlane)
+        return false;
+#endif
+    
+    float3 c = sphereCenterViewSpace;
+    
+    // trivially accept of sphere intersects camera near plane
+    if ((c.z - g_GPUCullingPassConstants.m_NearPlane) < radius)
+        return true;
+    
+    float r = radius;
+    float P00 = g_GPUCullingPassConstants.m_P00;
+    float P11 = g_GPUCullingPassConstants.m_P11;
+
+    float3 cr = c * r;
+    float czr2 = c.z * c.z - r * r;
+
+    float vx = sqrt(c.x * c.x + czr2);
+    float minx = (vx * c.x - cr.z) / (vx * c.z + cr.x);
+    float maxx = (vx * c.x + cr.z) / (vx * c.z - cr.x);
+
+    float vy = sqrt(c.y * c.y + czr2);
+    float miny = (vy * c.y - cr.z) / (vy * c.z + cr.y);
+    float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
+
+    float4 aabb = float4(minx * P00, miny * P11, maxx * P00, maxy * P11);
+    
+    // clip space -> uv space
+    aabb.xy = ClipXYToUV(aabb.xy);
+    aabb.zw = ClipXYToUV(aabb.zw);
+    
+    float width = (aabb.z - aabb.x) * g_GPUCullingPassConstants.m_HZBDimensions.x;
+    float height = (aabb.w - aabb.y) * g_GPUCullingPassConstants.m_HZBDimensions.y;
+
+    // Because we only consider 2x2 pixels, we need to make sure we are sampling from a mip that reduces the rectangle to 1x1 texel or smaller.
+    // Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area. Using floor() here would require sampling 4 corners
+    // of AABB (using bilinear fetch), which is a little slower.
+    float level = ceil(log2(max(width, height)));
+    
+    // don't bother sampling too high of a mip. 8x8 pixel blockers are fine-grained enough
+    level = max(level, 3.0f);
+
+    // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+    float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (aabb.xy + aabb.zw) * 0.5f, level).x;
+    float depthSphere = g_GPUCullingPassConstants.m_NearPlane / (c.z - r);
+
+    return depthSphere > depth;
 }
 
 bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpaceAABBCorners[8])
@@ -176,14 +235,14 @@ void CS_GPUCulling(
     
     bool bIsVisible = true;
     
-#if 0
+#if CULL_WITH_BS
+    float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
+    sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
+    bool bFrustumCullPassed = FrustumCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
+#else
     float3 clipSpaceAABBCorners[8];
     bool bFrustumCullPassed = FrustumCullAABB(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, clipSpaceAABBCorners);
 #endif
-    
-    //float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
-    float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
-    bool bFrustumCullPassed = FrustumCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
     
     if (bDoFrustumCulling)
     {
@@ -193,9 +252,11 @@ void CS_GPUCulling(
 #if LATE
     if (bIsVisible && bDoOcclusionCulling)
     {
-#if 0
-        //bIsVisible = OcclusionCullAABB(clipSpaceAABBCorners);
-#endif
+    #if CULL_WITH_BS
+        bIsVisible = OcclusionCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
+    #else
+        bIsVisible = OcclusionCullAABB(clipSpaceAABBCorners);
+    #endif
     }
     
     if (bDoOcclusionCulling)

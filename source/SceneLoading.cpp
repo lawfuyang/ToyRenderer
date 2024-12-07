@@ -224,7 +224,7 @@ struct GLTFSceneLoader
             taskflow.emplace([&, i]()
                 {
                     const cgltf_texture& texture = m_GLTFData->textures[i];
-                    const cgltf_image* image = texture.image;
+                    const cgltf_image* image = texture.has_basisu ? texture.basisu_image : texture.image;
                     assert(image);
 
                     const char* debugName = image->name ? image->name : "Un-Named Image";

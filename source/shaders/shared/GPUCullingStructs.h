@@ -24,6 +24,8 @@ struct GPUCullingPassConstants
 	Matrix m_ViewMatrix;
 	Matrix m_ViewProjMatrix;
 	float m_NearPlane;
+	float m_P00;
+    float m_P11;
 };
 
 #endif
