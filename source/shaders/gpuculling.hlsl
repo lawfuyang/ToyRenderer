@@ -21,6 +21,21 @@ RWStructuredBuffer<uint> g_CullingCounters : register(u3);
 RWStructuredBuffer<uint> g_InstanceVisibilityBuffer : register(u4);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
+bool FrustumCullBS(float3 sphereCenterViewSpace, float radius)
+{
+    bool visible = true;
+    
+	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
+    visible &= sphereCenterViewSpace.z * g_GPUCullingPassConstants.m_Frustum.y - abs(sphereCenterViewSpace.x) * g_GPUCullingPassConstants.m_Frustum.x > -radius;
+    visible &= sphereCenterViewSpace.z * g_GPUCullingPassConstants.m_Frustum.w - abs(sphereCenterViewSpace.y) * g_GPUCullingPassConstants.m_Frustum.z > -radius;
+    
+	// the near plane culling uses camera space Z directly
+    // NOTE: this seems unnecessary?
+    //visible &= (sphereCenterViewSpace.z - radius) < g_GPUCullingPassConstants.m_NearPlane;
+    
+    return visible;
+}
+
 bool FrustumCullAABB(float3 aabbCenter, float3 aabbExtents, out float3 clipSpaceAABBCorners[8])
 {
     float3 ext = 2.0f * aabbExtents;
@@ -161,8 +176,14 @@ void CS_GPUCulling(
     
     bool bIsVisible = true;
     
+#if 0
     float3 clipSpaceAABBCorners[8];
     bool bFrustumCullPassed = FrustumCullAABB(instanceConsts.m_AABBCenter, instanceConsts.m_AABBExtents, clipSpaceAABBCorners);
+#endif
+    
+    //float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
+    float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
+    bool bFrustumCullPassed = FrustumCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
     
     if (bDoFrustumCulling)
     {
@@ -172,7 +193,9 @@ void CS_GPUCulling(
 #if LATE
     if (bIsVisible && bDoOcclusionCulling)
     {
-        bIsVisible = OcclusionCullAABB(clipSpaceAABBCorners);
+#if 0
+        //bIsVisible = OcclusionCullAABB(clipSpaceAABBCorners);
+#endif
     }
     
     if (bDoOcclusionCulling)

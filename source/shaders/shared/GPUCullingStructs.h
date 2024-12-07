@@ -20,7 +20,10 @@ struct GPUCullingPassConstants
 	uint32_t m_NbInstances;
 	uint32_t m_Flags;
 	Vector2U m_HZBDimensions;
+	Vector4 m_Frustum;
+	Matrix m_ViewMatrix;
 	Matrix m_ViewProjMatrix;
+	float m_NearPlane;
 };
 
 #endif

@@ -170,11 +170,23 @@ public:
             HZBDims = Vector2U{ params.m_HZB->getDesc().width, params.m_HZB->getDesc().height };
         }
 
+        Matrix projectionT = view.m_ProjectionMatrix.Transpose();
+        Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
+        Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
+        frustumX.Normalize();
+        frustumY.Normalize();
+
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
         passParameters.m_Flags = flags;
+        passParameters.m_Frustum.x = frustumX.x;
+        passParameters.m_Frustum.y = frustumX.z;
+        passParameters.m_Frustum.z = frustumY.y;
+        passParameters.m_Frustum.w = frustumY.z;
         passParameters.m_HZBDimensions = HZBDims;
+        passParameters.m_ViewMatrix = view.m_ViewMatrix;
         passParameters.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
+        passParameters.m_NearPlane = view.m_ZNearP;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
