@@ -179,19 +179,6 @@ void RenderGraph::DrawIMGUI()
         }
         ImGui::End();
     }
-
-	static bool s_ShowResourceUsageWindow = false;
-	if (ImGui::Button("Show Resource Usage Window"))
-	{
-		s_ShowResourceUsageWindow = !s_ShowResourceUsageWindow;
-	}
-
-	if (s_ShowResourceUsageWindow && ImGui::Begin("Resource Usage Window"))
-	{
-
-
-		ImGui::End();
-	}
 }
 
 void RenderGraph::Compile()
