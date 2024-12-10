@@ -62,21 +62,12 @@ void RenderGraph::PostRender()
 {
 	PROFILE_FUNCTION();
 
-	// cache resource for reuse in next frame
-	for (const Resource& resource : m_Resources)
-	{
-		assert(resource.m_Resource);
-		if (resource.m_Type == Resource::Type::Buffer)
-		{
-			nvrhi::BufferHandle buffer = (nvrhi::IBuffer*)resource.m_Resource.Get();
-			const std::size_t bufferDescHash = HashBufferDesc(buffer->getDesc());
-			m_CachedBuffers[bufferDescHash].push_back(buffer);
-		}
-	}
-
 	// cache heaps for reuse in next frame
 	m_FreeHeaps.insert(m_FreeHeaps.end(), m_UsedHeaps.begin(), m_UsedHeaps.end());
 	m_UsedHeaps.clear();
+
+	// sort so that resources can get tightest fit heap
+	std::sort(m_FreeHeaps.begin(), m_FreeHeaps.end(), [](const nvrhi::HeapHandle& lhs, const nvrhi::HeapHandle& rhs) { return lhs->getDesc().capacity < rhs->getDesc().capacity; });
 
 	gs_RenderGraphIMGUIData.m_Passes.clear();
 	gs_RenderGraphIMGUIData.m_Resources.clear();
@@ -270,49 +261,26 @@ void RenderGraph::Compile()
 		}
 		else
 		{
-		#if 1
-			const nvrhi::BufferDesc& desc = m_BufferCreationDescs.at(resource.m_DescIdx);
-
-			// check if resource is cached
-			if (auto it = m_CachedBuffers.find(HashBufferDesc(desc));
-				it != m_CachedBuffers.end())
-			{
-				std::vector<nvrhi::BufferHandle>& bufferCache = it->second;
-				resource.m_Resource = bufferCache.back();
-				bufferCache.pop_back();
-			}
-			else
-			{
-				resource.m_Resource = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-			}
-
-			Graphic::UpdateResourceDebugName(resource.m_Resource, desc.debugName);
-
-			continue;
-		#else
 			nvrhi::BufferDesc descCopy = m_BufferCreationDescs.at(resource.m_DescIdx);
 			descCopy.isVirtual = true;
 			resource.m_Resource = device->createBuffer(descCopy);
 
 			memReq = device->getBufferMemoryRequirements((nvrhi::IBuffer*)resource.m_Resource.Get());
-		#endif
 		}
 
 		nvrhi::HeapHandle heapToUse;
 
 		// find a heap that can fit the resource
-		for (nvrhi::HeapHandle& heap : m_FreeHeaps)
+		for (auto it = m_FreeHeaps.begin(); it != m_FreeHeaps.end(); ++it)
 		{
-			const nvrhi::HeapDesc& heapDesc = heap->getDesc();
+			const nvrhi::HeapHandle& heap = *it;
 
-			if (heapDesc.capacity >= memReq.size)
+			if (heap->getDesc().capacity >= memReq.size)
 			{
 				heapToUse = heap;
 
-				// remove heap from free list
-				std::swap(m_FreeHeaps.back(), heap);
-				m_FreeHeaps.pop_back();
-
+				// remove heap from free list. NOTE: keep it sorted by using 'erase'
+				m_FreeHeaps.erase(it);
 				break;
 			}
 		}
@@ -320,9 +288,8 @@ void RenderGraph::Compile()
 		// create a new heap if none found
 		if (!heapToUse)
 		{
-			heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq.size, nvrhi::HeapType::DeviceLocal, "RDG Heap " });
-
-			LOG_DEBUG("New RDG Heap: %d bytes", memReq.size);
+			heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq.size, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
+			//LOG_DEBUG("New RDG Heap: %d bytes", memReq.size);
 		}
 
 		m_UsedHeaps.push_back(heapToUse);
@@ -333,7 +300,6 @@ void RenderGraph::Compile()
 
 			device->bindTextureMemory(textureResource, heapToUse, 0);
 			Graphic::UpdateResourceDebugName(textureResource, textureResource->getDesc().debugName);
-			
 		}
 		else
 		{

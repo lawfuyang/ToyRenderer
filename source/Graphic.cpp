@@ -288,6 +288,7 @@ void Graphic::InitDevice()
 
                 D3D12_MESSAGE_ID denyIds[] =
                 {
+                    D3D12_MESSAGE_ID_HEAP_ADDRESS_RANGE_INTERSECTS_MULTIPLE_BUFFERS,
                     // D3D12 complains when a buffer is created with a specific initial resource state while all buffers are currently created in COMMON state.
                     // The next transition is then done use state promotion. It's just a warning and we need to keep track of the correct initial state as well for upcoming internal transitions.
                     D3D12_MESSAGE_ID_CREATERESOURCE_STATE_IGNORED
