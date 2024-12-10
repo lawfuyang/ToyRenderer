@@ -1,7 +1,6 @@
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
-• pack occlusion culling bits
-	use groupshared memory
+• occlusion visibility persistence *without* using bitwise storage (prev viewProj against HZB)
 • Mesh LODs
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph

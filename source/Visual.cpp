@@ -1,6 +1,6 @@
 #include "Visual.h"
 
-#include "nvrhi/utils.h"
+#include "extern/meshoptimizer/src/meshoptimizer.h"
 
 #include "DescriptorTableManager.h"
 #include "Engine.h"
@@ -113,7 +113,35 @@ void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const
     Sphere::CreateFromPoints(m_BoundingSphere, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
     AABB::CreateFromPoints(m_AABB, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
 
-    LOG_DEBUG("New Mesh: [%s][V: %d][I: %d]", meshName.data(), vertices.size(), indices.size());
+    std::vector<meshopt_Meshlet> meshlets;
+    std::vector<unsigned int> meshletVertices;
+    std::vector<unsigned char> meshletTriangles;
+
+    const uint32_t numMaxMeshlets = meshopt_buildMeshletsBound(indices.size(), kMeshletMaxVertices, kMeshletMaxTriangles);
+    meshlets.resize(numMaxMeshlets);
+    meshletVertices.resize(numMaxMeshlets * kMeshletMaxVertices);
+    meshletTriangles.resize(numMaxMeshlets * kMeshletMaxTriangles * 3);
+
+    const float kMeshletConeWeight = 0.25f;
+    const uint32_t numMeshlets = meshopt_buildMeshlets(
+        meshlets.data(),
+        meshletVertices.data(),
+        meshletTriangles.data(),
+        indices.data(),
+        indices.size(),
+        (const float*)vertices.data(),
+        vertices.size(),
+        sizeof(RawVertexFormat),
+        kMeshletMaxVertices,
+        kMeshletMaxTriangles,
+        kMeshletConeWeight);
+
+    for (const meshopt_Meshlet& meshlet : meshlets)
+    {
+        meshopt_optimizeMeshlet(&meshletVertices[meshlet.vertex_offset], &meshletTriangles[meshlet.triangle_offset], meshlet.triangle_count, meshlet.vertex_count);
+    }
+
+    LOG_DEBUG("New Mesh: [%s][V: %d][I: %d][numMeshlets: %d]", meshName.data(), vertices.size(), indices.size(), numMeshlets);
 }
 
 bool Mesh::IsValid() const

@@ -3,6 +3,10 @@
 
 #include "StructsCommon.h"
 
+// Maximum number of vertices and triangles in a meshlet
+static const uint32_t kMeshletMaxVertices = 64;
+static const uint32_t kMeshletMaxTriangles = 96;
+
 struct MeshData
 {
 	uint32_t m_IndexCount;
