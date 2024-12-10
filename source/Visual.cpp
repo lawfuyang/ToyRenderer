@@ -71,7 +71,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     // NOTE: fills each array slice with the same exact src data bytes
     for (uint32_t arraySlice = 0; arraySlice < textureDesc.arraySize; arraySlice++)
     {
-        commandList->writeTexture(newTexture, arraySlice, 0, rawData, textureDesc.width * BytesPerPixel(textureDesc.format));
+        commandList->writeTexture(newTexture, arraySlice, 0, rawData, textureDesc.width * nvrhi::getFormatInfo(textureDesc.format).bytesPerBlock);
     }
 
     commandList->setPermanentTextureState(newTexture, textureDesc.isUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource);

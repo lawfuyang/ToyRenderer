@@ -63,7 +63,7 @@ public:
 
 		m_HilbertLUT = device->createTexture(desc);
 
-		commandList->writeTexture(m_HilbertLUT, 0, 0, data.data(), kTexDim * BytesPerPixel(desc.format));
+		commandList->writeTexture(m_HilbertLUT, 0, 0, data.data(), kTexDim * nvrhi::getFormatInfo(desc.format).bytesPerBlock);
 		commandList->setPermanentTextureState(m_HilbertLUT, nvrhi::ResourceStates::ShaderResource);
 		commandList->commitBarriers();
 	}

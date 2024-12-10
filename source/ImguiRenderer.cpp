@@ -162,7 +162,7 @@ public:
         drawState.indexBuffer.format = nvrhi::Format::R16_UINT;
         drawState.indexBuffer.offset = 0;
 
-        assert(BytesPerPixel(drawState.indexBuffer.format) == sizeof(ImDrawIdx));
+        assert(nvrhi::getFormatInfo(drawState.indexBuffer.format).bytesPerBlock == sizeof(ImDrawIdx));
 
         // PSO
         nvrhi::GraphicsPipelineDesc PSODesc;

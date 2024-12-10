@@ -63,5 +63,10 @@ constexpr uint32_t DivideAndRoundUp(uint32_t Dividend, uint32_t Divisor)
     return (Dividend + Divisor - 1) / Divisor;
 }
 
+constexpr uint32_t AlignUp(uint32_t value, uint32_t alignment)
+{
+    return (value + (alignment - 1)) & ~(alignment - 1);
+}
+
 void ModifyPerspectiveMatrix(Matrix& mat, float nearPlane, float farPlane, bool bReverseZ, bool bInfiniteZ);
 Vector2 ProjectWorldPositionToViewport(const Vector3& worldPos, const Matrix& viewProjMatrix, const Vector2U& viewportDim);

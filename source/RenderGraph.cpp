@@ -39,6 +39,25 @@ void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
 	m_CommandListQueueTasks.clear();
 }
 
+std::size_t HashBufferDesc(const nvrhi::BufferDesc& desc)
+{
+	std::size_t seed = 0;
+	HashCombine(seed, desc.byteSize);
+	HashCombine(seed, desc.structStride);
+	HashCombine(seed, desc.format);
+	HashCombine(seed, desc.canHaveUAVs);
+	HashCombine(seed, desc.canHaveTypedViews);
+	HashCombine(seed, desc.canHaveRawViews);
+	HashCombine(seed, desc.isVertexBuffer);
+	HashCombine(seed, desc.isIndexBuffer);
+	HashCombine(seed, desc.isConstantBuffer);
+	HashCombine(seed, desc.isDrawIndirectArgs);
+	HashCombine(seed, desc.isAccelStructBuildInput);
+	HashCombine(seed, desc.isAccelStructStorage);
+	HashCombine(seed, desc.isShaderBindingTable);
+	return seed;
+}
+
 void RenderGraph::PostRender()
 {
 	PROFILE_FUNCTION();
@@ -47,19 +66,17 @@ void RenderGraph::PostRender()
 	for (const Resource& resource : m_Resources)
 	{
 		assert(resource.m_Resource);
-		if (resource.m_Type == Resource::Type::Texture)
-		{
-			nvrhi::TextureHandle texture = (nvrhi::ITexture*)resource.m_Resource.Get();
-			const std::size_t textureDescHash = HashResourceDesc(texture->getDesc());
-			m_CachedTextures[textureDescHash].push_back(texture);
-		}
-		else
+		if (resource.m_Type == Resource::Type::Buffer)
 		{
 			nvrhi::BufferHandle buffer = (nvrhi::IBuffer*)resource.m_Resource.Get();
-			const std::size_t bufferDescHash = HashResourceDesc(buffer->getDesc());
+			const std::size_t bufferDescHash = HashBufferDesc(buffer->getDesc());
 			m_CachedBuffers[bufferDescHash].push_back(buffer);
 		}
 	}
+
+	// cache heaps for reuse in next frame
+	m_FreeHeaps.insert(m_FreeHeaps.end(), m_UsedHeaps.begin(), m_UsedHeaps.end());
+	m_UsedHeaps.clear();
 
 	gs_RenderGraphIMGUIData.m_Passes.clear();
 	gs_RenderGraphIMGUIData.m_Resources.clear();
@@ -233,57 +250,99 @@ void RenderGraph::Compile()
 		}
 	}
 
+	nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
 	// allocate resources
 	for (Resource& resource : m_Resources)
-    {
+	{
 		assert(resource.m_DescIdx != -1);
 
-		const char* resourceDebugName = "";
+		const bool bIsTexture = resource.m_Type == Resource::Type::Texture;
+		nvrhi::MemoryRequirements memReq;
 
-		if (resource.m_Type == Resource::Type::Texture)
+		if (bIsTexture)
 		{
-			const nvrhi::TextureDesc& desc = m_TextureCreationDescs.at(resource.m_DescIdx);
-			resourceDebugName = desc.debugName.c_str();
+			nvrhi::TextureDesc descCopy = m_TextureCreationDescs.at(resource.m_DescIdx);
+			descCopy.isVirtual = true;
+			resource.m_Resource = device->createTexture(descCopy);
 
-			const std::size_t textureDescHash = HashResourceDesc(desc);
-
-			// check if resource is cached
-			if (auto it = m_CachedTextures.find(textureDescHash); 
-				it != m_CachedTextures.end())
-			{
-				std::vector<nvrhi::TextureHandle>& textureCache = it->second;
-				resource.m_Resource = textureCache.back();
-				textureCache.pop_back();
-			}
-			else
-			{
-				resource.m_Resource = g_Graphic.m_NVRHIDevice->createTexture(desc);
-			}
+			memReq = device->getTextureMemoryRequirements((nvrhi::ITexture*)resource.m_Resource.Get());
 		}
 		else
 		{
+		#if 1
 			const nvrhi::BufferDesc& desc = m_BufferCreationDescs.at(resource.m_DescIdx);
-			resourceDebugName = desc.debugName.c_str();
 
-            const std::size_t bufferDescHash = HashResourceDesc(desc);
-
-            // check if resource is cached
-            if (auto it = m_CachedBuffers.find(bufferDescHash); 
+			// check if resource is cached
+			if (auto it = m_CachedBuffers.find(HashBufferDesc(desc));
 				it != m_CachedBuffers.end())
-            {
+			{
 				std::vector<nvrhi::BufferHandle>& bufferCache = it->second;
-                resource.m_Resource = bufferCache.back();
-                bufferCache.pop_back();
-            }
-            else
-            {
-                resource.m_Resource = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-            }
+				resource.m_Resource = bufferCache.back();
+				bufferCache.pop_back();
+			}
+			else
+			{
+				resource.m_Resource = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+			}
+
+			Graphic::UpdateResourceDebugName(resource.m_Resource, desc.debugName);
+
+			continue;
+		#else
+			nvrhi::BufferDesc descCopy = m_BufferCreationDescs.at(resource.m_DescIdx);
+			descCopy.isVirtual = true;
+			resource.m_Resource = device->createBuffer(descCopy);
+
+			memReq = device->getBufferMemoryRequirements((nvrhi::IBuffer*)resource.m_Resource.Get());
+		#endif
 		}
 
-		// set resource debug name to desc debug name
-		Graphic::UpdateResourceDebugName(resource.m_Resource, resourceDebugName);
-    }
+		nvrhi::HeapHandle heapToUse;
+
+		// find a heap that can fit the resource
+		for (nvrhi::HeapHandle& heap : m_FreeHeaps)
+		{
+			const nvrhi::HeapDesc& heapDesc = heap->getDesc();
+
+			if (heapDesc.capacity >= memReq.size)
+			{
+				heapToUse = heap;
+
+				// remove heap from free list
+				std::swap(m_FreeHeaps.back(), heap);
+				m_FreeHeaps.pop_back();
+
+				break;
+			}
+		}
+
+		// create a new heap if none found
+		if (!heapToUse)
+		{
+			heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq.size, nvrhi::HeapType::DeviceLocal, "RDG Heap " });
+
+			LOG_DEBUG("New RDG Heap: %d bytes", memReq.size);
+		}
+
+		m_UsedHeaps.push_back(heapToUse);
+
+		if (bIsTexture)
+		{
+			nvrhi::TextureHandle textureResource = (nvrhi::ITexture*)resource.m_Resource.Get();
+
+			device->bindTextureMemory(textureResource, heapToUse, 0);
+			Graphic::UpdateResourceDebugName(textureResource, textureResource->getDesc().debugName);
+			
+		}
+		else
+		{
+			nvrhi::BufferHandle bufferResource = (nvrhi::IBuffer*)resource.m_Resource.Get();
+
+			device->bindBufferMemory(bufferResource, heapToUse, 0);
+			Graphic::UpdateResourceDebugName(bufferResource, bufferResource->getDesc().debugName);
+		}
+	}
 }
 
 void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)

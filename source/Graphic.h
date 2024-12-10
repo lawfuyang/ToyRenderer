@@ -308,10 +308,11 @@ namespace ComputeShaderUtils
     constexpr Vector3U GetGroupCount(Vector3U ThreadCount, Vector3U GroupSize) { return Vector3U{ DivideAndRoundUp(ThreadCount.x, GroupSize.x), DivideAndRoundUp(ThreadCount.y, GroupSize.y), DivideAndRoundUp(ThreadCount.z, GroupSize.z) }; }
 }
 
-uint32_t ComputeNbMips(uint32_t width, uint32_t height);
-uint32_t BytesPerPixel(nvrhi::Format Format);
-std::size_t HashResourceDesc(const nvrhi::TextureDesc& desc);
-std::size_t HashResourceDesc(const nvrhi::BufferDesc& desc);
+constexpr uint32_t ComputeNbMips(uint32_t width, uint32_t height)
+{
+	const uint32_t resolution = std::max(width, height);
+	return resolution == 1 ? 1 : (uint32_t)std::floor(std::log2(resolution));
+}
 
 #define PROFILE_GPU_SCOPED(cmdList, NAME) \
     const ScopedCommandListMarker GENERATE_UNIQUE_VARIABLE(ScopedCommandListMarker) { cmdList, NAME }; \

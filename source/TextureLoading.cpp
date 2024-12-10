@@ -258,7 +258,7 @@ nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle comman
     nvrhi::TextureHandle newTexture = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
 
     const uint32_t bytesPerPixel = channels * (bIsHDR ? 4 : 1);
-    const uint32_t bytesPerPixelCheck = BytesPerPixel(format);
+    const uint32_t bytesPerPixelCheck = nvrhi::getFormatInfo(format).bytesPerBlock;
     assert(bytesPerPixel == bytesPerPixelCheck);
 
     commandList->writeTexture(newTexture, 0, 0, bitmap, static_cast<size_t>(width * bytesPerPixel), 0);

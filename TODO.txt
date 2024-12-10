@@ -6,8 +6,7 @@
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
 	• Transient resource allocation
-		• Validation of resource dependencies
-		• Resource pooling
+        • linear allocator for offsets within heaps
 	• Culling of unused resources and passes in the graph
 	• Visualization of the graph structure and memory lifetimes
 	• Resource States handling 

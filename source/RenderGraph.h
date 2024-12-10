@@ -86,8 +86,11 @@ private:
 	std::vector<nvrhi::TextureDesc> m_TextureCreationDescs;
 	std::vector<nvrhi::BufferDesc> m_BufferCreationDescs;
 	std::vector<ResourceHandle*> m_ResourceHandles;
-	std::unordered_map<std::size_t, std::vector<nvrhi::TextureHandle>> m_CachedTextures;
+
 	std::unordered_map<std::size_t, std::vector<nvrhi::BufferHandle>> m_CachedBuffers;
+
+	std::vector<nvrhi::HeapHandle> m_FreeHeaps;
+	std::vector<nvrhi::HeapHandle> m_UsedHeaps;
 
 	Phase m_CurrentPhase = Phase::Setup;
 };
