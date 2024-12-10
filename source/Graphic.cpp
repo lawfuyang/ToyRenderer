@@ -1,6 +1,5 @@
 #include "Graphic.h"
 
-#include "extern/basis_universal/transcoder/basisu_transcoder.h"
 #include "extern/cxxopts/include/cxxopts.hpp"
 #include "extern/nvrhi/include/nvrhi/d3d12.h"
 #include "extern/nvrhi/include/nvrhi/validation.h"
@@ -790,7 +789,6 @@ void Graphic::Initialize()
     {
         tf::Taskflow tf;
         tf.emplace([this] { InitDevice(); });
-        tf.emplace([this] { PROFILE_SCOPED("basisu_transcoder_init"); basist::basisu_transcoder_init(); });
 
         g_Engine.m_Executor->corun(tf);
     }

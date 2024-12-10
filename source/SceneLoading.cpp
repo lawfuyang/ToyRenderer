@@ -2,6 +2,7 @@
 #define CGLTF_IMPLEMENTATION
 #include "extern/cgltf/cgltf.h"
 
+#include "extern/basis_universal/transcoder/basisu_transcoder.h"
 #include "extern/meshoptimizer/src/meshoptimizer.h"
 
 #include "CommonResources.h"
@@ -62,6 +63,11 @@ struct GLTFSceneLoader
                 {
                     assert(0);
                 }
+
+				if (strcmp(m_GLTFData->extensions_used[i], "KHR_texture_basisu") == 0)
+				{
+                    basist::basisu_transcoder_init();
+				}
             }
         }
 
