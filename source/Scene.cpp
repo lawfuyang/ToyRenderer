@@ -210,6 +210,7 @@ void Scene::Initialize()
     m_DeferredLightingTileRenderingHelper.Initialize(g_Graphic.m_RenderResolution, Tile_ID_Count);
 
     m_RenderGraph = std::make_shared<RenderGraph>();
+    m_RenderGraph->Initialize();
 
     CalculateCSMSplitDistances();
 }

@@ -5,11 +5,9 @@
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
 	• Culling of unused resources and passes in the graph
-	• Visualization of the graph structure and memory lifetimes
-	• Resource States handling 
+	• Resource States handling
 		• disable 'keepInitialState' in nvrhi Texture & Buffer Descs, & 'setEnableAutomaticBarriers' to false for command lists in IRenderers
 	• Resource Aliasing
-		• requires custom memory management of nvrhi::HeapHandle, & usage of bindTextureMemory & bindBufferMemory
 		• resource lifetime management & tracking
 	• Scheduling of asynchronous compute fences
 • Packed GBuffer: https://docs.google.com/presentation/d/1kaeg2qMi3_8nQqoR3Y2Ax9fJKUYLigPLPfdjfuEGowY/edit#slide=id.g27be1a2457b_0_128
