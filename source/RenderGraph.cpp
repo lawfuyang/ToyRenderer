@@ -1,10 +1,7 @@
 #include "RenderGraph.h"
 
-#include "extern/imgui/imgui.h"
-
 #include "Engine.h"
 #include "Graphic.h"
-#include "GraphicPropertyGrid.h"
 #include "Scene.h"
 
 // NOTE: jank solution to access the correct ResourceAccess array index via PassID of the currently executing thread
@@ -89,21 +86,22 @@ void RenderGraph::Compile()
 
 	nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
+	tf::Taskflow tf;
+
 	// allocate resources
 	for (Resource& resource : m_Resources)
 	{
 		assert(resource.m_DescIdx != -1);
 
-		const bool bIsTexture = resource.m_Type == Resource::Type::Texture;
-		nvrhi::MemoryRequirements memReq;
+		uint64_t memReq = 0;
 
-		if (bIsTexture)
+		if (resource.m_Type == Resource::Type::Texture)
 		{
 			nvrhi::TextureDesc descCopy = m_TextureCreationDescs.at(resource.m_DescIdx);
 			descCopy.isVirtual = true;
 			resource.m_Resource = device->createTexture(descCopy);
 
-			memReq = device->getTextureMemoryRequirements((nvrhi::ITexture*)resource.m_Resource.Get());
+			memReq = device->getTextureMemoryRequirements((nvrhi::ITexture*)resource.m_Resource.Get()).size;
 		}
 		else
 		{
@@ -111,8 +109,10 @@ void RenderGraph::Compile()
 			descCopy.isVirtual = true;
 			resource.m_Resource = device->createBuffer(descCopy);
 
-			memReq = device->getBufferMemoryRequirements((nvrhi::IBuffer*)resource.m_Resource.Get());
+			memReq = device->getBufferMemoryRequirements((nvrhi::IBuffer*)resource.m_Resource.Get()).size;
 		}
+
+		assert(memReq != 0);
 
 		nvrhi::HeapHandle heapToUse;
 
@@ -121,7 +121,7 @@ void RenderGraph::Compile()
 		{
 			const nvrhi::HeapHandle& heap = *it;
 
-			if (heap->getDesc().capacity >= memReq.size)
+			if (heap->getDesc().capacity >= memReq)
 			{
 				heapToUse = heap;
 
@@ -134,10 +134,7 @@ void RenderGraph::Compile()
 		// create a new heap if none found
 		if (!heapToUse)
 		{
-			// sanity check for alignment
-			assert(memReq.size % memReq.alignment == 0);
-
-			heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq.size, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
+			heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
 			//LOG_DEBUG("New RDG Heap: bytes: %d, alignment: %d", memReq.size, memReq.alignment);
 		}
 
@@ -146,21 +143,28 @@ void RenderGraph::Compile()
 		const uint32_t idx = g_Graphic.m_FrameCounter % 2;
 		m_UsedHeaps[idx].push_back(heapToUse);
 
-		if (bIsTexture)
+		tf.emplace([resource, heapToUse] ()
 		{
-			nvrhi::TextureHandle textureResource = (nvrhi::ITexture*)resource.m_Resource.Get();
+			PROFILE_SCOPED("Bind Resource Memory");
 
-			verify(device->bindTextureMemory(textureResource, heapToUse, 0));
-			Graphic::UpdateResourceDebugName(textureResource, textureResource->getDesc().debugName);
-		}
-		else
-		{
-			nvrhi::BufferHandle bufferResource = (nvrhi::IBuffer*)resource.m_Resource.Get();
+			if (resource.m_Type == Resource::Type::Texture)
+			{
+				nvrhi::TextureHandle textureResource = (nvrhi::ITexture*)resource.m_Resource.Get();
 
-			verify(device->bindBufferMemory(bufferResource, heapToUse, 0));
-			Graphic::UpdateResourceDebugName(bufferResource, bufferResource->getDesc().debugName);
-		}
+				verify(g_Graphic.m_NVRHIDevice->bindTextureMemory(textureResource, heapToUse, 0));
+				Graphic::UpdateResourceDebugName(textureResource, textureResource->getDesc().debugName);
+			}
+			else
+			{
+				nvrhi::BufferHandle bufferResource = (nvrhi::IBuffer*)resource.m_Resource.Get();
+
+				verify(g_Graphic.m_NVRHIDevice->bindBufferMemory(bufferResource, heapToUse, 0));
+				Graphic::UpdateResourceDebugName(bufferResource, bufferResource->getDesc().debugName);
+			}
+		});
 	}
+
+	g_Engine.m_Executor->corun(tf);
 }
 
 void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
