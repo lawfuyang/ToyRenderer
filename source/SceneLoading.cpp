@@ -684,7 +684,7 @@ struct GLTFSceneLoader
                 newNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[i]));
             }
 
-			LOG_DEBUG("New Node: [%s]", node.name ? node.name : "Un-named Node");
+			//LOG_DEBUG("New Node: [%s]", node.name ? node.name : "Un-named Node");
         }
     }
 
