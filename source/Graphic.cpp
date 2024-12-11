@@ -218,6 +218,8 @@ void Graphic::InitDevice()
         ComPtr<ID3D12CommandQueue> outQueue;
         HRESULT_CALL(m_D3DDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&outQueue)));
 
+        HRESULT_CALL(outQueue->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(queueName), queueName));
+
         m_GPUQueueLogs[(uint32_t)queue] = MicroProfileInitGpuQueue(queueName);
 
         return outQueue;
