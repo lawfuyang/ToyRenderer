@@ -48,7 +48,7 @@ void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_
     m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
 
     const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
-    LOG_DEBUG("New Texture: [%s][%d x %d][%s]", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
+    LOG_DEBUG("New Texture: %s, %d x %d, %s", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
 }
 
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)
@@ -141,7 +141,7 @@ void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const
         meshopt_optimizeMeshlet(&meshletVertices[meshlet.vertex_offset], &meshletTriangles[meshlet.triangle_offset], meshlet.triangle_count, meshlet.vertex_count);
     }
 
-    LOG_DEBUG("New Mesh: [%s][V: %d][I: %d][numMeshlets: %d]", meshName.data(), vertices.size(), indices.size(), numMeshlets);
+    LOG_DEBUG("New Mesh: %s, vertices: %d, indices: %d, numMeshlets: %d", meshName.data(), vertices.size(), indices.size(), numMeshlets);
 }
 
 bool Mesh::IsValid() const
