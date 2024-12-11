@@ -214,13 +214,6 @@ void Scene::Initialize()
     CalculateCSMSplitDistances();
 }
 
-void Scene::PostRender()
-{
-    PROFILE_FUNCTION();
-
-    m_RenderGraph->PostRender();
-}
-
 void Scene::SetCamera(uint32_t idx)
 {
     const Camera& camera = m_Cameras.at(idx);

@@ -925,8 +925,6 @@ void Graphic::Update()
     // MT execute all graphic update tasks
     g_Engine.m_Executor->corun(tf);
 
-    m_Scene->PostRender();
-
     {
         PROFILE_SCOPED("End Frame Timer Query");
 

@@ -73,7 +73,6 @@ public:
     void UpdateIMGUIPropertyGrid();
     void OnSceneLoad();
     void CalculateCSMSplitDistances();
-    void PostRender();
     void SetCamera(uint32_t idx);
 
     std::shared_ptr<RenderGraph> m_RenderGraph;

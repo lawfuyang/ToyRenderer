@@ -10,101 +10,20 @@
 // NOTE: jank solution to access the correct ResourceAccess array index via PassID of the currently executing thread
 thread_local RenderGraph::PassID tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 
-struct RenderGraphIMGUIData
-{
-	// essentially copy-paste of RenderGraph::ResourceAccess, but with a deep copy of the ResourceHandle
-	struct ResourceAccess
-	{
-		RenderGraph::ResourceHandle m_ResourceHandle;
-		RenderGraph::Resource::AccessType m_AccessType;
-	};
-
-	struct Pass
-	{
-		IRenderer* m_Renderer;
-		std::vector<ResourceAccess> m_ResourceAccesses;
-	};
-
-	std::vector<Pass> m_Passes;
-	std::vector<RenderGraph::Resource> m_Resources;
-	std::vector<nvrhi::TextureDesc> m_TextureCreationDescs;
-	std::vector<nvrhi::BufferDesc> m_BufferCreationDescs;
-};
-static RenderGraphIMGUIData gs_RenderGraphIMGUIData;
-
 void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
 {
-	assert(!m_TaskFlow);
 	m_TaskFlow = &taskFlow;
 	m_CommandListQueueTasks.clear();
-}
 
-std::size_t HashBufferDesc(const nvrhi::BufferDesc& desc)
-{
-	std::size_t seed = 0;
-	HashCombine(seed, desc.byteSize);
-	HashCombine(seed, desc.structStride);
-	HashCombine(seed, desc.format);
-	HashCombine(seed, desc.canHaveUAVs);
-	HashCombine(seed, desc.canHaveTypedViews);
-	HashCombine(seed, desc.canHaveRawViews);
-	HashCombine(seed, desc.isVertexBuffer);
-	HashCombine(seed, desc.isIndexBuffer);
-	HashCombine(seed, desc.isConstantBuffer);
-	HashCombine(seed, desc.isDrawIndirectArgs);
-	HashCombine(seed, desc.isAccelStructBuildInput);
-	HashCombine(seed, desc.isAccelStructStorage);
-	HashCombine(seed, desc.isShaderBindingTable);
-	return seed;
-}
-
-void RenderGraph::PostRender()
-{
-	PROFILE_FUNCTION();
+	const uint32_t idx = g_Graphic.m_FrameCounter % 2;
 
 	// cache heaps for reuse in next frame
-	m_FreeHeaps.insert(m_FreeHeaps.end(), m_UsedHeaps.begin(), m_UsedHeaps.end());
-	m_UsedHeaps.clear();
+	m_FreeHeaps.insert(m_FreeHeaps.end(), m_UsedHeaps[idx].begin(), m_UsedHeaps[idx].end());
+	m_UsedHeaps[idx].clear();
 
 	// sort so that resources can get tightest fit heap
 	std::sort(m_FreeHeaps.begin(), m_FreeHeaps.end(), [](const nvrhi::HeapHandle& lhs, const nvrhi::HeapHandle& rhs) { return lhs->getDesc().capacity < rhs->getDesc().capacity; });
 
-	gs_RenderGraphIMGUIData.m_Passes.clear();
-	gs_RenderGraphIMGUIData.m_Resources.clear();
-	gs_RenderGraphIMGUIData.m_TextureCreationDescs.clear();
-	gs_RenderGraphIMGUIData.m_BufferCreationDescs.clear();
-	
-	auto& renderGraphControllables = g_GraphicPropertyGrid.m_RenderGraphControllables;
-	if (renderGraphControllables.m_bUpdateIMGUI)
-	{
-		// deep copy data for IMGUI
-		for (const Pass& pass : m_Passes)
-        {
-			RenderGraphIMGUIData::Pass& newPass = gs_RenderGraphIMGUIData.m_Passes.emplace_back();
-
-			newPass.m_Renderer = pass.m_Renderer;
-
-            for (const ResourceAccess& resourceAccess : pass.m_ResourceAccesses)
-            {
-				newPass.m_ResourceAccesses.push_back({ *resourceAccess.m_ResourceHandle, resourceAccess.m_AccessType });
-            }
-        }
-
-		gs_RenderGraphIMGUIData.m_Resources = m_Resources;
-
-		// don't extend the lifetime of the resource handles
-		for (Resource& resource : gs_RenderGraphIMGUIData.m_Resources)
-        {
-            resource.m_Resource = nullptr;
-        }
-
-		gs_RenderGraphIMGUIData.m_TextureCreationDescs = m_TextureCreationDescs;
-		gs_RenderGraphIMGUIData.m_BufferCreationDescs = m_BufferCreationDescs;
-
-		renderGraphControllables.m_bUpdateIMGUI = false;
-	}
-
-	m_TaskFlow = nullptr;
 	m_Passes.clear();
 	m_Resources.clear();
 	m_TextureCreationDescs.clear();
@@ -112,73 +31,13 @@ void RenderGraph::PostRender()
 
 	// reset resource handles
 	for (ResourceHandle* resourceHandle : m_ResourceHandles)
-    {
-        resourceHandle->m_ID = kInvalidResourceHandle;
-    }
+	{
+		resourceHandle->m_ID = kInvalidResourceHandle;
+	}
 	m_ResourceHandles.clear();
 
 	// get ready for next frame
 	m_CurrentPhase = Phase::Setup;
-}
-
-void RenderGraph::DrawIMGUI()
-{
-    static bool s_ShowPassViewWindow = false;
-    if (ImGui::Button("Show Pass View Window"))
-    {
-		s_ShowPassViewWindow = !s_ShowPassViewWindow;
-    }
-
-    if (s_ShowPassViewWindow && ImGui::Begin("Pass View Window"))
-    {
-        if (ImGui::BeginTable("Passes", 2, ImGuiTableFlags_Resizable))
-        {
-            ImGui::TableSetupColumn("Renderer");
-            ImGui::TableSetupColumn("Resources");
-            ImGui::TableHeadersRow();
-
-            for (uint32_t i = 0; i < gs_RenderGraphIMGUIData.m_Passes.size(); i++)
-            {
-                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAllColumns;
-
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-
-                const RenderGraphIMGUIData::Pass& pass = gs_RenderGraphIMGUIData.m_Passes.at(i);
-                ImGui::PushID(i);
-
-				// TODO: compute queue
-				const char* passName = StringFormat("%s (Graphics)", pass.m_Renderer->m_Name.c_str());
-
-                if (ImGui::TreeNodeEx(passName, flags))
-                {
-                    for (const RenderGraphIMGUIData::ResourceAccess& access : pass.m_ResourceAccesses)
-                    {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn();
-
-                        const Resource& resource = gs_RenderGraphIMGUIData.m_Resources.at(access.m_ResourceHandle.m_ID);
-
-                        const char* resourceName =
-                            (resource.m_Type == Resource::Type::Texture) ?
-                            gs_RenderGraphIMGUIData.m_TextureCreationDescs.at(resource.m_DescIdx).debugName.c_str() :
-                            gs_RenderGraphIMGUIData.m_BufferCreationDescs.at(resource.m_DescIdx).debugName.c_str();
-
-                        const char* accessType = (access.m_AccessType == Resource::AccessType::Read) ? "Read" : "Write";
-
-                        ImGui::TreeNodeEx(resourceName, flags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen);
-                        ImGui::TableNextColumn();
-                        ImGui::Text(accessType);
-                    }
-                    ImGui::TreePop();
-                }
-                ImGui::PopID();
-            }
-
-            ImGui::EndTable();
-        }
-        ImGui::End();
-    }
 }
 
 void RenderGraph::Compile()
@@ -275,24 +134,30 @@ void RenderGraph::Compile()
 		// create a new heap if none found
 		if (!heapToUse)
 		{
+			// sanity check for alignment
+			assert(memReq.size % memReq.alignment == 0);
+
 			heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq.size, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
-			//LOG_DEBUG("New RDG Heap: %d bytes", memReq.size);
+			//LOG_DEBUG("New RDG Heap: bytes: %d, alignment: %d", memReq.size, memReq.alignment);
 		}
 
-		m_UsedHeaps.push_back(heapToUse);
+		assert(heapToUse);
+
+		const uint32_t idx = g_Graphic.m_FrameCounter % 2;
+		m_UsedHeaps[idx].push_back(heapToUse);
 
 		if (bIsTexture)
 		{
 			nvrhi::TextureHandle textureResource = (nvrhi::ITexture*)resource.m_Resource.Get();
 
-			device->bindTextureMemory(textureResource, heapToUse, 0);
+			verify(device->bindTextureMemory(textureResource, heapToUse, 0));
 			Graphic::UpdateResourceDebugName(textureResource, textureResource->getDesc().debugName);
 		}
 		else
 		{
 			nvrhi::BufferHandle bufferResource = (nvrhi::IBuffer*)resource.m_Resource.Get();
 
-			device->bindBufferMemory(bufferResource, heapToUse, 0);
+			verify(device->bindBufferMemory(bufferResource, heapToUse, 0));
 			Graphic::UpdateResourceDebugName(bufferResource, bufferResource->getDesc().debugName);
 		}
 	}

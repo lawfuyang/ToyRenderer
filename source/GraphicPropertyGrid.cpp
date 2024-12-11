@@ -32,14 +32,9 @@ void GraphicPropertyGrid::UpdateIMGUI()
     {
         auto& params = m_RenderGraphControllables;
 
-        // when this IMGUI tree node is open, always enable the 'm_bUpdateIMGUI' flag
-        params.m_bUpdateIMGUI = true;
-
         ImGui::Checkbox("Enable Pass Culling", &params.m_bPassCulling);
         ImGui::Checkbox("Enable Resource Tracking", &params.m_bResourceAliasing);
         ImGui::Separator();
-
-        scene->m_RenderGraph->DrawIMGUI();
 
         ImGui::TreePop();
     }

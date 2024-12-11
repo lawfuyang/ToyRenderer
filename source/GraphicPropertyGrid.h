@@ -77,7 +77,6 @@ public:
 
     struct RenderGraphControllables
     {
-        bool m_bUpdateIMGUI = false;
         bool m_bPassCulling = true;
         bool m_bResourceAliasing = true;
     };

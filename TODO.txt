@@ -4,6 +4,7 @@
 • Mesh LODs
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
+    • Linear allocator for multiple "small" buffers within a singl;e 65k buffer
 	• Culling of unused resources and passes in the graph
 	• Visualization of the graph structure and memory lifetimes
 	• Resource States handling 

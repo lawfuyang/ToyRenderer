@@ -25,8 +25,8 @@ public:
 
 	struct Resource
 	{
-		enum class Type { Texture, Buffer };
-		enum class AccessType { Read, Write };
+		enum class Type : uint8_t { Texture, Buffer };
+		enum class AccessType : uint8_t { Read, Write };
 
 		nvrhi::ResourceHandle m_Resource;
 
@@ -56,8 +56,6 @@ public:
 	};
 	
 	void InitializeForFrame(tf::Taskflow& taskFlow);
-	void PostRender();
-	void DrawIMGUI();
 
 	void Compile();
 	void AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed = nullptr);
@@ -88,7 +86,7 @@ private:
 	std::vector<ResourceHandle*> m_ResourceHandles;
 
 	std::vector<nvrhi::HeapHandle> m_FreeHeaps;
-	std::vector<nvrhi::HeapHandle> m_UsedHeaps;
+	std::vector<nvrhi::HeapHandle> m_UsedHeaps[2];
 
 	Phase m_CurrentPhase = Phase::Setup;
 };
