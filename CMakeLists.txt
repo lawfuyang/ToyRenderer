@@ -120,7 +120,7 @@ target_compile_definitions(ToyRenderer PUBLIC IMGUI_DEFINE_MATH_OPERATORS IMGUI_
 
 target_compile_definitions(microprofile PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
 
-target_compile_definitions(nvrhi_d3d12 PUBLIC D3D12MA_INCLUDE_DIR="${EXTERN_DIR}/d3d12ma/include/D3D12MemAlloc.h")
+target_compile_definitions(nvrhi_d3d12 PUBLIC NVRHI_D3D12_WITH_D3D12MA D3D12MA_INCLUDE_DIR="${EXTERN_DIR}/d3d12ma/include/D3D12MemAlloc.h")
 
 # disable as many transcoder formats as possible to save code size
 target_compile_definitions(basisu_encoder PUBLIC BASISU_FORCE_DEVEL_MESSAGES=1)
