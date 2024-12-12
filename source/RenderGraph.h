@@ -12,27 +12,22 @@ class RenderGraph
 public:
 	using PassID = uint8_t;
 
-	static const uint32_t kInvalidResourceHandle = UINT_MAX;
-	static const PassID kInvalidPassID = UINT8_MAX;
+	static const PassID kInvalidPassID = std::numeric_limits<PassID>::max();
 
 	enum class Phase { Setup, Execute };
 
 	struct ResourceHandle
-	{
-		uint32_t m_ID = kInvalidResourceHandle;
-		uint32_t m_AllocatedFrameIdx = -1;
-	};
-
-	struct Resource
 	{
 		enum class Type : uint8_t { Texture, Buffer };
 		enum class AccessType : uint8_t { Read, Write };
 
 		nvrhi::ResourceHandle m_Resource;
 
-		Type m_Type = (Type)-1;
+		bool m_bAllocated = false;
 
-		uint16_t m_DescIdx = -1;
+		uint32_t m_AllocatedFrameIdx = UINT32_MAX;
+		uint32_t m_DescIdx = UINT32_MAX;
+		Type m_Type = (Type)UINT32_MAX;
 
 		// Compile-time data
 		PassID m_FirstAccess = kInvalidPassID; // First pass that accesses this resource
@@ -43,7 +38,7 @@ public:
 	struct ResourceAccess
 	{
 		ResourceHandle* m_ResourceHandle;
-		Resource::AccessType m_AccessType;
+		ResourceHandle::AccessType m_AccessType;
 	};
 
 	using ResourceAccessesArray = SmallVector<ResourceAccess, 8>;
@@ -78,7 +73,7 @@ public:
 	
 	void Initialize();
 	void InitializeForFrame(tf::Taskflow& taskFlow);
-
+	void Shutdown();
 	void Compile();
 	void AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed = nullptr);
 
@@ -93,22 +88,22 @@ public:
 	[[nodiscard]] nvrhi::BufferHandle GetBuffer(const ResourceHandle& resourceHandle) const;
 
 private:
-	void AddDependencyInternal(ResourceHandle& resourceHandle, Resource::AccessType accessType);
+	void AddDependencyInternal(ResourceHandle& resourceHandle, ResourceHandle::AccessType accessType);
 
-	Resource& CreateTransientResourceInternal(ResourceHandle& resourceHandle, Resource::Type resourceType);
-	nvrhi::IResource* GetResourceInternal(const ResourceHandle& resourceHandle, Resource::Type resourceType) const;
+	void CreateTransientResourceInternal(ResourceHandle& resourceHandle, ResourceHandle::Type resourceType);
+	nvrhi::IResource* GetResourceInternal(const ResourceHandle& resourceHandle, ResourceHandle::Type resourceType) const;
 
 	tf::Taskflow* m_TaskFlow;
 	
 	std::vector<tf::Task> m_CommandListQueueTasks;
 	std::vector<Pass> m_Passes;
-	std::vector<Resource> m_Resources;
+
+	std::vector<ResourceHandle*> m_ResourceHandles;
 	std::vector<nvrhi::TextureDesc> m_TextureCreationDescs;
 	std::vector<nvrhi::BufferDesc> m_BufferCreationDescs;
-	std::vector<ResourceHandle*> m_ResourceHandles;
 
 	std::vector<nvrhi::HeapHandle> m_FreeHeaps;
-	std::vector<nvrhi::HeapHandle> m_UsedHeaps[2];
+	std::vector<nvrhi::HeapHandle> m_UsedHeaps;
 
 	Phase m_CurrentPhase = Phase::Setup;
 

@@ -622,6 +622,7 @@ void Scene::CalculateCSMSplitDistances()
 
 void Scene::Shutdown()
 {
+    m_RenderGraph->Shutdown();
 }
 
 void Scene::UpdateIMGUIPropertyGrid()
