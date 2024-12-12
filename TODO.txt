@@ -4,6 +4,9 @@
 • Mesh LODs
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
+    • bind resource memory only when transient resource is new/dirty
+        • Handle 'un-used' transient resources after 2-3 frames and free its resource
+        • integrate FreeList from https://github.com/mtrebi/memory-allocators
 	• Culling of unused resources and passes in the graph
 	• Resource States handling
 		• disable 'keepInitialState' in nvrhi Texture & Buffer Descs, & 'setEnableAutomaticBarriers' to false for command lists in IRenderers

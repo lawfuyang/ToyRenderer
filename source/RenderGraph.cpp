@@ -183,17 +183,11 @@ void RenderGraph::Compile()
 
 			if (resource.m_Type == Resource::Type::Texture)
 			{
-				nvrhi::TextureHandle textureResource = (nvrhi::ITexture*)resource.m_Resource.Get();
-
-				verify(g_Graphic.m_NVRHIDevice->bindTextureMemory(textureResource, heapToUse, heapOffset));
-				Graphic::UpdateResourceDebugName(textureResource, textureResource->getDesc().debugName);
+				verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource.m_Resource.Get(), heapToUse, heapOffset));
 			}
 			else
 			{
-				nvrhi::BufferHandle bufferResource = (nvrhi::IBuffer*)resource.m_Resource.Get();
-
-				verify(g_Graphic.m_NVRHIDevice->bindBufferMemory(bufferResource, heapToUse, heapOffset));
-				Graphic::UpdateResourceDebugName(bufferResource, bufferResource->getDesc().debugName);
+				verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource.m_Resource.Get(), heapToUse, heapOffset));
 			}
 		});
 	}
