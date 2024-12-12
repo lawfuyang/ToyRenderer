@@ -4,19 +4,12 @@
 #include "Graphic.h"
 #include "Scene.h"
 
-static const uint64_t kSmallResourceSize = KB_TO_BYTES(64);
-static const uint64_t kSmallResourceHeapSize = MB_TO_BYTES(16);
-
-static_assert(AlignUp(kSmallResourceHeapSize, kSmallResourceSize) == kSmallResourceHeapSize);
-
 // NOTE: jank solution to access the correct ResourceAccess array index via PassID of the currently executing thread
 thread_local RenderGraph::PassID tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 
 void RenderGraph::Initialize()
 {
-	PROFILE_FUNCTION();
 
-	m_SmallResourceHeap = g_Graphic.m_NVRHIDevice->createHeap(nvrhi::HeapDesc{ kSmallResourceHeapSize, nvrhi::HeapType::DeviceLocal, "RDG Small Resource Heap" });
 }
 
 void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
@@ -31,12 +24,6 @@ void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
 	// cache heaps for reuse in next frame
 	m_FreeHeaps.insert(m_FreeHeaps.end(), m_UsedHeaps[idx].begin(), m_UsedHeaps[idx].end());
 	m_UsedHeaps[idx].clear();
-
-    // reset small resource heap offsete every other frame
-	if (idx)
-	{
-		m_SmallResourceHeapOffset = 0;
-	}
 
 	// sort so that resources can get tightest fit heap
 	std::sort(m_FreeHeaps.begin(), m_FreeHeaps.end(), [](const nvrhi::HeapHandle& lhs, const nvrhi::HeapHandle& rhs) { return lhs->getDesc().capacity < rhs->getDesc().capacity; });
@@ -134,60 +121,46 @@ void RenderGraph::Compile()
 
 		assert(memReq != 0);
 
-		nvrhi::HeapHandle heapToUse;
-		uint64_t heapOffset = 0;
+        nvrhi::HeapHandle heapToUse;
 
-        if (memReq <= kSmallResourceSize)
+        // find a heap that can fit the resource
+        for (auto it = m_FreeHeaps.begin(); it != m_FreeHeaps.end(); ++it)
         {
-			// sanity check
-            assert(memReq == kSmallResourceSize);
-			heapToUse = m_SmallResourceHeap;
-			heapOffset = m_SmallResourceHeapOffset;
-			m_SmallResourceHeapOffset += kSmallResourceSize;
+            const nvrhi::HeapHandle& heap = *it;
 
-            assert(m_SmallResourceHeapOffset <= kSmallResourceHeapSize);
+            if (heap->getDesc().capacity >= memReq)
+            {
+                heapToUse = heap;
+
+                // remove heap from free list. NOTE: keep it sorted by using 'erase'
+                m_FreeHeaps.erase(it);
+                break;
+            }
         }
-		else
-		{
-			// find a heap that can fit the resource
-			for (auto it = m_FreeHeaps.begin(); it != m_FreeHeaps.end(); ++it)
-			{
-				const nvrhi::HeapHandle& heap = *it;
 
-				if (heap->getDesc().capacity >= memReq)
-				{
-					heapToUse = heap;
+        // create a new heap if none found
+        if (!heapToUse)
+        {
+            heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
+            //LOG_DEBUG("New RDG Heap: bytes: %d, alignment: %d", memReq.size, memReq.alignment);
+        }
 
-					// remove heap from free list. NOTE: keep it sorted by using 'erase'
-					m_FreeHeaps.erase(it);
-					break;
-				}
-			}
+        const uint32_t idx = g_Graphic.m_FrameCounter % 2;
+        m_UsedHeaps[idx].push_back(heapToUse);
 
-			// create a new heap if none found
-			if (!heapToUse)
-			{
-				heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
-				//LOG_DEBUG("New RDG Heap: bytes: %d, alignment: %d", memReq.size, memReq.alignment);
-			}
+        assert(heapToUse);
 
-			const uint32_t idx = g_Graphic.m_FrameCounter % 2;
-			m_UsedHeaps[idx].push_back(heapToUse);
-		}
-
-		assert(heapToUse);
-
-		tf.emplace([resource, heapToUse, heapOffset] ()
+		tf.emplace([resource, heapToUse] ()
 		{
 			PROFILE_SCOPED("Bind Resource Memory");
 
 			if (resource.m_Type == Resource::Type::Texture)
 			{
-				verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource.m_Resource.Get(), heapToUse, heapOffset));
+				verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource.m_Resource.Get(), heapToUse, 0));
 			}
 			else
 			{
-				verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource.m_Resource.Get(), heapToUse, heapOffset));
+				verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource.m_Resource.Get(), heapToUse, 0));
 			}
 		});
 	}

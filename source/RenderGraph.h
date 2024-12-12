@@ -89,8 +89,5 @@ private:
 	std::vector<nvrhi::HeapHandle> m_FreeHeaps;
 	std::vector<nvrhi::HeapHandle> m_UsedHeaps[2];
 
-	nvrhi::HeapHandle m_SmallResourceHeap;
-	uint64_t m_SmallResourceHeapOffset = 0;
-
 	Phase m_CurrentPhase = Phase::Setup;
 };
