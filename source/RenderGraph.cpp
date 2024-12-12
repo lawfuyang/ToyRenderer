@@ -7,9 +7,13 @@
 // NOTE: jank solution to access the correct ResourceAccess array index via PassID of the currently executing thread
 thread_local RenderGraph::PassID tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 
+static const uint64_t kDefaultHeapBlockSize = MB_TO_BYTES(16);
+static const uint32_t kHeapAlignment = KB_TO_BYTES(64);
+
 void RenderGraph::Initialize()
 {
-
+    m_Heap.m_Blocks.push_back({ kDefaultHeapBlockSize, false });
+	m_Heap.m_Heap = g_Graphic.m_NVRHIDevice->createHeap(nvrhi::HeapDesc{ kDefaultHeapBlockSize, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
 }
 
 void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
@@ -93,8 +97,6 @@ void RenderGraph::Compile()
 
 	nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-	tf::Taskflow tf;
-
 	// allocate resources
 	for (Resource& resource : m_Resources)
 	{
@@ -121,51 +123,48 @@ void RenderGraph::Compile()
 
 		assert(memReq != 0);
 
-        nvrhi::HeapHandle heapToUse;
+		nvrhi::HeapHandle heapToUse;
 
-        // find a heap that can fit the resource
-        for (auto it = m_FreeHeaps.begin(); it != m_FreeHeaps.end(); ++it)
+		// find a heap that can fit the resource
+		for (auto it = m_FreeHeaps.begin(); it != m_FreeHeaps.end(); ++it)
+		{
+			const nvrhi::HeapHandle& heap = *it;
+
+			if (heap->getDesc().capacity >= memReq)
+			{
+				heapToUse = heap;
+
+				// remove heap from free list. NOTE: keep it sorted by using 'erase'
+				m_FreeHeaps.erase(it);
+				break;
+			}
+		}
+
+		// create a new heap if none found
+		if (!heapToUse)
+		{
+			heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
+			//LOG_DEBUG("New RDG Heap: bytes: %d, alignment: %d", memReq.size, memReq.alignment);
+		}
+
+		const uint32_t idx = g_Graphic.m_FrameCounter % 2;
+		m_UsedHeaps[idx].push_back(heapToUse);
+
+		assert(heapToUse);
+
         {
-            const nvrhi::HeapHandle& heap = *it;
+            PROFILE_SCOPED("Bind Resource Memory");
 
-            if (heap->getDesc().capacity >= memReq)
+            if (resource.m_Type == Resource::Type::Texture)
             {
-                heapToUse = heap;
-
-                // remove heap from free list. NOTE: keep it sorted by using 'erase'
-                m_FreeHeaps.erase(it);
-                break;
+                verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource.m_Resource.Get(), heapToUse, 0));
+            }
+            else
+            {
+                verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource.m_Resource.Get(), heapToUse, 0));
             }
         }
-
-        // create a new heap if none found
-        if (!heapToUse)
-        {
-            heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
-            //LOG_DEBUG("New RDG Heap: bytes: %d, alignment: %d", memReq.size, memReq.alignment);
-        }
-
-        const uint32_t idx = g_Graphic.m_FrameCounter % 2;
-        m_UsedHeaps[idx].push_back(heapToUse);
-
-        assert(heapToUse);
-
-		tf.emplace([resource, heapToUse] ()
-		{
-			PROFILE_SCOPED("Bind Resource Memory");
-
-			if (resource.m_Type == Resource::Type::Texture)
-			{
-				verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource.m_Resource.Get(), heapToUse, 0));
-			}
-			else
-			{
-				verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource.m_Resource.Get(), heapToUse, 0));
-			}
-		});
-	}
-
-	g_Engine.m_Executor->corun(tf);
+    }
 }
 
 void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
@@ -328,4 +327,137 @@ nvrhi::TextureHandle RenderGraph::GetTexture(const ResourceHandle& resourceHandl
 nvrhi::BufferHandle RenderGraph::GetBuffer(const ResourceHandle& resourceHandle) const
 {
 	return (nvrhi::IBuffer*)GetResourceInternal(resourceHandle, Resource::Type::Buffer);
+}
+
+uint64_t RenderGraph::Heap::Allocate(uint64_t size)
+{
+	// NOTE: we dont return block idx because the "Free" function will merge consecutive free blocks, "invalidating" all indices
+
+	const bool bFindBest = true;
+
+	// sanity check
+    assert(!m_Blocks.empty());
+
+	// Search through the free list for a free block that has enough space to allocate our data
+	uint32_t foundIdx = UINT32_MAX;
+	uint64_t heapOffset = 0;
+
+	if constexpr (bFindBest)
+	{
+		FindBest(size, foundIdx, heapOffset);
+	}
+	else
+	{
+        FindFirst(size, foundIdx, heapOffset);
+	}
+
+	assert(foundIdx != UINT32_MAX);
+    assert(m_Blocks[foundIdx].m_Allocated == false);
+
+	// We have to split the block into the data block and a free block of size 'rest'
+	if (const uint64_t remainingSize = m_Blocks[foundIdx].m_Size - size;
+		remainingSize > 0)
+	{
+		m_Blocks.insert(m_Blocks.begin() + foundIdx + 1, { remainingSize, false });
+	}
+
+    // update block
+    m_Blocks[foundIdx].m_Size = size;
+    m_Blocks[foundIdx].m_Allocated = true;
+
+	m_Used += size;
+	m_Peak = std::max(m_Peak, m_Used);
+
+	return heapOffset;
+}
+
+void RenderGraph::Heap::Free(uint64_t heapOffset)
+{
+	uint32_t foundIdx = 0;
+	for (uint64_t searchHeapOffset = 0; foundIdx < m_Blocks.size(); ++foundIdx)
+	{
+        if (searchHeapOffset == heapOffset)
+        {
+            assert(m_Blocks[foundIdx].m_Allocated == true);
+			break;
+        }
+
+        searchHeapOffset += m_Blocks[foundIdx].m_Size;
+	}
+    assert(foundIdx < m_Blocks.size());
+
+    m_Blocks[foundIdx].m_Allocated = false;
+
+	// merge next block if possible
+    if (foundIdx < m_Blocks.size() - 1)
+    {
+        if (!m_Blocks[foundIdx + 1].m_Allocated)
+        {
+            m_Blocks[foundIdx].m_Size += m_Blocks[foundIdx + 1].m_Size;
+            m_Blocks.erase(m_Blocks.begin() + foundIdx + 1);
+        }
+    }
+
+	// merge previous block if possible
+	if (foundIdx > 0)
+	{
+        if (!m_Blocks[foundIdx - 1].m_Allocated)
+        {
+            m_Blocks[foundIdx - 1].m_Size += m_Blocks[foundIdx].m_Size;
+            m_Blocks.erase(m_Blocks.begin() + foundIdx);
+        }
+    }
+
+	// sanity check
+    assert(!m_Blocks.empty());
+	
+    m_Used -= m_Blocks[foundIdx].m_Size;
+}
+
+void RenderGraph::Heap::FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset)
+{
+	// Iterate all blocks to find best fit
+	uint64_t smallestDiff = kDefaultHeapBlockSize;
+
+	for (uint32_t i = 0; i < m_Blocks.size(); ++i)
+	{
+        if (m_Blocks[i].m_Allocated)
+        {
+            continue;
+        }
+
+		const uint64_t remainingSize = m_Blocks[i].m_Size - size;
+
+		if (m_Blocks[i].m_Size >= size && (remainingSize < smallestDiff))
+		{
+			foundIdx = i;
+            smallestDiff = remainingSize;
+		}
+		else
+		{
+			heapOffset += m_Blocks[i].m_Size;
+		}
+	}
+}
+
+void RenderGraph::Heap::FindFirst(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset)
+{
+    // Iterate all blocks to find first fit
+    for (uint32_t i = 0; i < m_Blocks.size(); ++i)
+    {
+        if (m_Blocks[i].m_Allocated)
+        {
+            continue;
+        }
+
+        if (m_Blocks[i].m_Size >= size)
+        {
+            foundIdx = i;
+            break;
+        }
+        else
+        {
+            heapOffset += m_Blocks[i].m_Size;
+        }
+    }
 }

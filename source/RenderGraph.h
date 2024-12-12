@@ -54,6 +54,27 @@ public:
 		ResourceAccessesArray m_ResourceAccesses;
 		nvrhi::CommandListHandle m_CommandList;
 	};
+
+	struct Heap
+	{
+	public:
+		uint64_t Allocate(uint64_t size);
+		void Free(uint64_t heapOffset);
+		void FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset);
+		void FindFirst(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset);
+
+		nvrhi::HeapHandle m_Heap;
+
+		struct Block
+		{
+			uint64_t m_Size;
+			bool m_Allocated;
+		};
+		std::vector<Block> m_Blocks;
+
+		uint64_t m_Used = 0;
+		uint64_t m_Peak = 0;
+	};
 	
 	void Initialize();
 	void InitializeForFrame(tf::Taskflow& taskFlow);
@@ -90,4 +111,6 @@ private:
 	std::vector<nvrhi::HeapHandle> m_UsedHeaps[2];
 
 	Phase m_CurrentPhase = Phase::Setup;
+
+	Heap m_Heap;
 };
