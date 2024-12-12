@@ -11,6 +11,46 @@ static const uint64_t kDefaultHeapBlockSize = MB_TO_BYTES(16);
 static const uint32_t kHeapAlignment = KB_TO_BYTES(64);
 static const uint32_t kMaxTransientResourceAge = 2;
 
+static std::size_t HashResourceDesc(const nvrhi::TextureDesc& desc)
+{
+	std::size_t seed = 0;
+	HashCombine(seed, desc.width);
+	HashCombine(seed, desc.height);
+	HashCombine(seed, desc.depth);
+	HashCombine(seed, desc.arraySize);
+	HashCombine(seed, desc.mipLevels);
+	HashCombine(seed, desc.sampleCount);
+	HashCombine(seed, desc.sampleQuality);
+	HashCombine(seed, desc.format);
+	HashCombine(seed, desc.dimension);
+	HashCombine(seed, desc.isRenderTarget);
+	HashCombine(seed, desc.isUAV);
+	HashCombine(seed, desc.isTypeless);
+	HashCombine(seed, desc.isShadingRateSurface);
+	HashCombine(seed, HashRawMem(desc.clearValue));
+	HashCombine(seed, desc.useClearValue);
+	return seed;
+}
+
+static  std::size_t HashResourceDesc(const nvrhi::BufferDesc& desc)
+{
+	std::size_t seed = 0;
+	HashCombine(seed, desc.byteSize);
+	HashCombine(seed, desc.structStride);
+	HashCombine(seed, desc.format);
+	HashCombine(seed, desc.canHaveUAVs);
+	HashCombine(seed, desc.canHaveTypedViews);
+	HashCombine(seed, desc.canHaveRawViews);
+	HashCombine(seed, desc.isVertexBuffer);
+	HashCombine(seed, desc.isIndexBuffer);
+	HashCombine(seed, desc.isConstantBuffer);
+	HashCombine(seed, desc.isDrawIndirectArgs);
+	HashCombine(seed, desc.isAccelStructBuildInput);
+	HashCombine(seed, desc.isAccelStructStorage);
+	HashCombine(seed, desc.isShaderBindingTable);
+	return seed;
+}
+
 void RenderGraph::Initialize()
 {
     m_Heap.m_Blocks.push_back({ kDefaultHeapBlockSize, false });
