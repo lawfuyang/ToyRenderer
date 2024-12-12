@@ -37,13 +37,6 @@ void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
 	m_TextureCreationDescs.clear();
 	m_BufferCreationDescs.clear();
 
-	// reset resource handles
-	for (ResourceHandle* resourceHandle : m_ResourceHandles)
-	{
-		resourceHandle->m_ID = kInvalidResourceHandle;
-	}
-	m_ResourceHandles.clear();
-
 	// get ready for next frame
 	m_CurrentPhase = Phase::Setup;
 }
@@ -240,10 +233,12 @@ void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
 RenderGraph::Resource& RenderGraph::CreateTransientResourceInternal(ResourceHandle& resourceHandle, Resource::Type resourceType)
 {
 	assert(m_CurrentPhase == Phase::Setup);
-	assert(resourceHandle.m_ID == kInvalidResourceHandle); // double creation?
 
-	resourceHandle.m_ID = m_ResourceHandles.size();
-	m_ResourceHandles.push_back(&resourceHandle);
+	if (resourceHandle.m_ID == kInvalidResourceHandle)
+	{
+		resourceHandle.m_ID = m_ResourceHandles.size();
+		m_ResourceHandles.push_back(&resourceHandle);
+	}
 
 	resourceHandle.m_AllocatedFrameIdx = g_Graphic.m_FrameCounter;
 
