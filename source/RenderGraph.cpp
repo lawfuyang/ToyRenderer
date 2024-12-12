@@ -21,6 +21,8 @@ void RenderGraph::Initialize()
 
 void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
 {
+	PROFILE_FUNCTION();
+
 	m_TaskFlow = &taskFlow;
 	m_CommandListQueueTasks.clear();
 
