@@ -8,7 +8,7 @@
 thread_local RenderGraph::PassID tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 
 static const bool kDoDebugLogging = false;
-static const uint64_t kDefaultHeapBlockSize = MB_TO_BYTES(256);
+static const uint32_t kDefaultHeapBlockSize = MB_TO_BYTES(256);
 static const uint32_t kHeapAlignment = KB_TO_BYTES(64);
 static const uint32_t kMaxTransientResourceAge = 2;
 
@@ -156,11 +156,12 @@ void RenderGraph::Compile()
 		}
 
 		assert(memReq != 0);
+		assert(memReq < UINT32_MAX);
 
-        const uint64_t heapOffset = m_Heap.Allocate(memReq);
+        const uint32_t heapOffset = m_Heap.Allocate(memReq);
 
 		// TODO: multiple heaps
-		assert(heapOffset != UINT64_MAX);
+		assert(heapOffset != UINT32_MAX);
 
         resource->m_HeapOffset = heapOffset;
         {
@@ -183,7 +184,7 @@ void RenderGraph::Compile()
     }
 	m_ResourcesToAlloc.clear();
 
-	for (uint64_t heapOffset : m_HeapOffsetsToFree)
+	for (uint32_t heapOffset : m_HeapOffsetsToFree)
 	{
 		if constexpr (kDoDebugLogging)
 		{
@@ -363,7 +364,7 @@ void RenderGraph::FreeResource(ResourceHandle& resourceHandle)
 	resourceHandle.m_LastAccess = kInvalidPassID;
 	//resourceHandle.m_LastWrite = kInvalidPassID;
 
-	if (resourceHandle.m_HeapOffset != UINT64_MAX)
+	if (resourceHandle.m_HeapOffset != UINT32_MAX)
 	{
 		m_HeapOffsetsToFree.push_back(resourceHandle.m_HeapOffset);
 
@@ -372,7 +373,7 @@ void RenderGraph::FreeResource(ResourceHandle& resourceHandle)
 			LOG_DEBUG("Free resource: %s, heapOffset: %d", GetResourceName(resourceHandle), resourceHandle.m_HeapOffset);
 		}
 	}
-	resourceHandle.m_HeapOffset = UINT64_MAX;
+	resourceHandle.m_HeapOffset = UINT32_MAX;
 }
 
 const char* RenderGraph::GetResourceName(const ResourceHandle& resourceHandle) const
@@ -382,7 +383,7 @@ const char* RenderGraph::GetResourceName(const ResourceHandle& resourceHandle) c
         m_ResourceDescs.at(resourceHandle.m_DescIdx).m_BufferDesc.debugName.c_str();
 }
 
-uint64_t RenderGraph::Heap::Allocate(uint64_t size)
+uint32_t RenderGraph::Heap::Allocate(uint32_t size)
 {
 	// sanity check
     assert(!m_Blocks.empty());
@@ -390,7 +391,7 @@ uint64_t RenderGraph::Heap::Allocate(uint64_t size)
 
 	// Search through the free list for a free block that has enough space to allocate our data
 	uint32_t foundIdx = UINT32_MAX;
-	uint64_t heapOffset = 0;
+	uint32_t heapOffset = 0;
 
 	if constexpr (1)
 	{
@@ -404,16 +405,16 @@ uint64_t RenderGraph::Heap::Allocate(uint64_t size)
 	// no free block found
     if (foundIdx == UINT32_MAX)
     {
-        return UINT64_MAX;
+        return UINT32_MAX;
     }
 
     assert(m_Blocks[foundIdx].m_Allocated == false);
     assert(m_Blocks[foundIdx].m_Size % kHeapAlignment == 0);
-    assert(heapOffset != UINT64_MAX);
+    assert(heapOffset != UINT32_MAX);
 	assert(heapOffset % kHeapAlignment == 0);
 
 	// split the block 
-	if (const uint64_t remainingSize = m_Blocks[foundIdx].m_Size - size;
+	if (const uint32_t remainingSize = m_Blocks[foundIdx].m_Size - size;
 		remainingSize > 0)
 	{
 		m_Blocks.insert(m_Blocks.begin() + foundIdx + 1, { remainingSize, false });
@@ -430,13 +431,13 @@ uint64_t RenderGraph::Heap::Allocate(uint64_t size)
 	return heapOffset;
 }
 
-void RenderGraph::Heap::Free(uint64_t heapOffset)
+void RenderGraph::Heap::Free(uint32_t heapOffset)
 {
-	assert(heapOffset != UINT64_MAX);
+	assert(heapOffset != UINT32_MAX);
     assert(heapOffset % kHeapAlignment == 0);
 
 	uint32_t foundIdx = 0;
-	for (uint64_t searchHeapOffset = 0; foundIdx < m_Blocks.size(); ++foundIdx)
+	for (uint32_t searchHeapOffset = 0; foundIdx < m_Blocks.size(); ++foundIdx)
 	{
         if (searchHeapOffset == heapOffset)
         {
@@ -480,10 +481,10 @@ void RenderGraph::Heap::Free(uint64_t heapOffset)
     m_Used -= m_Blocks[foundIdx].m_Size;
 }
 
-void RenderGraph::Heap::FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset)
+void RenderGraph::Heap::FindBest(uint32_t size, uint32_t& foundIdx, uint32_t& heapOffset)
 {
 	// Iterate all blocks to find best fit
-	uint64_t smallestDiff = kDefaultHeapBlockSize;
+	uint32_t smallestDiff = kDefaultHeapBlockSize;
 
 	for (uint32_t i = 0, heapOffsetSearch = 0; i < m_Blocks.size(); heapOffsetSearch += m_Blocks[i].m_Size, ++i)
 	{
@@ -492,7 +493,7 @@ void RenderGraph::Heap::FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& he
             continue;
         }
 
-		const uint64_t remainingSize = m_Blocks[i].m_Size - size;
+		const uint32_t remainingSize = m_Blocks[i].m_Size - size;
 
 		if (m_Blocks[i].m_Size >= size && (remainingSize < smallestDiff))
 		{
@@ -503,7 +504,7 @@ void RenderGraph::Heap::FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& he
 	}
 }
 
-void RenderGraph::Heap::FindFirst(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset)
+void RenderGraph::Heap::FindFirst(uint32_t size, uint32_t& foundIdx, uint32_t& heapOffset)
 {
     // Iterate all blocks to find first fit
     for (uint32_t i = 0; i < m_Blocks.size(); heapOffset += m_Blocks[i].m_Size, ++i)

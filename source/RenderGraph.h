@@ -22,7 +22,7 @@ public:
 		enum class AccessType : uint8_t { Read, Write };
 
 		nvrhi::ResourceHandle m_Resource;
-		uint64_t m_HeapOffset = UINT64_MAX;
+		uint32_t m_HeapOffset = UINT64_MAX;
 
 		uint32_t m_AllocatedFrameIdx = UINT32_MAX;
 		uint32_t m_DescIdx = UINT32_MAX;
@@ -58,22 +58,22 @@ public:
 	struct Heap
 	{
 	public:
-		uint64_t Allocate(uint64_t size);
-		void Free(uint64_t heapOffset);
-		void FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset);
-		void FindFirst(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset);
+		uint32_t Allocate(uint32_t size);
+		void Free(uint32_t heapOffset);
+		void FindBest(uint32_t size, uint32_t& foundIdx, uint32_t& heapOffset);
+		void FindFirst(uint32_t size, uint32_t& foundIdx, uint32_t& heapOffset);
 
 		nvrhi::HeapHandle m_Heap;
 
 		struct Block
 		{
-			uint64_t m_Size;
+			uint32_t m_Size;
 			bool m_Allocated;
 		};
 		std::vector<Block> m_Blocks;
 
-		uint64_t m_Used = 0;
-		uint64_t m_Peak = 0;
+		uint32_t m_Used = 0;
+		uint32_t m_Peak = 0;
 	};
 	
 	void Initialize();
@@ -107,7 +107,7 @@ private:
 	std::vector<ResourceHandle*> m_ResourceHandles;
 	std::vector<ResourceDesc> m_ResourceDescs;
 
-    std::vector<uint64_t> m_HeapOffsetsToFree;
+    std::vector<uint32_t> m_HeapOffsetsToFree;
     std::vector<ResourceHandle*> m_ResourcesToAlloc;
 
 	Phase m_CurrentPhase = Phase::Setup;
