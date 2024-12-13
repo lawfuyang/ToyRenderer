@@ -9,6 +9,7 @@ thread_local RenderGraph::PassID tl_CurrentThreadPassID = RenderGraph::kInvalidP
 
 static const bool kDoDebugLogging = false;
 static const uint32_t kDefaultHeapBlockSize = MB_TO_BYTES(256);
+static const uint32_t kMaxHeapBlockSize = MB_TO_BYTES(256); // equivalent to 4k texture with RGBA32 format.
 static const uint32_t kHeapAlignment = KB_TO_BYTES(64);
 static const uint32_t kMaxTransientResourceAge = 2;
 
@@ -156,7 +157,7 @@ void RenderGraph::Compile()
 		}
 
 		assert(memReq != 0);
-		assert(memReq < UINT32_MAX);
+		assert(memReq <= kMaxHeapBlockSize);
 
         const uint32_t heapOffset = m_Heap.Allocate(memReq);
 
