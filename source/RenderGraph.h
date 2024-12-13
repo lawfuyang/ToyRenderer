@@ -35,6 +35,12 @@ public:
 		PassID m_LastWrite = kInvalidPassID;   // Last pass that wrote to this resource. Used for pass culling
 	};
 
+	struct ResourceDesc
+	{
+		nvrhi::TextureDesc m_TextureDesc;
+		nvrhi::BufferDesc m_BufferDesc;
+	};
+
 	struct ResourceAccess
 	{
 		ResourceHandle* m_ResourceHandle;
@@ -99,8 +105,7 @@ private:
 	std::vector<Pass> m_Passes;
 
 	std::vector<ResourceHandle*> m_ResourceHandles;
-	std::vector<nvrhi::TextureDesc> m_TextureCreationDescs;
-	std::vector<nvrhi::BufferDesc> m_BufferCreationDescs;
+	std::vector<ResourceDesc> m_ResourceDescs;
 
 	std::vector<nvrhi::HeapHandle> m_FreeHeaps;
 	std::vector<nvrhi::HeapHandle> m_UsedHeaps;

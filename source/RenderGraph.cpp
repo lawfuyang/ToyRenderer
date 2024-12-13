@@ -89,8 +89,8 @@ void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
 
             const char* debugName =
 				resourceHandle->m_Type == ResourceHandle::Type::Texture ?
-				m_TextureCreationDescs.at(resourceHandle->m_DescIdx).debugName.c_str() :
-				m_BufferCreationDescs.at(resourceHandle->m_DescIdx).debugName.c_str();
+				m_ResourceDescs.at(resourceHandle->m_DescIdx).m_TextureDesc.debugName.c_str() :
+				m_ResourceDescs.at(resourceHandle->m_DescIdx).m_BufferDesc.debugName.c_str();
             //LOG_DEBUG("Freeing transient resource due to old age: %s", debugName);
 		}
 	}
@@ -175,18 +175,12 @@ void RenderGraph::Compile()
 
 		if (resource->m_Type == ResourceHandle::Type::Texture)
 		{
-			nvrhi::TextureDesc descCopy = m_TextureCreationDescs.at(resource->m_DescIdx);
-			descCopy.isVirtual = true;
-			resource->m_Resource = device->createTexture(descCopy);
-
+			resource->m_Resource = device->createTexture(m_ResourceDescs.at(resource->m_DescIdx).m_TextureDesc);
 			memReq = device->getTextureMemoryRequirements((nvrhi::ITexture*)resource->m_Resource.Get()).size;
 		}
 		else
 		{
-			nvrhi::BufferDesc descCopy = m_BufferCreationDescs.at(resource->m_DescIdx);
-			descCopy.isVirtual = true;
-			resource->m_Resource = device->createBuffer(descCopy);
-
+			resource->m_Resource = device->createBuffer(m_ResourceDescs.at(resource->m_DescIdx).m_BufferDesc);
 			memReq = device->getBufferMemoryRequirements((nvrhi::IBuffer*)resource->m_Resource.Get()).size;
 		}
 
@@ -310,6 +304,10 @@ void RenderGraph::CreateTransientResourceInternal(ResourceHandle& resourceHandle
 	if (resourceHandle.m_AllocatedFrameIdx == UINT32_MAX)
 	{
 		m_ResourceHandles.push_back(&resourceHandle);
+
+		// "reserve' the desc slot. both types
+		resourceHandle.m_DescIdx = m_ResourceDescs.size();
+		m_ResourceDescs.emplace_back();
 	}
 	else
 	{
@@ -328,24 +326,20 @@ void RenderGraph::CreateTransientResourceInternal(ResourceHandle& resourceHandle
 
 void RenderGraph::CreateTransientResource(ResourceHandle& resourceHandle, const nvrhi::TextureDesc& desc)
 {
-	if (resourceHandle.m_AllocatedFrameIdx == UINT32_MAX)
-	{
-		resourceHandle.m_DescIdx = m_TextureCreationDescs.size();
-		m_TextureCreationDescs.push_back(desc);
-	}
-
 	CreateTransientResourceInternal(resourceHandle, ResourceHandle::Type::Texture);
+
+	nvrhi::TextureDesc& texDesc = m_ResourceDescs.at(resourceHandle.m_DescIdx).m_TextureDesc;
+	texDesc = desc;
+	texDesc.isVirtual = true;
 }
 
 void RenderGraph::CreateTransientResource(ResourceHandle& resourceHandle, const nvrhi::BufferDesc& desc)
 {
-	if (resourceHandle.m_AllocatedFrameIdx == UINT32_MAX)
-	{
-        resourceHandle.m_DescIdx = m_BufferCreationDescs.size();
-        m_BufferCreationDescs.push_back(desc);
-	}
-
 	CreateTransientResourceInternal(resourceHandle, ResourceHandle::Type::Buffer);
+
+	nvrhi::BufferDesc& bufferDesc = m_ResourceDescs.at(resourceHandle.m_DescIdx).m_BufferDesc;
+	bufferDesc = desc;
+	bufferDesc.isVirtual = true;
 }
 
 void RenderGraph::AddDependencyInternal(ResourceHandle& resourceHandle, ResourceHandle::AccessType accessType)
