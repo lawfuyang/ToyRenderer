@@ -4,9 +4,7 @@
 • Mesh LODs
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
-	• handle resource desc changing for transient resources
-		• just reserve space for both desc types
-    • Use FreeList for transient heaps
+	• multiple freelists of heaps
 	• Culling of unused resources and passes in the graph
 	• Resource States handling
 		• disable 'keepInitialState' in nvrhi Texture & Buffer Descs, & 'setEnableAutomaticBarriers' to false for command lists in IRenderers

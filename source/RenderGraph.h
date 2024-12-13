@@ -22,8 +22,7 @@ public:
 		enum class AccessType : uint8_t { Read, Write };
 
 		nvrhi::ResourceHandle m_Resource;
-
-		bool m_bAllocated = false;
+		uint64_t m_HeapOffset = UINT64_MAX;
 
 		uint32_t m_AllocatedFrameIdx = UINT32_MAX;
 		uint32_t m_DescIdx = UINT32_MAX;
@@ -32,7 +31,7 @@ public:
 		// Compile-time data
 		PassID m_FirstAccess = kInvalidPassID; // First pass that accesses this resource
 		PassID m_LastAccess = kInvalidPassID;  // Last pass that accesses this resource
-		PassID m_LastWrite = kInvalidPassID;   // Last pass that wrote to this resource. Used for pass culling
+		//PassID m_LastWrite = kInvalidPassID;   // Last pass that wrote to this resource. Used for pass culling
 	};
 
 	struct ResourceDesc
@@ -84,20 +83,21 @@ public:
 	void AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed = nullptr);
 
 	// Setup Phase funcs
-	void CreateTransientResource(ResourceHandle& resourceHandle, const nvrhi::TextureDesc& desc);
-	void CreateTransientResource(ResourceHandle& resourceHandle, const nvrhi::BufferDesc& desc);
-	void AddReadDependency(ResourceHandle& resourceHandle);
-	void AddWriteDependency(ResourceHandle& resourceHandle);
+	template <typename ResourceDescT>
+	void CreateTransientResource(ResourceHandle& resourceHandle, const ResourceDescT& resourceDesc);
+
+	void AddReadDependency(ResourceHandle& resourceHandle) { AddDependencyInternal(resourceHandle, ResourceHandle::AccessType::Read); }
+	void AddWriteDependency(ResourceHandle& resourceHandle) { AddDependencyInternal(resourceHandle, ResourceHandle::AccessType::Write); }
 
 	// Execute Phase funcs
-	[[nodiscard]] nvrhi::TextureHandle GetTexture(const ResourceHandle& resourceHandle) const;
-	[[nodiscard]] nvrhi::BufferHandle GetBuffer(const ResourceHandle& resourceHandle) const;
+	[[nodiscard]] nvrhi::TextureHandle GetTexture(const ResourceHandle& resourceHandle) const { return (nvrhi::ITexture*)GetResourceInternal(resourceHandle, ResourceHandle::Type::Texture); }
+	[[nodiscard]] nvrhi::BufferHandle GetBuffer(const ResourceHandle& resourceHandle) const { return (nvrhi::IBuffer*)GetResourceInternal(resourceHandle, ResourceHandle::Type::Buffer); }
 
 private:
 	void AddDependencyInternal(ResourceHandle& resourceHandle, ResourceHandle::AccessType accessType);
-
-	void CreateTransientResourceInternal(ResourceHandle& resourceHandle, ResourceHandle::Type resourceType);
 	nvrhi::IResource* GetResourceInternal(const ResourceHandle& resourceHandle, ResourceHandle::Type resourceType) const;
+    void FreeResource(ResourceHandle& resourceHandle);
+    const char* GetResourceName(const ResourceHandle& resourceHandle) const;
 
 	tf::Taskflow* m_TaskFlow;
 	
@@ -107,8 +107,8 @@ private:
 	std::vector<ResourceHandle*> m_ResourceHandles;
 	std::vector<ResourceDesc> m_ResourceDescs;
 
-	std::vector<nvrhi::HeapHandle> m_FreeHeaps;
-	std::vector<nvrhi::HeapHandle> m_UsedHeaps;
+    std::vector<uint64_t> m_HeapOffsetsToFree;
+    std::vector<ResourceHandle*> m_ResourcesToAlloc;
 
 	Phase m_CurrentPhase = Phase::Setup;
 

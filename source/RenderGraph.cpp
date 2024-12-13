@@ -7,7 +7,8 @@
 // NOTE: jank solution to access the correct ResourceAccess array index via PassID of the currently executing thread
 thread_local RenderGraph::PassID tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 
-static const uint64_t kDefaultHeapBlockSize = MB_TO_BYTES(16);
+static const bool kDoDebugLogging = false;
+static const uint64_t kDefaultHeapBlockSize = MB_TO_BYTES(256);
 static const uint32_t kHeapAlignment = KB_TO_BYTES(64);
 static const uint32_t kMaxTransientResourceAge = 2;
 
@@ -32,7 +33,7 @@ static std::size_t HashResourceDesc(const nvrhi::TextureDesc& desc)
 	return seed;
 }
 
-static  std::size_t HashResourceDesc(const nvrhi::BufferDesc& desc)
+static std::size_t HashResourceDesc(const nvrhi::BufferDesc& desc)
 {
 	std::size_t seed = 0;
 	HashCombine(seed, desc.byteSize);
@@ -64,36 +65,7 @@ void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
 	m_TaskFlow = &taskFlow;
 	m_CommandListQueueTasks.clear();
 
-	// cache heaps for reuse in next frame
-	m_FreeHeaps.insert(m_FreeHeaps.end(), m_UsedHeaps.begin(), m_UsedHeaps.end());
-	m_UsedHeaps.clear();
-
-	// sort so that resources can get tightest fit heap
-	std::sort(m_FreeHeaps.begin(), m_FreeHeaps.end(), [](const nvrhi::HeapHandle& lhs, const nvrhi::HeapHandle& rhs) { return lhs->getDesc().capacity < rhs->getDesc().capacity; });
-
 	m_Passes.clear();
-
-	for (ResourceHandle* resourceHandle : m_ResourceHandles)
-	{
-		assert(resourceHandle->m_AllocatedFrameIdx != UINT32_MAX);
-        assert(g_Graphic.m_FrameCounter > resourceHandle->m_AllocatedFrameIdx);
-
-        // free transient resources that are too old
-		if (resourceHandle->m_bAllocated && (g_Graphic.m_FrameCounter - resourceHandle->m_AllocatedFrameIdx > kMaxTransientResourceAge))
-		{
-			resourceHandle->m_bAllocated = false;
-			resourceHandle->m_Resource = nullptr;
-            resourceHandle->m_FirstAccess = kInvalidPassID;
-            resourceHandle->m_LastAccess = kInvalidPassID;
-            resourceHandle->m_LastWrite = kInvalidPassID;
-
-            const char* debugName =
-				resourceHandle->m_Type == ResourceHandle::Type::Texture ?
-				m_ResourceDescs.at(resourceHandle->m_DescIdx).m_TextureDesc.debugName.c_str() :
-				m_ResourceDescs.at(resourceHandle->m_DescIdx).m_BufferDesc.debugName.c_str();
-            //LOG_DEBUG("Freeing transient resource due to old age: %s", debugName);
-		}
-	}
 
 	// get ready for next frame
 	m_CurrentPhase = Phase::Setup;
@@ -118,10 +90,6 @@ void RenderGraph::Compile()
 	{
         m_CommandListQueueTasks[i].succeed(m_CommandListQueueTasks[i - 1]);
 	}
-
-	// TODO: resource validations:
-	// - check if resource has been created in a Pass before requestee
-	// - if a read dependency is requested, check if resource was written to in a Pass before requestee
 
 	// Track first/last Renderer access
 	for (size_t i = 0; i < m_Passes.size(); i++)
@@ -148,27 +116,30 @@ void RenderGraph::Compile()
 
 			if (resourceAccess.m_AccessType == ResourceHandle::AccessType::Write)
 			{
-				resource.m_LastWrite = passID;
+				//resource.m_LastWrite = passID;
 			}
+		}
+	}
+
+	for (ResourceHandle* resourceHandle : m_ResourceHandles)
+	{
+		assert(resourceHandle->m_AllocatedFrameIdx != UINT32_MAX);
+
+		const int32_t resourceAge = g_Graphic.m_FrameCounter - resourceHandle->m_AllocatedFrameIdx;
+		assert(resourceAge >= 0);
+
+		// free transient resources that are too old
+		if (resourceHandle->m_Resource && (resourceAge > kMaxTransientResourceAge))
+		{
+			FreeResource(*resourceHandle);
 		}
 	}
 
 	nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
 	// allocate resources
-	for (ResourceHandle* resource : m_ResourceHandles)
+	for (ResourceHandle* resource : m_ResourcesToAlloc)
 	{
-        if (!resource->m_bAllocated)
-        {
-            continue;
-        }
-
-        // transient resource was allocated in a previous frame, re-use it
-		if (resource->m_Resource)
-		{
-            continue;
-		}
-
 		assert(resource->m_DescIdx != UINT32_MAX);
 
 		uint64_t memReq = 0;
@@ -186,47 +157,41 @@ void RenderGraph::Compile()
 
 		assert(memReq != 0);
 
-		nvrhi::HeapHandle heapToUse;
+        const uint64_t heapOffset = m_Heap.Allocate(memReq);
 
-		// find a heap that can fit the resource
-		for (auto it = m_FreeHeaps.begin(); it != m_FreeHeaps.end(); ++it)
-		{
-			const nvrhi::HeapHandle& heap = *it;
+		// TODO: multiple heaps
+		assert(heapOffset != UINT64_MAX);
 
-			if (heap->getDesc().capacity >= memReq)
-			{
-				heapToUse = heap;
-
-				// remove heap from free list. NOTE: keep it sorted by using 'erase'
-				m_FreeHeaps.erase(it);
-				break;
-			}
-		}
-
-		// create a new heap if none found
-		if (!heapToUse)
-		{
-			heapToUse = device->createHeap(nvrhi::HeapDesc{ memReq, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
-			//LOG_DEBUG("New RDG Heap: bytes: %d, alignment: %d", memReq.size, memReq.alignment);
-		}
-
-		m_UsedHeaps.push_back(heapToUse);
-
-		assert(heapToUse);
-
+        resource->m_HeapOffset = heapOffset;
         {
             PROFILE_SCOPED("Bind Resource Memory");
 
             if (resource->m_Type == ResourceHandle::Type::Texture)
             {
-                verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource->m_Resource.Get(), heapToUse, 0));
+                verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource->m_Resource.Get(), m_Heap.m_Heap, heapOffset));
             }
             else
             {
-                verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource->m_Resource.Get(), heapToUse, 0));
+                verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource->m_Resource.Get(), m_Heap.m_Heap, heapOffset));
             }
         }
+
+		if constexpr (kDoDebugLogging)
+		{
+			LOG_DEBUG("Bind Heap: resource: %s, memReq: %d, heapOffset: %d", GetResourceName(*resource), memReq, heapOffset);
+		}
     }
+	m_ResourcesToAlloc.clear();
+
+	for (uint64_t heapOffset : m_HeapOffsetsToFree)
+	{
+		if constexpr (kDoDebugLogging)
+		{
+			LOG_DEBUG("Free Heap: heapOffset: %d", heapOffset);
+		}
+        m_Heap.Free(heapOffset);
+	}
+    m_HeapOffsetsToFree.clear();
 }
 
 void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
@@ -295,9 +260,12 @@ void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
 	}
 }
 
-void RenderGraph::CreateTransientResourceInternal(ResourceHandle& resourceHandle, ResourceHandle::Type resourceType)
+template <typename ResourceDescT>
+void RenderGraph::CreateTransientResource(ResourceHandle& resourceHandle, const ResourceDescT& inputDesc)
 {
 	assert(m_CurrentPhase == Phase::Setup);
+
+    constexpr ResourceHandle::Type resourceType = std::is_same_v<ResourceDescT, nvrhi::TextureDesc> ? ResourceHandle::Type::Texture : ResourceHandle::Type::Buffer;
 
 	// insert into array for 1st time registration
     // NOTE: at 200fps, it takes 248 days to overflow this, so we're good
@@ -309,38 +277,47 @@ void RenderGraph::CreateTransientResourceInternal(ResourceHandle& resourceHandle
 		resourceHandle.m_DescIdx = m_ResourceDescs.size();
 		m_ResourceDescs.emplace_back();
 	}
+
+	bool bReallocResource = false;
+    bReallocResource |= resourceType != resourceHandle.m_Type;
+	bReallocResource |= (g_Graphic.m_FrameCounter - resourceHandle.m_AllocatedFrameIdx) > kMaxTransientResourceAge;
+
+	if constexpr (resourceType == ResourceHandle::Type::Texture)
+	{
+		bReallocResource |= HashResourceDesc(m_ResourceDescs.at(resourceHandle.m_DescIdx).m_TextureDesc) != HashResourceDesc(inputDesc);
+	}
 	else
 	{
-		// dont support changing transient resource type, once allocated. i dont want to handle that shit
-		assert(resourceHandle.m_Type == resourceType);
-		assert(resourceHandle.m_DescIdx != UINT32_MAX);
+        bReallocResource |= HashResourceDesc(m_ResourceDescs.at(resourceHandle.m_DescIdx).m_BufferDesc) != HashResourceDesc(inputDesc);
 	}
 
-	resourceHandle.m_bAllocated = true;
+    if (bReallocResource)
+    {
+        FreeResource(resourceHandle);
+		m_ResourcesToAlloc.push_back(&resourceHandle);
+    }
+
 	resourceHandle.m_AllocatedFrameIdx = g_Graphic.m_FrameCounter;
     resourceHandle.m_Type = resourceType;
+
+    if constexpr (resourceType == ResourceHandle::Type::Texture)
+    {
+		nvrhi::TextureDesc& desc = m_ResourceDescs.at(resourceHandle.m_DescIdx).m_TextureDesc;
+        desc = inputDesc;
+		desc.isVirtual = true;
+    }
+    else
+    {
+        nvrhi::BufferDesc& desc = m_ResourceDescs.at(resourceHandle.m_DescIdx).m_BufferDesc;
+        desc = inputDesc;
+		desc.isVirtual = true;
+    }
 
 	// creator implicitly has a write dependency on the resource
 	AddWriteDependency(resourceHandle);
 }
-
-void RenderGraph::CreateTransientResource(ResourceHandle& resourceHandle, const nvrhi::TextureDesc& desc)
-{
-	CreateTransientResourceInternal(resourceHandle, ResourceHandle::Type::Texture);
-
-	nvrhi::TextureDesc& texDesc = m_ResourceDescs.at(resourceHandle.m_DescIdx).m_TextureDesc;
-	texDesc = desc;
-	texDesc.isVirtual = true;
-}
-
-void RenderGraph::CreateTransientResource(ResourceHandle& resourceHandle, const nvrhi::BufferDesc& desc)
-{
-	CreateTransientResourceInternal(resourceHandle, ResourceHandle::Type::Buffer);
-
-	nvrhi::BufferDesc& bufferDesc = m_ResourceDescs.at(resourceHandle.m_DescIdx).m_BufferDesc;
-	bufferDesc = desc;
-	bufferDesc.isVirtual = true;
-}
+template void RenderGraph::CreateTransientResource(ResourceHandle& resourceHandle, const nvrhi::TextureDesc& inputDesc);
+template void RenderGraph::CreateTransientResource(ResourceHandle& resourceHandle, const nvrhi::BufferDesc& inputDesc);
 
 void RenderGraph::AddDependencyInternal(ResourceHandle& resourceHandle, ResourceHandle::AccessType accessType)
 {
@@ -359,20 +336,9 @@ void RenderGraph::AddDependencyInternal(ResourceHandle& resourceHandle, Resource
 	accesses.push_back(ResourceAccess{ &resourceHandle, accessType });
 }
 
-void RenderGraph::AddReadDependency(ResourceHandle& resourceHandle)
-{
-	AddDependencyInternal(resourceHandle, ResourceHandle::AccessType::Read);
-}
-
-void RenderGraph::AddWriteDependency(ResourceHandle& resourceHandle)
-{
-	AddDependencyInternal(resourceHandle, ResourceHandle::AccessType::Write);
-}
-
 nvrhi::IResource* RenderGraph::GetResourceInternal(const ResourceHandle& resourceHandle, ResourceHandle::Type resourceType) const
 {
 	assert(m_CurrentPhase == Phase::Execute);
-	assert(resourceHandle.m_bAllocated);
 	assert(resourceHandle.m_AllocatedFrameIdx == g_Graphic.m_FrameCounter);
 	assert(tl_CurrentThreadPassID != kInvalidPassID);
 
@@ -390,22 +356,34 @@ nvrhi::IResource* RenderGraph::GetResourceInternal(const ResourceHandle& resourc
 	return resourceHandle.m_Resource.Get();
 }
 
-nvrhi::TextureHandle RenderGraph::GetTexture(const ResourceHandle& resourceHandle) const
+void RenderGraph::FreeResource(ResourceHandle& resourceHandle)
 {
-	return (nvrhi::ITexture*)GetResourceInternal(resourceHandle, ResourceHandle::Type::Texture);
+	resourceHandle.m_Resource = nullptr;
+	resourceHandle.m_FirstAccess = kInvalidPassID;
+	resourceHandle.m_LastAccess = kInvalidPassID;
+	//resourceHandle.m_LastWrite = kInvalidPassID;
+
+	if (resourceHandle.m_HeapOffset != UINT64_MAX)
+	{
+		m_HeapOffsetsToFree.push_back(resourceHandle.m_HeapOffset);
+
+		if constexpr (kDoDebugLogging)
+		{
+			LOG_DEBUG("Free resource: %s, heapOffset: %d", GetResourceName(resourceHandle), resourceHandle.m_HeapOffset);
+		}
+	}
+	resourceHandle.m_HeapOffset = UINT64_MAX;
 }
 
-nvrhi::BufferHandle RenderGraph::GetBuffer(const ResourceHandle& resourceHandle) const
+const char* RenderGraph::GetResourceName(const ResourceHandle& resourceHandle) const
 {
-	return (nvrhi::IBuffer*)GetResourceInternal(resourceHandle, ResourceHandle::Type::Buffer);
+    return resourceHandle.m_Type == ResourceHandle::Type::Texture ?
+        m_ResourceDescs.at(resourceHandle.m_DescIdx).m_TextureDesc.debugName.c_str() :
+        m_ResourceDescs.at(resourceHandle.m_DescIdx).m_BufferDesc.debugName.c_str();
 }
 
 uint64_t RenderGraph::Heap::Allocate(uint64_t size)
 {
-	// NOTE: we dont return block idx because the "Free" function will merge consecutive free blocks, "invalidating" all indices
-
-	const bool bFindBest = true;
-
 	// sanity check
     assert(!m_Blocks.empty());
     assert(size % kHeapAlignment == 0);
@@ -414,7 +392,7 @@ uint64_t RenderGraph::Heap::Allocate(uint64_t size)
 	uint32_t foundIdx = UINT32_MAX;
 	uint64_t heapOffset = 0;
 
-	if constexpr (bFindBest)
+	if constexpr (1)
 	{
 		FindBest(size, foundIdx, heapOffset);
 	}
@@ -422,9 +400,16 @@ uint64_t RenderGraph::Heap::Allocate(uint64_t size)
 	{
         FindFirst(size, foundIdx, heapOffset);
 	}
-	assert(foundIdx != UINT32_MAX);
+
+	// no free block found
+    if (foundIdx == UINT32_MAX)
+    {
+        return UINT64_MAX;
+    }
+
     assert(m_Blocks[foundIdx].m_Allocated == false);
     assert(m_Blocks[foundIdx].m_Size % kHeapAlignment == 0);
+    assert(heapOffset != UINT64_MAX);
 	assert(heapOffset % kHeapAlignment == 0);
 
 	// split the block 
@@ -441,11 +426,13 @@ uint64_t RenderGraph::Heap::Allocate(uint64_t size)
 	m_Used += size;
 	m_Peak = std::max(m_Peak, m_Used);
 
+	// NOTE: we dont return block idx because the "Free" function will merge consecutive free blocks, "invalidating" all indices
 	return heapOffset;
 }
 
 void RenderGraph::Heap::Free(uint64_t heapOffset)
 {
+	assert(heapOffset != UINT64_MAX);
     assert(heapOffset % kHeapAlignment == 0);
 
 	uint32_t foundIdx = 0;
@@ -498,7 +485,7 @@ void RenderGraph::Heap::FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& he
 	// Iterate all blocks to find best fit
 	uint64_t smallestDiff = kDefaultHeapBlockSize;
 
-	for (uint32_t i = 0; i < m_Blocks.size(); ++i)
+	for (uint32_t i = 0, heapOffsetSearch = 0; i < m_Blocks.size(); heapOffsetSearch += m_Blocks[i].m_Size, ++i)
 	{
         if (m_Blocks[i].m_Allocated)
         {
@@ -510,11 +497,8 @@ void RenderGraph::Heap::FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& he
 		if (m_Blocks[i].m_Size >= size && (remainingSize < smallestDiff))
 		{
 			foundIdx = i;
+			heapOffset = heapOffsetSearch;
             smallestDiff = remainingSize;
-		}
-		else
-		{
-			heapOffset += m_Blocks[i].m_Size;
 		}
 	}
 }
@@ -522,7 +506,7 @@ void RenderGraph::Heap::FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& he
 void RenderGraph::Heap::FindFirst(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset)
 {
     // Iterate all blocks to find first fit
-    for (uint32_t i = 0; i < m_Blocks.size(); ++i)
+    for (uint32_t i = 0; i < m_Blocks.size(); heapOffset += m_Blocks[i].m_Size, ++i)
     {
         if (m_Blocks[i].m_Allocated)
         {
@@ -533,10 +517,6 @@ void RenderGraph::Heap::FindFirst(uint64_t size, uint32_t& foundIdx, uint64_t& h
         {
             foundIdx = i;
             break;
-        }
-        else
-        {
-            heapOffset += m_Blocks[i].m_Size;
         }
     }
 }
