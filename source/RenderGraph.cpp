@@ -8,7 +8,7 @@
 thread_local RenderGraph::PassID tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 
 static const bool kDoDebugLogging = false;
-static const uint32_t kDefaultHeapBlockSize = MB_TO_BYTES(256);
+static const uint32_t kDefaultHeapBlockSize = MB_TO_BYTES(16);
 static const uint32_t kMaxHeapBlockSize = MB_TO_BYTES(256); // equivalent to 4k texture with RGBA32 format.
 static const uint32_t kHeapAlignment = KB_TO_BYTES(64);
 static const uint32_t kMaxTransientResourceAge = 2;
@@ -55,8 +55,7 @@ static std::size_t HashResourceDesc(const nvrhi::BufferDesc& desc)
 
 void RenderGraph::Initialize()
 {
-    m_Heap.m_Blocks.push_back({ kDefaultHeapBlockSize, false });
-	m_Heap.m_Heap = g_Graphic.m_NVRHIDevice->createHeap(nvrhi::HeapDesc{ kDefaultHeapBlockSize, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
+    CreateNewHeap(kDefaultHeapBlockSize);
 }
 
 void RenderGraph::InitializeForFrame(tf::Taskflow& taskFlow)
@@ -158,42 +157,68 @@ void RenderGraph::Compile()
 
 		assert(memReq != 0);
 		assert(memReq <= kMaxHeapBlockSize);
+		
+		uint32_t foundHeapIdx = UINT32_MAX;
+        uint32_t foundHeapOffset = UINT32_MAX;
+		for (uint32_t i = 0; i < m_Heaps.size(); ++i)
+		{
+			if (m_Heaps[i].m_Heap->getDesc().capacity < memReq)
+			{
+				continue;
+			}
 
-        const uint32_t heapOffset = m_Heap.Allocate(memReq);
+			foundHeapOffset = m_Heaps[i].Allocate(memReq);
 
-		// TODO: multiple heaps
-		assert(heapOffset != UINT32_MAX);
+            if (foundHeapOffset != UINT32_MAX)
+            {
+                foundHeapIdx = i;
+                break;
+            }
+		}
 
-        resource->m_HeapOffset = heapOffset;
+		// create new heap
+		if (foundHeapIdx == UINT32_MAX)
+        {
+            CreateNewHeap(std::max((uint32_t)memReq, kDefaultHeapBlockSize));
+
+            foundHeapIdx = m_Heaps.size() - 1;
+            foundHeapOffset = m_Heaps.back().Allocate(memReq);
+        }
+
+        assert(foundHeapIdx != UINT32_MAX);
+        assert(foundHeapOffset != UINT32_MAX);
+
+        resource->m_HeapIdx = foundHeapIdx;
+        resource->m_HeapOffset = foundHeapOffset;
         {
             PROFILE_SCOPED("Bind Resource Memory");
 
             if (resource->m_Type == ResourceHandle::Type::Texture)
             {
-                verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource->m_Resource.Get(), m_Heap.m_Heap, heapOffset));
+                verify(g_Graphic.m_NVRHIDevice->bindTextureMemory((nvrhi::ITexture*)resource->m_Resource.Get(), m_Heaps[foundHeapIdx].m_Heap, foundHeapOffset));
             }
             else
             {
-                verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource->m_Resource.Get(), m_Heap.m_Heap, heapOffset));
+                verify(g_Graphic.m_NVRHIDevice->bindBufferMemory((nvrhi::IBuffer*)resource->m_Resource.Get(), m_Heaps[foundHeapIdx].m_Heap, foundHeapOffset));
             }
         }
 
 		if constexpr (kDoDebugLogging)
 		{
-			LOG_DEBUG("Bind Heap: resource: %s, memReq: %d, heapOffset: %d", GetResourceName(*resource), memReq, heapOffset);
+			LOG_DEBUG("Bind Heap: resource: %s, memReq: %d, heapIdx: %d, heapOffset: %d", GetResourceName(*resource), memReq, foundHeapIdx, foundHeapOffset);
 		}
     }
 	m_ResourcesToAlloc.clear();
 
-	for (uint32_t heapOffset : m_HeapOffsetsToFree)
+	for (HeapToFree elem : m_HeapsToFree)
 	{
 		if constexpr (kDoDebugLogging)
 		{
-			LOG_DEBUG("Free Heap: heapOffset: %d", heapOffset);
+			LOG_DEBUG("Free Heap: heapIdx: %d, heapOffset: %d", elem.m_Idx, elem.m_Offset);
 		}
-        m_Heap.Free(heapOffset);
+        m_Heaps.at(elem.m_Idx).Free(elem.m_Offset);
 	}
-    m_HeapOffsetsToFree.clear();
+	m_HeapsToFree.clear();
 }
 
 void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
@@ -365,15 +390,19 @@ void RenderGraph::FreeResource(ResourceHandle& resourceHandle)
 	resourceHandle.m_LastAccess = kInvalidPassID;
 	//resourceHandle.m_LastWrite = kInvalidPassID;
 
-	if (resourceHandle.m_HeapOffset != UINT32_MAX)
+	if (resourceHandle.m_HeapIdx != UINT32_MAX)
 	{
-		m_HeapOffsetsToFree.push_back(resourceHandle.m_HeapOffset);
+        assert(resourceHandle.m_HeapOffset != UINT32_MAX);
+
+		m_HeapsToFree.push_back({ resourceHandle.m_HeapIdx, resourceHandle.m_HeapOffset });
 
 		if constexpr (kDoDebugLogging)
 		{
 			LOG_DEBUG("Free resource: %s, heapOffset: %d", GetResourceName(resourceHandle), resourceHandle.m_HeapOffset);
 		}
 	}
+
+    resourceHandle.m_HeapIdx = UINT32_MAX;
 	resourceHandle.m_HeapOffset = UINT32_MAX;
 }
 
@@ -382,6 +411,18 @@ const char* RenderGraph::GetResourceName(const ResourceHandle& resourceHandle) c
     return resourceHandle.m_Type == ResourceHandle::Type::Texture ?
         m_ResourceDescs.at(resourceHandle.m_DescIdx).m_TextureDesc.debugName.c_str() :
         m_ResourceDescs.at(resourceHandle.m_DescIdx).m_BufferDesc.debugName.c_str();
+}
+
+void RenderGraph::CreateNewHeap(uint32_t size)
+{
+	Heap& newHeap = m_Heaps.emplace_back();
+	newHeap.m_Blocks.push_back({ size, false });
+	newHeap.m_Heap = g_Graphic.m_NVRHIDevice->createHeap(nvrhi::HeapDesc{ size, nvrhi::HeapType::DeviceLocal, "RDG Heap" });
+
+	if constexpr (kDoDebugLogging)
+	{
+		LOG_DEBUG("New Heap size: %d", size);
+	}
 }
 
 uint32_t RenderGraph::Heap::Allocate(uint32_t size)

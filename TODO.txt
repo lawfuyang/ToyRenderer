@@ -4,7 +4,6 @@
 • Mesh LODs
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph
-	• multiple freelists of heaps
 	• Culling of unused resources and passes in the graph
 	• Resource States handling
 		• disable 'keepInitialState' in nvrhi Texture & Buffer Descs, & 'setEnableAutomaticBarriers' to false for command lists in IRenderers

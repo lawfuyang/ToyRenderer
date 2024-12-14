@@ -22,7 +22,8 @@ public:
 		enum class AccessType : uint8_t { Read, Write };
 
 		nvrhi::ResourceHandle m_Resource;
-		uint32_t m_HeapOffset = UINT64_MAX;
+		uint32_t m_HeapOffset = UINT32_MAX;
+		uint32_t m_HeapIdx = UINT32_MAX;
 
 		uint32_t m_AllocatedFrameIdx = UINT32_MAX;
 		uint32_t m_DescIdx = UINT32_MAX;
@@ -98,6 +99,7 @@ private:
 	nvrhi::IResource* GetResourceInternal(const ResourceHandle& resourceHandle, ResourceHandle::Type resourceType) const;
     void FreeResource(ResourceHandle& resourceHandle);
     const char* GetResourceName(const ResourceHandle& resourceHandle) const;
+	void CreateNewHeap(uint32_t size);
 
 	tf::Taskflow* m_TaskFlow;
 	
@@ -107,10 +109,16 @@ private:
 	std::vector<ResourceHandle*> m_ResourceHandles;
 	std::vector<ResourceDesc> m_ResourceDescs;
 
-    std::vector<uint32_t> m_HeapOffsetsToFree;
+	struct HeapToFree
+	{
+		uint32_t m_Idx;
+		uint32_t m_Offset;
+	};
+
+    std::vector<HeapToFree> m_HeapsToFree;
     std::vector<ResourceHandle*> m_ResourcesToAlloc;
 
 	Phase m_CurrentPhase = Phase::Setup;
 
-	Heap m_Heap;
+	std::vector<Heap> m_Heaps;
 };
