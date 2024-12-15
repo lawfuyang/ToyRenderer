@@ -13,13 +13,10 @@
 • Packed GBuffer: https://docs.google.com/presentation/d/1kaeg2qMi3_8nQqoR3Y2Ax9fJKUYLigPLPfdjfuEGowY/edit#slide=id.g27be1a2457b_0_128
     • emissive pipeline
 • HBAO: https://github.com/NVIDIAGameWorks/HBAOPlus
-• RT shadows for directional light
 • Vulkan, for fun
 • local lights
 	• light volumes w/ point, spot lights
-	• local light shadows
 	• local light grid
-	• auto local light shadowmap size based on screen radius
     • https://simoncoenen.com/blog/programming/graphics/SpotlightCulling
     • https://wickedengine.net/2018/01/optimizing-tile-based-light-culling/
 	• clustered deferred lighting: Adria\Rendering\ClusteredDeferredLightingPass.cpp
@@ -27,22 +24,15 @@
 • GPU Driven Base Pass Renderer
 	• support batching of meshes via binning
 	• discard empty indirect draw arguments
-• cull overly small primitives in every view in GPU culling (contribution culling)
-• DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
 • Transparent support
 	• implement binning of opaque/transparent instances after gpuculling
 	• OIT: https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
-• snap shadow projector area to texel
-	• see D3D12_Research shadows
-	• or "moveLightTexelSize" brach in 'LightComponent::CalculateCascadeShadowProjection' in FFX Samples
 • separate top mip streaming
     • integrate D3DX12Residency into nvrhi
     • Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
 • volumetric clouds
 • convert RawVertexFormat into Array of Structs: https://wickedengine.net/2023/11/16/dynamic-vertex-formats/ (?)
 • Static Animations
-• fix shadow edge shimmering & jitter: scene CSM View snap to texel
-• Shadows: Penumbra + cascade blending: https://github.com/GPUOpen-Effects/Hybrid-Shadows/blob/master/src/Shaders/CustomShadowResolve.hlsl
 • Skinning:
 	• https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
     • https://wickedengine.net/2017/09/skinning-in-compute-shader/
@@ -51,8 +41,6 @@
     • async XeGTAO with CSM
     • async GPU Culling
 	• async buffer clears (?)
-• Screenspace Shadows: https://github.com/bkaradzic/bgfx/tree/master/examples/44-sss
-• Ambient Occlusion: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/combined-adaptive-compute-ambient-occlusion.md
 • Area Lights: https://learnopengl.com/Guest-Articles/2022/Area-Lights
 • Lens Flare
 • Volumetric Lighting
@@ -92,13 +80,15 @@
 • Workgraphs
     • convert tiled deferred lighting first
 
-
 Raytracing
-• d3d12 basic samples: https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Raytracing/readme.md
-• Ambient Occlusion: https://github.com/microsoft/DirectX-Graphics-Samples/tree/master/Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion
-• Lighting
-  • https://github.com/NVIDIAGameWorks/RTXGI
-  • https://github.com/NVIDIAGameWorks/RTXDI
-  • https://github.com/NVIDIAGameWorks/RTXMU
-• Hybrid Stochastic Reflections: https://github.com/GPUOpen-Effects/Hybrid-Stochastic-Reflections
-• Hybrid RT Shadows: https://github.com/GPUOpen-Effects/Hybrid-Shadows
+• Accel Structure Memory Management
+	• https://github.com/NVIDIAGameWorks/RTXMU
+• GI
+	• https://github.com/NVIDIAGameWorks/RTXGI-DDGI
+• Hybrid Stochastic Reflections
+	• https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-reflections.md
+• Hybrid RT Shadows
+	• https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-shadows.md
+• Pathtracing
+	• https://github.com/NVIDIAGameWorks/RTX-Path-Tracing
+	
