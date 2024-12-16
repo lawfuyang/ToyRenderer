@@ -366,7 +366,8 @@ void RenderGraph::AddDependencyInternal(ResourceHandle& resourceHandle, Resource
 nvrhi::IResource* RenderGraph::GetResourceInternal(const ResourceHandle& resourceHandle, ResourceHandle::Type resourceType) const
 {
 	assert(m_CurrentPhase == Phase::Execute);
-	assert(resourceHandle.m_AllocatedFrameIdx == g_Graphic.m_FrameCounter);
+	assert(resourceHandle.m_AllocatedFrameIdx != UINT32_MAX); // un-allocated transient resource
+    assert(resourceHandle.m_AllocatedFrameIdx == g_Graphic.m_FrameCounter); // resource is too old
 	assert(tl_CurrentThreadPassID != kInvalidPassID);
 
 #if _DEBUG

@@ -539,18 +539,6 @@ void Scene::UpdateInstanceConstsBuffer()
         m_TransparentInstanceIDsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         commandList->writeBuffer(m_TransparentInstanceIDsBuffer, transparentInstanceIDs.data(), transparentInstanceIDs.size() * sizeof(uint32_t));
     }
-
-    {
-        nvrhi::BufferDesc desc;
-        desc.byteSize = nbPrimitives * sizeof(uint32_t);
-		desc.structStride = sizeof(uint32_t);
-        desc.debugName = "Instance Visibility Buffer";
-        desc.canHaveUAVs = true;
-        desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-        m_InstanceVisibilityBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-        commandList->clearBufferUInt(m_InstanceVisibilityBuffer, 1);
-    }
 }
 
 void Scene::Update()
