@@ -81,6 +81,8 @@
     • convert tiled deferred lighting first
 
 Raytracing
+• Hard shadows
+    • Adria-DX12\Adria\Resources\Shaders\RayTracing\RayTracedShadows.hlsl
 • Accel Structure Memory Management
 	• https://github.com/NVIDIAGameWorks/RTXMU
 • GI
