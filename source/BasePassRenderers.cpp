@@ -47,7 +47,7 @@ public:
         View* m_View;
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
-        nvrhi::TextureHandle m_HZB;
+        bool m_bDoOcclusionCulling = false;;
     };
 
     BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
@@ -159,15 +159,15 @@ public:
             cullingCounters.m_Late = readbackResults[kCullingLateBufferCounterIdx];
         }
 
-		const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && params.m_HZB;
+		const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && params.m_bDoOcclusionCulling;
 
         uint32_t flags = controllables.m_bEnableFrustumCulling ? CullingFlag_FrustumCullingEnable : 0;
         flags |= bDoOcclusionCulling ? CullingFlag_OcclusionCullingEnable : 0;
 
         Vector2U HZBDims{};
-        if (params.m_HZB)
+        if (bDoOcclusionCulling)
         {
-            HZBDims = Vector2U{ params.m_HZB->getDesc().width, params.m_HZB->getDesc().height };
+            HZBDims = Vector2U{ scene->m_HZB->getDesc().width,  scene->m_HZB->getDesc().height };
         }
 
         Matrix projectionT = view.m_ProjectionMatrix.Transpose();
@@ -198,7 +198,7 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? scene->m_AlphaMaskInstanceIDsBuffer : scene->m_OpaqueInstanceIDsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
-            nvrhi::BindingSetItem::Texture_SRV(3, (bLateCull && bDoOcclusionCulling) ? params.m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
+            nvrhi::BindingSetItem::Texture_SRV(3, (bLateCull && bDoOcclusionCulling) ? scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, drawIndexedIndirectArgumentsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, startInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
@@ -305,13 +305,17 @@ public:
 
     void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
     {
-        if (!params.m_HZB)
+        if (!params.m_bDoOcclusionCulling)
         {
             return;
         }
 
+        Scene* scene = g_Graphic.m_Scene.get();
+
+        const Vector2U HZBDims{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height };
+
         MinMaxDownsampleConsts PassParameters;
-        PassParameters.m_OutputDimensions = Vector2U{ params.m_HZB->getDesc().width, params.m_HZB->getDesc().height };
+        PassParameters.m_OutputDimensions = HZBDims;
         PassParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
 
         nvrhi::TextureHandle depthStencilBuffer = params.m_FrameBufferDesc.depthAttachment.texture;
@@ -320,16 +324,16 @@ public:
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(PassParameters)),
             nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
-            nvrhi::BindingSetItem::Texture_UAV(0, params.m_HZB),
+            nvrhi::BindingSetItem::Texture_UAV(0, scene->m_HZB),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
-        const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ params.m_HZB->getDesc().width, params.m_HZB->getDesc().height }, 8);
+        const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(HZBDims, 8);
         g_Graphic.AddComputePass(commandList, "minmaxdownsample_CS_Main", bindingSetDesc, dispatchGroupSize, &PassParameters, sizeof(PassParameters));
 
         // generate HZB mip chain
         const nvrhi::SamplerReductionType reductionType = Graphic::kInversedDepthBuffer ? nvrhi::SamplerReductionType::Minimum : nvrhi::SamplerReductionType::Maximum;
-        m_SPDHelper.Execute(commandList, renderGraph, depthStencilBuffer, params.m_HZB, reductionType);
+        m_SPDHelper.Execute(commandList, renderGraph, depthStencilBuffer, scene->m_HZB, reductionType);
     }
 
     void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
@@ -368,8 +372,6 @@ public:
 
 class GBufferRenderer : public BasePassRenderer
 {
-	RenderGraph::ResourceHandle m_HZBRDGTextureHandle;
-
 public:
     GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
 
@@ -413,20 +415,6 @@ public:
             renderGraph.CreateTransientResource(g_DepthBufferCopyRDGTextureHandle, desc);
         }
 
-        {
-            nvrhi::TextureDesc desc;
-            desc.width = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
-            desc.height = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
-            desc.format = Graphic::kHZBFormat;
-            desc.isUAV = true;
-            desc.debugName = "HZB";
-            desc.mipLevels = ComputeNbMips(desc.width, desc.height);
-            desc.useClearValue = false;
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-			renderGraph.CreateTransientResource(m_HZBRDGTextureHandle, desc);
-        }
-
         return true;
     }
 
@@ -445,7 +433,6 @@ public:
         nvrhi::TextureHandle GBufferBTexture = renderGraph.GetTexture(g_GBufferBRDGTextureHandle);
         nvrhi::TextureHandle GBufferCTexture = renderGraph.GetTexture(g_GBufferCRDGTextureHandle);
         nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
-		nvrhi::TextureHandle HZB = renderGraph.GetTexture(m_HZBRDGTextureHandle);
 
         nvrhi::FramebufferDesc frameBufferDesc;
         frameBufferDesc.addColorAttachment(GBufferATexture);
@@ -464,7 +451,7 @@ public:
         params.m_View = &view;
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, Graphic::kFrontCCW ? g_CommonResources.CullClockwise : g_CommonResources.CullCounterClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
-		params.m_HZB = HZB;
+        params.m_bDoOcclusionCulling = true;
 
         RenderBasePass(commandList, renderGraph, params);
 

@@ -108,6 +108,8 @@ public:
 
     nvrhi::BufferHandle m_InstanceVisibilityBuffer;
 
+    nvrhi::TextureHandle m_HZB;
+
     std::vector<Camera> m_Cameras;
 
 private:
