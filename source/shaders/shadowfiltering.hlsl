@@ -17,7 +17,7 @@ struct ShadowFilteringParams
 
 float Manual1x1PCF(ShadowFilteringParams params, float3 shadowTexCoord, uint CSMIndex)
 {
-    return params.m_DirLightShadowDepthTexture.SampleCmpLevelZero(params.m_PointComparisonLessSampler, float3(shadowTexCoord.xy, CSMIndex), shadowTexCoord.z);
+    return params.m_DirLightShadowDepthTexture.SampleCmpLevelZero(params.m_LinearComparisonLessSampler, float3(shadowTexCoord.xy, CSMIndex), shadowTexCoord.z);
 }
 
 float Manual3X3PCF(ShadowFilteringParams params, float3 shadowTexCoord, uint CSMIndex)
