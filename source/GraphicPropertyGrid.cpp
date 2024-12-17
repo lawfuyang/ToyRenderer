@@ -84,7 +84,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
     {
         DebugControllables& params = m_DebugControllables;
 
-        ImGui::SliderInt("FPS Limit", (int*)&params.m_FPSLimit, 0, 240);
+        ImGui::SliderInt("FPS Limit", (int*)&params.m_FPSLimit, 10, 240);
         ImGui::TreePop();
     }
 
