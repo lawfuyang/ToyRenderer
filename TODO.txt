@@ -1,6 +1,5 @@
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
-• review gpu culling late cull draw calls. should be '0' when camera is not moving
 • Mesh LODs
     • generate using meshoptimizer
 • Render Graph: D3D12_Research\Graphics\RenderGraph

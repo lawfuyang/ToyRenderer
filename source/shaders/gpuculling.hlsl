@@ -95,7 +95,31 @@ bool OcclusionCullBS(float3 sphereCenterViewSpace, float radius)
     float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (aabb.xy + aabb.zw) * 0.5f, level).x;
     float depthSphere = g_GPUCullingPassConstants.m_NearPlane / (c.z - r);
 
-    return depthSphere > depth;
+    return depthSphere >= depth;
+}
+
+void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts)
+{
+#if LATE
+    InterlockedAdd(g_CullingCounters[kCullingLateBufferCounterIdx], 1);
+#else
+    InterlockedAdd(g_CullingCounters[kCullingEarlyBufferCounterIdx], 1);
+#endif
+    
+    uint outInstanceIdx;
+    InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);
+
+    MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
+    
+    DrawIndexedIndirectArguments newArgs;
+    newArgs.m_IndexCount = meshData.m_IndexCount;
+    newArgs.m_InstanceCount = 1;
+    newArgs.m_StartIndexLocation = meshData.m_StartIndexLocation;
+    newArgs.m_BaseVertexLocation = 0;
+    newArgs.m_StartInstanceLocation = outInstanceIdx;
+    
+    g_DrawArgumentsOutput[outInstanceIdx] = newArgs;
+    g_StartInstanceConstsOffsets[outInstanceIdx] = instanceConstsIdx;
 }
 
 [numthreads(kNbGPUCullingGroupThreads, 1, 1)]
@@ -130,70 +154,45 @@ void CS_GPUCulling(
     float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
-    bool bIsVisible = true;
-    bool bWasOccluded = false;
+    float sphereRadius = instanceConsts.m_BoundingSphere.w;
     
     // Frustum test instance against the current view
-    if (bDoFrustumCulling)
-    {
-        bIsVisible = FrustumCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
-    }
+    bool bIsVisible = !bDoFrustumCulling || FrustumCullBS(sphereCenterViewSpace, sphereRadius);
     
-    if (bIsVisible && bDoOcclusionCulling)
-    {
-    #if !LATE
-        // Frustum test instance against the *previous* view to determine if it was visible last frame
-        float3 prevViewSphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevViewMatrix).xyz;
-        prevViewSphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
-        
-        bool bPrevFrustumVisible = true;
-        if (bDoFrustumCulling)
-        {
-            bPrevFrustumVisible = FrustumCullBS(prevViewSphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
-        }
-        
-        // Occlusion test instance against *previous* HZB.
-        // If the instance was occluded the previous frame, we can't be sure it's still occluded this frame.
-        // Add it to the list to re-test in the second phase.
-        if (bPrevFrustumVisible)
-        {
-            bWasOccluded = !OcclusionCullBS(prevViewSphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
-        }
-    #else
-        // Occlusion test instance against the updated HZB
-        bIsVisible = OcclusionCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
-    #endif
-    }
-    
-    if (!bIsVisible || bWasOccluded)
+    if (!bIsVisible)
     {
         return;
     }
     
-#if LATE
-    InterlockedAdd(g_CullingCounters[kCullingLateBufferCounterIdx], 1);
+    if (!bDoOcclusionCulling)
+    {
+        SubmitInstance(instanceConstsIdx, instanceConsts);
+        return;
+    }
+    
+#if !LATE
+    sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevViewMatrix).xyz;
+    sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
+    
+    // Occlusion test instance against *previous* HZB. If the instance was occluded the previous frame, re-test in the second phase.    
+    if (!OcclusionCullBS(sphereCenterViewSpace, sphereRadius))
+    {
+        uint outLateCullInstanceIdx;
+        InterlockedAdd(g_LateCullInstanceIndicesCounter[0], 1, outLateCullInstanceIdx);
+        g_LateCullInstanceIndicesBuffer[outLateCullInstanceIdx] = instanceConstsIdx;
+    }
+    else
+    {
+        // If instance is visible and wasn't occluded in the previous frame, submit it
+        SubmitInstance(instanceConstsIdx, instanceConsts);
+    }
 #else
-    uint outLateCullInstanceIdx;
-    InterlockedAdd(g_LateCullInstanceIndicesCounter[0], 1, outLateCullInstanceIdx);
-    g_LateCullInstanceIndicesBuffer[outLateCullInstanceIdx] = instanceConstsIdx;
-    
-    InterlockedAdd(g_CullingCounters[kCullingEarlyBufferCounterIdx], 1);
+    // Occlusion test instance against the updated HZB
+    if (OcclusionCullBS(sphereCenterViewSpace, sphereRadius))
+    {
+        SubmitInstance(instanceConstsIdx, instanceConsts);
+    }
 #endif
-    
-    uint outInstanceIdx;
-    InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);
-
-    MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
-    
-    DrawIndexedIndirectArguments newArgs;
-    newArgs.m_IndexCount = meshData.m_IndexCount;
-    newArgs.m_InstanceCount = 1;
-    newArgs.m_StartIndexLocation = meshData.m_StartIndexLocation;
-    newArgs.m_BaseVertexLocation = 0;
-    newArgs.m_StartInstanceLocation = outInstanceIdx;
-    
-    g_DrawArgumentsOutput[outInstanceIdx] = newArgs;
-    g_StartInstanceConstsOffsets[outInstanceIdx] = instanceConstsIdx;
 }
 
 StructuredBuffer<int> g_NumLateCullInstances : register(t0);

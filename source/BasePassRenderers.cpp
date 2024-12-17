@@ -171,6 +171,7 @@ public:
         bool bAlphaMaskPrimitives)
     {
         PROFILE_FUNCTION();
+        PROFILE_GPU_SCOPED(commandList, "GPU Culling");
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
@@ -222,11 +223,7 @@ public:
         uint32_t flags = controllables.m_bEnableFrustumCulling ? CullingFlag_FrustumCullingEnable : 0;
         flags |= bDoOcclusionCulling ? CullingFlag_OcclusionCullingEnable : 0;
 
-        Vector2U HZBDims{};
-        if (bDoOcclusionCulling)
-        {
-            HZBDims = Vector2U{ scene->m_HZB->getDesc().width,  scene->m_HZB->getDesc().height };
-        }
+        const Vector2U HZBDims = bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
 
         Matrix projectionT = view.m_ProjectionMatrix.Transpose();
         Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
@@ -382,6 +379,9 @@ public:
 
     void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
     {
+        PROFILE_FUNCTION();
+        PROFILE_GPU_SCOPED(commandList, "Generate HZB");
+
         Scene* scene = g_Graphic.m_Scene.get();
 
         const Vector2U HZBDims{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height };
@@ -418,7 +418,9 @@ public:
 		GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
 		RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
 
-        if (m_bDoOcclusionCulling)
+        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
+        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
+        if (bDoOcclusionCulling)
         {
             GenerateHZB(commandList, renderGraph, params);
 
