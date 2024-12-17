@@ -466,6 +466,11 @@ struct GLTFSceneLoader
                         {
                             static auto PackVector4ToUint32 = [](Vector4 v)
                                 {
+									assert(v.x >= -1.0f && v.x <= 1.0f);
+									assert(v.y >= -1.0f && v.y <= 1.0f);
+									assert(v.z >= -1.0f && v.z <= 1.0f);
+									assert(v.w >= -1.0f && v.w <= 1.0f);
+
                                     // Normalize x, y, z from [-1, 1] to [0, 1]
                                     v.x = (v.x + 1.0f) * 0.5f;
                                     v.y = (v.y + 1.0f) * 0.5f;
@@ -524,8 +529,9 @@ struct GLTFSceneLoader
                                 {
                                     static auto PackUV = [](Vector2 UV)
                                         {
-											UV.x = std::clamp(UV.x, 0.0f, 1.0f);
-											UV.y = std::clamp(UV.y, 0.0f, 1.0f);
+											assert(UV.x >= 0.0f && UV.x <= 1.0f);
+											assert(UV.y >= 0.0f && UV.y <= 1.0f);
+
 											Vector2 scaledUV = UV * 65535.0f;
 											uint32_t packed = (uint32_t(scaledUV.x) | (uint32_t(scaledUV.y) << 16u));
 											return packed;
