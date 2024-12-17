@@ -5,8 +5,22 @@
 #include "shared/GPUCullingStructs.h"
 #include "shared/IndirectArguments.h"
 
+/*
+	-- 2 Phase Occlusion Culling --
+
+	Works under the assumption that it's likely that objects visible in the previous frame, will be visible this frame.
+
+	In Phase 1, we render all objects that were visible last frame by testing against the previous HZB.
+	Occluded objects are stored in a list, to be processed later.
+	The HZB is constructed from the current result.
+	Phase 2 tests all previously occluded objects against the new HZB and renders unoccluded.
+	The HZB is constructed again from this result to be used in the next frame.
+
+	https://advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf
+*/
+
 #if __INTELLISENSE__
-#define LATE 1
+#define LATE 0
 #endif
 
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
@@ -19,6 +33,7 @@ RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
 RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u4);
+RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u5);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 // Niagara's frustum culling
@@ -74,11 +89,7 @@ bool OcclusionCullBS(float3 sphereCenterViewSpace, float radius)
     
     float width = (aabb.z - aabb.x) * g_GPUCullingPassConstants.m_HZBDimensions.x;
     float height = (aabb.w - aabb.y) * g_GPUCullingPassConstants.m_HZBDimensions.y;
-
-    // Because we only consider 2x2 pixels, we need to make sure we are sampling from a mip that reduces the rectangle to 1x1 texel or smaller.
-    // Due to the rectangle being arbitrarily offset, a 1x1 rectangle may cover 2x2 texel area. Using floor() here would require sampling 4 corners
-    // of AABB (using bilinear fetch), which is a little slower.
-    float level = ceil(log2(max(width, height)));
+    float level = floor(log2(max(width, height)));
     
     // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
     float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (aabb.xy + aabb.zw) * 0.5f, level).x;
@@ -105,14 +116,16 @@ void CS_GPUCulling(
         return;
     }
     
+#if LATE
+    uint instanceConstsIdx = g_LateCullInstanceIndicesBuffer[dispatchThreadID.x];
+#else
+    uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];
+#endif
+    
     const bool bDoOcclusionCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_OcclusionCullingEnable;
     const bool bDoFrustumCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_FrustumCullingEnable;
     
-    uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];    
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
-    
-    // in early pass, we have to *only* render clusters that were visible last frame, to build a reasonable depth pyramid out of visible triangles
-    // we do this by culling against the previous frame's view frustum & HZB
     
     float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
@@ -130,20 +143,21 @@ void CS_GPUCulling(
     {
     #if !LATE
         // Frustum test instance against the *previous* view to determine if it was visible last frame
-        sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevViewMatrix).xyz;
-        sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
+        float3 prevViewSphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevViewMatrix).xyz;
+        prevViewSphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
         
+        bool bPrevFrustumVisible = true;
         if (bDoFrustumCulling)
         {
-            bIsVisible = FrustumCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
+            bPrevFrustumVisible = FrustumCullBS(prevViewSphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
         }
         
-        // Occlusion test instance against *previous* HZB
+        // Occlusion test instance against *previous* HZB.
         // If the instance was occluded the previous frame, we can't be sure it's still occluded this frame.
         // Add it to the list to re-test in the second phase.
-        if (bIsVisible)
+        if (bPrevFrustumVisible)
         {
-            bWasOccluded = !OcclusionCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
+            bWasOccluded = !OcclusionCullBS(prevViewSphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
         }
     #else
         // Occlusion test instance against the updated HZB
@@ -159,13 +173,16 @@ void CS_GPUCulling(
 #if LATE
     InterlockedAdd(g_CullingCounters[kCullingLateBufferCounterIdx], 1);
 #else
-    InterlockedAdd(g_LateCullInstanceIndicesCounter[0], 1);
+    uint outLateCullInstanceIdx;
+    InterlockedAdd(g_LateCullInstanceIndicesCounter[0], 1, outLateCullInstanceIdx);
+    g_LateCullInstanceIndicesBuffer[outLateCullInstanceIdx] = instanceConstsIdx;
+    
     InterlockedAdd(g_CullingCounters[kCullingEarlyBufferCounterIdx], 1);
 #endif
     
     uint outInstanceIdx;
     InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);
-    
+
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
     
     DrawIndexedIndirectArguments newArgs;

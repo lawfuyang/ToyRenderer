@@ -36,6 +36,7 @@ class BasePassRenderer : public IRenderer
     RenderGraph::ResourceHandle m_StartInstanceConstsOffsetsRDGBufferHandle;
     RenderGraph::ResourceHandle m_LateCullDispatchIndirectArgsRDGBufferHandle;
     RenderGraph::ResourceHandle m_LateCullInstanceCountBufferRDGBufferHandle;
+    RenderGraph::ResourceHandle m_lateCullInstanceIDsBufferRDGBufferHandle;
 
     FFXHelpers::SPD m_SPDHelper;
     FencedReadbackBuffer m_CounterStatsReadbackBuffer;
@@ -117,7 +118,10 @@ public:
 			renderGraph.CreateTransientResource(m_StartInstanceConstsOffsetsRDGBufferHandle, desc);
 		}
 
-		if (m_bDoOcclusionCulling)
+        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
+        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
+
+		if (bDoOcclusionCulling)
 		{
 			m_SPDHelper.CreateTransientResources(renderGraph);
 
@@ -143,6 +147,17 @@ public:
 
 				renderGraph.CreateTransientResource(m_LateCullInstanceCountBufferRDGBufferHandle, desc);
 			}
+
+            {
+				nvrhi::BufferDesc desc;
+				desc.byteSize = sizeof(uint32_t) * nbInstances;
+				desc.structStride = sizeof(uint32_t);
+				desc.canHaveUAVs = true;
+                desc.initialState = nvrhi::ResourceStates::ShaderResource;
+				desc.debugName = "LateCullInstanceIDsBuffer";
+
+				renderGraph.CreateTransientResource(m_lateCullInstanceIDsBufferRDGBufferHandle, desc);
+            }
 		}
 
 		return true;
@@ -176,6 +191,7 @@ public:
         nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_StartInstanceConstsOffsetsRDGBufferHandle);
         nvrhi::BufferHandle lateCullDispatchIndirectArgsBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullDispatchIndirectArgsRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
         nvrhi::BufferHandle lateCullInstanceCountBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceCountBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
+		nvrhi::BufferHandle lateCullInstanceIDsBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_lateCullInstanceIDsBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
 
         {
@@ -188,6 +204,7 @@ public:
             if (!bLateCull && bDoOcclusionCulling)
             {
                 commandList->clearBufferUInt(lateCullInstanceCountBuffer, 0);
+				commandList->clearBufferUInt(lateCullInstanceIDsBuffer, 0);
             }
         }
 
@@ -244,7 +261,8 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, startInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, (!bLateCull && bDoOcclusionCulling) ? lateCullInstanceCountBuffer : g_CommonResources.DummyUIntStructuredBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, lateCullInstanceCountBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(5, lateCullInstanceIDsBuffer),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
