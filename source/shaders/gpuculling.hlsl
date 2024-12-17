@@ -18,7 +18,7 @@ RWStructuredBuffer<DrawIndexedIndirectArguments> g_DrawArgumentsOutput : registe
 RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
-RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u5);
+RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u4);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 // Niagara's frustum culling
@@ -42,15 +42,9 @@ bool FrustumCullBS(float3 sphereCenterViewSpace, float radius)
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
 bool OcclusionCullBS(float3 sphereCenterViewSpace, float radius)
 {
-    // NOTE: this seems unnecessary?
-#if 0
-    if (c.z - r < g_GPUCullingPassConstants.m_NearPlane)
-        return false;
-#endif
-    
     float3 c = sphereCenterViewSpace;
     
-    // trivially accept of sphere intersects camera near plane
+    // trivially accept if sphere intersects camera near plane
     if ((c.z - g_GPUCullingPassConstants.m_NearPlane) < radius)
         return true;
     
@@ -71,6 +65,9 @@ bool OcclusionCullBS(float3 sphereCenterViewSpace, float radius)
 
     float4 aabb = float4(minx * P00, miny * P11, maxx * P00, maxy * P11);
     
+    aabb.xy = clamp(aabb.xy, -1, 1);
+    aabb.zw = clamp(aabb.zw, -1, 1);
+    
     // clip space -> uv space
     aabb.xy = ClipXYToUV(aabb.xy);
     aabb.zw = ClipXYToUV(aabb.zw);
@@ -83,9 +80,6 @@ bool OcclusionCullBS(float3 sphereCenterViewSpace, float radius)
     // of AABB (using bilinear fetch), which is a little slower.
     float level = ceil(log2(max(width, height)));
     
-    // don't bother sampling too high of a mip. 8x8 pixel blockers are fine-grained enough
-    level = max(level, 3.0f);
-
     // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
     float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (aabb.xy + aabb.zw) * 0.5f, level).x;
     float depthSphere = g_GPUCullingPassConstants.m_NearPlane / (c.z - r);
@@ -124,6 +118,7 @@ void CS_GPUCulling(
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
     bool bIsVisible = true;
+    bool bWasOccluded = false;
     
     // Frustum test instance against the current view
     if (bDoFrustumCulling)
@@ -144,9 +139,11 @@ void CS_GPUCulling(
         }
         
         // Occlusion test instance against *previous* HZB
+        // If the instance was occluded the previous frame, we can't be sure it's still occluded this frame.
+        // Add it to the list to re-test in the second phase.
         if (bIsVisible)
         {
-            bIsVisible = OcclusionCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
+            bWasOccluded = !OcclusionCullBS(sphereCenterViewSpace, instanceConsts.m_BoundingSphere.w);
         }
     #else
         // Occlusion test instance against the updated HZB
@@ -154,7 +151,7 @@ void CS_GPUCulling(
     #endif
     }
     
-    if (!bIsVisible)
+    if (!bIsVisible || bWasOccluded)
     {
         return;
     }

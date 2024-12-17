@@ -41,8 +41,7 @@ class BasePassRenderer : public IRenderer
     FencedReadbackBuffer m_CounterStatsReadbackBuffer;
     RenderGraph::ResourceHandle m_CounterStatsRDGBufferHandle;
 
-protected:
-    bool m_bDoOcclusionCulling = false;
+    const bool m_bDoOcclusionCulling;
 
 public:
     struct RenderBasePassParams
@@ -54,7 +53,10 @@ public:
         nvrhi::FramebufferDesc m_FrameBufferDesc;
     };
 
-    BasePassRenderer(const char* rendererName) : IRenderer(rendererName) {}
+    BasePassRenderer(const char* rendererName, bool bDoOcclusionCulling)
+        : IRenderer(rendererName)
+		, m_bDoOcclusionCulling(bDoOcclusionCulling)
+    {}
 
 	void Initialize() override
 	{
@@ -64,83 +66,83 @@ public:
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
-        m_SPDHelper.CreateTransientResources(renderGraph);
-
+		const uint32_t nbInstances = g_Graphic.m_Scene->m_Primitives.size();
+        if (nbInstances == 0)
         {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(uint32_t) * kNbGPUCullingBufferCounters;
-            desc.structStride = sizeof(uint32_t);
-            desc.canHaveUAVs = true;
-            desc.debugName = "GPUCullingCounterStats";
-            desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-            renderGraph.CreateTransientResource(m_CounterStatsRDGBufferHandle, desc);
+            return true;
 		}
 
-		const uint32_t nbInstances = g_Graphic.m_Scene->m_Primitives.size();
-		if (nbInstances > 0)
 		{
-			{
-				nvrhi::BufferDesc desc;
-                desc.byteSize = sizeof(uint32_t);
-				desc.structStride = sizeof(uint32_t);
-				desc.canHaveUAVs = true;
-				desc.isDrawIndirectArgs = true;
-				desc.initialState = nvrhi::ResourceStates::ShaderResource;
-				desc.debugName = "InstanceIndexCounter";
+			nvrhi::BufferDesc desc;
+			desc.byteSize = sizeof(uint32_t) * kNbGPUCullingBufferCounters;
+			desc.structStride = sizeof(uint32_t);
+			desc.canHaveUAVs = true;
+			desc.debugName = "GPUCullingCounterStats";
+			desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+			renderGraph.CreateTransientResource(m_CounterStatsRDGBufferHandle, desc);
+		}
 
-				renderGraph.CreateTransientResource(m_InstanceCountRDGBufferHandle, desc);
-			}
+		{
+			nvrhi::BufferDesc desc;
+			desc.byteSize = sizeof(uint32_t);
+			desc.structStride = sizeof(uint32_t);
+			desc.canHaveUAVs = true;
+			desc.isDrawIndirectArgs = true;
+			desc.initialState = nvrhi::ResourceStates::ShaderResource;
+			desc.debugName = "InstanceIndexCounter";
+
+			renderGraph.CreateTransientResource(m_InstanceCountRDGBufferHandle, desc);
+		}
+		{
+			nvrhi::BufferDesc desc;
+			desc.byteSize = sizeof(DrawIndexedIndirectArguments) * nbInstances;
+			desc.structStride = sizeof(DrawIndexedIndirectArguments);
+			desc.canHaveUAVs = true;
+			desc.isDrawIndirectArgs = true;
+			desc.initialState = nvrhi::ResourceStates::IndirectArgument;
+			desc.debugName = "DrawIndexedIndirectArguments";
+
+			renderGraph.CreateTransientResource(m_DrawIndexedIndirectArgumentsRDGBufferHandle, desc);
+		}
+
+		{
+			nvrhi::BufferDesc desc;
+			desc.byteSize = sizeof(uint32_t) * nbInstances;
+			desc.structStride = sizeof(uint32_t);
+			desc.canHaveUAVs = true;
+			desc.isVertexBuffer = true;
+			desc.initialState = nvrhi::ResourceStates::VertexBuffer;
+			desc.debugName = "StartInstanceConstsOffsets";
+
+			renderGraph.CreateTransientResource(m_StartInstanceConstsOffsetsRDGBufferHandle, desc);
+		}
+
+		if (m_bDoOcclusionCulling)
+		{
+			m_SPDHelper.CreateTransientResources(renderGraph);
+
 			{
 				nvrhi::BufferDesc desc;
-				desc.byteSize = sizeof(DrawIndexedIndirectArguments) * nbInstances;
-				desc.structStride = sizeof(DrawIndexedIndirectArguments);
+				desc.byteSize = sizeof(DispatchIndirectArguments);
+				desc.structStride = sizeof(DispatchIndirectArguments);
 				desc.canHaveUAVs = true;
 				desc.isDrawIndirectArgs = true;
 				desc.initialState = nvrhi::ResourceStates::IndirectArgument;
-				desc.debugName = "DrawIndexedIndirectArguments";
+				desc.debugName = "LateCullDispatchIndirectArgs";
 
-				renderGraph.CreateTransientResource(m_DrawIndexedIndirectArgumentsRDGBufferHandle, desc);
+				renderGraph.CreateTransientResource(m_LateCullDispatchIndirectArgsRDGBufferHandle, desc);
 			}
 
 			{
 				nvrhi::BufferDesc desc;
-				desc.byteSize = sizeof(uint32_t) * nbInstances;
+				desc.byteSize = sizeof(uint32_t);
 				desc.structStride = sizeof(uint32_t);
 				desc.canHaveUAVs = true;
-				desc.isVertexBuffer = true;
-				desc.initialState = nvrhi::ResourceStates::VertexBuffer;
-				desc.debugName = "StartInstanceConstsOffsets";
+				desc.initialState = nvrhi::ResourceStates::ShaderResource;
+				desc.debugName = "LateCullInstanceCountBuffer";
 
-				renderGraph.CreateTransientResource(m_StartInstanceConstsOffsetsRDGBufferHandle, desc);
+				renderGraph.CreateTransientResource(m_LateCullInstanceCountBufferRDGBufferHandle, desc);
 			}
-
-            // TODO: if i enforce this, the late cull will persistently have draw calls? what the fuck???
-            //if (m_bDoOcclusionCulling)
-            {
-                {
-                    nvrhi::BufferDesc desc;
-                    desc.byteSize = sizeof(DispatchIndirectArguments);
-                    desc.structStride = sizeof(DispatchIndirectArguments);
-                    desc.canHaveUAVs = true;
-                    desc.isDrawIndirectArgs = true;
-                    desc.initialState = nvrhi::ResourceStates::IndirectArgument;
-                    desc.debugName = "LateCullDispatchIndirectArgs";
-
-                    renderGraph.CreateTransientResource(m_LateCullDispatchIndirectArgsRDGBufferHandle, desc);
-                }
-
-                {
-                    nvrhi::BufferDesc desc;
-                    desc.byteSize = sizeof(uint32_t);
-                    desc.structStride = sizeof(uint32_t);
-                    desc.canHaveUAVs = true;
-                    desc.isDrawIndirectArgs = true;
-                    desc.initialState = nvrhi::ResourceStates::ShaderResource;
-                    desc.debugName = "LateCullInstanceCountBuffer";
-
-                    renderGraph.CreateTransientResource(m_LateCullInstanceCountBufferRDGBufferHandle, desc);
-                }
-            }
 		}
 
 		return true;
@@ -167,11 +169,13 @@ public:
             return;
         }
 
+        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
+
         nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
         nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_StartInstanceConstsOffsetsRDGBufferHandle);
-        nvrhi::BufferHandle lateCullDispatchIndirectArgsBuffer = renderGraph.GetBuffer(m_LateCullDispatchIndirectArgsRDGBufferHandle);
-        nvrhi::BufferHandle lateCullInstanceCountBuffer = renderGraph.GetBuffer(m_LateCullInstanceCountBufferRDGBufferHandle);
+        nvrhi::BufferHandle lateCullDispatchIndirectArgsBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullDispatchIndirectArgsRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
+        nvrhi::BufferHandle lateCullInstanceCountBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceCountBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
 
         {
@@ -181,7 +185,7 @@ public:
 			commandList->clearBufferUInt(startInstanceConstsOffsetsBuffer, 0);
 			commandList->clearBufferUInt(drawIndexedIndirectArgumentsBuffer, 0);
 
-            if (!bLateCull)
+            if (!bLateCull && bDoOcclusionCulling)
             {
                 commandList->clearBufferUInt(lateCullInstanceCountBuffer, 0);
             }
@@ -197,8 +201,6 @@ public:
             cullingCounters.m_Early = readbackResults[kCullingEarlyBufferCounterIdx];
             cullingCounters.m_Late = readbackResults[kCullingLateBufferCounterIdx];
         }
-
-		const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
 
         uint32_t flags = controllables.m_bEnableFrustumCulling ? CullingFlag_FrustumCullingEnable : 0;
         flags |= bDoOcclusionCulling ? CullingFlag_OcclusionCullingEnable : 0;
@@ -242,10 +244,8 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, startInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, !bLateCull ? lateCullDispatchIndirectArgsBuffer : g_CommonResources.DummyUIntStructuredBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(5, !bLateCull ? lateCullInstanceCountBuffer : g_CommonResources.DummyUIntStructuredBuffer),
-            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler),
-            nvrhi::BindingSetItem::Sampler(1, g_CommonResources.PointClampSampler)
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, (!bLateCull && bDoOcclusionCulling) ? lateCullInstanceCountBuffer : g_CommonResources.DummyUIntStructuredBuffer),
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
         const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d", bLateCull ? 1 : 0);
@@ -266,7 +266,10 @@ public:
         }
         else
         {
-            g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, lateCullDispatchIndirectArgsBuffer, 0, lateCullInstanceCountBuffer, 0);
+            if (bDoOcclusionCulling)
+            {
+                g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, lateCullDispatchIndirectArgsBuffer, 0);
+            }
         }
     }
 
@@ -361,11 +364,6 @@ public:
 
     void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
     {
-        if (!m_bDoOcclusionCulling)
-        {
-            return;
-        }
-
         Scene* scene = g_Graphic.m_Scene.get();
 
         const Vector2U HZBDims{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height };
@@ -399,27 +397,27 @@ public:
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
         commandList->clearBufferUInt(counterStatsBuffer, 0);
 
-		// early cull: frustum cull & fill objects that *were* visible last frame
 		GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
-
-		// early render: render objects that were visible last frame
 		RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
 
         if (m_bDoOcclusionCulling)
         {
-            // depth pyramid generation
             GenerateHZB(commandList, renderGraph, params);
 
-            // late cull: frustum + occlusion cull & fill objects that were *not* visible last frame
             GPUCulling(commandList, renderGraph, params, true /* bLateCull */, false /* bAlphaMaskPrimitives */);
-
-            // late render: render opaque objects that are visible this frame but weren't drawn in the early pass
             RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
 
-            // late cull: alpha mask primitives
+            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
             GPUCulling(commandList, renderGraph, params, true /* bLateCull */, true /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
 
-            // late render: alpha mask primitives
+            GenerateHZB(commandList, renderGraph, params);
+        }
+        else
+        {
+			// cull & render for alpha mask primitives, but no occlusion culling
+            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
             RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
         }
 
@@ -432,11 +430,10 @@ public:
 class GBufferRenderer : public BasePassRenderer
 {
 public:
-    GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
+    GBufferRenderer() : BasePassRenderer("GBufferRenderer", true) {}
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        m_bDoOcclusionCulling = true;
 		BasePassRenderer::Setup(renderGraph);
 
         nvrhi::TextureDesc desc;
@@ -534,7 +531,7 @@ public:
 class TransparentForwardRenderer : public BasePassRenderer
 {
 public:
-    TransparentForwardRenderer() : BasePassRenderer("TransparentForwardRenderer") {}
+    TransparentForwardRenderer() : BasePassRenderer("TransparentForwardRenderer", false) {}
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
@@ -556,7 +553,7 @@ class SunCSMBasePassRenderer : public BasePassRenderer
 
 public:
     SunCSMBasePassRenderer(uint32_t CSMIdx)
-        : BasePassRenderer(StringFormat("CSM: %d", CSMIdx))
+        : BasePassRenderer(StringFormat("CSM: %d", CSMIdx), false)
         , m_CSMIndex(CSMIdx)
     {
         g_SunCSMBasePassRenderers[m_CSMIndex] = this;
