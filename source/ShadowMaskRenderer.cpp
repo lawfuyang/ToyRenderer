@@ -42,8 +42,8 @@ public:
 		desc.initialState = nvrhi::ResourceStates::ShaderResource;
 		renderGraph.CreateTransientResource(g_ShadowMaskRDGTextureHandle, desc);
 
-		desc.width >>= 1;
-		desc.height >>= 1;
+        desc.width = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
+        desc.height = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
 		desc.debugName = "Convservative Shadow Mask Texture";
 		desc.mipLevels = ComputeNbMips(desc.width, desc.height);
 		desc.isUAV = true;

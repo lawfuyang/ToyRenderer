@@ -150,41 +150,29 @@ static void CreateDefaultSamplers()
 {
     PROFILE_FUNCTION();
 
-    nvrhi::SamplerDesc samplerDesc;
-    samplerDesc.setMaxAnisotropy(16);
+    auto CreateSampler = [](bool bMinFilter, bool bMagFilter, bool bMipFilter, nvrhi::SamplerAddressMode addressMode, nvrhi::SamplerReductionType reductionType, uint32_t maxAnisotropy)
+        {
+			nvrhi::SamplerDesc samplerDesc;
+			samplerDesc.setMinFilter(bMinFilter);
+			samplerDesc.setMagFilter(bMagFilter);
+			samplerDesc.setMipFilter(bMipFilter);
+			samplerDesc.setAllAddressModes(addressMode);
+            samplerDesc.setReductionType(reductionType);
+			samplerDesc.setMaxAnisotropy(maxAnisotropy);
 
-    samplerDesc.setAllFilters(false);
-    g_CommonResources.PointClampSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
+			return g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
+        };
 
-    samplerDesc.setAllFilters(true);
-    g_CommonResources.LinearClampSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
-
-    samplerDesc.setReductionType(nvrhi::SamplerReductionType::Minimum);
-	g_CommonResources.LinearClampMinReductionSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
-    samplerDesc.setReductionType(nvrhi::SamplerReductionType::Standard);
-
-    samplerDesc.setAllAddressModes(nvrhi::SamplerAddressMode::Wrap);
-    g_CommonResources.LinearWrapSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
-
-    samplerDesc.setAllAddressModes(nvrhi::SamplerAddressMode::Clamp);
-    g_CommonResources.AnisotropicClampSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
-
-    samplerDesc.setAllAddressModes(nvrhi::SamplerAddressMode::Wrap);
-    g_CommonResources.AnisotropicWrapSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
-
-    samplerDesc.setAllAddressModes(nvrhi::SamplerAddressMode::Border);
-    g_CommonResources.AnisotropicBorderSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
-
-    samplerDesc.setAllAddressModes(nvrhi::SamplerAddressMode::Mirror);
-    g_CommonResources.AnisotropicMirrorSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
-
-    samplerDesc.setAllFilters(true);
-    samplerDesc.setReductionType(nvrhi::SamplerReductionType::Comparison);
-    samplerDesc.setAllAddressModes(nvrhi::SamplerAddressMode::Clamp);
-    g_CommonResources.LinearClampComparisonLessSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
-
-    samplerDesc.mipFilter = false;
-    g_CommonResources.PointClampComparisonLessSampler = g_Graphic.m_NVRHIDevice->createSampler(samplerDesc);
+	g_CommonResources.PointClampSampler                = CreateSampler(false, false, false, nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Standard, 1);
+	g_CommonResources.LinearClampSampler               = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Standard, 1);
+	g_CommonResources.LinearWrapSampler                = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Wrap,   nvrhi::SamplerReductionType::Standard, 1);
+	g_CommonResources.AnisotropicClampSampler          = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Standard, 16);
+	g_CommonResources.AnisotropicWrapSampler           = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Wrap,   nvrhi::SamplerReductionType::Standard, 16);
+	g_CommonResources.AnisotropicBorderSampler         = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Border, nvrhi::SamplerReductionType::Standard, 16);
+	g_CommonResources.AnisotropicMirrorSampler         = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Mirror, nvrhi::SamplerReductionType::Standard, 16);
+	g_CommonResources.LinearClampComparisonLessSampler = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Comparison, 1);
+	g_CommonResources.PointClampComparisonLessSampler  = CreateSampler(true, true, false  , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Comparison, 1);
+    g_CommonResources.LinearClampMinReductionSampler   = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Minimum, 1);
 }
 
 static void CreateDefaultInputLayouts()

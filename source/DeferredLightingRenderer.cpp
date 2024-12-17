@@ -189,14 +189,13 @@ public:
 
 		DeferredLightingTileClassificationConsts passConstants;
 		passConstants.m_NbTiles = Vector2U{ tileRendereringHelper.m_GroupCount.x, tileRendereringHelper.m_GroupCount.y };
-
-		// '-1' because the 1st mip of any conservative texture is the half render resolution
-		const uint32_t kConservativeTextureMip = std::log2(TileRenderingHelper::kTileSize) - 1;
+		
+		const uint32_t conservativeTextureMip = (uint32_t)std::floor(std::log2(std::max(conservativeShadowMaskTexture->getDesc().width, conservativeShadowMaskTexture->getDesc().height))) - 1;
 
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {
 			nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-			nvrhi::BindingSetItem::Texture_SRV(0, conservativeShadowMaskTexture, nvrhi::Format::UNKNOWN, shadowControllables.m_bEnabled ? nvrhi::TextureSubresourceSet{ kConservativeTextureMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices } : nvrhi::AllSubresources),
+			nvrhi::BindingSetItem::Texture_SRV(0, conservativeShadowMaskTexture, nvrhi::Format::UNKNOWN, shadowControllables.m_bEnabled ? nvrhi::TextureSubresourceSet{ conservativeTextureMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices } : nvrhi::AllSubresources),
 			nvrhi::BindingSetItem::StructuredBuffer_UAV(0, tileCounterBuffer),
 			nvrhi::BindingSetItem::StructuredBuffer_UAV(1, dispatchIndirectArgsBuffer),
 			nvrhi::BindingSetItem::StructuredBuffer_UAV(2, drawIndirectArgsBuffer),
