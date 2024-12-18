@@ -30,7 +30,6 @@ void VS_Main(
     uint inVertexID : SV_VertexID,
     out float4 outPosition : SV_POSITION,
     out float3 outNormal : NORMAL,
-    out float4 outTangent : TANGENT,
     out float3 outWorldPosition : POSITION_WS,
     out nointerpolation uint outInstanceConstsIdx : TEXCOORD0,
     out float2 outUV : TEXCOORD1
@@ -64,9 +63,6 @@ void VS_Main(
     // Transform the vertex normal to world space and normalize it
     float3 UnpackedNormal = UnpackR10G10B10A2F(vertexInfo.m_PackedNormal).xyz;
     outNormal = normalize(mul(UnpackedNormal, adjugateWorldMatrix));
-    
-    float4 UnpackedTangent = UnpackR10G10B10A2F(vertexInfo.m_PackedTangent);
-    outTangent = float4(normalize(mul(UnpackedTangent.xyz, adjugateWorldMatrix)), UnpackedTangent.w);
     
     // Pass the vertex texture coordinates to the pixel shader
     outUV = vertexInfo.m_TexCoord;
@@ -102,7 +98,6 @@ float3 TwoChannelNormalX2(float2 normal)
 GBufferParams GetGBufferParams(
     uint inInstanceConstsIdx,
     float3 inNormal,
-    float4 inTangent,
     float2 inUV,
     float3 inWorldPosition)
 {
@@ -163,15 +158,8 @@ GBufferParams GetGBufferParams(
         float3 sampledNormal = normalTexture.Sample(g_Samplers[samplerIdx], finalUV).rgb;
         float3 unpackedNormal = TwoChannelNormalX2(sampledNormal.xy);
         
-    #if 1
-        float3 T = inTangent.xyz;
-        float3 B = cross(inNormal, T) * inTangent.w;
-        float3x3 TBN = float3x3(T, B, inNormal);
-        result.m_Normal = normalize(mul(unpackedNormal, TBN));
-    #else
         float3x3 TBN = CalculateTBNWithoutTangent(inWorldPosition, inNormal, finalUV);
         result.m_Normal = normalize(mul(unpackedNormal, TBN));
-    #endif
     }
     
     // Set the default occlusion value
@@ -205,7 +193,6 @@ GBufferParams GetGBufferParams(
 void PS_Main_GBuffer(
     in float4 inPosition : SV_POSITION,
     in float3 inNormal : NORMAL,
-    in float4 inTangent : TANGENT,
     in float3 inWorldPosition : POSITION_WS,
     in uint inInstanceConstsIdx : TEXCOORD0,
     in float2 inUV : TEXCOORD1,
@@ -213,7 +200,7 @@ void PS_Main_GBuffer(
     out float4 outGBufferB : SV_Target1,
     out float4 outGBufferC : SV_Target2)
 {
-    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inTangent, inUV, inWorldPosition);
+    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inUV, inWorldPosition);
     
     // for colorizing instances
     uint seed = inInstanceConstsIdx;
@@ -228,14 +215,13 @@ void PS_Main_GBuffer(
 void PS_Main_Forward(
     in float4 inPosition : SV_POSITION,
     in float3 inNormal : NORMAL,
-    in float4 inTangent : TANGENT,
     in float3 inWorldPosition : POSITION_WS,
     in uint inInstanceConstsIdx : TEXCOORD0,
     in float2 inUV : TEXCOORD1,
     out float4 outColor : SV_Target)
 {
     // Get the common base pass values for the current instance
-    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inTangent, inUV, inWorldPosition);
+    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inUV, inWorldPosition);
     
     const float materialSpecular = 0.5f; // TODO?
     float3 specular = ComputeF0(materialSpecular, gbufferParams.m_Metallic, gbufferParams.m_Metallic);

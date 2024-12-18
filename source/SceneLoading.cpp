@@ -514,29 +514,6 @@ struct GLTFSceneLoader
                                     vertices[j].m_PackedNormal = PackVector4ToUint32(Vector4{ &scratchBuffer[j * nbFloats] });
                                 }
                             }
-                            else if (attribute.type == cgltf_attribute_type_tangent)
-                            {
-                                verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
-                                for (size_t j = 0; j < nbVertices; ++j)
-                                {
-                                    // some scenes, like RTXDI assets' Bistro, has nan tangents. Ghetto-Hack it away
-                                    bool bTangentIsFinite = true;
-                                    for (uint32_t i = 0; i < nbFloats; ++i)
-                                    {
-										bTangentIsFinite &= std::isfinite(scratchBuffer[j * nbFloats + i]);
-                                    }
-                                    if (!bTangentIsFinite)
-                                    {
-                                        vertices[j].m_PackedTangent = PackVector4ToUint32(Vector4::Zero);
-                                        continue;
-                                    }
-
-                                    Vector4 tangent{ &scratchBuffer[j * nbFloats] };
-                                    tangent.w *= -1.0f; // flip the bitangent sign
-
-                                    vertices[j].m_PackedTangent = PackVector4ToUint32(tangent);
-                                }
-                            }
                             else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 0) // only read the first UV set
                             {
                                 verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));

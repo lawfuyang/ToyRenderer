@@ -7,7 +7,6 @@ struct RawVertexFormat
 {
     Vector3 m_Position;
     uint32_t m_PackedNormal;
-    uint32_t m_PackedTangent;
     Half2 m_TexCoord;
 };
 
