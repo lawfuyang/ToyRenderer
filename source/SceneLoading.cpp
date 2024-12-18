@@ -466,10 +466,10 @@ struct GLTFSceneLoader
                         {
                             static auto PackVector4ToUint32 = [](Vector4 v)
                                 {
-									assert(v.x >= -1.0f && v.x <= 1.0f);
-									assert(v.y >= -1.0f && v.y <= 1.0f);
-									assert(v.z >= -1.0f && v.z <= 1.0f);
-									assert(v.w >= -1.0f && v.w <= 1.0f);
+                                    assert(v.x >= -1.0f && v.x <= 1.0f);
+                                    assert(v.y >= -1.0f && v.y <= 1.0f);
+                                    assert(v.z >= -1.0f && v.z <= 1.0f);
+                                    assert(v.w >= -1.0f && v.w <= 1.0f);
 
                                     // Normalize x, y, z from [-1, 1] to [0, 1]
                                     v.x = (v.x + 1.0f) * 0.5f;
@@ -515,6 +515,18 @@ struct GLTFSceneLoader
                                 verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
                                 for (size_t j = 0; j < nbVertices; ++j)
                                 {
+                                    // some scenes, like RTXDI assets' Bistro, has nan tangents. Ghetto-Hack it away
+                                    bool bTangentIsFinite = true;
+                                    for (uint32_t i = 0; i < nbFloats; ++i)
+                                    {
+										bTangentIsFinite &= std::isfinite(scratchBuffer[j * nbFloats + i]);
+                                    }
+                                    if (!bTangentIsFinite)
+                                    {
+                                        vertices[j].m_PackedTangent = PackVector4ToUint32(Vector4::Zero);
+                                        continue;
+                                    }
+
                                     Vector4 tangent{ &scratchBuffer[j * nbFloats] };
                                     tangent.w *= -1.0f; // flip the bitangent sign
 
@@ -527,20 +539,9 @@ struct GLTFSceneLoader
 
                                 for (size_t j = 0; j < nbVertices; ++j)
                                 {
-                                    static auto PackUV = [](Vector2 UV)
-                                        {
-											assert(UV.x >= 0.0f && UV.x <= 1.0f);
-											assert(UV.y >= 0.0f && UV.y <= 1.0f);
-
-											Vector2 scaledUV = UV * 65535.0f;
-											uint32_t packed = (uint32_t(scaledUV.x) | (uint32_t(scaledUV.y) << 16u));
-											return packed;
-                                        };
-
-                                    vertices[j].m_PackedTexCoord = PackUV(Vector2{ &scratchBuffer[j * nbFloats] });
+									vertices[j].m_TexCoord = Half2{ &scratchBuffer[j * nbFloats] };
                                 }
                             }
-
                             // TODO: cgltf_attribute_type_weights, cgltf_attribute_type_joints
                         }
 

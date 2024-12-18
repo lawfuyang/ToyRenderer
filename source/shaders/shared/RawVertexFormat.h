@@ -8,7 +8,7 @@ struct RawVertexFormat
     Vector3 m_Position;
     uint32_t m_PackedNormal;
     uint32_t m_PackedTangent;
-    uint32_t m_PackedTexCoord;
+    Half2 m_TexCoord;
 };
 
 #endif // #define _RAW_VERTEX_FORMAT_H_

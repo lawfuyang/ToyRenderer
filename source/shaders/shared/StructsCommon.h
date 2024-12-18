@@ -12,6 +12,7 @@
     #define Byte4 uint
     #define Byte4N uint
 
+    #define Half half
     #define Half2 half2
     #define Half4 half4
 

@@ -63,7 +63,7 @@ void VS_Main(
     outTangent = float4(normalize(mul(float4(UnpackedTangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), UnpackedTangent.w);
     
     // Pass the vertex texture coordinates to the pixel shader
-    outUV = UnpackUnorm2x16(vertexInfo.m_PackedTexCoord);
+    outUV = vertexInfo.m_TexCoord;
     
     // Pass the world space position to the pixel shader
     outWorldPosition = worldPos.xyz;
