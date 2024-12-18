@@ -38,18 +38,18 @@ public:
     nvrhi::InputLayoutHandle GPUCullingLayout;
 
     // Blend States
-    static const nvrhi::BlendState::RenderTarget BlendOpaque;
-    static const nvrhi::BlendState::RenderTarget BlendModulate;
-    static const nvrhi::BlendState::RenderTarget BlendAlpha;
-    static const nvrhi::BlendState::RenderTarget BlendAdditive;
-    static const nvrhi::BlendState::RenderTarget BlendAlphaAdditive;
-    static const nvrhi::BlendState::RenderTarget BlendDestAlpha;
-    static const nvrhi::BlendState::RenderTarget BlendPremultipliedAlpha;
+    nvrhi::BlendState::RenderTarget BlendOpaque;
+    nvrhi::BlendState::RenderTarget BlendModulate;
+    nvrhi::BlendState::RenderTarget BlendAlpha;
+    nvrhi::BlendState::RenderTarget BlendAdditive;
+    nvrhi::BlendState::RenderTarget BlendAlphaAdditive;
+    nvrhi::BlendState::RenderTarget BlendDestAlpha;
+    nvrhi::BlendState::RenderTarget BlendPremultipliedAlpha;
 
     // Raster States
-    static const nvrhi::RasterState CullNone;
-    static const nvrhi::RasterState CullClockwise;
-    static const nvrhi::RasterState CullCounterClockwise;
+    nvrhi::RasterState CullNone;
+    nvrhi::RasterState CullClockwise;
+    nvrhi::RasterState CullCounterClockwise;
 
     // Depth Stencil States
     nvrhi::DepthStencilState DepthNoneStencilNone;

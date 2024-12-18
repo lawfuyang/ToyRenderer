@@ -10,63 +10,6 @@
 #pragma warning (disable: 4244) // conversion warning
 #pragma warning (disable: 4267) // conversion warning
 
-const nvrhi::BlendState::RenderTarget CommonResources::BlendOpaque =
-{
-    false,                    // blendEnable
-    nvrhi::BlendFactor::One,  // srcBlend
-    nvrhi::BlendFactor::Zero, // destBlend
-    nvrhi::BlendOp::Add,      // blendOp
-    nvrhi::BlendFactor::One,  // srcBlendAlpha
-    nvrhi::BlendFactor::Zero, // destBlendAlpha
-    nvrhi::BlendOp::Add,      // blendOpAlpha
-    nvrhi::ColorMask::All     // colorWriteMask
-};
-
-const nvrhi::BlendState::RenderTarget CommonResources::BlendAlpha =
-{
-    true,                            // blendEnable
-    nvrhi::BlendFactor::SrcAlpha,    // srcBlend
-    nvrhi::BlendFactor::InvSrcAlpha, // destBlend
-    nvrhi::BlendOp::Add,             // blendOp
-    nvrhi::BlendFactor::Zero,        // srcBlendAlpha
-    nvrhi::BlendFactor::One,         // destBlendAlpha
-    nvrhi::BlendOp::Add,             // blendOpAlpha
-    nvrhi::ColorMask::All            // colorWriteMask
-};
-
-const nvrhi::BlendState::RenderTarget CommonResources::BlendAdditive =
-{
-    true,                    // blendEnable
-    nvrhi::BlendFactor::One, // srcBlend
-    nvrhi::BlendFactor::One, // destBlend
-    nvrhi::BlendOp::Add,     // blendOp
-    nvrhi::BlendFactor::One, // srcBlendAlpha
-    nvrhi::BlendFactor::Zero, // destBlendAlpha
-    nvrhi::BlendOp::Add,     // blendOpAlpha
-    nvrhi::ColorMask::All    // colorWriteMask
-};
-
-const nvrhi::RasterState CommonResources::CullNone =
-{
-    nvrhi::RasterFillMode::Solid, // fillMode
-    nvrhi::RasterCullMode::None, // cullMode
-    true // frontCounterClockwise
-};
-
-const nvrhi::RasterState CommonResources::CullClockwise =
-{
-    nvrhi::RasterFillMode::Solid, // fillMode
-    nvrhi::RasterCullMode::Back, // cullMode
-    true // frontCounterClockwise
-};
-
-const nvrhi::RasterState CommonResources::CullCounterClockwise =
-{
-    nvrhi::RasterFillMode::Solid, // fillMode
-    nvrhi::RasterCullMode::Front, // cullMode
-    true // frontCounterClockwise
-};
-
 static void CreateDefaultTexture(
     std::string_view name,
     Texture& destTex,
@@ -193,6 +136,51 @@ static void CreateDefaultDepthStencilStates()
 	g_CommonResources.DepthWriteStencilWrite = CreateDepthStencilstate(true, true, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0, 0xFF);
 }
 
+static void CreateDefaultBlendModes()
+{
+    PROFILE_FUNCTION();
+
+    auto CreateBlendState = [](bool bBlendEnable, nvrhi::BlendFactor srcBlend, nvrhi::BlendFactor destBlend, nvrhi::BlendOp blendOp, nvrhi::BlendFactor srcBlendAlpha, nvrhi::BlendFactor destBlendAlpha, nvrhi::BlendOp blendOpAlpha)
+        {
+            nvrhi::BlendState::RenderTarget desc;
+            desc.blendEnable = bBlendEnable;
+            desc.srcBlend = srcBlend;
+            desc.destBlend = destBlend;
+            desc.blendOp = blendOp;
+            desc.srcBlendAlpha = srcBlendAlpha;
+            desc.destBlendAlpha = destBlendAlpha;
+            desc.blendOpAlpha = blendOpAlpha;
+            desc.colorWriteMask = nvrhi::ColorMask::All;
+            return desc;
+        };
+
+    g_CommonResources.BlendOpaque             = CreateBlendState(false, nvrhi::BlendFactor::One, nvrhi::BlendFactor::Zero, nvrhi::BlendOp::Add, nvrhi::BlendFactor::One, nvrhi::BlendFactor::Zero, nvrhi::BlendOp::Add);
+    g_CommonResources.BlendModulate           = CreateBlendState(true, nvrhi::BlendFactor::DstColor, nvrhi::BlendFactor::Zero, nvrhi::BlendOp::Add, nvrhi::BlendFactor::DstAlpha, nvrhi::BlendFactor::Zero, nvrhi::BlendOp::Add);
+    g_CommonResources.BlendAlpha              = CreateBlendState(true, nvrhi::BlendFactor::SrcAlpha, nvrhi::BlendFactor::InvSrcAlpha, nvrhi::BlendOp::Add, nvrhi::BlendFactor::Zero, nvrhi::BlendFactor::One, nvrhi::BlendOp::Add);
+    g_CommonResources.BlendAdditive           = CreateBlendState(true, nvrhi::BlendFactor::One, nvrhi::BlendFactor::One, nvrhi::BlendOp::Add, nvrhi::BlendFactor::One, nvrhi::BlendFactor::Zero, nvrhi::BlendOp::Add);
+    g_CommonResources.BlendAlphaAdditive      = CreateBlendState(true, nvrhi::BlendFactor::SrcAlpha, nvrhi::BlendFactor::One, nvrhi::BlendOp::Add, nvrhi::BlendFactor::Zero, nvrhi::BlendFactor::One, nvrhi::BlendOp::Add);
+	g_CommonResources.BlendDestAlpha          = CreateBlendState(true, nvrhi::BlendFactor::DstAlpha, nvrhi::BlendFactor::Zero, nvrhi::BlendOp::Add, nvrhi::BlendFactor::DstAlpha, nvrhi::BlendFactor::Zero, nvrhi::BlendOp::Add);
+	g_CommonResources.BlendPremultipliedAlpha = CreateBlendState(true, nvrhi::BlendFactor::One, nvrhi::BlendFactor::InvSrcAlpha, nvrhi::BlendOp::Add, nvrhi::BlendFactor::One, nvrhi::BlendFactor::InvSrcAlpha, nvrhi::BlendOp::Add);
+}
+
+static void CreateDefaultRasterStates()
+{
+	PROFILE_FUNCTION();
+
+	auto CreateRasterState = [](nvrhi::RasterCullMode cullMode)
+		{
+			nvrhi::RasterState desc;
+			desc.fillMode = nvrhi::RasterFillMode::Solid;
+			desc.cullMode = cullMode;
+			desc.frontCounterClockwise = true;
+			return desc;
+		};
+
+	g_CommonResources.CullNone             = CreateRasterState(nvrhi::RasterCullMode::None);
+	g_CommonResources.CullClockwise        = CreateRasterState(nvrhi::RasterCullMode::Back);
+	g_CommonResources.CullCounterClockwise = CreateRasterState(nvrhi::RasterCullMode::Front);
+}
+
 void CommonResources::Initialize()
 {
     PROFILE_FUNCTION();
@@ -208,6 +196,8 @@ void CommonResources::Initialize()
     CreateDefaultSamplers();
     CreateDefaultInputLayouts();
     CreateDefaultDepthStencilStates();
+    CreateDefaultBlendModes();
+    CreateDefaultRasterStates();
 }
 
 #pragma warning(pop)
