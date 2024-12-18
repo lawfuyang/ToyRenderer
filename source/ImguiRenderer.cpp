@@ -12,6 +12,8 @@ class IMGUIRenderer : public IRenderer
         Matrix m_ProjMatrix;
     };
 
+    nvrhi::InputLayoutHandle m_InputLayout;
+
     std::vector<ImDrawVert> m_Vertices;
     std::vector<ImDrawIdx> m_Indices;
 
@@ -27,6 +29,13 @@ public:
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
         ImGuiIO& io = ImGui::GetIO();
+
+		static const nvrhi::VertexAttributeDesc kLayout[] = {
+	        { "POSITION", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,pos), sizeof(ImDrawVert), false },
+	        { "TEXCOORD", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,uv),  sizeof(ImDrawVert), false },
+	        { "COLOR",    nvrhi::Format::RGBA8_UNORM, 1, 0, offsetof(ImDrawVert,col), sizeof(ImDrawVert), false },
+		};
+		m_InputLayout = device->createInputLayout(kLayout, (uint32_t)std::size(kLayout), nullptr);
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "init IMGUI Font Texture");
@@ -166,7 +175,7 @@ public:
 
         // PSO
         nvrhi::GraphicsPipelineDesc PSODesc;
-        PSODesc.inputLayout = g_CommonResources.IMGUILayout;
+        PSODesc.inputLayout = m_InputLayout;
         PSODesc.VS = g_Graphic.GetShader("imgui_VS_Main");
         PSODesc.PS = g_Graphic.GetShader("imgui_PS_Main");
         PSODesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendIMGUI }, g_CommonResources.DepthNoneStencilNone, g_CommonResources.CullNone };

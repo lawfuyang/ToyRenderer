@@ -179,19 +179,6 @@ static void CreateDefaultInputLayouts()
 {
     PROFILE_FUNCTION();
 
-    static const nvrhi::VertexAttributeDesc s_ImguiLayout[] = {
-        { "POSITION", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,pos), sizeof(ImDrawVert), false },
-        { "TEXCOORD", nvrhi::Format::RG32_FLOAT,  1, 0, offsetof(ImDrawVert,uv),  sizeof(ImDrawVert), false },
-        { "COLOR",    nvrhi::Format::RGBA8_UNORM, 1, 0, offsetof(ImDrawVert,col), sizeof(ImDrawVert), false },
-    };
-
-    static const nvrhi::VertexAttributeDesc s_DebugDrawLayout[] =
-    {
-        { "POSITION", nvrhi::Format::RGB32_FLOAT, 1, 0, 0, 36, false },
-        { "TEXCOORD", nvrhi::Format::RGB32_FLOAT, 1, 0, 12, 36, false },
-        { "COLOR",    nvrhi::Format::RGB32_FLOAT, 1, 0, 24, 36, false }
-    };
-
     static const nvrhi::VertexAttributeDesc s_GPUCullingLayout[] =
     {
         { "INSTANCE_START_LOCATION", nvrhi::Format::R32_UINT, 1, 0, 0, sizeof(uint32_t), true }
@@ -201,8 +188,6 @@ static void CreateDefaultInputLayouts()
     nvrhi::IShader* dummyVS = nullptr;
 
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-    g_CommonResources.IMGUILayout = device->createInputLayout(s_ImguiLayout, (uint32_t)std::size(s_ImguiLayout), dummyVS);
-    g_CommonResources.DebugDrawLayout = device->createInputLayout(s_DebugDrawLayout, (uint32_t)std::size(s_DebugDrawLayout), dummyVS);
     g_CommonResources.GPUCullingLayout = device->createInputLayout(s_GPUCullingLayout, (uint32_t)std::size(s_GPUCullingLayout), dummyVS);
 }
 
