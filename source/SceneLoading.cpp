@@ -464,35 +464,6 @@ struct GLTFSceneLoader
 
                         for (size_t attrIdx = 0; attrIdx < gltfPrimitive.attributes_count; ++attrIdx)
                         {
-                            static auto PackVector4ToUint32 = [](Vector4 v)
-                                {
-                                    assert(v.x >= (-1.0f - kKindaSmallNumber) && v.x <= (1.0f + kKindaBigNumber));
-                                    assert(v.y >= (-1.0f - kKindaSmallNumber) && v.y <= (1.0f + kKindaBigNumber));
-                                    assert(v.z >= (-1.0f - kKindaSmallNumber) && v.z <= (1.0f + kKindaBigNumber));
-                                    assert(v.w >= (-1.0f - kKindaSmallNumber) && v.w <= (1.0f + kKindaBigNumber));
-
-									v.x = std::clamp(v.x, -1.0f, 1.0f);
-									v.y = std::clamp(v.y, -1.0f, 1.0f);
-									v.z = std::clamp(v.z, -1.0f, 1.0f);
-
-                                    // Normalize x, y, z from [-1, 1] to [0, 1]
-                                    v.x = (v.x + 1.0f) * 0.5f;
-                                    v.y = (v.y + 1.0f) * 0.5f;
-                                    v.z = (v.z + 1.0f) * 0.5f;
-
-                                    // Scale to 10-bit integers (0-1023)
-                                    uint32_t xInt = (uint32_t)(v.x * 1023.0f);
-                                    uint32_t yInt = (uint32_t)(v.y * 1023.0f);
-                                    uint32_t zInt = (uint32_t)(v.z * 1023.0f);
-
-                                    // Encode w as 1 if w > 0, otherwise 0
-                                    uint32_t wInt = (v.w > 0.0f) ? 1 : 0;
-
-                                    // Pack components into a uint32_t (10 bits each for x, y, z, and 1 bit for w)
-                                    uint32_t packed = (xInt << 20) | (yInt << 10) | (zInt) | (wInt << 30);
-                                    return packed;
-                                };
-
                             const cgltf_attribute& attribute = gltfPrimitive.attributes[attrIdx];
                             const uint32_t nbFloats = cgltf_num_components(attribute.data->type);
 
@@ -501,17 +472,34 @@ struct GLTFSceneLoader
                                 verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
                                 for (size_t j = 0; j < nbVertices; ++j)
                                 {
-                                    vertices[j].m_Position.x = scratchBuffer[j * nbFloats + 0];
-                                    vertices[j].m_Position.y = scratchBuffer[j * nbFloats + 1];
-                                    vertices[j].m_Position.z = scratchBuffer[j * nbFloats + 2];
+                                    vertices[j].m_Position = Vector3{ &scratchBuffer[j * nbFloats] };
                                 }
                             }
                             else if (attribute.type == cgltf_attribute_type_normal)
                             {
                                 verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
-                                for (size_t j = 0; j < nbVertices; ++j)
-                                {
-                                    vertices[j].m_PackedNormal = PackVector4ToUint32(Vector4{ &scratchBuffer[j * nbFloats] });
+								for (size_t j = 0; j < nbVertices; ++j)
+								{
+									Vector3 v{ &scratchBuffer[j * nbFloats] };
+
+									assert(v.x >= (-1.0f - kKindaSmallNumber) && v.x <= (1.0f + kKindaBigNumber));
+									assert(v.y >= (-1.0f - kKindaSmallNumber) && v.y <= (1.0f + kKindaBigNumber));
+									assert(v.z >= (-1.0f - kKindaSmallNumber) && v.z <= (1.0f + kKindaBigNumber));
+
+									v.x = std::clamp(v.x, -1.0f, 1.0f);
+									v.y = std::clamp(v.y, -1.0f, 1.0f);
+									v.z = std::clamp(v.z, -1.0f, 1.0f);
+
+									// Normalize x, y, z from [-1, 1] to [0, 1]
+									v = (v + Vector3::One) * 0.5f;
+
+									// Scale to 10-bit integers (0-1023)
+									const uint32_t xInt = (uint32_t)(v.x * 1023.0f);
+									const uint32_t yInt = (uint32_t)(v.y * 1023.0f);
+									const uint32_t zInt = (uint32_t)(v.z * 1023.0f);
+
+									// Pack components into a uint32_t (10 bits each for x, y, z)
+									vertices[j].m_PackedNormal = (xInt << 20) | (yInt << 10) | (zInt);
                                 }
                             }
                             else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 0) // only read the first UV set
