@@ -448,24 +448,14 @@ void Scene::UpdateInstanceConstsBuffer()
 
         const Matrix worldMatrix = node.MakeLocalToWorldMatrix();
 
-        Matrix inverseTransposeMatrix = worldMatrix;
-        inverseTransposeMatrix.Translation(Vector3::Zero);
-        inverseTransposeMatrix = inverseTransposeMatrix.Invert().Transpose();
-
-        AABB instanceAABB;
-        mesh.m_AABB.Transform(instanceAABB, worldMatrix);
-
         Sphere instanceBS;
         mesh.m_BoundingSphere.Transform(instanceBS, worldMatrix);
 
         // instance consts
         BasePassInstanceConstants instanceConsts{};
         instanceConsts.m_WorldMatrix = worldMatrix;
-        instanceConsts.m_InverseTransposeWorldMatrix = inverseTransposeMatrix;
         instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
         instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
-        instanceConsts.m_AABBCenter = instanceAABB.Center;
-        instanceConsts.m_AABBExtents = instanceAABB.Extents;
         instanceConsts.m_BoundingSphere = Vector4{ instanceBS.Center.x, instanceBS.Center.y, instanceBS.Center.z, instanceBS.Radius };
 
         instanceConstsBytes.push_back(instanceConsts);

@@ -95,4 +95,14 @@ uint DivideAndRoundUp(uint x, uint y)
     return (x + y - 1) / y;
 }
 
+float3x3 MakeAdjugateMatrix(float4x4 m)
+{
+    return float3x3
+    (
+		cross(m[1].xyz, m[2].xyz),
+		cross(m[2].xyz, m[0].xyz),
+		cross(m[0].xyz, m[1].xyz)
+	);
+}
+
 #endif // __COMMON_HLSL__

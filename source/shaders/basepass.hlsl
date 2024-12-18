@@ -55,12 +55,18 @@ void VS_Main(
     // Pass the instance constants index to the pixel shader
     outInstanceConstsIdx = inInstanceConstIndex;
     
+    // Alien math to calculate the normal and tangent in world space, without inverse-transposing the world matrix
+    // https://github.com/graphitemaster/normals_revisited
+    // https://x.com/iquilezles/status/1866219178409316362
+    // https://www.shadertoy.com/view/3s33zj
+    float3x3 adjugateWorldMatrix = MakeAdjugateMatrix(instanceConsts.m_WorldMatrix);
+    
     // Transform the vertex normal to world space and normalize it
     float3 UnpackedNormal = UnpackR10G10B10A2F(vertexInfo.m_PackedNormal).xyz;
-    outNormal = normalize(mul(float4(UnpackedNormal, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz);
+    outNormal = normalize(mul(UnpackedNormal, adjugateWorldMatrix));
     
     float4 UnpackedTangent = UnpackR10G10B10A2F(vertexInfo.m_PackedTangent);
-    outTangent = float4(normalize(mul(float4(UnpackedTangent.xyz, 1.0f), instanceConsts.m_InverseTransposeWorldMatrix).xyz), UnpackedTangent.w);
+    outTangent = float4(normalize(mul(UnpackedTangent.xyz, adjugateWorldMatrix)), UnpackedTangent.w);
     
     // Pass the vertex texture coordinates to the pixel shader
     outUV = vertexInfo.m_TexCoord;
