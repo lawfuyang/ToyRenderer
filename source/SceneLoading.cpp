@@ -466,10 +466,14 @@ struct GLTFSceneLoader
                         {
                             static auto PackVector4ToUint32 = [](Vector4 v)
                                 {
-                                    assert(v.x >= -1.0f && v.x <= 1.0f);
-                                    assert(v.y >= -1.0f && v.y <= 1.0f);
-                                    assert(v.z >= -1.0f && v.z <= 1.0f);
-                                    assert(v.w >= -1.0f && v.w <= 1.0f);
+                                    assert(v.x >= (-1.0f - kKindaSmallNumber) && v.x <= (1.0f + kKindaBigNumber));
+                                    assert(v.y >= (-1.0f - kKindaSmallNumber) && v.y <= (1.0f + kKindaBigNumber));
+                                    assert(v.z >= (-1.0f - kKindaSmallNumber) && v.z <= (1.0f + kKindaBigNumber));
+                                    assert(v.w >= (-1.0f - kKindaSmallNumber) && v.w <= (1.0f + kKindaBigNumber));
+
+									v.x = std::clamp(v.x, -1.0f, 1.0f);
+									v.y = std::clamp(v.y, -1.0f, 1.0f);
+									v.z = std::clamp(v.z, -1.0f, 1.0f);
 
                                     // Normalize x, y, z from [-1, 1] to [0, 1]
                                     v.x = (v.x + 1.0f) * 0.5f;
