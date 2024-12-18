@@ -46,31 +46,6 @@ const nvrhi::BlendState::RenderTarget CommonResources::BlendAdditive =
     nvrhi::ColorMask::All    // colorWriteMask
 };
 
-
-const nvrhi::BlendState::RenderTarget CommonResources::BlendIMGUI =
-{
-    true,                             // blendEnable
-    nvrhi::BlendFactor::SrcAlpha,     // srcBlend
-    nvrhi::BlendFactor::InvSrcAlpha,  // destBlend
-    nvrhi::BlendOp::Add,              // blendOp
-    nvrhi::BlendFactor::InvSrcAlpha,  // srcBlendAlpha
-    nvrhi::BlendFactor::Zero,         // destBlendAlpha
-    nvrhi::BlendOp::Add,              // blendOpAlpha
-    nvrhi::ColorMask::All             // colorWriteMask
-};
-
-const nvrhi::BlendState::RenderTarget CommonResources::BlendDebugDraw =
-{
-    true,                             // blendEnable
-    nvrhi::BlendFactor::SrcAlpha,     // srcBlend
-    nvrhi::BlendFactor::InvSrcAlpha,  // destBlend
-    nvrhi::BlendOp::Add,              // blendOp
-    nvrhi::BlendFactor::One,          // srcBlendAlpha
-    nvrhi::BlendFactor::Zero,         // destBlendAlpha
-    nvrhi::BlendOp::Add,              // blendOpAlpha
-    nvrhi::ColorMask::All             // colorWriteMask
-};
-
 const nvrhi::RasterState CommonResources::CullNone =
 {
     nvrhi::RasterFillMode::Solid, // fillMode

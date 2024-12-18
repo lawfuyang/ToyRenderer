@@ -173,12 +173,24 @@ public:
 
         assert(nvrhi::getFormatInfo(drawState.indexBuffer.format).bytesPerBlock == sizeof(ImDrawIdx));
 
+        const nvrhi::BlendState::RenderTarget kRTBlendState =
+        {
+            true,                             // blendEnable
+            nvrhi::BlendFactor::SrcAlpha,     // srcBlend
+            nvrhi::BlendFactor::InvSrcAlpha,  // destBlend
+            nvrhi::BlendOp::Add,              // blendOp
+            nvrhi::BlendFactor::InvSrcAlpha,  // srcBlendAlpha
+            nvrhi::BlendFactor::Zero,         // destBlendAlpha
+            nvrhi::BlendOp::Add,              // blendOpAlpha
+            nvrhi::ColorMask::All             // colorWriteMask
+        };
+
         // PSO
         nvrhi::GraphicsPipelineDesc PSODesc;
         PSODesc.inputLayout = m_InputLayout;
         PSODesc.VS = g_Graphic.GetShader("imgui_VS_Main");
         PSODesc.PS = g_Graphic.GetShader("imgui_PS_Main");
-        PSODesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendIMGUI }, g_CommonResources.DepthNoneStencilNone, g_CommonResources.CullNone };
+        PSODesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ kRTBlendState }, g_CommonResources.DepthNoneStencilNone, g_CommonResources.CullNone };
 
         // Render command lists
         // (Because we merged all buffers into a single one, we maintain our own offset into them)

@@ -45,8 +45,6 @@ public:
     static const nvrhi::BlendState::RenderTarget BlendAlphaAdditive;
     static const nvrhi::BlendState::RenderTarget BlendDestAlpha;
     static const nvrhi::BlendState::RenderTarget BlendPremultipliedAlpha;
-    static const nvrhi::BlendState::RenderTarget BlendIMGUI;
-    static const nvrhi::BlendState::RenderTarget BlendDebugDraw;
 
     // Raster States
     static const nvrhi::RasterState CullNone;
