@@ -32,8 +32,9 @@ namespace StringUtils
     inline void ToUpper(std::string& str) { TransformStrInplace(str, std::toupper); }
 }
 
-float RandomFloat(float range = 1.0f);
-uint32_t RandomUInt(uint32_t range = UINT_MAX);
+float RandomFloat(float min = 0.0f, float max = 1.0f);
+int32_t RandomInt(int32_t min = 0, int32_t max = INT32_MAX);
+uint32_t RandomUInt(uint32_t min = 0, uint32_t max = UINT32_MAX);
 
 template <class T>
 inline void HashCombine(std::size_t& seed, const T& v)
