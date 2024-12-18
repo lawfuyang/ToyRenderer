@@ -12,7 +12,6 @@
 • Packed GBuffer: https://docs.google.com/presentation/d/1kaeg2qMi3_8nQqoR3Y2Ax9fJKUYLigPLPfdjfuEGowY/edit#slide=id.g27be1a2457b_0_128
     • emissive pipeline
 • HBAO: https://github.com/NVIDIAGameWorks/HBAOPlus
-• Vulkan, for fun
 • local lights
 	• light volumes w/ point, spot lights
 	• local light grid
@@ -22,9 +21,7 @@
 • RenderCaptureInterface::FScopedCapture
 • GPU Driven Base Pass Renderer
 	• support batching of meshes via binning
-	• discard empty indirect draw arguments
 • Transparent support
-	• implement binning of opaque/transparent instances after gpuculling
 	• OIT: https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
 • separate top mip streaming
     • integrate D3DX12Residency into nvrhi
@@ -53,11 +50,8 @@
         • meshlet virtual buffer
         • gpuculling via meshlet aabb
         • meshlet backface culling
-	• legit meshlet pipeline via Mesh Shaders
-• VSM
-	• https://ktstephano.github.io/rendering/stratusgfx/svsm
-	• https://github.com/KTStephano/StratusGFX
-• Visibility Rendering
+	• Mesh Shaders
+• Visibility Buffer
     • http://filmicworlds.com/blog/visibility-buffer-rendering-with-material-graphs/
     • \D3D12_Research\Resources\Shaders\Visibility*
 • AMD Stochastic Screen-Space Reflections: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/stochastic-screen-space-reflections.md
@@ -74,8 +68,6 @@
   • https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/variable-shading.md
 • Depth of Field: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/depth-of-field.md
 • Utilize Bent Normals from XeGTAO to further attenuate lighting
-• AMD Brixelizer GI: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/brixelizer-gi.md
-• AMD Breadcrumbs: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/breadcrumbs.md
 • Workgraphs
     • convert tiled deferred lighting first
 
