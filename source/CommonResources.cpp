@@ -170,53 +170,27 @@ static void CreateDefaultDepthStencilStates()
 {
     PROFILE_FUNCTION();
 
-    enum class EDepthStencilState { None, Read, Write };
-
-    nvrhi::DepthStencilState desc;
-    auto UpdateDesc = [&](EDepthStencilState depthState, EDepthStencilState stencilState)
+    auto CreateDepthStencilstate = [](bool bDepthTestEnable, bool bDepthWrite, nvrhi::ComparisonFunc depthFunc, bool bStencilEnable, uint8_t stencilReadMask, uint8_t stencilWriteMask)
         {
-            desc.depthTestEnable = depthState != EDepthStencilState::None;
-            desc.depthWriteEnable = depthState == EDepthStencilState::Write;
-            desc.depthFunc = Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual;
-
-            desc.stencilEnable = stencilState != EDepthStencilState::None;
-            desc.stencilReadMask = stencilState == EDepthStencilState::Read ? 0xFF : 0x00;
-            desc.stencilWriteMask = stencilState == EDepthStencilState::Write ? 0xFF : 0x00;
+			nvrhi::DepthStencilState desc;
+			desc.depthTestEnable = bDepthTestEnable;
+			desc.depthWriteEnable = bDepthWrite;
+			desc.depthFunc = depthFunc;
+			desc.stencilEnable = bStencilEnable;
+			desc.stencilReadMask = stencilReadMask;
+			desc.stencilWriteMask = stencilWriteMask;
+			return desc;
         };
 
-    static const EDepthStencilState kDepthStencilStates[][2] =
-    {
-        { EDepthStencilState::None, EDepthStencilState::None },
-        { EDepthStencilState::None, EDepthStencilState::Read },
-        { EDepthStencilState::None, EDepthStencilState::Write },
-        { EDepthStencilState::Read, EDepthStencilState::None },
-        { EDepthStencilState::Read, EDepthStencilState::Read },
-        { EDepthStencilState::Read, EDepthStencilState::Write },
-        { EDepthStencilState::Write, EDepthStencilState::None },
-        { EDepthStencilState::Write, EDepthStencilState::Read },
-        { EDepthStencilState::Write, EDepthStencilState::Write }
-    };
-
-    nvrhi::DepthStencilState* pStates[] =
-    {
-        &g_CommonResources.DepthNoneStencilNone,
-        &g_CommonResources.DepthNoneStencilRead,
-        &g_CommonResources.DepthNoneStencilWrite,
-        &g_CommonResources.DepthReadStencilNone,
-        &g_CommonResources.DepthReadStencilRead,
-        &g_CommonResources.DepthReadStencilWrite,
-        &g_CommonResources.DepthWriteStencilNone,
-        &g_CommonResources.DepthWriteStencilRead,
-        &g_CommonResources.DepthWriteStencilWrite
-    };
-
-    static_assert(std::size(kDepthStencilStates) == std::size(pStates), "Mismatched array sizes");
-
-    for (uint32_t i = 0; i < std::size(kDepthStencilStates); ++i)
-    {
-        UpdateDesc(kDepthStencilStates[i][0], kDepthStencilStates[i][1]);
-        *pStates[i] = desc;
-    }
+	g_CommonResources.DepthNoneStencilNone   = CreateDepthStencilstate(false, false, nvrhi::ComparisonFunc::Always, false, 0, 0);
+	g_CommonResources.DepthNoneStencilRead   = CreateDepthStencilstate(false, false, nvrhi::ComparisonFunc::Always, true, 0xFF, 0);
+	g_CommonResources.DepthNoneStencilWrite  = CreateDepthStencilstate(false, false, nvrhi::ComparisonFunc::Always, true, 0, 0xFF);
+	g_CommonResources.DepthReadStencilNone   = CreateDepthStencilstate(true, false, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, false, 0, 0);
+	g_CommonResources.DepthReadStencilRead   = CreateDepthStencilstate(true, false, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0xFF, 0);
+	g_CommonResources.DepthReadStencilWrite  = CreateDepthStencilstate(true, false, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0, 0xFF);
+	g_CommonResources.DepthWriteStencilNone  = CreateDepthStencilstate(true, true, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, false, 0, 0);
+	g_CommonResources.DepthWriteStencilRead  = CreateDepthStencilstate(true, true, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0xFF, 0);
+	g_CommonResources.DepthWriteStencilWrite = CreateDepthStencilstate(true, true, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0, 0xFF);
 }
 
 void CommonResources::Initialize()
