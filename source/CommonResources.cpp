@@ -6,10 +6,6 @@
 #include "Graphic.h"
 #include "MathUtilities.h"
 
-#pragma warning(push)
-#pragma warning (disable: 4244) // conversion warning
-#pragma warning (disable: 4267) // conversion warning
-
 static void CreateDefaultTexture(
     std::string_view name,
     Texture& destTex,
@@ -199,5 +195,3 @@ void CommonResources::Initialize()
     CreateDefaultBlendModes();
     CreateDefaultRasterStates();
 }
-
-#pragma warning(pop)
