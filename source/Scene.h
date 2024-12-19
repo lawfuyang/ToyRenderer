@@ -114,6 +114,7 @@ private:
     void UpdateMainViewCameraControls();
     void UpdateCSMViews();
     void UpdateInstanceConstsBuffer();
+    void UpdateInstanceIDsBuffers();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;
