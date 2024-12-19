@@ -51,6 +51,7 @@ public:
     static constexpr nvrhi::Format kGBufferAFormat = nvrhi::Format::RGBA8_UNORM; // albedo
     static constexpr nvrhi::Format kGBufferBFormat = nvrhi::Format::RG16_UNORM; // normals
     static constexpr nvrhi::Format kGBufferCFormat = nvrhi::Format::RGBA8_UNORM; // PBR
+    static constexpr nvrhi::Format kGBufferDFormat = nvrhi::Format::R32_UINT; // emissive
     static constexpr nvrhi::Format kLightingOutputFormat = nvrhi::Format::R11G11B10_FLOAT;
     static constexpr nvrhi::Format kSSAOOutputFormat = nvrhi::Format::R8_UINT;
 

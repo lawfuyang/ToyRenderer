@@ -187,6 +187,23 @@ GBufferParams GetGBufferParams(
         result.m_Metallic = textureSample.b;
     }
     
+    result.m_Emissive = materialData.m_Emissive;
+    
+    if (materialData.m_MaterialFlags & MaterialFlag_UseEmissiveTexture)
+    {
+        uint texIdx = NonUniformResourceIndex(materialData.m_EmissiveTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
+        uint samplerIdx = materialData.m_EmissiveTextureSamplerAndDescriptorIndex > 30;
+        
+        float2 finalUV = inUV;
+        finalUV *= materialData.m_EmissiveUVScale;
+        finalUV += materialData.m_EmissiveUVOffset;
+        
+        Texture2D emissiveTexture = g_Textures[texIdx];
+        float4 textureSample = emissiveTexture.Sample(g_Samplers[samplerIdx], finalUV);
+        
+        result.m_Emissive *= textureSample.rgb;
+    }
+    
     return result;
 }
 
@@ -198,7 +215,8 @@ void PS_Main_GBuffer(
     in float2 inUV : TEXCOORD1,
     out float4 outGBufferA : SV_Target0,
     out float4 outGBufferB : SV_Target1,
-    out float4 outGBufferC : SV_Target2)
+    out float4 outGBufferC : SV_Target2,
+    out uint4 outGBufferD : SV_Target3)
 {
     GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inUV, inWorldPosition);
     
@@ -210,6 +228,8 @@ void PS_Main_GBuffer(
     outGBufferA = float4(gbufferParams.m_Albedo, randFloat);
     outGBufferB = float4(PackOctadehron(gbufferParams.m_Normal), 1, 1);
     outGBufferC = float4(gbufferParams.m_Occlusion, gbufferParams.m_Roughness, gbufferParams.m_Metallic, 1);
+    outGBufferD = uint4(PackR9G9B9E5(gbufferParams.m_Emissive), 1, 1, 1);
+
 }
 
 void PS_Main_Forward(
@@ -229,6 +249,8 @@ void PS_Main_Forward(
     float3 L = g_BasePassConsts.m_DirectionalLightVector;
     
     float3 lighting = DefaultLitBxDF(specular, gbufferParams.m_Roughness, gbufferParams.m_Albedo, gbufferParams.m_Normal, V, L);
+    
+    lighting += gbufferParams.m_Emissive;
     
     ShadowFilteringParams shadowFilteringParams;
     shadowFilteringParams.m_WorldPosition = inWorldPosition;

@@ -16,9 +16,10 @@ cbuffer g_DeferredLightingPassConstantsBuffer : register(b0) { DeferredLightingC
 Texture2D g_GBufferAlbedo : register(t0);
 Texture2D g_GBufferNormal : register(t1);
 Texture2D g_GBufferPBR : register(t2);
-Texture2D g_DepthBuffer : register(t3);
-Texture2D<uint> g_SSAOTexture : register(t4);
-Texture2D g_ShadowMaskTexture : register(t5);
+Texture2D<uint> g_GBufferEmissive : register(t3);
+Texture2D g_DepthBuffer : register(t4);
+Texture2D<uint> g_SSAOTexture : register(t5);
+Texture2D g_ShadowMaskTexture : register(t6);
 StructuredBuffer<uint2> g_TileOffsets : register(t99);
 RWTexture2D<float3> g_LightingOutput : register(u0);
 
@@ -52,7 +53,8 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     float roughness = pbr.y;
     float metallic = pbr.z;
     
-    // 
+    float3 emissive = UnpackR9G9B9E5(g_GBufferEmissive[screenTexel].r);
+    
     const float materialSpecular = 0.5f; // TODO?
     float3 diffuse = ComputeDiffuseColor(albedo, metallic);
     float3 specular = ComputeF0(materialSpecular, albedo, metallic);
@@ -61,6 +63,8 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     float3 L = g_DeferredLightingConsts.m_DirectionalLightVector;
     
     float3 lighting = DefaultLitBxDF(specular, roughness, diffuse, normal, V, L);
+    
+    lighting += emissive;
     
     // Retrieve the shadow factor from the shadow mask texture
     float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, screenUV, 0).r;

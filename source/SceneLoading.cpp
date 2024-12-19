@@ -315,19 +315,20 @@ struct GLTFSceneLoader
             sceneMaterial.m_AlphaMode = (AlphaMode)gltfMaterial.alpha_mode;
             sceneMaterial.m_AlphaCutoff = gltfMaterial.alpha_cutoff;
 
-            // todo: emissive
             if (Vector3{ gltfMaterial.emissive_factor }.LengthSquared() > kKindaSmallNumber)
             {
-				LOG_DEBUG("Unhandled emissive_factor: [%s][%f, %f, %f]", materialName, gltfMaterial.emissive_factor[0], gltfMaterial.emissive_factor[1], gltfMaterial.emissive_factor[2]);
+				sceneMaterial.m_Emissive = Vector3{ gltfMaterial.emissive_factor };
+
+                if (gltfMaterial.has_emissive_strength)
+                {
+                    sceneMaterial.m_Emissive *= gltfMaterial.emissive_strength.emissive_strength;
+                }
             }
             if (gltfMaterial.emissive_texture.texture)
             {
-				LOG_DEBUG("Unhandled emissive_texture: [%s][%s]", materialName, gltfMaterial.emissive_texture.texture->name ? gltfMaterial.emissive_texture.texture->name : "");
-            }
-            if (gltfMaterial.has_emissive_strength)
-            {
-				LOG_DEBUG("Unhandled emissive_strength: [%s][%f]", materialName, gltfMaterial.emissive_strength.emissive_strength);
-            }
+				sceneMaterial.m_MaterialFlags |= MaterialFlag_UseEmissiveTexture;
+				HandleTextureView(sceneMaterial.m_EmissiveTexture, gltfMaterial.emissive_texture);
+			}
 
             if (gltfMaterial.has_pbr_metallic_roughness)
             {
@@ -374,10 +375,12 @@ struct GLTFSceneLoader
 
             MaterialData& materialData = m_GlobalMaterialData[i];
             materialData.m_ConstDiffuse = sceneMaterial.m_ConstDiffuse;
+			materialData.m_Emissive = sceneMaterial.m_Emissive;
             materialData.m_MaterialFlags = sceneMaterial.m_MaterialFlags;
             materialData.m_AlbedoTextureSamplerAndDescriptorIndex = (sceneMaterial.m_AlbedoTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_AlbedoTexture.m_AddressMode) << 30));
             materialData.m_NormalTextureSamplerAndDescriptorIndex = (sceneMaterial.m_NormalTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_NormalTexture.m_AddressMode) << 30));
             materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex = (sceneMaterial.m_MetallicRoughnessTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_MetallicRoughnessTexture.m_AddressMode) << 30));
+			materialData.m_EmissiveTextureSamplerAndDescriptorIndex = (sceneMaterial.m_EmissiveTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_EmissiveTexture.m_AddressMode) << 30));
             materialData.m_ConstRoughness = sceneMaterial.m_ConstRoughness;
             materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
             materialData.m_AlbedoUVOffset = sceneMaterial.m_AlbedoTexture.m_UVOffset;
@@ -386,6 +389,8 @@ struct GLTFSceneLoader
             materialData.m_NormalUVScale = sceneMaterial.m_NormalTexture.m_UVScale;
             materialData.m_MetallicRoughnessUVOffset = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset;
             materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
+			materialData.m_EmissiveUVOffset = sceneMaterial.m_EmissiveTexture.m_UVOffset;
+			materialData.m_EmissiveUVScale = sceneMaterial.m_EmissiveTexture.m_UVScale;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;
 
 			LOG_DEBUG("New Material: [%s]", materialName);

@@ -19,6 +19,7 @@ extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferBRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferCRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_GBufferDRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_ShadowMapArrayRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 
@@ -32,6 +33,7 @@ public:
         renderGraph.AddWriteDependency(g_GBufferARDGTextureHandle);
         renderGraph.AddWriteDependency(g_GBufferBRDGTextureHandle);
         renderGraph.AddWriteDependency(g_GBufferCRDGTextureHandle);
+		renderGraph.AddWriteDependency(g_GBufferDRDGTextureHandle);
         renderGraph.AddWriteDependency(g_LightingOutputRDGTextureHandle);
         renderGraph.AddWriteDependency(g_DepthStencilBufferRDGTextureHandle);
 
@@ -66,10 +68,12 @@ public:
             nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
             nvrhi::TextureHandle GBufferBTexture = renderGraph.GetTexture(g_GBufferBRDGTextureHandle);
             nvrhi::TextureHandle GBufferCTexture = renderGraph.GetTexture(g_GBufferCRDGTextureHandle);
+			nvrhi::TextureHandle GBufferDTexture = renderGraph.GetTexture(g_GBufferDRDGTextureHandle);
 
             commandList->clearTextureFloat(GBufferATexture, nvrhi::AllSubresources, nvrhi::Color{ 0.0f });
             commandList->clearTextureFloat(GBufferBTexture, nvrhi::AllSubresources, nvrhi::Color{ 0.0f });
             commandList->clearTextureFloat(GBufferCTexture, nvrhi::AllSubresources, nvrhi::Color{ 0.0f });
+            commandList->clearTextureUInt(GBufferDTexture, nvrhi::AllSubresources, 0);
         }
 
         if (s_ClearLightingOutputEveryFrame)

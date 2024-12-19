@@ -6,6 +6,7 @@
 static const int MaterialFlag_UseDiffuseTexture           = (1 << 0);
 static const int MaterialFlag_UseNormalTexture            = (1 << 1);
 static const int MaterialFlag_UseMetallicRoughnessTexture = (1 << 2);
+static const int MaterialFlag_UseEmissiveTexture          = (1 << 3);
 
 static const int SamplerIdx_AnisotropicClamp  = 0;
 static const int SamplerIdx_AnisotropicWrap   = 1;

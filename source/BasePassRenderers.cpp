@@ -25,6 +25,7 @@ static_assert(SamplerIdx_AnisotropicMirror == (int)nvrhi::SamplerAddressMode::Mi
 RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 RenderGraph::ResourceHandle g_GBufferBRDGTextureHandle;
 RenderGraph::ResourceHandle g_GBufferCRDGTextureHandle;
+RenderGraph::ResourceHandle g_GBufferDRDGTextureHandle;
 RenderGraph::ResourceHandle g_ShadowMapArrayRDGTextureHandle;
 RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
@@ -475,6 +476,10 @@ public:
         desc.debugName = "GBufferC";
         renderGraph.CreateTransientResource(g_GBufferCRDGTextureHandle, desc);
 
+		desc.format = Graphic::kGBufferDFormat;
+		desc.debugName = "GBufferD";
+		renderGraph.CreateTransientResource(g_GBufferDRDGTextureHandle, desc);
+
         {
             nvrhi::TextureDesc desc;
             desc.width = g_Graphic.m_RenderResolution.x;
@@ -509,12 +514,14 @@ public:
         nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
         nvrhi::TextureHandle GBufferBTexture = renderGraph.GetTexture(g_GBufferBRDGTextureHandle);
         nvrhi::TextureHandle GBufferCTexture = renderGraph.GetTexture(g_GBufferCRDGTextureHandle);
+		nvrhi::TextureHandle GBufferDTexture = renderGraph.GetTexture(g_GBufferDRDGTextureHandle);
         nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 
         nvrhi::FramebufferDesc frameBufferDesc;
         frameBufferDesc.addColorAttachment(GBufferATexture);
         frameBufferDesc.addColorAttachment(GBufferBTexture);
         frameBufferDesc.addColorAttachment(GBufferCTexture);
+		frameBufferDesc.addColorAttachment(GBufferDTexture);
         frameBufferDesc.setDepthAttachment(depthStencilBuffer);
 
         // write 'opaque' to stencil buffer
