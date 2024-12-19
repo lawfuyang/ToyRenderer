@@ -317,11 +317,11 @@ struct GLTFSceneLoader
 
             if (Vector3{ gltfMaterial.emissive_factor }.LengthSquared() > kKindaSmallNumber)
             {
-				sceneMaterial.m_Emissive = Vector3{ gltfMaterial.emissive_factor };
+				sceneMaterial.m_ConstEmissive = Vector3{ gltfMaterial.emissive_factor };
 
                 if (gltfMaterial.has_emissive_strength)
                 {
-                    sceneMaterial.m_Emissive *= gltfMaterial.emissive_strength.emissive_strength;
+                    sceneMaterial.m_ConstEmissive *= gltfMaterial.emissive_strength.emissive_strength;
                 }
             }
             if (gltfMaterial.emissive_texture.texture)
@@ -343,7 +343,7 @@ struct GLTFSceneLoader
                     HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
                 }
 
-                sceneMaterial.m_ConstDiffuse = Vector3{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
+                sceneMaterial.m_ConstAlbedo = Vector3{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
                 sceneMaterial.m_ConstMetallic = gltfMaterial.pbr_metallic_roughness.metallic_factor;
                 sceneMaterial.m_ConstRoughness = gltfMaterial.pbr_metallic_roughness.roughness_factor;
             }
@@ -360,7 +360,7 @@ struct GLTFSceneLoader
                     HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture);
                 }
 
-                sceneMaterial.m_ConstDiffuse = Vector3{ &gltfMaterial.pbr_specular_glossiness.diffuse_factor[0] };
+                sceneMaterial.m_ConstAlbedo = Vector3{ &gltfMaterial.pbr_specular_glossiness.diffuse_factor[0] };
                 sceneMaterial.m_ConstMetallic = std::max(std::max(gltfMaterial.pbr_specular_glossiness.specular_factor[0], gltfMaterial.pbr_specular_glossiness.specular_factor[1]), gltfMaterial.pbr_specular_glossiness.specular_factor[2]);
                 sceneMaterial.m_ConstRoughness = 1.0f - gltfMaterial.pbr_specular_glossiness.glossiness_factor;
             }
@@ -374,8 +374,8 @@ struct GLTFSceneLoader
             sceneMaterial.m_MaterialDataBufferIdx = i;
 
             MaterialData& materialData = m_GlobalMaterialData[i];
-            materialData.m_ConstDiffuse = sceneMaterial.m_ConstDiffuse;
-			materialData.m_Emissive = sceneMaterial.m_Emissive;
+            materialData.m_ConstAlbedo = sceneMaterial.m_ConstAlbedo;
+			materialData.m_ConstEmissive = sceneMaterial.m_ConstEmissive;
             materialData.m_MaterialFlags = sceneMaterial.m_MaterialFlags;
             materialData.m_AlbedoTextureSamplerAndDescriptorIndex = (sceneMaterial.m_AlbedoTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_AlbedoTexture.m_AddressMode) << 30));
             materialData.m_NormalTextureSamplerAndDescriptorIndex = (sceneMaterial.m_NormalTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_NormalTexture.m_AddressMode) << 30));
@@ -383,21 +383,33 @@ struct GLTFSceneLoader
 			materialData.m_EmissiveTextureSamplerAndDescriptorIndex = (sceneMaterial.m_EmissiveTexture.m_DescriptorIndex | (((uint32_t)sceneMaterial.m_EmissiveTexture.m_AddressMode) << 30));
             materialData.m_ConstRoughness = sceneMaterial.m_ConstRoughness;
             materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
-            materialData.m_AlbedoUVOffset = sceneMaterial.m_AlbedoTexture.m_UVOffset;
-            materialData.m_AlbedoUVScale = sceneMaterial.m_AlbedoTexture.m_UVScale;
-            materialData.m_NormalUVOffset = sceneMaterial.m_NormalTexture.m_UVOffset;
-            materialData.m_NormalUVScale = sceneMaterial.m_NormalTexture.m_UVScale;
-            materialData.m_MetallicRoughnessUVOffset = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset;
-            materialData.m_MetallicRoughnessUVScale = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale;
-			materialData.m_EmissiveUVOffset = sceneMaterial.m_EmissiveTexture.m_UVOffset;
-			materialData.m_EmissiveUVScale = sceneMaterial.m_EmissiveTexture.m_UVScale;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;
+
+            materialData.m_AlbedoUVOffsetAndScale.x = sceneMaterial.m_AlbedoTexture.m_UVOffset.x;
+			materialData.m_AlbedoUVOffsetAndScale.y = sceneMaterial.m_AlbedoTexture.m_UVOffset.y;
+			materialData.m_AlbedoUVOffsetAndScale.z = sceneMaterial.m_AlbedoTexture.m_UVScale.x;
+			materialData.m_AlbedoUVOffsetAndScale.w = sceneMaterial.m_AlbedoTexture.m_UVScale.y;
+
+			materialData.m_NormalUVOffsetAndScale.x = sceneMaterial.m_NormalTexture.m_UVOffset.x;
+			materialData.m_NormalUVOffsetAndScale.y = sceneMaterial.m_NormalTexture.m_UVOffset.y;
+			materialData.m_NormalUVOffsetAndScale.z = sceneMaterial.m_NormalTexture.m_UVScale.x;
+			materialData.m_NormalUVOffsetAndScale.w = sceneMaterial.m_NormalTexture.m_UVScale.y;
+
+			materialData.m_MetallicRoughnessUVOffsetAndScale.x = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset.x;
+			materialData.m_MetallicRoughnessUVOffsetAndScale.y = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset.y;
+			materialData.m_MetallicRoughnessUVOffsetAndScale.z = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale.x;
+			materialData.m_MetallicRoughnessUVOffsetAndScale.w = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale.y;
+
+			materialData.m_EmissiveUVOffsetAndScale.x = sceneMaterial.m_EmissiveTexture.m_UVOffset.x;
+			materialData.m_EmissiveUVOffsetAndScale.y = sceneMaterial.m_EmissiveTexture.m_UVOffset.y;
+			materialData.m_EmissiveUVOffsetAndScale.z = sceneMaterial.m_EmissiveTexture.m_UVScale.x;
+			materialData.m_EmissiveUVOffsetAndScale.w = sceneMaterial.m_EmissiveTexture.m_UVScale.y;
 
 			LOG_DEBUG("New Material: [%s]", materialName);
         }
 
         MaterialData defaultMaterialData{};
-        defaultMaterialData.m_ConstDiffuse = g_CommonResources.DefaultMaterial.m_ConstDiffuse;
+        defaultMaterialData.m_ConstEmissive = g_CommonResources.DefaultMaterial.m_ConstEmissive;
         defaultMaterialData.m_ConstRoughness = g_CommonResources.DefaultMaterial.m_ConstRoughness;
         defaultMaterialData.m_ConstMetallic = g_CommonResources.DefaultMaterial.m_ConstMetallic;
 

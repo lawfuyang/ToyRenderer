@@ -110,7 +110,7 @@ GBufferParams GetGBufferParams(
     MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
         
     // Set the default albedo and alpha values
-    result.m_Albedo = materialData.m_ConstDiffuse;
+    result.m_Albedo = materialData.m_ConstAlbedo;
     result.m_Alpha = 1.0f;
     
     // Check if the material uses a diffuse texture
@@ -120,9 +120,7 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex > 30;
         
-        float2 finalUV = inUV;
-        finalUV *= materialData.m_AlbedoUVScale;
-        finalUV += materialData.m_AlbedoUVOffset;
+        float2 finalUV = inUV * materialData.m_AlbedoUVOffsetAndScale.zw + materialData.m_AlbedoUVOffsetAndScale.xy;
         
         // Retrieve the albedo texture and sample the texture at the given UV coordinates
         Texture2D albedoTexture = g_Textures[texIdx];
@@ -150,9 +148,7 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_NormalTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_NormalTextureSamplerAndDescriptorIndex > 30;
         
-        float2 finalUV = inUV;
-        finalUV *= materialData.m_NormalUVScale;
-        finalUV += materialData.m_AlbedoUVOffset;
+        float2 finalUV = inUV * materialData.m_NormalUVOffsetAndScale.zw + materialData.m_NormalUVOffsetAndScale.xy;
         
         Texture2D normalTexture = g_Textures[texIdx];
         float3 sampledNormal = normalTexture.Sample(g_Samplers[samplerIdx], finalUV).rgb;
@@ -174,9 +170,7 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex > 30;
         
-        float2 finalUV = inUV;
-        finalUV *= materialData.m_MetallicRoughnessUVScale;
-        finalUV += materialData.m_MetallicRoughnessUVOffset;
+        float2 finalUV = inUV * materialData.m_MetallicRoughnessUVOffsetAndScale.zw + materialData.m_MetallicRoughnessUVOffsetAndScale.xy;
         
         // Retrieve the metallic roughness texture and sample the texture at the given UV coordinates
         Texture2D mrtTexture = g_Textures[texIdx];
@@ -187,16 +181,14 @@ GBufferParams GetGBufferParams(
         result.m_Metallic = textureSample.b;
     }
     
-    result.m_Emissive = materialData.m_Emissive;
+    result.m_Emissive = materialData.m_ConstEmissive;
     
     if (materialData.m_MaterialFlags & MaterialFlag_UseEmissiveTexture)
     {
         uint texIdx = NonUniformResourceIndex(materialData.m_EmissiveTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_EmissiveTextureSamplerAndDescriptorIndex > 30;
         
-        float2 finalUV = inUV;
-        finalUV *= materialData.m_EmissiveUVScale;
-        finalUV += materialData.m_EmissiveUVOffset;
+        float2 finalUV = inUV * materialData.m_EmissiveUVOffsetAndScale.zw + materialData.m_EmissiveUVOffsetAndScale.xy;
         
         Texture2D emissiveTexture = g_Textures[texIdx];
         float4 textureSample = emissiveTexture.Sample(g_Samplers[samplerIdx], finalUV);

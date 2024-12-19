@@ -5,22 +5,18 @@
 
 struct MaterialData
 {
-	Vector3 m_ConstDiffuse;
+	Vector3 m_ConstAlbedo;
 	uint32_t m_MaterialFlags;
-	Vector3 m_Emissive;
+	Vector3 m_ConstEmissive;
 	float m_AlphaCutoff;
 	uint32_t m_AlbedoTextureSamplerAndDescriptorIndex;
 	uint32_t m_NormalTextureSamplerAndDescriptorIndex;
 	uint32_t m_MetallicRoughnessTextureSamplerAndDescriptorIndex;
 	uint32_t m_EmissiveTextureSamplerAndDescriptorIndex;
-	Vector2 m_AlbedoUVOffset;
-    Vector2 m_AlbedoUVScale;
-    Vector2 m_NormalUVOffset;
-    Vector2 m_NormalUVScale;
-    Vector2 m_MetallicRoughnessUVOffset;
-    Vector2 m_MetallicRoughnessUVScale;
-	Vector2 m_EmissiveUVOffset;
-	Vector2 m_EmissiveUVScale;
+	Vector4 m_AlbedoUVOffsetAndScale;
+	Vector4 m_NormalUVOffsetAndScale;
+	Vector4 m_MetallicRoughnessUVOffsetAndScale;
+	Vector4 m_EmissiveUVOffsetAndScale;
 	float m_ConstRoughness;
 	float m_ConstMetallic;
 };
