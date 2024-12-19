@@ -20,6 +20,7 @@ minmaxdownsample.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T ps -E PS_Main
 deferredlighting.hlsl -T ps -E PS_Main_Debug
+deferredlighting.hlsl -T cs -E CS_Main_Debug
 shadowmask.hlsl -T ps -E PS_Main
 bloom.hlsl -T ps -E PS_Downsample
 bloom.hlsl -T ps -E PS_Upsample

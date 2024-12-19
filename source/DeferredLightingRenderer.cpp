@@ -119,14 +119,15 @@ public:
 			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
 		};
 
-		// NOTE: i'm lazy to support debug Shader for CS codepath...
-		if (lightingControllables.m_bDeferredLightingUseCS && !bHasDebugView)
+		if (lightingControllables.m_bDeferredLightingUseCS)
 		{
 			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Texture_UAV(0, lightingOutputTexture));
 
+			const char* shaderName = bHasDebugView ? "deferredlighting_CS_Main_Debug" : "deferredlighting_CS_Main";
+
 			g_Graphic.AddComputePass(
 				commandList,
-				"deferredlighting_CS_Main",
+				shaderName,
 				bindingSetDesc,
 				ComputeShaderUtils::GetGroupCount(g_Graphic.m_RenderResolution, Vector2U{ 8, 8 }));
 		}

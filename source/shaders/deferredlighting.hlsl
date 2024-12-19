@@ -78,6 +78,10 @@ void CS_Main(
     uint groupIndex : SV_GroupIndex)
 {
     uint2 screenTexel = dispatchThreadID.xy;
+    if (any(screenTexel >= g_DeferredLightingConsts.m_LightingOutputResolution))
+    {
+        return;
+    }
     
     // Convert the texel to screen UV coordinates
     float2 screenUV = (screenTexel + 0.5f) / float2(g_DeferredLightingConsts.m_LightingOutputResolution);
@@ -93,10 +97,7 @@ void PS_Main(
     outColor = float4(EvaluteLighting(inPosition.xy, inUV), 1.0f);
 }
 
-void PS_Main_Debug(
-    in float4 inPosition : SV_POSITION,
-    in float2 inUV : TEXCOORD0,
-    out float4 outColor : SV_Target)
+float3 DeferredLightingDebugCommon(uint2 screenTexel)
 {
     bool bLightingOnlyOutput = g_DeferredLightingConsts.m_DebugFlags & kDeferredLightingDebugFlag_LightingOnly;
     bool bColorizeInstances = g_DeferredLightingConsts.m_DebugFlags & kDeferredLightingDebugFlag_ColorizeInstances;
@@ -105,14 +106,14 @@ void PS_Main_Debug(
    
     if (bLightingOnlyOutput)
     {
-        float3 normal = UnpackOctadehron(g_GBufferNormal[inPosition.xy].rg);
-        float shadowFactor = g_ShadowMaskTexture[inPosition.xy].r;
+        float3 normal = UnpackOctadehron(g_GBufferNormal[screenTexel].rg);
+        float shadowFactor = g_ShadowMaskTexture[screenTexel].r;
         float lightingOnlyShadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
         rgb = dot(normal, g_DeferredLightingConsts.m_DirectionalLightVector).xxx * lightingOnlyShadowFactor;
     }
     else if (bColorizeInstances)
     {
-        float randFloat = g_GBufferAlbedo[inPosition.xy].w;
+        float randFloat = g_GBufferAlbedo[screenTexel].w;
         uint seed = randFloat * 4294967296.0f;
         
         float randR = QuickRandomFloat(seed);
@@ -121,5 +122,29 @@ void PS_Main_Debug(
         rgb = float3(randR, randG, randB);
     }
     
-    outColor = float4(rgb, 1.0f);
+    return rgb;
+}
+
+[numthreads(8, 8, 1)]
+void CS_Main_Debug(
+    uint3 dispatchThreadID : SV_DispatchThreadID,
+    uint3 groupThreadID : SV_GroupThreadID,
+    uint3 groupId : SV_GroupID,
+    uint groupIndex : SV_GroupIndex)
+{
+    uint2 screenTexel = dispatchThreadID.xy;
+    if (any(screenTexel >= g_DeferredLightingConsts.m_LightingOutputResolution))
+    {
+        return;
+    }
+    
+    g_LightingOutput[screenTexel] = DeferredLightingDebugCommon(screenTexel);
+}
+
+void PS_Main_Debug(
+    in float4 inPosition : SV_POSITION,
+    in float2 inUV : TEXCOORD0,
+    out float4 outColor : SV_Target)
+{
+    outColor = float4(DeferredLightingDebugCommon(inPosition.xy), 1.0f);
 }
