@@ -12,8 +12,7 @@
 • Packed GBuffer: https://docs.google.com/presentation/d/1kaeg2qMi3_8nQqoR3Y2Ax9fJKUYLigPLPfdjfuEGowY/edit#slide=id.g27be1a2457b_0_128
 • HBAO: https://github.com/NVIDIAGameWorks/HBAOPlus
 • local lights
-	• light volumes w/ point, spot lights
-	• local light grid
+	• http://newq.net/dl/pub/SA2014Practical.pdf
     • https://simoncoenen.com/blog/programming/graphics/SpotlightCulling
     • https://wickedengine.net/2018/01/optimizing-tile-based-light-culling/
 	• clustered deferred lighting: Adria\Rendering\ClusteredDeferredLightingPass.cpp
