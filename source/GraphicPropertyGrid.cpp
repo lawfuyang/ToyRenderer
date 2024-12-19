@@ -102,9 +102,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
     if (ImGui::TreeNode("Lighting"))
     {
         LightingControllables& params = m_LightingControllables;
-        ImGui::Checkbox("Cull Far Depth Tiles", &params.m_bCullFarDepthTiles);
-        ImGui::Checkbox("Tile Rendering Use CS", &params.m_bTileRenderingUseCS);
-        ImGui::Checkbox("Enable Deferred Lighting Tile Classification Debug", &params.m_bEnableDeferredLightingTileClassificationDebug);
+        ImGui::Checkbox("Deferred Lighting Use CS", &params.m_bDeferredLightingUseCS);
         ImGui::Checkbox("Lighting Only Debug", &params.m_bLightingOnlyDebug);
 
         ImGui::TreePop();
@@ -164,7 +162,6 @@ void GraphicPropertyGrid::UpdateIMGUI()
         bLuminanceDirty |= ImGui::DragFloat("Maximum Luminance", &params.m_MaximumLuminance, 0.01f, 0.0f);
         ImGui::DragFloat("Auto Exposure Speed", &params.m_AutoExposureSpeed, 0.01f, 0.0f, 1.0f);
         ImGui::DragFloat("Middle Gray", &params.m_MiddleGray, 0.01f, 0.0f);
-        ImGui::DragFloat("White Point", &params.m_WhitePoint, 0.01f, 0.0f);
 
         if (bLuminanceDirty)
         {

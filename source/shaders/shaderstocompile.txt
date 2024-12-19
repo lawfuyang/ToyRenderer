@@ -20,11 +20,6 @@ minmaxdownsample.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T ps -E PS_Main
 deferredlighting.hlsl -T ps -E PS_Main_Debug
-deferredlighting.hlsl -T cs -E CS_TileClassification
-deferredlighting.hlsl -T cs -E CS_TileClassificationDebug
-deferredlighting.hlsl -T ps -E PS_TileClassificationDebug
-tilerenderingutils.hlsl -T cs -E CS_ClearIndirectParams
-tilerenderingutils.hlsl -T vs -E VS_Main
 shadowmask.hlsl -T ps -E PS_Main
 bloom.hlsl -T ps -E PS_Downsample
 bloom.hlsl -T ps -E PS_Upsample

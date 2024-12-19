@@ -227,8 +227,6 @@ void Scene::Initialize()
         view.Initialize();
     }
 
-    m_DeferredLightingTileRenderingHelper.Initialize(g_Graphic.m_RenderResolution, Tile_ID_Count);
-
     m_RenderGraph = std::make_shared<RenderGraph>();
     m_RenderGraph->Initialize();
 
@@ -575,9 +573,7 @@ void Scene::Update()
         extern IRenderer* g_ClearBuffersRenderer;
         extern IRenderer* g_GBufferRenderer;
         extern IRenderer* g_ShadowMaskRenderer;
-        extern IRenderer* g_TileClassificationRenderer;
         extern IRenderer* g_DeferredLightingRenderer;
-        extern IRenderer* g_TileClassificationDebugRenderer;
         extern IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
         extern IRenderer* g_TransparentForwardRenderer;
         extern IRenderer* g_IMGUIRenderer;
@@ -597,17 +593,11 @@ void Scene::Update()
         }
 
         m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
-        m_RenderGraph->AddRenderer(g_TileClassificationRenderer);
         m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
         m_RenderGraph->AddRenderer(g_SkyRenderer);
         m_RenderGraph->AddRenderer(g_BloomRenderer);
         m_RenderGraph->AddRenderer(g_TransparentForwardRenderer);
         m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
-
-        // TODO: this is supposed to be after PostProcessRenderer, but it currently writes to the BackBuffer as we don't have any uspcaling Renderer yet
-        // RenderResolution Debug passes
-        m_RenderGraph->AddRenderer(g_TileClassificationDebugRenderer);
-
         m_RenderGraph->AddRenderer(g_PostProcessRenderer);
 
         // DisplayResolution Debug Passes

@@ -44,7 +44,6 @@ public:
         passParameters.m_OutputDims = g_Graphic.m_RenderResolution;
         passParameters.m_ManualExposure = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_ManualExposureOverride;
         passParameters.m_MiddleGray = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_MiddleGray;
-        passParameters.m_WhitePoint = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_WhitePoint;
         passParameters.m_BloomStrength = bloomControllables.m_bEnabled ? bloomControllables.m_BloomStrength : 0.0f;
 
         nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);

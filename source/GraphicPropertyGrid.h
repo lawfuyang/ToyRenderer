@@ -38,7 +38,6 @@ public:
         float m_MaximumLuminance = 12.0f;
         float m_AutoExposureSpeed = 0.0025f;
         float m_MiddleGray = 0.18f;
-        float m_WhitePoint = 3.0f;
     };
     AdaptLuminanceControllables m_AdaptLuminanceControllables;
 
@@ -59,9 +58,7 @@ public:
 
     struct LightingControllables
     {
-        bool m_bCullFarDepthTiles = true;
-        bool m_bTileRenderingUseCS = false; // PS code path is truly more performant than CS... and it's easier to debug
-        bool m_bEnableDeferredLightingTileClassificationDebug = false;
+        bool m_bDeferredLightingUseCS = false; // PS code path is truly more performant than CS... and it's easier to debug
         bool m_bLightingOnlyDebug = false;
     };
     LightingControllables m_LightingControllables;

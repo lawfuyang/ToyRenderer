@@ -3,7 +3,6 @@
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
 #include "MathUtilities.h"
-#include "TileRenderingHelper.h"
 #include "Utilities.h"
 #include "Visual.h"
 
@@ -98,8 +97,6 @@ public:
     std::vector<uint32_t> m_TransparentPrimitiveIDs;
 
     nvrhi::BufferHandle m_LuminanceBuffer;
-
-    TileRenderingHelper m_DeferredLightingTileRenderingHelper;
 
     nvrhi::BufferHandle m_InstanceConstsBuffer;
     nvrhi::BufferHandle m_OpaqueInstanceIDsBuffer;

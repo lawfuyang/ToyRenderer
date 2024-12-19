@@ -2,12 +2,11 @@
 
 #include "CommonResources.h"
 #include "GraphicPropertyGrid.h"
-#include "Scene.h"
 #include "RenderGraph.h"
+#include "Scene.h"
+#include "TileRenderingHelper.h"
 
 #include "shaders/shared/DeferredLightingStructs.h"
-
-static_assert(kDeferredLightingTileSize == TileRenderingHelper::kTileSize, "Tile size mismatch");
 
 RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
@@ -33,7 +32,7 @@ public:
 		desc.format = Graphic::kLightingOutputFormat;
 		desc.debugName = "Lighting Output";
 		desc.isRenderTarget = true;
-		desc.isUAV = g_GraphicPropertyGrid.m_LightingControllables.m_bTileRenderingUseCS;
+		desc.isUAV = g_GraphicPropertyGrid.m_LightingControllables.m_bDeferredLightingUseCS;
 		desc.initialState = nvrhi::ResourceStates::ShaderResource;
 		desc.setClearValue(nvrhi::Color{ 0.0f });
 
@@ -58,8 +57,6 @@ public:
 			renderGraph.AddReadDependency(g_ShadowMaskRDGTextureHandle);
 		}
 
-		g_Graphic.m_Scene->m_DeferredLightingTileRenderingHelper.AddReadDependencies(renderGraph);
-
 		return true;
     }
 
@@ -72,7 +69,6 @@ public:
 		const auto& lightingControllables = g_GraphicPropertyGrid.m_LightingControllables;
 		const auto& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
 		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-		const TileRenderingHelper& tileRenderingHelper = scene->m_DeferredLightingTileRenderingHelper;
 
 		// pass constants
 		DeferredLightingConsts passConstants;
@@ -84,7 +80,6 @@ public:
 		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
 		passConstants.m_SSAOEnabled = AOControllables.m_bEnabled;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
-		passConstants.m_NbTiles = Vector2U{ tileRenderingHelper.m_GroupCount.x, tileRenderingHelper.m_GroupCount.y };
 
 		passConstants.m_DebugFlags = 0;
 		passConstants.m_DebugFlags |= lightingControllables.m_bLightingOnlyDebug ? kDeferredLightingDebugFlag_LightingOnly : 0;
@@ -109,219 +104,49 @@ public:
 
 		const bool bHasDebugView = (passConstants.m_DebugFlags != 0);
 
-		for (uint32_t tileID = Tile_ID_Normal; tileID < Tile_ID_Count; tileID++)
-		{
-			passConstants.m_TileID = tileID;
-
-			nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
-
-			nvrhi::BindingSetDesc bindingSetDesc;
-			bindingSetDesc.bindings = {
-				nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-				nvrhi::BindingSetItem::Texture_SRV(0, GBufferATexture),
-				nvrhi::BindingSetItem::Texture_SRV(1, GBufferBTexture),
-				nvrhi::BindingSetItem::Texture_SRV(2, GBufferCTexture),
-				nvrhi::BindingSetItem::Texture_SRV(3, GBufferDTexture),
-				nvrhi::BindingSetItem::Texture_SRV(4, depthBufferCopyTexture),
-				nvrhi::BindingSetItem::Texture_SRV(5, ssaoTexture),
-				nvrhi::BindingSetItem::Texture_SRV(6, shadowMaskTexture),
-                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
-			};
-
-			// NOTE: i'm lazy to support debug Shader for CS codepath...
-			if (lightingControllables.m_bTileRenderingUseCS && !bHasDebugView)
-			{
-				bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Texture_UAV(0, lightingOutputTexture));
-
-				tileRenderingHelper.DispatchTiles(commandList, renderGraph, "deferredlighting_CS_Main", bindingSetDesc, tileID);
-			}
-			else
-			{
-				nvrhi::FramebufferDesc frameBufferDesc;
-				frameBufferDesc.addColorAttachment(lightingOutputTexture);
-				frameBufferDesc.setDepthAttachment(depthStencilBuffer)
-					.depthAttachment.isReadOnly = true;
-
-				nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthNoneStencilRead;
-				depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
-				depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
-
-				const char* shaderName = bHasDebugView ? "deferredlighting_PS_Main_Debug" : "deferredlighting_PS_Main";
-
-				tileRenderingHelper.DrawTiles(commandList, renderGraph, shaderName, bindingSetDesc, frameBufferDesc, tileID, nullptr, &depthStencilState);
-			}
-		}
-	}
-};
-
-class TileClassificationRenderer : public IRenderer
-{
-public:
-	TileClassificationRenderer() : IRenderer("TileClassificationRenderer") {}
-
-	bool Setup(RenderGraph& renderGraph) override
-	{
-		g_Graphic.m_Scene->m_DeferredLightingTileRenderingHelper.CreateTransientResources(renderGraph);
-
-		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-		if (shadowControllables.m_bEnabled)
-		{
-			renderGraph.AddReadDependency(g_ConservativeShadowMaskRDGTextureHandle);
-		}
-
-		return true;
-	}
-
-	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
-	{
-		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-		Scene* scene = g_Graphic.m_Scene.get();
-		View& view = scene->m_Views[Scene::EView::Main];
-
-		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-
-		nvrhi::TextureHandle conservativeShadowMaskTexture = shadowControllables.m_bEnabled ? renderGraph.GetTexture(g_ConservativeShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
-
-		const TileRenderingHelper& tileRendereringHelper = scene->m_DeferredLightingTileRenderingHelper;
-
-		tileRendereringHelper.ClearBuffers(commandList, renderGraph);
-
-		nvrhi::BufferHandle tileCounterBuffer = renderGraph.GetBuffer(tileRendereringHelper.m_TileCounterRDGBufferHandle);
-		nvrhi::BufferHandle dispatchIndirectArgsBuffer = renderGraph.GetBuffer(tileRendereringHelper.m_DispatchIndirectArgsRDGBufferHandle);
-		nvrhi::BufferHandle drawIndirectArgsBuffer = renderGraph.GetBuffer(tileRendereringHelper.m_DrawIndirectArgsRDGBufferHandle);
-		nvrhi::BufferHandle tileOffsetsBuffer = renderGraph.GetBuffer(tileRendereringHelper.m_TileOffsetsRDGBufferHandle);
-
-		DeferredLightingTileClassificationConsts passConstants;
-		passConstants.m_NbTiles = Vector2U{ tileRendereringHelper.m_GroupCount.x, tileRendereringHelper.m_GroupCount.y };
-		
-		const uint32_t conservativeTextureMip = (uint32_t)std::floor(std::log2(std::max(conservativeShadowMaskTexture->getDesc().width, conservativeShadowMaskTexture->getDesc().height))) - 1;
+		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {
-			nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-			nvrhi::BindingSetItem::Texture_SRV(0, conservativeShadowMaskTexture, nvrhi::Format::UNKNOWN, shadowControllables.m_bEnabled ? nvrhi::TextureSubresourceSet{ conservativeTextureMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices } : nvrhi::AllSubresources),
-			nvrhi::BindingSetItem::StructuredBuffer_UAV(0, tileCounterBuffer),
-			nvrhi::BindingSetItem::StructuredBuffer_UAV(1, dispatchIndirectArgsBuffer),
-			nvrhi::BindingSetItem::StructuredBuffer_UAV(2, drawIndirectArgsBuffer),
-			nvrhi::BindingSetItem::StructuredBuffer_UAV(3, tileOffsetsBuffer),
+			nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+			nvrhi::BindingSetItem::Texture_SRV(0, GBufferATexture),
+			nvrhi::BindingSetItem::Texture_SRV(1, GBufferBTexture),
+			nvrhi::BindingSetItem::Texture_SRV(2, GBufferCTexture),
+			nvrhi::BindingSetItem::Texture_SRV(3, GBufferDTexture),
+			nvrhi::BindingSetItem::Texture_SRV(4, depthBufferCopyTexture),
+			nvrhi::BindingSetItem::Texture_SRV(5, ssaoTexture),
+			nvrhi::BindingSetItem::Texture_SRV(6, shadowMaskTexture),
 			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
 		};
 
-		g_Graphic.AddComputePass(
-			commandList,
-			"deferredlighting_CS_TileClassification",
-			bindingSetDesc,
-			tileRendereringHelper.m_GroupCount,
-			&passConstants,
-			sizeof(passConstants));
-	}
-};
-
-class TileClassificationDebugRenderer : public IRenderer
-{
-public:
-	TileClassificationDebugRenderer() : IRenderer("TileClassificationDebugRenderer") {}
-
-	bool Setup(RenderGraph& renderGraph) override
-	{
-		const GraphicPropertyGrid::LightingControllables& lightingControllables = g_GraphicPropertyGrid.m_LightingControllables;
-
-		if (!lightingControllables.m_bEnableDeferredLightingTileClassificationDebug)
+		// NOTE: i'm lazy to support debug Shader for CS codepath...
+		if (lightingControllables.m_bDeferredLightingUseCS && !bHasDebugView)
 		{
-			return false;
+			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Texture_UAV(0, lightingOutputTexture));
+
+			g_Graphic.AddComputePass(
+				commandList,
+				"deferredlighting_CS_Main",
+				bindingSetDesc,
+				ComputeShaderUtils::GetGroupCount(g_Graphic.m_RenderResolution, Vector2U{ 8, 8 }));
 		}
-
-		g_Graphic.m_Scene->m_DeferredLightingTileRenderingHelper.AddReadDependencies(renderGraph);
-
-		renderGraph.AddReadDependency(g_LightingOutputRDGTextureHandle);
-		renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
-		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
-
-		return true;
-	}
-
-	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
-	{
-		const GraphicPropertyGrid::LightingControllables& lightingControllables = g_GraphicPropertyGrid.m_LightingControllables;
-
-		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-		Scene* scene = g_Graphic.m_Scene.get();
-		View& view = scene->m_Views[Scene::EView::Main];
-
-		const TileRenderingHelper& tileRendereringHelper = scene->m_DeferredLightingTileRenderingHelper;
-
-		// pass constants
-		DeferredLightingTileClassificationDebugConsts passConstants;
-		passConstants.m_SceneLuminance = scene->m_LastFrameExposure;
-		passConstants.m_NbTiles = tileRendereringHelper.m_NbTiles;
-
-		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
-		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
-		nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
-
-		for (uint32_t tileID = Tile_ID_Normal; tileID < Tile_ID_Count; tileID++)
+		else
 		{
-			static const Vector3 kOverlayColors[Tile_ID_Count] = {
-                Vector3{ 1.0f, 0.0f, 0.0f },
-                Vector3{ 0.0f, 1.0f, 0.0f }
-            };
+			nvrhi::FramebufferDesc frameBufferDesc;
+			frameBufferDesc.addColorAttachment(lightingOutputTexture);
+			frameBufferDesc.setDepthAttachment(depthStencilBuffer)
+				.depthAttachment.isReadOnly = true;
 
-			passConstants.m_OverlayColor = kOverlayColors[tileID];
-			passConstants.m_TileID = tileID;
+			nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthNoneStencilRead;
+			depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
+			depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
 
-			nvrhi::BindingSetDesc bindingSetDesc;
-			bindingSetDesc.bindings = {
-				nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants))
-			};
+			const char* shaderName = bHasDebugView ? "deferredlighting_PS_Main_Debug" : "deferredlighting_PS_Main";
 
-			if (lightingControllables.m_bTileRenderingUseCS)
-			{
-				bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopyTexture));
-				bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Texture_UAV(0, lightingOutputTexture));
-
-				tileRendereringHelper.DispatchTiles(
-					commandList,
-					renderGraph,
-					"deferredlighting_CS_TileClassificationDebug",
-					bindingSetDesc,
-					tileID,
-					&passConstants,
-					sizeof(passConstants));
-			}
-			else
-			{
-				nvrhi::FramebufferDesc frameBufferDesc;
-				frameBufferDesc.addColorAttachment(lightingOutputTexture);
-				frameBufferDesc.setDepthAttachment(depthStencilBuffer)
-					.depthAttachment.isReadOnly = true;
-
-				const nvrhi::BlendState::RenderTarget& blendState = g_CommonResources.BlendAdditive;
-
-				nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthNoneStencilRead;
-				depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
-				depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
-
-				tileRendereringHelper.DrawTiles(
-					commandList,
-					renderGraph,
-					"deferredlighting_PS_TileClassificationDebug",
-					bindingSetDesc,
-					frameBufferDesc,
-					tileID,
-					&blendState,
-					&depthStencilState,
-					&passConstants,
-					sizeof(passConstants));
-			}
+			g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, shaderName, nullptr, &depthStencilState);
 		}
 	}
 };
 
 static DeferredLightingRenderer gs_DeferredLightingRenderer;
 IRenderer* g_DeferredLightingRenderer = &gs_DeferredLightingRenderer;
-
-static TileClassificationRenderer gs_TileClassificationRenderer;
-IRenderer* g_TileClassificationRenderer = &gs_TileClassificationRenderer;
-
-static TileClassificationDebugRenderer gs_TileClassificationDebugRenderer;
-IRenderer* g_TileClassificationDebugRenderer = &gs_TileClassificationDebugRenderer;

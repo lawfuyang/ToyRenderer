@@ -38,12 +38,6 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     float3 normal = UnpackOctadehron(g_GBufferNormal[screenTexel].rg); // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
     float3 ambientTerm = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? screenTexel : uint2(0, 0), albedo, normal);
     
-    // If the tile is fully shadowed, return the lighting result with only ambient
-    if (g_DeferredLightingConsts.m_TileID == Tile_ID_Full_Shadow)
-    {
-        return ambientTerm;
-    }
-    
     // Convert screen UV coordinates and depth to world position
     float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_DeferredLightingConsts.m_InvViewProjMatrix);
     
@@ -76,26 +70,14 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     return lighting;
 }
 
-[numthreads(kDeferredLightingTileSize * kDeferredLightingTileSize, 1, 1)]
+[numthreads(8, 8, 1)]
 void CS_Main(
     uint3 dispatchThreadID : SV_DispatchThreadID,
     uint3 groupThreadID : SV_GroupThreadID,
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex)
 {
-    uint nbTotalScreenTiles = g_DeferredLightingConsts.m_NbTiles.x * g_DeferredLightingConsts.m_NbTiles.y;
-    
-    // If the thread is outside the tile count, return
-    if (groupId.x >= nbTotalScreenTiles)
-    {
-        return;
-    }
-    
-    // Retrieve the tile offset and screen texel
-    uint2 tileTexel = uint2(groupThreadID.x % kDeferredLightingTileSize, groupThreadID.x / kDeferredLightingTileSize);
-    uint currentTileIDBaseOffset = nbTotalScreenTiles * g_DeferredLightingConsts.m_TileID;
-    uint2 tileOffset = g_TileOffsets[currentTileIDBaseOffset + groupId.x];
-    uint2 screenTexel = tileOffset + tileTexel;
+    uint2 screenTexel = dispatchThreadID.xy;
     
     // Convert the texel to screen UV coordinates
     float2 screenUV = (screenTexel + 0.5f) / float2(g_DeferredLightingConsts.m_LightingOutputResolution);
@@ -140,101 +122,4 @@ void PS_Main_Debug(
     }
     
     outColor = float4(rgb, 1.0f);
-}
-
-cbuffer g_DeferredLightingTileClassificationConstsConstantsBuffer : register(b0) { DeferredLightingTileClassificationConsts g_DeferredLightingTileClassificationConsts; }
-Texture2D g_ConservativeShadowMask : register(t0);
-RWStructuredBuffer<uint> g_TileCounter : register(u0);
-RWStructuredBuffer<DispatchIndirectArguments> g_DispatchIndirectArgs : register(u1);
-RWStructuredBuffer<DrawIndirectArguments> g_DrawIndirectArgs : register(u2);
-RWStructuredBuffer<uint2> g_TileOffsetsOut : register(u3);
-
-[numthreads(8, 8, 1)]
-void CS_TileClassification(
-    uint3 dispatchThreadID : SV_DispatchThreadID,
-    uint3 groupThreadID : SV_GroupThreadID,
-    uint3 groupId : SV_GroupID,
-    uint groupIndex : SV_GroupIndex)
-{
-    uint2 nbTiles = g_DeferredLightingTileClassificationConsts.m_NbTiles;
-    
-    // If the thread is outside the tile count, return
-    if (any(dispatchThreadID.xy >= nbTiles))
-    {
-        return;
-    }
-    
-    float2 screenUV = (dispatchThreadID.xy + 0.5f) / nbTiles;
-    
-    uint tileID = Tile_ID_Normal;
-    
-    bool bFullyShadowedTile = (g_ConservativeShadowMask.SampleLevel(g_PointClampSampler, screenUV, 0).x == 0.0f);
-    if (bFullyShadowedTile)
-    {
-        tileID = Tile_ID_Full_Shadow;
-    }
-    
-    // Increment the tile counter and store the tile offset
-    uint tileIdx;
-    InterlockedAdd(g_TileCounter[tileID], 1, tileIdx);
-    
-    uint currentTileIDBaseOffset = nbTiles.x * nbTiles.y * tileID;
-    g_TileOffsetsOut[currentTileIDBaseOffset + tileIdx] = dispatchThreadID.xy * kDeferredLightingTileSize;
-    
-    // increment tile count for CS codepath
-    InterlockedAdd(g_DispatchIndirectArgs[tileID].m_ThreadGroupCountX, 1);
-    
-    // increment instance count for VS/PS codepath
-    InterlockedAdd(g_DrawIndirectArgs[tileID].m_InstanceCount, 1);
-}
-
-cbuffer g_DeferredLightingTileClassificationDebugConstsConstantsBuffer : register(b0) { DeferredLightingTileClassificationDebugConsts g_DeferredLightingTileClassificationDebugConsts; }
-RWTexture2D<float3> g_DebugOutput : register(u0);
-Texture2D g_DebugDepthBuffer : register(t0);
-StructuredBuffer<uint2> g_DebugTileOffsets : register(t99);
-
-float3 TileClassificationCommon()
-{
-    float3 overlayColor = g_DeferredLightingTileClassificationDebugConsts.m_OverlayColor;
-    
-    // prevent adapt luminance from being applied
-    overlayColor *= g_DeferredLightingTileClassificationDebugConsts.m_SceneLuminance;
-    
-    return overlayColor;
-}
-
-[numthreads(kDeferredLightingTileSize * kDeferredLightingTileSize, 1, 1)]
-void CS_TileClassificationDebug(
-    uint3 dispatchThreadID : SV_DispatchThreadID,
-    uint3 groupThreadID : SV_GroupThreadID,
-    uint3 groupId : SV_GroupID,
-    uint groupIndex : SV_GroupIndex)
-{
-    uint2 tileTexel = uint2(groupThreadID.x % kDeferredLightingTileSize, groupThreadID.x / kDeferredLightingTileSize);
-    
-    // If the tile texel is on the border, return (to visualize tiles properly)
-    //if (tileTexel.x == 0 || tileTexel.x == (kDeferredLightingTileSize - 1) || tileTexel.y == 0 || tileTexel.y == (kDeferredLightingTileSize - 1))
-    //{
-    //    return;
-    //}
-    
-    uint currentTileIDBaseOffset = g_DeferredLightingTileClassificationDebugConsts.m_NbTiles * g_DeferredLightingTileClassificationDebugConsts.m_TileID;
-    uint2 tileOffset = g_DebugTileOffsets[currentTileIDBaseOffset + groupId.x];
-    uint2 screenTexel = tileOffset + tileTexel;
-    
-    // replicate sky stencil in VS/PS code path, equivalent to far depth
-    if (g_DebugDepthBuffer[screenTexel].x == kFarDepth)
-    {
-        return;
-    };
-    
-    g_DebugOutput[screenTexel] += TileClassificationCommon();
-}
-
-void PS_TileClassificationDebug(
-    in float4 inPosition : SV_POSITION,
-    in float2 inUV : TEXCOORD0,
-    out float4 outColor : SV_Target)
-{
-    outColor = float4(TileClassificationCommon(), 1.0f);
 }
