@@ -6,9 +6,8 @@
 
 struct GBufferParams
 {
-    float3 m_Albedo;
+    float4 m_Albedo;
     float3 m_Emissive;
-    float m_Alpha;
     float3 m_Normal;
     float m_Occlusion;
     float m_Roughness;

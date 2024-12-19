@@ -64,11 +64,11 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     
     float3 lighting = DefaultLitBxDF(specular, roughness, diffuse, normal, V, L);
     
-    lighting += emissive;
-    
     // Retrieve the shadow factor from the shadow mask texture
     float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, screenUV, 0).r;
     lighting *= shadowFactor;
+    
+    lighting += emissive;
     
     // Add the ambient term to the lighting result after shadow
     lighting += ambientTerm;

@@ -69,7 +69,7 @@ public:
     Texture m_MetallicRoughnessTexture;
     Texture m_EmissiveTexture;
 
-    Vector3 m_ConstAlbedo = Vector3{ 1.0f, 0.078f, 0.576f };
+    Vector4 m_ConstAlbedo = Vector4{ 1.0f, 0.078f, 0.576f, 1.0f };
     Vector3 m_ConstEmissive;
     float m_ConstRoughness = 1.0f;
     float m_ConstMetallic = 0.0f;

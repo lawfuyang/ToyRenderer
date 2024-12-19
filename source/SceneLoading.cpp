@@ -343,7 +343,7 @@ struct GLTFSceneLoader
                     HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
                 }
 
-                sceneMaterial.m_ConstAlbedo = Vector3{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
+                sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
                 sceneMaterial.m_ConstMetallic = gltfMaterial.pbr_metallic_roughness.metallic_factor;
                 sceneMaterial.m_ConstRoughness = gltfMaterial.pbr_metallic_roughness.roughness_factor;
             }
@@ -360,7 +360,7 @@ struct GLTFSceneLoader
                     HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture);
                 }
 
-                sceneMaterial.m_ConstAlbedo = Vector3{ &gltfMaterial.pbr_specular_glossiness.diffuse_factor[0] };
+                sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_specular_glossiness.diffuse_factor[0] };
                 sceneMaterial.m_ConstMetallic = std::max(std::max(gltfMaterial.pbr_specular_glossiness.specular_factor[0], gltfMaterial.pbr_specular_glossiness.specular_factor[1]), gltfMaterial.pbr_specular_glossiness.specular_factor[2]);
                 sceneMaterial.m_ConstRoughness = 1.0f - gltfMaterial.pbr_specular_glossiness.glossiness_factor;
             }
@@ -409,9 +409,8 @@ struct GLTFSceneLoader
         }
 
         MaterialData defaultMaterialData{};
-        defaultMaterialData.m_ConstEmissive = g_CommonResources.DefaultMaterial.m_ConstEmissive;
+        defaultMaterialData.m_ConstAlbedo = g_CommonResources.DefaultMaterial.m_ConstAlbedo;
         defaultMaterialData.m_ConstRoughness = g_CommonResources.DefaultMaterial.m_ConstRoughness;
-        defaultMaterialData.m_ConstMetallic = g_CommonResources.DefaultMaterial.m_ConstMetallic;
 
         g_CommonResources.DefaultMaterial.m_MaterialDataBufferIdx = m_GlobalMaterialData.size();
         m_GlobalMaterialData.back() = defaultMaterialData;

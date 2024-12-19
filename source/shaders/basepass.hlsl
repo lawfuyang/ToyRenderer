@@ -111,7 +111,6 @@ GBufferParams GetGBufferParams(
         
     // Set the default albedo and alpha values
     result.m_Albedo = materialData.m_ConstAlbedo;
-    result.m_Alpha = 1.0f;
     
     // Check if the material uses a diffuse texture
     if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
@@ -127,12 +126,12 @@ GBufferParams GetGBufferParams(
         float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], finalUV);
         
         // Update the albedo and alpha values with the sampled values
-        result.m_Albedo = textureSample.rgb;
-        result.m_Alpha = textureSample.a;
+        result.m_Albedo.rgb *= textureSample.rgb;
+        result.m_Albedo.a *= textureSample.a;
     }
     
 #if ALPHA_MASK_MODE
-    if (result.m_Alpha < materialData.m_AlphaCutoff)
+    if (result.m_Albedo.a < materialData.m_AlphaCutoff)
     {
         discard;
     }
@@ -217,7 +216,7 @@ void PS_Main_GBuffer(
     float randFloat = QuickRandomFloat(seed);
     
     // Output to G-buffer targets
-    outGBufferA = float4(gbufferParams.m_Albedo, randFloat);
+    outGBufferA = float4(gbufferParams.m_Albedo.rgb, randFloat);
     outGBufferB = float4(PackOctadehron(gbufferParams.m_Normal), 1, 1);
     outGBufferC = float4(gbufferParams.m_Occlusion, gbufferParams.m_Roughness, gbufferParams.m_Metallic, 1);
     outGBufferD = uint4(PackR9G9B9E5(gbufferParams.m_Emissive), 1, 1, 1);
@@ -240,9 +239,7 @@ void PS_Main_Forward(
     float3 V = normalize(g_BasePassConsts.m_CameraOrigin - inWorldPosition);
     float3 L = g_BasePassConsts.m_DirectionalLightVector;
     
-    float3 lighting = DefaultLitBxDF(specular, gbufferParams.m_Roughness, gbufferParams.m_Albedo, gbufferParams.m_Normal, V, L);
-    
-    lighting += gbufferParams.m_Emissive;
+    float3 lighting = DefaultLitBxDF(specular, gbufferParams.m_Roughness, gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal, V, L);
     
     ShadowFilteringParams shadowFilteringParams;
     shadowFilteringParams.m_WorldPosition = inWorldPosition;
@@ -259,8 +256,10 @@ void PS_Main_Forward(
     float shadowFactor = ShadowFiltering(shadowFilteringParams);
     lighting *= shadowFactor;
     
-    // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
-    lighting += AmbientTerm(g_SSAOTexture, g_BasePassConsts.m_SSAOEnabled ? uint2(inPosition.xy) : uint2(0, 0), gbufferParams.m_Albedo, gbufferParams.m_Normal);
+    lighting += gbufferParams.m_Emissive;
     
-    outColor = float4(lighting, gbufferParams.m_Alpha);
+    // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
+    lighting += AmbientTerm(g_SSAOTexture, g_BasePassConsts.m_SSAOEnabled ? uint2(inPosition.xy) : uint2(0, 0), gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal);
+    
+    outColor = float4(lighting, gbufferParams.m_Albedo.a);
 }

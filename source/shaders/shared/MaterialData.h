@@ -5,8 +5,7 @@
 
 struct MaterialData
 {
-	Vector3 m_ConstAlbedo;
-	uint32_t m_MaterialFlags;
+	Vector4 m_ConstAlbedo;
 	Vector3 m_ConstEmissive;
 	float m_AlphaCutoff;
 	uint32_t m_AlbedoTextureSamplerAndDescriptorIndex;
@@ -17,6 +16,7 @@ struct MaterialData
 	Vector4 m_NormalUVOffsetAndScale;
 	Vector4 m_MetallicRoughnessUVOffsetAndScale;
 	Vector4 m_EmissiveUVOffsetAndScale;
+	uint32_t m_MaterialFlags;
 	float m_ConstRoughness;
 	float m_ConstMetallic;
 };
