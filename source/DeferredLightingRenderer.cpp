@@ -29,7 +29,6 @@ public:
 		desc.format = Graphic::kLightingOutputFormat;
 		desc.debugName = "Lighting Output";
 		desc.isRenderTarget = true;
-		desc.isUAV = g_GraphicPropertyGrid.m_LightingControllables.m_bDeferredLightingUseCS;
 		desc.initialState = nvrhi::ResourceStates::ShaderResource;
 		desc.setClearValue(nvrhi::Color{ 0.0f });
 
@@ -107,33 +106,18 @@ public:
 			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
 		};
 
-		if (lightingControllables.m_bDeferredLightingUseCS)
-		{
-			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Texture_UAV(0, lightingOutputTexture));
+		nvrhi::FramebufferDesc frameBufferDesc;
+		frameBufferDesc.addColorAttachment(lightingOutputTexture);
+		frameBufferDesc.setDepthAttachment(depthStencilBuffer)
+			.depthAttachment.isReadOnly = true;
 
-			const char* shaderName = bHasDebugView ? "deferredlighting_CS_Main_Debug" : "deferredlighting_CS_Main";
+		nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthNoneStencilRead;
+		depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
+		depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
 
-			g_Graphic.AddComputePass(
-				commandList,
-				shaderName,
-				bindingSetDesc,
-				ComputeShaderUtils::GetGroupCount(g_Graphic.m_RenderResolution, Vector2U{ 8, 8 }));
-		}
-		else
-		{
-			nvrhi::FramebufferDesc frameBufferDesc;
-			frameBufferDesc.addColorAttachment(lightingOutputTexture);
-			frameBufferDesc.setDepthAttachment(depthStencilBuffer)
-				.depthAttachment.isReadOnly = true;
+		const char* shaderName = bHasDebugView ? "deferredlighting_PS_Main_Debug" : "deferredlighting_PS_Main";
 
-			nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthNoneStencilRead;
-			depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
-			depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
-
-			const char* shaderName = bHasDebugView ? "deferredlighting_PS_Main_Debug" : "deferredlighting_PS_Main";
-
-			g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, shaderName, nullptr, &depthStencilState);
-		}
+		g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, shaderName, nullptr, &depthStencilState);
 	}
 };
 

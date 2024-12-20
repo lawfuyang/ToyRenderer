@@ -17,10 +17,8 @@ gpuculling.hlsl -T cs -E CS_GPUCulling -D LATE={0,1}
 gpuculling.hlsl -T cs -E CS_BuildLateCullIndirectArgs
 ../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 minmaxdownsample.hlsl -T cs -E CS_Main
-deferredlighting.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T ps -E PS_Main
 deferredlighting.hlsl -T ps -E PS_Main_Debug
-deferredlighting.hlsl -T cs -E CS_Main_Debug
 shadowmask.hlsl -T ps -E PS_Main
 bloom.hlsl -T ps -E PS_Downsample
 bloom.hlsl -T ps -E PS_Upsample

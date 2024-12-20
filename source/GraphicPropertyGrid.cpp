@@ -61,7 +61,6 @@ void GraphicPropertyGrid::UpdateIMGUI()
     if (ImGui::TreeNode("Lighting"))
     {
         LightingControllables& params = m_LightingControllables;
-        ImGui::Checkbox("Deferred Lighting Use CS", &params.m_bDeferredLightingUseCS);
         ImGui::Checkbox("Lighting Only Debug", &params.m_bLightingOnlyDebug);
 
         ImGui::TreePop();

@@ -58,7 +58,6 @@ public:
 
     struct LightingControllables
     {
-        bool m_bDeferredLightingUseCS = false; // PS code path is truly more performant than CS... and it's easier to debug
         bool m_bLightingOnlyDebug = false;
     };
     LightingControllables m_LightingControllables;
