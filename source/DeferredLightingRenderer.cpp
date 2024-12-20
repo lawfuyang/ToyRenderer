@@ -73,10 +73,7 @@ public:
 		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
 		passConstants.m_SSAOEnabled = AOControllables.m_bEnabled;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
-
-		passConstants.m_DebugFlags = 0;
-		passConstants.m_DebugFlags |= lightingControllables.m_bLightingOnlyDebug ? kDeferredLightingDebugFlag_LightingOnly : 0;
-		passConstants.m_DebugFlags |= g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bColorizeInstances ? kDeferredLightingDebugFlag_ColorizeInstances : 0;
+		passConstants.m_DebugMode = lightingControllables.m_DebugMode;
 
 		for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
 		{
@@ -84,6 +81,7 @@ public:
 		}
 
 		memcpy(&passConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(passConstants.m_CSMDistances));
+		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
 		nvrhi::TextureHandle ssaoTexture = AOControllables.m_bEnabled ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
@@ -91,10 +89,6 @@ public:
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
-
-		const bool bHasDebugView = (passConstants.m_DebugFlags != 0);
-
-		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {
@@ -115,6 +109,7 @@ public:
 		depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
 		depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
 
+		const bool bHasDebugView = lightingControllables.m_DebugMode != 0;
 		const char* shaderName = bHasDebugView ? "deferredlighting_PS_Main_Debug" : "deferredlighting_PS_Main";
 
 		g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, shaderName, nullptr, &depthStencilState);

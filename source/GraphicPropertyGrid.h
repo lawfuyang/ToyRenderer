@@ -19,7 +19,6 @@ public:
     {
         bool m_bEnableFrustumCulling = true;
         bool m_bEnableOcclusionCulling = true;
-        bool m_bColorizeInstances = false;
     };
 	InstanceRenderingControllables m_InstanceRenderingControllables;
 
@@ -58,7 +57,7 @@ public:
 
     struct LightingControllables
     {
-        bool m_bLightingOnlyDebug = false;
+        int m_DebugMode = 0;
     };
     LightingControllables m_LightingControllables;
     

@@ -59,21 +59,19 @@ void PS_Main_Debug(
     in float2 inUV : TEXCOORD0,
     out float4 outColor : SV_Target)
 {
-    bool bLightingOnlyOutput = g_DeferredLightingConsts.m_DebugFlags & kDeferredLightingDebugFlag_LightingOnly;
-    bool bColorizeInstances = g_DeferredLightingConsts.m_DebugFlags & kDeferredLightingDebugFlag_ColorizeInstances;
-    
     GBufferParams gbufferParams;
     UnpackGBuffer(g_GBufferA[inPosition.xy], gbufferParams);
     
-    float3 rgb = 0.0;
-   
-    if (bLightingOnlyOutput)
+    float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, inUV, 0).r;
+    
+    float3 rgb = 0.0f;
+    
+    if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_LightingOnly)
     {
-        float shadowFactor = g_ShadowMaskTexture[inPosition.xy].r;
         float lightingOnlyShadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
         rgb = dot(gbufferParams.m_Normal, g_DeferredLightingConsts.m_DirectionalLightVector).xxx * lightingOnlyShadowFactor;
     }
-    else if (bColorizeInstances)
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ColorizeInstances)
     {
         uint seed = gbufferParams.m_RandFloat * 255.0f;
         
@@ -81,6 +79,38 @@ void PS_Main_Debug(
         float randG = QuickRandomFloat(seed);
         float randB = QuickRandomFloat(seed);
         rgb = float3(randR, randG, randB);
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_Albedo)
+    {
+        rgb = gbufferParams.m_Albedo.rgb;
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_Normal)
+    {
+        rgb = gbufferParams.m_Normal;
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_Emissive)
+    {
+        rgb = gbufferParams.m_Emissive;
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_Metalness)
+    {
+        rgb = gbufferParams.m_Metallic.rrr;
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_Roughness)
+    {
+        rgb = gbufferParams.m_Roughness.rrr;
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_AmbientOcclusion)
+    {
+        rgb = g_SSAOTexture[inPosition.xy].rrr / 255.0f;
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_Ambient)
+    {
+        rgb = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? inPosition.xy : uint2(0, 0), gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal);
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ShadowMask)
+    {
+        rgb = shadowFactor.rrr;
     }
     
     outColor = float4(rgb, 1.0f);

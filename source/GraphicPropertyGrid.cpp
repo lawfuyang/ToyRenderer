@@ -1,7 +1,6 @@
 #include "GraphicPropertyGrid.h"
 
 #include "extern/imgui/imgui.h"
-#include "extern/d3d12ma/include/D3D12MemAlloc.h"
 
 #include "Graphic.h"
 #include "Engine.h"
@@ -47,13 +46,12 @@ void GraphicPropertyGrid::UpdateIMGUI()
         ImGui::TreePop();
     }
 
-	if (ImGui::TreeNode("GBuffer"))
+	if (ImGui::TreeNode("Instance Rendering"))
 	{
 		InstanceRenderingControllables& params = m_InstanceRenderingControllables;
 
 		ImGui::Checkbox("Enable Frustum Culling", &params.m_bEnableFrustumCulling);
 		ImGui::Checkbox("Enable Occlusion Culling", &params.m_bEnableOcclusionCulling);
-        ImGui::Checkbox("Colorize Instances", &params.m_bColorizeInstances);
 
 		ImGui::TreePop();
 	}
@@ -61,7 +59,15 @@ void GraphicPropertyGrid::UpdateIMGUI()
     if (ImGui::TreeNode("Lighting"))
     {
         LightingControllables& params = m_LightingControllables;
-        ImGui::Checkbox("Lighting Only Debug", &params.m_bLightingOnlyDebug);
+
+        // keep in sync with 'kDeferredLightingDebugMode_*'
+        static const char* debugModeNames[] = { "None", "Lighting Only", "Colorize Instances", "Albedo", "Normal", "Emissive", "Metalness", "Roughness", "Ambient Occlusion", "Ambient", "Shadow Mask" };
+
+		static int debugModeIdx = 0;
+        if (ImGui::Combo("##LightingDebugModeCombo", &debugModeIdx, debugModeNames, std::size(debugModeNames)))
+        {
+			params.m_DebugMode = debugModeIdx;
+        }
 
         ImGui::TreePop();
     }
