@@ -43,15 +43,12 @@ public:
     static constexpr float kFarShadowMapDepth = 1.0f - kNearShadowMapDepth;
     static constexpr float kDefaultCameraNearPlane = 0.1f;
 
+    static constexpr nvrhi::Format kGBufferAFormat = nvrhi::Format::RGBA32_UINT;
     static constexpr nvrhi::Format kDepthStencilFormat = nvrhi::Format::D24S8;
     static constexpr nvrhi::Format kDepthBufferCopyFormat = nvrhi::Format::R16_FLOAT;
     static constexpr nvrhi::Format kHZBFormat = nvrhi::Format::R16_FLOAT;
     static constexpr nvrhi::Format kShadowMapFormat = nvrhi::Format::D16;
     static constexpr nvrhi::Format kIndexBufferFormat = nvrhi::Format::R32_UINT;
-    static constexpr nvrhi::Format kGBufferAFormat = nvrhi::Format::RGBA8_UNORM; // albedo
-    static constexpr nvrhi::Format kGBufferBFormat = nvrhi::Format::RG16_UNORM; // normals
-    static constexpr nvrhi::Format kGBufferCFormat = nvrhi::Format::RGBA8_UNORM; // PBR
-    static constexpr nvrhi::Format kGBufferDFormat = nvrhi::Format::R32_UINT; // emissive
     static constexpr nvrhi::Format kLightingOutputFormat = nvrhi::Format::R11G11B10_FLOAT;
     static constexpr nvrhi::Format kSSAOOutputFormat = nvrhi::Format::R8_UINT;
 

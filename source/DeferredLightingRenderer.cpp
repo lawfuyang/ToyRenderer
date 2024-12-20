@@ -10,9 +10,6 @@
 
 RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
-extern RenderGraph::ResourceHandle g_GBufferBRDGTextureHandle;
-extern RenderGraph::ResourceHandle g_GBufferCRDGTextureHandle;
-extern RenderGraph::ResourceHandle g_GBufferDRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_ConservativeShadowMaskRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_SSAORDGTextureHandle;
@@ -39,9 +36,6 @@ public:
 		renderGraph.CreateTransientResource(g_LightingOutputRDGTextureHandle, desc);
 
 		renderGraph.AddReadDependency(g_GBufferARDGTextureHandle);
-		renderGraph.AddReadDependency(g_GBufferBRDGTextureHandle);
-		renderGraph.AddReadDependency(g_GBufferCRDGTextureHandle);
-		renderGraph.AddReadDependency(g_GBufferDRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
 
@@ -93,9 +87,6 @@ public:
 		memcpy(&passConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(passConstants.m_CSMDistances));
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
-		nvrhi::TextureHandle GBufferBTexture = renderGraph.GetTexture(g_GBufferBRDGTextureHandle);
-		nvrhi::TextureHandle GBufferCTexture = renderGraph.GetTexture(g_GBufferCRDGTextureHandle);
-		nvrhi::TextureHandle GBufferDTexture = renderGraph.GetTexture(g_GBufferDRDGTextureHandle);
 		nvrhi::TextureHandle ssaoTexture = AOControllables.m_bEnabled ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle shadowMaskTexture = shadowControllables.m_bEnabled ? renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
@@ -110,12 +101,9 @@ public:
 		bindingSetDesc.bindings = {
 			nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
 			nvrhi::BindingSetItem::Texture_SRV(0, GBufferATexture),
-			nvrhi::BindingSetItem::Texture_SRV(1, GBufferBTexture),
-			nvrhi::BindingSetItem::Texture_SRV(2, GBufferCTexture),
-			nvrhi::BindingSetItem::Texture_SRV(3, GBufferDTexture),
-			nvrhi::BindingSetItem::Texture_SRV(4, depthBufferCopyTexture),
-			nvrhi::BindingSetItem::Texture_SRV(5, ssaoTexture),
-			nvrhi::BindingSetItem::Texture_SRV(6, shadowMaskTexture),
+			nvrhi::BindingSetItem::Texture_SRV(1, depthBufferCopyTexture),
+			nvrhi::BindingSetItem::Texture_SRV(2, ssaoTexture),
+			nvrhi::BindingSetItem::Texture_SRV(3, shadowMaskTexture),
 			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
 		};
 

@@ -103,29 +103,20 @@ GBufferParams GetGBufferParams(
 {
     GBufferParams result;
     
-    // Retrieve the instance constants for the given index
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inInstanceConstsIdx];
-    
-    // Retrieve the material data for the given instance
     MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
         
-    // Set the default albedo and alpha values
     result.m_Albedo = materialData.m_ConstAlbedo;
-    
-    // Check if the material uses a diffuse texture
     if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
     {
-        // Retrieve the texture index and sampler index
         uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex > 30;
         
         float2 finalUV = inUV * materialData.m_AlbedoUVOffsetAndScale.zw + materialData.m_AlbedoUVOffsetAndScale.xy;
         
-        // Retrieve the albedo texture and sample the texture at the given UV coordinates
         Texture2D albedoTexture = g_Textures[texIdx];
         float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], finalUV);
         
-        // Update the albedo and alpha values with the sampled values
         result.m_Albedo.rgb *= textureSample.rgb;
         result.m_Albedo.a *= textureSample.a;
     }
@@ -137,13 +128,9 @@ GBufferParams GetGBufferParams(
     }
 #endif
     
-    // Set the default normal value
     result.m_Normal = inNormal;
-    
-    // Check if the material uses a normal texture
     if (materialData.m_MaterialFlags & MaterialFlag_UseNormalTexture)
     {
-        // Retrieve the texture index and sampler index
         uint texIdx = NonUniformResourceIndex(materialData.m_NormalTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_NormalTextureSamplerAndDescriptorIndex > 30;
         
@@ -157,31 +144,23 @@ GBufferParams GetGBufferParams(
         result.m_Normal = normalize(mul(unpackedNormal, TBN));
     }
     
-    // Set the default occlusion value
-    result.m_Occlusion = 1.0f; // TODO: Implement occlusion calculation
     result.m_Roughness = 1.0f;
     result.m_Metallic = 0.0f;
-    
-    // Check if the material uses a metallic roughness texture
     if (materialData.m_MaterialFlags & MaterialFlag_UseMetallicRoughnessTexture)
     {
-        // Retrieve the texture index and sampler index
         uint texIdx = NonUniformResourceIndex(materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex > 30;
         
         float2 finalUV = inUV * materialData.m_MetallicRoughnessUVOffsetAndScale.zw + materialData.m_MetallicRoughnessUVOffsetAndScale.xy;
         
-        // Retrieve the metallic roughness texture and sample the texture at the given UV coordinates
         Texture2D mrtTexture = g_Textures[texIdx];
         float4 textureSample = mrtTexture.Sample(g_Samplers[samplerIdx], finalUV);
         
-        // Update the roughness and metallic values with the sampled values
         result.m_Roughness = textureSample.g;
         result.m_Metallic = textureSample.b;
     }
     
     result.m_Emissive = materialData.m_ConstEmissive;
-    
     if (materialData.m_MaterialFlags & MaterialFlag_UseEmissiveTexture)
     {
         uint texIdx = NonUniformResourceIndex(materialData.m_EmissiveTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
@@ -204,23 +183,15 @@ void PS_Main_GBuffer(
     in float3 inWorldPosition : POSITION_WS,
     in uint inInstanceConstsIdx : TEXCOORD0,
     in float2 inUV : TEXCOORD1,
-    out float4 outGBufferA : SV_Target0,
-    out float4 outGBufferB : SV_Target1,
-    out float4 outGBufferC : SV_Target2,
-    out uint4 outGBufferD : SV_Target3)
+    out uint4 outGBufferA : SV_Target0)
 {
     GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inUV, inWorldPosition);
     
     // for colorizing instances
     uint seed = inInstanceConstsIdx;
-    float randFloat = QuickRandomFloat(seed);
+    gbufferParams.m_RandFloat = QuickRandomFloat(seed);
     
-    // Output to G-buffer targets
-    outGBufferA = float4(gbufferParams.m_Albedo.rgb, randFloat);
-    outGBufferB = float4(PackOctadehron(gbufferParams.m_Normal), 1, 1);
-    outGBufferC = float4(gbufferParams.m_Occlusion, gbufferParams.m_Roughness, gbufferParams.m_Metallic, 1);
-    outGBufferD = uint4(PackR9G9B9E5(gbufferParams.m_Emissive), 1, 1, 1);
-
+    PackGBuffer(gbufferParams, outGBufferA);
 }
 
 void PS_Main_Forward(

@@ -9,7 +9,6 @@
 	• Resource Aliasing
 		• resource lifetime management & tracking
 	• Scheduling of asynchronous compute fences
-• Packed GBuffer: https://docs.google.com/presentation/d/1kaeg2qMi3_8nQqoR3Y2Ax9fJKUYLigPLPfdjfuEGowY/edit#slide=id.g27be1a2457b_0_128
 • HBAO: https://github.com/NVIDIAGameWorks/HBAOPlus
 • local lights
 	• http://newq.net/dl/pub/SA2014Practical.pdf

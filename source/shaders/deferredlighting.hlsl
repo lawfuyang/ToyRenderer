@@ -13,13 +13,10 @@
 SamplerState g_PointClampSampler : register(s0);
 
 cbuffer g_DeferredLightingPassConstantsBuffer : register(b0) { DeferredLightingConsts g_DeferredLightingConsts; }
-Texture2D g_GBufferAlbedo : register(t0);
-Texture2D g_GBufferNormal : register(t1);
-Texture2D g_GBufferPBR : register(t2);
-Texture2D<uint> g_GBufferEmissive : register(t3);
-Texture2D g_DepthBuffer : register(t4);
-Texture2D<uint> g_SSAOTexture : register(t5);
-Texture2D g_ShadowMaskTexture : register(t6);
+Texture2D<uint4> g_GBufferA : register(t0);
+Texture2D g_DepthBuffer : register(t1);
+Texture2D<uint> g_SSAOTexture : register(t2);
+Texture2D g_ShadowMaskTexture : register(t3);
 StructuredBuffer<uint2> g_TileOffsets : register(t99);
 RWTexture2D<float3> g_LightingOutput : register(u0);
 
@@ -33,36 +30,30 @@ float3 EvaluteLighting(uint2 screenTexel, float2 screenUV)
     {
         return float3(0, 0, 0);
     }
-
-    float3 albedo = g_GBufferAlbedo[screenTexel].rgb;
-    float3 normal = UnpackOctadehron(g_GBufferNormal[screenTexel].rg); // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
-    float3 ambientTerm = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? screenTexel : uint2(0, 0), albedo, normal);
+    
+    GBufferParams gbufferParams;
+    UnpackGBuffer(g_GBufferA[screenTexel], gbufferParams);
+    
+    // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
+    float3 ambientTerm = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? screenTexel : uint2(0, 0), gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal);
     
     // Convert screen UV coordinates and depth to world position
     float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_DeferredLightingConsts.m_InvViewProjMatrix);
     
-    // Retrieve the PBR values from the G-buffer
-    float3 pbr = g_GBufferPBR[screenTexel].rgb;
-    float occlusion = pbr.x;
-    float roughness = pbr.y;
-    float metallic = pbr.z;
-    
-    float3 emissive = UnpackR9G9B9E5(g_GBufferEmissive[screenTexel].r);
-    
     const float materialSpecular = 0.5f; // TODO?
-    float3 diffuse = ComputeDiffuseColor(albedo, metallic);
-    float3 specular = ComputeF0(materialSpecular, albedo, metallic);
+    float3 diffuse = ComputeDiffuseColor(gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);
+    float3 specular = ComputeF0(materialSpecular, gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);
     
     float3 V = normalize(g_DeferredLightingConsts.m_CameraOrigin - worldPosition);
     float3 L = g_DeferredLightingConsts.m_DirectionalLightVector;
     
-    float3 lighting = DefaultLitBxDF(specular, roughness, diffuse, normal, V, L);
+    float3 lighting = DefaultLitBxDF(specular, gbufferParams.m_Roughness, diffuse, gbufferParams.m_Normal, V, L);
     
     // Retrieve the shadow factor from the shadow mask texture
     float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, screenUV, 0).r;
     lighting *= shadowFactor;
     
-    lighting += emissive;
+    lighting += gbufferParams.m_Emissive;
     
     // Add the ambient term to the lighting result after shadow
     lighting += ambientTerm;
@@ -102,19 +93,20 @@ float3 DeferredLightingDebugCommon(uint2 screenTexel)
     bool bLightingOnlyOutput = g_DeferredLightingConsts.m_DebugFlags & kDeferredLightingDebugFlag_LightingOnly;
     bool bColorizeInstances = g_DeferredLightingConsts.m_DebugFlags & kDeferredLightingDebugFlag_ColorizeInstances;
     
+    GBufferParams gbufferParams;
+    UnpackGBuffer(g_GBufferA[screenTexel], gbufferParams);
+    
     float3 rgb = 0.0;
    
     if (bLightingOnlyOutput)
     {
-        float3 normal = UnpackOctadehron(g_GBufferNormal[screenTexel].rg);
         float shadowFactor = g_ShadowMaskTexture[screenTexel].r;
         float lightingOnlyShadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
-        rgb = dot(normal, g_DeferredLightingConsts.m_DirectionalLightVector).xxx * lightingOnlyShadowFactor;
+        rgb = dot(gbufferParams.m_Normal, g_DeferredLightingConsts.m_DirectionalLightVector).xxx * lightingOnlyShadowFactor;
     }
     else if (bColorizeInstances)
     {
-        float randFloat = g_GBufferAlbedo[screenTexel].w;
-        uint seed = randFloat * 4294967296.0f;
+        uint seed = gbufferParams.m_RandFloat * 255.0f;
         
         float randR = QuickRandomFloat(seed);
         float randG = QuickRandomFloat(seed);

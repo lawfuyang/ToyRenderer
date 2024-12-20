@@ -12,7 +12,7 @@
 #include "shaders/shared/AmbientOcclusionStructs.h"
 
 RenderGraph::ResourceHandle g_SSAORDGTextureHandle;
-extern RenderGraph::ResourceHandle g_GBufferBRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
 
 class AmbientOcclusionRenderer : public IRenderer
@@ -116,7 +116,7 @@ public:
             renderGraph.CreateTransientResource(m_DebugOutputRDGTextureHandle, desc);
         }
 
-		renderGraph.AddReadDependency(g_GBufferBRDGTextureHandle);
+		renderGraph.AddReadDependency(g_GBufferARDGTextureHandle);
         renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
 
 		return true;
@@ -178,7 +178,7 @@ public:
                 commandList->clearTextureFloat(debugOutputTexture, nvrhi::AllSubresources, nvrhi::Color{});
             }
 
-            nvrhi::TextureHandle GBufferBTexture = renderGraph.GetTexture(g_GBufferBRDGTextureHandle);
+            nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
 
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings = {
@@ -186,7 +186,7 @@ public:
                 nvrhi::BindingSetItem::PushConstants(1, sizeof(mainPassConsts)),
                 nvrhi::BindingSetItem::Texture_SRV(0, workingDepthBuffer),
                 nvrhi::BindingSetItem::Texture_SRV(1, m_HilbertLUT),
-                nvrhi::BindingSetItem::Texture_SRV(2, GBufferBTexture),
+                nvrhi::BindingSetItem::Texture_SRV(2, GBufferATexture),
                 nvrhi::BindingSetItem::Texture_UAV(0, workingSSAOTexture),
                 nvrhi::BindingSetItem::Texture_UAV(1, workingEdgesTexture),
                 nvrhi::BindingSetItem::Texture_UAV(2, debugOutputTexture),

@@ -39,47 +39,6 @@ void GraphicPropertyGrid::UpdateIMGUI()
         ImGui::TreePop();
     }
 
-#if 0
-    if (ImGui::TreeNode("D3D12MA Stats"))
-    {
-        auto* allocator = nvrhi::d3d12::g_D3D12MAAllocator;
-        assert(allocator);
-
-        D3D12MA::TotalStatistics statistics;
-        allocator->CalculateStatistics(&statistics);
-
-        D3D12MA::Budget budget;
-        allocator->GetBudget(&budget, nullptr);
-
-        const float usageBytes = BYTES_TO_MB(budget.UsageBytes);
-        const float budgetBytes = BYTES_TO_MB(budget.BudgetBytes);
-
-        ImGui::Text("Usage: [%f MB], Budget: [%f MB]", usageBytes, budgetBytes);
-
-        for (size_t i = 0; i < 3; ++i)
-        {
-            switch (i)
-            {
-            case 0: ImGui::Text("	Default Heap"); break;
-            case 1: ImGui::Text("	Upload Heap"); break;
-            case 2: ImGui::Text("	ReadBack Heap"); break;
-            };
-            D3D12MA::DetailedStatistics& detail_stats = statistics.HeapType[i];
-            D3D12MA::Statistics& stats = statistics.HeapType[i].Stats;
-
-            const float allocationBytes = BYTES_TO_MB(stats.AllocationBytes);
-            const float blockBytes = BYTES_TO_MB(stats.BlockBytes);
-
-            ImGui::Text("		Num Allocations(%u), Allocated(%f MB), Num Heaps(%u), Heap Allocated(%f MB)",
-                stats.AllocationCount, allocationBytes, stats.BlockCount, blockBytes);
-            ImGui::Text("		Unused Range Count(%u), Allocation Size Min(%llu), Allocation Size Max(%llu), Unused Range Size Min(%llu), Unused Range Size Max(%llu)",
-                detail_stats.UnusedRangeCount, detail_stats.AllocationSizeMin, detail_stats.AllocationSizeMax, detail_stats.UnusedRangeSizeMin, detail_stats.UnusedRangeSizeMax);
-        }
-
-        ImGui::TreePop();
-    }
-#endif
-
     if (ImGui::TreeNode("Debug"))
     {
         DebugControllables& params = m_DebugControllables;

@@ -1,5 +1,5 @@
 #include "common.hlsli"
-#include "packunpack.hlsli"
+#include "lightingcommon.hlsli"
 
 #include "shared/AmbientOcclusionStructs.h"
 
@@ -32,7 +32,7 @@ RWTexture2D<lpfloat> g_outWorkingDepthMIP4 : register(u4); // output viewspace d
 // input output textures for the second pass (XeGTAO_MainPass)
 Texture2D<lpfloat> g_srcWorkingDepth : register(t0); // viewspace depth with MIPs, output by XeGTAO_PrefilterDepths16x16 and consumed by XeGTAO_MainPass
 Texture2D<uint> g_srcHilbertLUT : register(t1); // hilbert lookup table
-Texture2D g_GBufferNormals : register(t2);
+Texture2D<uint4> g_GBufferA : register(t2);
 RWTexture2D<uint> g_outWorkingAOTerm : register(u0); // output AO term (includes bent normals if enabled - packed as R11G11B10 scaled by AO)
 RWTexture2D<unorm float> g_outWorkingEdges : register(u1); // output depth-based edges used by the denoiser
 
@@ -101,8 +101,9 @@ void CS_XeGTAO_MainPass(
     
     // compute view space normals for XeGTAO input
     // NOTE: this assumes AO pass is full render resolution
-    float3 worldNormals = UnpackOctadehron(g_GBufferNormals[dispatchThreadID.xy].xy);
-    float3 viewSpaceNormals = mul(float4(worldNormals, 1.0f), g_XeGTAOMainPassConstantBuffer.m_ViewMatrixNoTranslate).xyz;
+    GBufferParams gbufferParams;
+    UnpackGBuffer(g_GBufferA[dispatchThreadID.xy], gbufferParams);
+    float3 viewSpaceNormals = mul(float4(gbufferParams.m_Normal, 1.0f), g_XeGTAOMainPassConstantBuffer.m_ViewMatrixNoTranslate).xyz;
     
     // XeGTAO follows LHS, so we need to flip Z
     viewSpaceNormals.z *= -1.0f;
