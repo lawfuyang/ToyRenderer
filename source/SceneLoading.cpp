@@ -55,9 +55,13 @@ struct GLTFSceneLoader
                 LOG_DEBUG("GLTF - Failed to load '%s': [%s]", filePath.data(), EnumUtils::ToString(result));
                 return;
             }
+            LOG_DEBUG("GLTF - Loaded '%s'", filePath.data());
 
+            LOG_DEBUG("Extensions used: ");
             for (uint32_t i = 0; i < m_GLTFData->extensions_used_count; ++i)
             {
+				LOG_DEBUG("\t %s", m_GLTFData->extensions_used[i]);
+
                 // NOTE: don't support mesh_gpu_instancing. it merely reduces the nb of nodes to read, but breaks scene hierarchy and i'm lazy to investigate & fix
                 if (strcmp(m_GLTFData->extensions_used[i], "EXT_mesh_gpu_instancing") == 0)
                 {
@@ -363,6 +367,20 @@ struct GLTFSceneLoader
                 sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_specular_glossiness.diffuse_factor[0] };
                 sceneMaterial.m_ConstMetallic = std::max(std::max(gltfMaterial.pbr_specular_glossiness.specular_factor[0], gltfMaterial.pbr_specular_glossiness.specular_factor[1]), gltfMaterial.pbr_specular_glossiness.specular_factor[2]);
                 sceneMaterial.m_ConstRoughness = 1.0f - gltfMaterial.pbr_specular_glossiness.glossiness_factor;
+            }
+
+            if (gltfMaterial.has_transmission)
+            {
+                // forcefully tag this as 'transparent' for the Forward Renderer
+                sceneMaterial.m_AlphaMode = AlphaMode::Blend;
+
+				// sanity check that the alpha channel is not used
+                // we'll use the .w channel of material albedo as alpha for transmission. Pretty sure it's not physically correct, but i don't care
+				assert(sceneMaterial.m_ConstAlbedo.w == 1.0f);
+                sceneMaterial.m_ConstAlbedo.w = gltfMaterial.transmission.transmission_factor;
+
+				// TODO: support transmission texture
+                assert(gltfMaterial.transmission.transmission_texture.texture == nullptr);
             }
 
             if (gltfMaterial.normal_texture.texture)
