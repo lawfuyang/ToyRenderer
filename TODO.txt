@@ -1,3 +1,4 @@
+• FXAA
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
 • Mesh LODs
