@@ -334,24 +334,7 @@ struct GLTFSceneLoader
 				HandleTextureView(sceneMaterial.m_EmissiveTexture, gltfMaterial.emissive_texture);
 			}
 
-            if (gltfMaterial.has_pbr_metallic_roughness)
-            {
-                if (gltfMaterial.pbr_metallic_roughness.base_color_texture.texture)
-                {
-                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
-                    HandleTextureView(sceneMaterial.m_AlbedoTexture, gltfMaterial.pbr_metallic_roughness.base_color_texture);
-                }
-                if (gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture)
-                {
-                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
-                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
-                }
-
-                sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
-                sceneMaterial.m_ConstMetallic = gltfMaterial.pbr_metallic_roughness.metallic_factor;
-                sceneMaterial.m_ConstRoughness = gltfMaterial.pbr_metallic_roughness.roughness_factor;
-            }
-            else if (gltfMaterial.has_pbr_specular_glossiness)
+            if (gltfMaterial.has_pbr_specular_glossiness)
             {
                 if (gltfMaterial.pbr_specular_glossiness.diffuse_texture.texture)
                 {
@@ -368,6 +351,29 @@ struct GLTFSceneLoader
                 sceneMaterial.m_ConstMetallic = std::max(std::max(gltfMaterial.pbr_specular_glossiness.specular_factor[0], gltfMaterial.pbr_specular_glossiness.specular_factor[1]), gltfMaterial.pbr_specular_glossiness.specular_factor[2]);
                 sceneMaterial.m_ConstRoughness = 1.0f - gltfMaterial.pbr_specular_glossiness.glossiness_factor;
             }
+            else if (gltfMaterial.has_pbr_metallic_roughness)
+            {
+                if (gltfMaterial.pbr_metallic_roughness.base_color_texture.texture)
+                {
+                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
+                    HandleTextureView(sceneMaterial.m_AlbedoTexture, gltfMaterial.pbr_metallic_roughness.base_color_texture);
+                }
+                if (gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture)
+                {
+                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
+                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
+                }
+
+                sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
+                sceneMaterial.m_ConstMetallic = gltfMaterial.pbr_metallic_roughness.metallic_factor;
+                sceneMaterial.m_ConstRoughness = gltfMaterial.pbr_metallic_roughness.roughness_factor;
+            }
+            else
+            {
+                sceneMaterial.m_ConstAlbedo = Vector4::One;
+                sceneMaterial.m_ConstMetallic = 0.0f;
+                sceneMaterial.m_ConstRoughness = 1.0f;
+            }
 
             if (gltfMaterial.has_transmission)
             {
@@ -377,7 +383,7 @@ struct GLTFSceneLoader
 				// sanity check that the alpha channel is not used
                 // we'll use the .w channel of material albedo as alpha for transmission. Pretty sure it's not physically correct, but i don't care
 				assert(sceneMaterial.m_ConstAlbedo.w == 1.0f);
-                sceneMaterial.m_ConstAlbedo.w = gltfMaterial.transmission.transmission_factor;
+                sceneMaterial.m_ConstAlbedo.w = 1.0f - gltfMaterial.transmission.transmission_factor;
 
 				// TODO: support transmission texture
                 assert(gltfMaterial.transmission.transmission_texture.texture == nullptr);
