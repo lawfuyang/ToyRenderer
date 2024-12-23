@@ -18,6 +18,8 @@
 #include "shaders/shared/MaterialData.h"
 #include "shaders/shared/MeshData.h"
 
+CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
+
 #define SCENE_LOAD_PROFILE(x) \
     PROFILE_SCOPED(x);        \
     SCOPED_TIMER_NAMED(x);
@@ -594,6 +596,22 @@ struct GLTFSceneLoader
         SCENE_LOAD_PROFILE("Load Nodes");
 
         Scene* scene = g_Graphic.m_Scene.get();
+
+        if (const float customSceneScale = g_CustomSceneScale.Get();
+            g_CustomSceneScale.Get() > 0.0f)
+        {
+            for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
+            {
+                cgltf_node& node = m_GLTFData->nodes[i];
+                node.scale[0] *= customSceneScale;
+                node.scale[1] *= customSceneScale;
+                node.scale[2] *= customSceneScale;
+
+                node.translation[0] *= customSceneScale;
+                node.translation[1] *= customSceneScale;
+                node.translation[2] *= customSceneScale;
+            }
+        }
 
         for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
         {

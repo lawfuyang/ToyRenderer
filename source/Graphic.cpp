@@ -434,6 +434,10 @@ void Graphic::InitShaders()
                     shaderDesc.shaderType = nvrhi::ShaderType::Pixel;
                 else if (profileStr == "cs")
                     shaderDesc.shaderType = nvrhi::ShaderType::Compute;
+                else if (profileStr == "ms")
+                    shaderDesc.shaderType = nvrhi::ShaderType::Mesh;
+                else if (profileStr == "as")
+                    shaderDesc.shaderType = nvrhi::ShaderType::Amplification;
                 else
                 {
                     assert(0);
