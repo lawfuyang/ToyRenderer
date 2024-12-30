@@ -1,22 +1,20 @@
-• FXAA
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
 • Mesh LODs
     • generate using meshoptimizer
-• Render Graph: D3D12_Research\Graphics\RenderGraph
+• Render Graph:
 	• Culling of unused resources and passes in the graph
 	• Resource States handling
 		• disable 'keepInitialState' in nvrhi Texture & Buffer Descs, & 'setEnableAutomaticBarriers' to false for command lists in IRenderers
 	• Resource Aliasing
 		• resource lifetime management & tracking
 	• Scheduling of asynchronous compute fences
-• HBAO: https://github.com/NVIDIAGameWorks/HBAOPlus
 • local lights
 	• http://newq.net/dl/pub/SA2014Practical.pdf
     • https://simoncoenen.com/blog/programming/graphics/SpotlightCulling
     • https://wickedengine.net/2018/01/optimizing-tile-based-light-culling/
 	• clustered deferred lighting: Adria\Rendering\ClusteredDeferredLightingPass.cpp
-• RenderCaptureInterface::FScopedCapture
+	• Forward Plus Renderer: "D3D12_Research\Graphics\Techniques\ForwardRenderer.cpp"
 • GPU Driven Base Pass Renderer
 	• support batching of meshes via binning
 • Transparent support
@@ -25,7 +23,6 @@
     • integrate D3DX12Residency into nvrhi
     • Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
 • volumetric clouds
-• convert RawVertexFormat into Array of Structs: https://wickedengine.net/2023/11/16/dynamic-vertex-formats/ (?)
 • Static Animations
 • Skinning:
 	• https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
@@ -41,7 +38,6 @@
   • https://github.com/NVIDIAGameWorks/VolumetricLighting
   • https://github.com/GameTechDev/OutdoorLightScattering
 • volumetric fog: "D3D12_Research\Graphics\Techniques\VolumetricFog.cpp"
-• Forward Plus Renderer: "D3D12_Research\Graphics\Techniques\ForwardRenderer.cpp"
 • Meshlet drawing pipeline: https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12MeshShaders/readme.md
     • implement clustered rendering (non-meshlet pipeline first)
         • generate meshlets using meshoptimizer
@@ -53,21 +49,16 @@
     • http://filmicworlds.com/blog/visibility-buffer-rendering-with-material-graphs/
     • \D3D12_Research\Resources\Shaders\Visibility*
 • AMD Stochastic Screen-Space Reflections: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/stochastic-screen-space-reflections.md
-• TAA: https://github.com/GameTechDev/TAA
-• Microsoft DirectSR
-	• AMD FSR 2.0: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/super-resolution-temporal.md
-		• FSR 3.1: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/super-resolution-upscaler.md
-		• Frame Interpolation: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/frame-interpolation.md
-	• DLSS: https://github.com/NVIDIA/DLSS
-	• Intel XeSS: https://github.com/intel/xess
+• Anti-Aliasing
+	• Basic TAA: https://github.com/NVIDIAGameWorks/RTX-Path-Tracing/blob/main/donut/src/render/TemporalAntiAliasingPass.cpp
+	• FSR: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/super-resolution-upscaler.md
 • VRS
   • https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12VariableRateShading/readme.md
-  • https://github.com/GameTechDev/VALAR-API
   • https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/variable-shading.md
 • Depth of Field: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/depth-of-field.md
 • Utilize Bent Normals from XeGTAO to further attenuate lighting
 • Workgraphs
-    • convert tiled deferred lighting first
+    • convert occlusion culling chain dispatches
 
 Raytracing
 • Hard shadows
@@ -75,7 +66,7 @@ Raytracing
 • Accel Structure Memory Management
 	• https://github.com/NVIDIAGameWorks/RTXMU
 • GI
-	• https://github.com/NVIDIAGameWorks/RTXGI-DDGI
+	• https://github.com/NVIDIAGameWorks/RTXGI
 • Hybrid Stochastic Reflections
 	• https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-reflections.md
 • Hybrid RT Shadows
