@@ -506,6 +506,7 @@ public:
         nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthWriteStencilWrite;
         depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
         depthStencilState.frontFaceStencil.passOp = nvrhi::StencilOp::Replace;
+        depthStencilState.backFaceStencil.passOp = nvrhi::StencilOp::Replace;
 
         RenderBasePassParams params;
         params.m_PS = g_Graphic.GetShader("basepass_PS_Main_GBuffer ALPHA_MASK_MODE=0");
