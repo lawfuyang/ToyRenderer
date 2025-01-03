@@ -19,9 +19,6 @@ public:
     void Shutdown();
     void MainLoop();
 
-    static bool IsMainThread();
-    static uint32_t GetThreadID();
-
     template <typename Lambda> void AddCommand(Lambda&& lambda) { AUTO_LOCK(m_CommandsLock); m_PendingCommands.push_back(lambda); }
     template <typename Lambda> void AddCommand(Lambda& lambda) { static_assert(sizeof(Lambda) == 0); /* enforce use of rvalue and therefore move to avoid an extra copy of the Lambda */ }
 

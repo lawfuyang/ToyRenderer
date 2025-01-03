@@ -21,15 +21,6 @@ CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
 CommandLineOption<int> g_MaxWorkerThreads{ "maxworkerthreads", 12 };
 CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
 
-thread_local uint32_t tl_ThreadID = 0;
-
-void OnThreadCreateCB()
-{
-	static std::atomic<uint32_t> s_ThreadIDCounter = 0;
-	tl_ThreadID = ++s_ThreadIDCounter;
-	MicroProfileOnThreadCreate(StringFormat("Thread: [%d]", tl_ThreadID));
-};
-
 static bool gs_TriggerDumpProfilingCapture = false;
 static std::string gs_DumpProfilingCaptureFileName;
 
@@ -273,16 +264,6 @@ void Engine::MainLoop()
     } while (!m_Exit);
 
     LOG_DEBUG("Exiting main loop");
-}
-
-bool Engine::IsMainThread()
-{
-    return tl_ThreadID == 0;
-}
-
-uint32_t Engine::GetThreadID()
-{
-    return tl_ThreadID;
 }
 
 void Engine::ConsumeCommands()

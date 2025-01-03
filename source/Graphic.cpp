@@ -243,11 +243,7 @@ void Graphic::InitDevice()
             MicroProfileGpuInitD3D12(m_D3DDevice.Get(), 1, pCommandQueues);
             MicroProfileSetCurrentNodeD3D12(0);
 
-            m_GPUThreadLogs.resize(g_Engine.m_Executor->num_workers() + 1); // +1 because main thread is index 0
-            for (MicroProfileThreadLogGpu*& log : m_GPUThreadLogs)
-            {
-                log = MicroProfileThreadLogGpuAlloc();
-            }
+            m_GPUThreadLogs.reserve(g_Engine.m_Executor->num_workers() + 1); // +1 because main thread is index 0
         });
 
     tf.emplace([this]()
@@ -763,14 +759,23 @@ void Graphic::BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_vie
     ID3D12GraphicsCommandList* D3D12CommandList = cmdList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
     HRESULT_CALL(D3D12CommandList->SetPrivateData(WKPDID_D3DDebugObjectName, name.size(), name.data()));
 
-    MicroProfileGpuBegin(D3D12CommandList, m_GPUThreadLogs.at(Engine::GetThreadID()));
+    MicroProfileThreadLogGpu*& gpuLog = m_GPUThreadLogs[std::this_thread::get_id()];
+
+    // create gpu log on first use
+    if (!gpuLog)
+    {
+		LOG_DEBUG("Init GPU Thread Log for Thread: %d", std::this_thread::get_id());
+        gpuLog = MicroProfileThreadLogGpuAlloc();
+    }
+
+    MicroProfileGpuBegin(D3D12CommandList, gpuLog);
 }
 
 void Graphic::EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist)
 {
     PROFILE_FUNCTION();
 
-    const uint64_t GPULog = MicroProfileGpuEnd(m_GPUThreadLogs.at(Engine::GetThreadID()));
+    const uint64_t GPULog = MicroProfileGpuEnd(m_GPUThreadLogs.at(std::this_thread::get_id()));
     cmdList->m_GPULog = GPULog;
 
     cmdList->close();
@@ -970,11 +975,6 @@ void Graphic::Present()
     }
 }
 
-uint32_t Graphic::GetThreadID()
-{
-    return Engine::GetThreadID();
-}
-
 void Graphic::UpdateResourceDebugName(nvrhi::IResource* resource, std::string_view debugName)
 {
     assert(resource);
@@ -1008,7 +1008,7 @@ void Graphic::ExecuteAllCommandLists()
         m_PendingCommandLists.clear();
     }
 
-    for (MicroProfileThreadLogGpu*& log : m_GPUThreadLogs)
+    for (auto [threadID, log] : m_GPUThreadLogs)
     {
         MicroProfileThreadLogGpuReset(log);
     }

@@ -63,9 +63,6 @@ public:
     void InitDescriptorTable();
     void Present();
 
-    // same functionality as the one from Engine.h to prevent unnecessary #include
-    static uint32_t GetThreadID();
-
     static void UpdateResourceDebugName(nvrhi::IResource* resource, std::string_view debugName);
     
     [[nodiscard]] nvrhi::TextureHandle GetCurrentBackBuffer() { return m_SwapChainTextureHandles[m_SwapChain->GetCurrentBackBufferIndex()]; }
@@ -185,7 +182,7 @@ public:
     uint32_t m_FrameCounter = 0;
     bool m_bTriggerReloadShaders = false;
 
-    std::vector<MicroProfileThreadLogGpu*> m_GPUThreadLogs;
+    std::unordered_map<std::thread::id, MicroProfileThreadLogGpu*> m_GPUThreadLogs;
 
     std::vector<nvrhi::CommandListHandle> m_AllCommandLists[(uint32_t)nvrhi::CommandQueue::Count];
     std::deque<nvrhi::CommandListHandle> m_FreeCommandLists[(uint32_t)nvrhi::CommandQueue::Count];
@@ -315,7 +312,7 @@ constexpr uint32_t ComputeNbMips(uint32_t width, uint32_t height)
 #define PROFILE_GPU_SCOPED(cmdList, NAME) \
     const ScopedCommandListMarker GENERATE_UNIQUE_VARIABLE(ScopedCommandListMarker) { cmdList, NAME }; \
     MicroProfileToken MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__) = MicroProfileGetToken("GPU", NAME, (uint32_t)std::hash<std::string_view>{}(NAME), MicroProfileTokenTypeGpu, 0); \
-    MicroProfileScopeGpuHandler GENERATE_UNIQUE_VARIABLE(MicroProfileScopeGpuHandler){ MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__), g_Graphic.m_GPUThreadLogs.at(Graphic::GetThreadID()) };
+    MicroProfileScopeGpuHandler GENERATE_UNIQUE_VARIABLE(MicroProfileScopeGpuHandler){ MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__), g_Graphic.m_GPUThreadLogs.at(std::this_thread::get_id()) };
 
 #define SCOPED_COMMAND_LIST(commandList, NAME) \
     ScopedCommandList GENERATE_UNIQUE_VARIABLE(scopedCommandList){ commandList, NAME, false /*bAutoQueue*/ }; \
