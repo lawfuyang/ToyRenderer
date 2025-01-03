@@ -1008,7 +1008,7 @@ void Graphic::ExecuteAllCommandLists()
         m_PendingCommandLists.clear();
     }
 
-    for (auto [threadID, log] : m_GPUThreadLogs)
+    for (const auto& [threadID, log] : m_GPUThreadLogs)
     {
         MicroProfileThreadLogGpuReset(log);
     }
