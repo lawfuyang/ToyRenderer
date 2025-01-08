@@ -21,6 +21,7 @@
 	• OIT: https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
 • separate top mip streaming
     • integrate D3DX12Residency into nvrhi
+    • utilize 'SDL_AsyncIOFromFile' for async mip reading
     • Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
 • volumetric clouds
 • Static Animations
