@@ -105,7 +105,13 @@ bool Primitive::IsValid() const
         && m_Material.IsValid();
 }
 
-void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const uint32_t> indices, std::string_view meshName)
+void Mesh::Initialize(
+    std::span<const RawVertexFormat> vertices,
+    std::span<const uint32_t> indices,
+    std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
+    std::vector<uint8_t>& meshletIndicesOut,
+    std::vector<MeshletData>& meshletsOut,
+    std::string_view meshName)
 {
     PROFILE_FUNCTION();
 
@@ -139,6 +145,32 @@ void Mesh::Initialize(std::span<const RawVertexFormat> vertices, std::span<const
     for (const meshopt_Meshlet& meshlet : meshlets)
     {
         meshopt_optimizeMeshlet(&meshletVertices[meshlet.vertex_offset], &meshletTriangles[meshlet.triangle_offset], meshlet.triangle_count, meshlet.vertex_count);
+
+        uint32_t minVertex = UINT32_MAX;
+        for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
+        {
+            minVertex = std::min(meshletVertices[meshlet.vertex_offset + i], minVertex);
+        }
+
+        for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
+        {
+            meshletVertexIdxOffsetsOut.push_back(meshletVertices[meshlet.vertex_offset + i] - minVertex);
+        }
+
+        for (uint32_t i = 0; i < meshlet.triangle_count; ++i)
+        {
+            meshletIndicesOut.push_back(meshletTriangles[meshlet.triangle_offset + i]);
+        }
+
+        const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(&meshletVertices[meshlet.vertex_offset], &meshletTriangles[meshlet.triangle_offset], meshlet.triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(RawVertexFormat));
+
+        MeshletData& m = meshletsOut.emplace_back();
+        m.m_StartVertexLocation = m_StartVertexLocation + minVertex;
+		m.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 16);
+		m.m_BoundingSphere = Vector4{ meshletBounds.center[0], meshletBounds.center[1], meshletBounds.center[2], meshletBounds.radius };
+		m.m_ConeAxisAndCutoff = meshletBounds.cone_axis_s8[0] | (meshletBounds.cone_axis_s8[1] << 8) | (meshletBounds.cone_axis_s8[2] << 16) | (meshletBounds.cone_cutoff_s8 << 24);
+
+        // NOTE: m_VertexOffsetsBufferIdx & m_IndicesBufferIdx will be initialized after all mesh data are loaded
     }
 
     LOG_DEBUG("New Mesh: %s, vertices: %d, indices: %d, numMeshlets: %d", meshName.data(), vertices.size(), indices.size(), numMeshlets);

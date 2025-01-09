@@ -39,6 +39,14 @@ struct GLTFSceneLoader
     std::vector<MeshData> m_GlobalMeshData;
     std::vector<MaterialData> m_GlobalMaterialData;
 
+    struct GlobalMeshletDataEntry
+    {
+        std::vector<uint32_t> m_VertexIdxOffsets;
+        std::vector<uint8_t> m_Indices;
+        std::vector<MeshletData> m_Meshlets;
+    };
+	std::vector<GlobalMeshletDataEntry> m_MeshletDataEntries;
+
     void LoadScene(std::string_view filePath)
     {
         SCENE_LOAD_PROFILE("Load Scene");
@@ -452,6 +460,7 @@ struct GLTFSceneLoader
         uint32_t totalIndices = 0;
 
         m_SceneMeshPrimitives.resize(m_GLTFData->meshes_count);
+
         for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_GLTFData->meshes_count; ++modelMeshIdx)
         {
             const cgltf_mesh& mesh = m_GLTFData->meshes[modelMeshIdx];
@@ -467,6 +476,9 @@ struct GLTFSceneLoader
                 const uint32_t globalMeshDataIdx = m_GlobalMeshData.size();
                 m_GlobalMeshData.emplace_back();
 
+				const uint32_t meshletDataOffsetsIdx = m_MeshletDataEntries.size();
+                m_MeshletDataEntries.emplace_back();
+
                 const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
 
                 const cgltf_accessor* positionAccessor = cgltf_find_accessor(&gltfPrimitive, cgltf_attribute_type_position, 0);
@@ -480,7 +492,7 @@ struct GLTFSceneLoader
                 totalVertices += nbVertices;
                 totalIndices += gltfPrimitive.indices->count;
 
-                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx, nbVertices]
+                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx, meshletDataOffsetsIdx, nbVertices]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
@@ -557,7 +569,14 @@ struct GLTFSceneLoader
                         }
 
                         Mesh* newSceneMesh = &g_Graphic.m_Meshes.at(sceneMeshIdx);
-                        newSceneMesh->Initialize(vertices, indices, m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
+                        newSceneMesh->Initialize(
+                            vertices,
+                            indices,
+                            m_MeshletDataEntries[meshletDataOffsetsIdx].m_VertexIdxOffsets,
+                            m_MeshletDataEntries[meshletDataOffsetsIdx].m_Indices,
+                            m_MeshletDataEntries[meshletDataOffsetsIdx].m_Meshlets,
+                            m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
+
                         newSceneMesh->m_MeshDataBufferIdx = globalMeshDataIdx;
 
                         memcpy(&m_GlobalVertices[newSceneMesh->m_StartVertexLocation], vertices.data(), vertices.size() * sizeof(RawVertexFormat));
@@ -567,9 +586,10 @@ struct GLTFSceneLoader
                         meshData.m_IndexCount = indices.size();
                         meshData.m_StartIndexLocation = newSceneMesh->m_StartIndexLocation;
                         meshData.m_StartVertexLocation = newSceneMesh->m_StartVertexLocation;
+                        meshData.m_MeshletCount = m_MeshletDataEntries[meshletDataOffsetsIdx].m_Meshlets.size();
                         meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
-                        meshData.m_AABBCenter = newSceneMesh->m_AABB.Center;
-                        meshData.m_AABBExtents = newSceneMesh->m_AABB.Extents;
+
+						// meshData.m_MeshletDataOffset will be initialized later
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
                         if (gltfPrimitive.material)
@@ -711,6 +731,29 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Upload Global Buffers");
 
+        std::vector<uint32_t> globalMeshletVertexIdxOffsets;
+        std::vector<uint8_t> globalMeshletIndices;
+        std::vector<MeshletData> globalMeshletDatas;
+
+        // flatten meshlet buffers
+		for (GlobalMeshletDataEntry& meshletDataEntry : m_MeshletDataEntries)
+		{
+            for (MeshletData& meshletData : meshletDataEntry.m_Meshlets)
+            {
+				meshletData.m_StartVertexLocation = globalMeshletVertexIdxOffsets.size();
+				meshletData.m_IndicesBufferIdx = globalMeshletIndices.size();
+            }
+
+            for (MeshData& meshData : m_GlobalMeshData)
+            {
+				meshData.m_MeshletOffset = globalMeshletDatas.size();
+            }
+
+			globalMeshletVertexIdxOffsets.insert(globalMeshletVertexIdxOffsets.end(), meshletDataEntry.m_VertexIdxOffsets.begin(), meshletDataEntry.m_VertexIdxOffsets.end());
+			globalMeshletIndices.insert(globalMeshletIndices.end(), meshletDataEntry.m_Indices.begin(), meshletDataEntry.m_Indices.end());
+            globalMeshletDatas.insert(globalMeshletDatas.end(), meshletDataEntry.m_Meshlets.begin(), meshletDataEntry.m_Meshlets.end());
+		}
+
         {
             nvrhi::BufferDesc desc;
             desc.byteSize = m_GlobalVertices.size() * sizeof(RawVertexFormat);
@@ -748,10 +791,40 @@ struct GLTFSceneLoader
             g_Graphic.m_GlobalMaterialDataBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         }
 
+        {
+			nvrhi::BufferDesc desc;
+			desc.byteSize = globalMeshletVertexIdxOffsets.size() * sizeof(uint32_t);
+			desc.structStride = sizeof(uint32_t);
+			desc.debugName = "Global Meshlet Vertex Index Offsets Buffer";
+			desc.initialState = nvrhi::ResourceStates::ShaderResource;
+			g_Graphic.m_GlobalMeshletVertexOffsetsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+		}
+
+		{
+			nvrhi::BufferDesc desc;
+			desc.byteSize = globalMeshletIndices.size() * sizeof(uint8_t);
+			desc.structStride = sizeof(uint8_t);
+			desc.debugName = "Global Meshlet Indices Buffer";
+			desc.initialState = nvrhi::ResourceStates::ShaderResource;
+			g_Graphic.m_GlobalMeshletIndicesBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        }
+
+        {
+			nvrhi::BufferDesc desc;
+			desc.byteSize = globalMeshletDatas.size() * sizeof(MeshletData);
+			desc.structStride = sizeof(MeshletData);
+			desc.debugName = "Global Meshlet Data Buffer";
+			desc.initialState = nvrhi::ResourceStates::ShaderResource;
+			g_Graphic.m_GlobalMeshletDataBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        }
+
         LOG_DEBUG("Global vertices = [%d] vertices, [%f] MB", m_GlobalVertices.size(), BYTES_TO_MB(m_GlobalVertices.size() * sizeof(RawVertexFormat)));
         LOG_DEBUG("Global indices = [%d] indices, [%f] MB", m_GlobalIndices.size(), BYTES_TO_MB(m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t)));
         LOG_DEBUG("Global mesh data = [%d] entries, [%f] MB", m_GlobalMeshData.size(), BYTES_TO_MB(m_GlobalMeshData.size() * sizeof(MeshData)));
         LOG_DEBUG("Global material data = [%d] entries, [%f] MB", m_GlobalMaterialData.size(), BYTES_TO_MB(m_GlobalMaterialData.size() * sizeof(MaterialData)));
+		LOG_DEBUG("Global meshlet vertex idx offsets = [%d] entries, [%f] MB", globalMeshletVertexIdxOffsets.size(), BYTES_TO_MB(globalMeshletVertexIdxOffsets.size() * sizeof(uint32_t)));
+		LOG_DEBUG("Global meshlet indices = [%d] entries, [%f] MB", globalMeshletIndices.size(), BYTES_TO_MB(globalMeshletIndices.size() * sizeof(uint8_t)));
+		LOG_DEBUG("Global meshlet data = [%d] entries, [%f] MB", globalMeshletDatas.size(), BYTES_TO_MB(globalMeshletDatas.size() * sizeof(MeshletData)));
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload Global Buffers");
@@ -760,6 +833,9 @@ struct GLTFSceneLoader
         commandList->writeBuffer(g_Graphic.m_GlobalIndexBuffer, m_GlobalIndices.data(), m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t));
         commandList->writeBuffer(g_Graphic.m_GlobalMeshDataBuffer, m_GlobalMeshData.data(), m_GlobalMeshData.size() * sizeof(MeshData));
         commandList->writeBuffer(g_Graphic.m_GlobalMaterialDataBuffer, m_GlobalMaterialData.data(), m_GlobalMaterialData.size() * sizeof(MaterialData));
+		commandList->writeBuffer(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer, globalMeshletVertexIdxOffsets.data(), globalMeshletVertexIdxOffsets.size() * sizeof(uint32_t));
+		commandList->writeBuffer(g_Graphic.m_GlobalMeshletIndicesBuffer, globalMeshletIndices.data(), globalMeshletIndices.size() * sizeof(uint8_t));
+		commandList->writeBuffer(g_Graphic.m_GlobalMeshletDataBuffer, globalMeshletDatas.data(), globalMeshletDatas.size() * sizeof(MeshletData));
     }
 };
 

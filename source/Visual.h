@@ -5,6 +5,7 @@
 #include "MathUtilities.h"
 
 #include "shaders/shared/RawVertexFormat.h"
+#include "shaders/shared/MeshData.h"
 
 // NOTE: keep the values in sync with cgltf_alpha_mode
 enum class AlphaMode
@@ -33,19 +34,13 @@ public:
 class Mesh
 {
 public:
-    struct Meshlet
-    {
-        Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
-        int8_t m_ConeAxis[3];
-        int8_t m_ConeCutoff;
-
-        uint32_t m_MeshletDataBufferIdx;
-        uint32_t m_StartVertexLocation;
-        uint8_t m_VertexCount;
-        uint8_t m_TriangleCount;
-    };
-
-    void Initialize(std::span<const RawVertexFormat> rawVertices, std::span<const uint32_t> indices, std::string_view meshName);
+    void Initialize(
+        std::span<const RawVertexFormat> rawVertices,
+        std::span<const uint32_t> indices, 
+        std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
+        std::vector<uint8_t>& meshletIndicesOut,
+		std::vector<MeshletData>& meshletsOut,
+        std::string_view meshName);
 
     bool IsValid() const;
 

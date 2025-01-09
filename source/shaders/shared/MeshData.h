@@ -9,15 +9,22 @@ static const uint32_t kMeshletMaxTriangles = 96;
 
 struct MeshData
 {
+	Vector4 m_BoundingSphere;
 	uint32_t m_IndexCount;
 	uint32_t m_StartIndexLocation;
 	uint32_t m_StartVertexLocation;
-	uint32_t PAD0;
-	Vector3 m_AABBCenter;
-	uint32_t PAD1;
-	Vector3 m_AABBExtents;
-	uint32_t PAD2;
+	uint32_t m_MeshletOffset;
+	uint32_t m_MeshletCount;
+};
+
+struct MeshletData
+{
 	Vector4 m_BoundingSphere;
+	uint32_t m_ConeAxisAndCutoff; // 3x int8_t + 1x int8_t
+	uint32_t m_VertexOffsetsBufferIdx;
+	uint32_t m_IndicesBufferIdx;
+	uint32_t m_StartVertexLocation;
+	uint32_t m_VertexAndTriangleCount; // 1x uint8_t + 1x uint8_t
 };
 
 #endif

@@ -175,6 +175,9 @@ public:
     nvrhi::BufferHandle m_GlobalIndexBuffer;
     nvrhi::BufferHandle m_GlobalMeshDataBuffer;
     nvrhi::BufferHandle m_GlobalMaterialDataBuffer;
+	nvrhi::BufferHandle m_GlobalMeshletVertexOffsetsBuffer;
+	nvrhi::BufferHandle m_GlobalMeshletIndicesBuffer;
+	nvrhi::BufferHandle m_GlobalMeshletDataBuffer;
 
     Vector2U m_RenderResolution;
     Vector2U m_DisplayResolution;
