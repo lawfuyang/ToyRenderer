@@ -1,7 +1,13 @@
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
-• Mesh LODs
-    • generate using meshoptimizer
+• Meshlet drawing pipeline
+	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/SimpleMeshlet
+	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/MeshletCull
+	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/DynamicLOD
+	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/MeshletInstancing (?)
+• Anti-Aliasing
+	• TAA: https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/TemporalAntialiasing
+	• FSR: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/super-resolution-upscaler.md
 • Render Graph:
 	• Culling of unused resources and passes in the graph
 	• Resource States handling
@@ -39,20 +45,11 @@
   • https://github.com/NVIDIAGameWorks/VolumetricLighting
   • https://github.com/GameTechDev/OutdoorLightScattering
 • volumetric fog: "D3D12_Research\Graphics\Techniques\VolumetricFog.cpp"
-• Meshlet drawing pipeline: https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12MeshShaders/readme.md
-    • implement clustered rendering (non-meshlet pipeline first)
-        • generate meshlets using meshoptimizer
-        • meshlet virtual buffer
-        • gpuculling via meshlet aabb
-        • meshlet backface culling
-	• Mesh Shaders
 • Visibility Buffer
     • http://filmicworlds.com/blog/visibility-buffer-rendering-with-material-graphs/
     • \D3D12_Research\Resources\Shaders\Visibility*
+	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/VisibilityBuffer/VisibilityBuffer
 • AMD Stochastic Screen-Space Reflections: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/stochastic-screen-space-reflections.md
-• Anti-Aliasing
-	• Basic TAA: https://github.com/NVIDIAGameWorks/RTX-Path-Tracing/blob/main/donut/src/render/TemporalAntiAliasingPass.cpp
-	• FSR: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/super-resolution-upscaler.md
 • VRS
   • https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12VariableRateShading/readme.md
   • https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/variable-shading.md
