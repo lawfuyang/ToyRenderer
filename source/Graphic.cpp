@@ -595,39 +595,22 @@ static void HashBindingLayout(size_t& psoHash, const nvrhi::BindingLayoutVector&
     }
 }
 
-nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer)
+template <typename PSODescT>
+static std::size_t HashCommonGraphicStates(const PSODescT& psoDesc, nvrhi::FramebufferHandle frameBuffer)
 {
     size_t psoHash = 0;
-    
-    // hash primtive type
+
     HashCombine(psoHash, psoDesc.primType);
 
-    // hash input layout
-    if (nvrhi::InputLayoutHandle inputLayout = psoDesc.inputLayout)
-    {
-        for (uint32_t i = 0; i < inputLayout->getNumAttributes(); ++i)
-        {
-            const nvrhi::VertexAttributeDesc* desc = inputLayout->getAttributeDesc(i);
-
-            // simply hash only each vertex format for now. others are not so important to be unique enough
-            HashCombine(psoHash, desc->format);
-        }
-    }
-
-    // hash VS & PS. just hash its debug name... assume all Shaders have unique debug names
-    HashCombine(psoHash, psoDesc.VS->getDesc().debugName);
     if (psoDesc.PS)
     {
         HashCombine(psoHash, psoDesc.PS->getDesc().debugName);
     }
 
-    // hash render state
     HashCombine(psoHash, HashRawMem(psoDesc.renderState));
 
-    // hash binding layout
     HashBindingLayout(psoHash, psoDesc.bindingLayouts);
-    
-    // hash frame buffer
+
     const nvrhi::FramebufferDesc& frameBufferDesc = frameBuffer->getDesc();
     for (const nvrhi::FramebufferAttachment& RT : frameBufferDesc.colorAttachments)
     {
@@ -640,6 +623,26 @@ nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipel
         HashCombine(psoHash, DepthBufferDesc.format);
     }
 
+    return psoHash;
+}
+
+nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer)
+{
+	size_t psoHash = HashCommonGraphicStates(psoDesc, frameBuffer);
+    
+    if (nvrhi::InputLayoutHandle inputLayout = psoDesc.inputLayout)
+    {
+        for (uint32_t i = 0; i < inputLayout->getNumAttributes(); ++i)
+        {
+            const nvrhi::VertexAttributeDesc* desc = inputLayout->getAttributeDesc(i);
+
+            // simply hash only each vertex format for now. others are not so important to be unique enough
+            HashCombine(psoHash, desc->format);
+        }
+    }
+
+    HashCombine(psoHash, psoDesc.VS->getDesc().debugName);
+
     static std::mutex s_CachedGraphicPSOsLock;
     AUTO_LOCK(s_CachedGraphicPSOsLock);
 
@@ -651,6 +654,25 @@ nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipel
         graphicsPipeline = m_NVRHIDevice->createGraphicsPipeline(psoDesc, frameBuffer);
     }
     return graphicsPipeline;
+}
+
+nvrhi::MeshletPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::MeshletPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer)
+{
+    size_t psoHash = HashCommonGraphicStates(psoDesc, frameBuffer);
+
+	HashCombine(psoHash, psoDesc.MS->getDesc().debugName);
+
+    static std::mutex s_CachedMeshletPSOsLock;
+    AUTO_LOCK(s_CachedMeshletPSOsLock);
+
+    nvrhi::MeshletPipelineHandle& pipeline = m_CachedMeshletPSOs[psoHash];
+    if (!pipeline)
+    {
+        PROFILE_SCOPED("createMeshletPipeline");
+        //LOG_DEBUG("New Meshlet PSO: [%zx]", psoHash);
+        pipeline = m_NVRHIDevice->createMeshletPipeline(psoDesc, frameBuffer);
+    }
+    return pipeline;
 }
 
 nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc)
@@ -848,6 +870,7 @@ void Graphic::Shutdown()
 
     m_AllShaders.clear();
     m_CachedGraphicPSOs.clear();
+    m_CachedMeshletPSOs.clear();
     m_CachedComputePSOs.clear();
     m_CachedBindingLayouts.clear();
 
@@ -888,6 +911,7 @@ void Graphic::Update()
         m_NVRHIDevice->runGarbageCollection();
 
         m_CachedGraphicPSOs.clear();
+        m_CachedMeshletPSOs.clear();
         m_CachedComputePSOs.clear();
 
         // run as a task due to the usage of "corun" in the InitShaders function

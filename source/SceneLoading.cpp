@@ -42,7 +42,7 @@ struct GLTFSceneLoader
     struct GlobalMeshletDataEntry
     {
         std::vector<uint32_t> m_VertexIdxOffsets;
-        std::vector<uint8_t> m_Indices;
+        std::vector<uint32_t> m_Indices;
         std::vector<MeshletData> m_Meshlets;
     };
 	std::vector<GlobalMeshletDataEntry> m_MeshletDataEntries;
@@ -732,7 +732,7 @@ struct GLTFSceneLoader
         SCENE_LOAD_PROFILE("Upload Global Buffers");
 
         std::vector<uint32_t> globalMeshletVertexIdxOffsets;
-        std::vector<uint8_t> globalMeshletIndices;
+        std::vector<uint32_t> globalMeshletIndices;
         std::vector<MeshletData> globalMeshletDatas;
 
         // flatten meshlet buffers
@@ -802,8 +802,8 @@ struct GLTFSceneLoader
 
 		{
 			nvrhi::BufferDesc desc;
-			desc.byteSize = globalMeshletIndices.size() * sizeof(uint8_t);
-			desc.structStride = sizeof(uint8_t);
+			desc.byteSize = globalMeshletIndices.size() * sizeof(uint32_t);
+			desc.structStride = sizeof(uint32_t);
 			desc.debugName = "Global Meshlet Indices Buffer";
 			desc.initialState = nvrhi::ResourceStates::ShaderResource;
 			g_Graphic.m_GlobalMeshletIndicesBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
@@ -818,24 +818,24 @@ struct GLTFSceneLoader
 			g_Graphic.m_GlobalMeshletDataBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         }
 
-        LOG_DEBUG("Global vertices = [%d] vertices, [%f] MB", m_GlobalVertices.size(), BYTES_TO_MB(m_GlobalVertices.size() * sizeof(RawVertexFormat)));
-        LOG_DEBUG("Global indices = [%d] indices, [%f] MB", m_GlobalIndices.size(), BYTES_TO_MB(m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t)));
-        LOG_DEBUG("Global mesh data = [%d] entries, [%f] MB", m_GlobalMeshData.size(), BYTES_TO_MB(m_GlobalMeshData.size() * sizeof(MeshData)));
-        LOG_DEBUG("Global material data = [%d] entries, [%f] MB", m_GlobalMaterialData.size(), BYTES_TO_MB(m_GlobalMaterialData.size() * sizeof(MaterialData)));
-		LOG_DEBUG("Global meshlet vertex idx offsets = [%d] entries, [%f] MB", globalMeshletVertexIdxOffsets.size(), BYTES_TO_MB(globalMeshletVertexIdxOffsets.size() * sizeof(uint32_t)));
-		LOG_DEBUG("Global meshlet indices = [%d] entries, [%f] MB", globalMeshletIndices.size(), BYTES_TO_MB(globalMeshletIndices.size() * sizeof(uint8_t)));
-		LOG_DEBUG("Global meshlet data = [%d] entries, [%f] MB", globalMeshletDatas.size(), BYTES_TO_MB(globalMeshletDatas.size() * sizeof(MeshletData)));
+		LOG_DEBUG("Global vertices = [%d] vertices, [%f] MB", m_GlobalVertices.size(), BYTES_TO_MB(g_Graphic.m_GlobalVertexBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global indices = [%d] indices, [%f] MB", m_GlobalIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global mesh data = [%d] entries, [%f] MB", m_GlobalMeshData.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global material data = [%d] entries, [%f] MB", m_GlobalMaterialData.size(), BYTES_TO_MB(g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global meshlet vertex idx offsets = [%d] entries, [%f] MB", globalMeshletVertexIdxOffsets.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global meshlet indices = [%d] entries, [%f] MB", globalMeshletIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global meshlet data = [%d] entries, [%f] MB", globalMeshletDatas.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize));
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload Global Buffers");
 
-        commandList->writeBuffer(g_Graphic.m_GlobalVertexBuffer, m_GlobalVertices.data(), m_GlobalVertices.size() * sizeof(RawVertexFormat));
-        commandList->writeBuffer(g_Graphic.m_GlobalIndexBuffer, m_GlobalIndices.data(), m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t));
-        commandList->writeBuffer(g_Graphic.m_GlobalMeshDataBuffer, m_GlobalMeshData.data(), m_GlobalMeshData.size() * sizeof(MeshData));
-        commandList->writeBuffer(g_Graphic.m_GlobalMaterialDataBuffer, m_GlobalMaterialData.data(), m_GlobalMaterialData.size() * sizeof(MaterialData));
-		commandList->writeBuffer(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer, globalMeshletVertexIdxOffsets.data(), globalMeshletVertexIdxOffsets.size() * sizeof(uint32_t));
-		commandList->writeBuffer(g_Graphic.m_GlobalMeshletIndicesBuffer, globalMeshletIndices.data(), globalMeshletIndices.size() * sizeof(uint8_t));
-		commandList->writeBuffer(g_Graphic.m_GlobalMeshletDataBuffer, globalMeshletDatas.data(), globalMeshletDatas.size() * sizeof(MeshletData));
+		commandList->writeBuffer(g_Graphic.m_GlobalVertexBuffer, m_GlobalVertices.data(), g_Graphic.m_GlobalVertexBuffer->getDesc().byteSize);
+		commandList->writeBuffer(g_Graphic.m_GlobalIndexBuffer, m_GlobalIndices.data(), g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize);
+		commandList->writeBuffer(g_Graphic.m_GlobalMeshDataBuffer, m_GlobalMeshData.data(), g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize);
+		commandList->writeBuffer(g_Graphic.m_GlobalMaterialDataBuffer, m_GlobalMaterialData.data(), g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize);
+		commandList->writeBuffer(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer, globalMeshletVertexIdxOffsets.data(), g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize);
+		commandList->writeBuffer(g_Graphic.m_GlobalMeshletIndicesBuffer, globalMeshletIndices.data(), g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize);
+		commandList->writeBuffer(g_Graphic.m_GlobalMeshletDataBuffer, globalMeshletDatas.data(), g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize);
     }
 };
 

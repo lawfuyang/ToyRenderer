@@ -15,6 +15,9 @@ StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(
 StructuredBuffer<RawVertexFormat> g_VirtualVertexBuffer : register(t1);
 StructuredBuffer<MeshData> g_MeshDataBuffer : register(t2);
 StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t3);
+StructuredBuffer<MeshletData> g_MeshletDataBuffer : register(t4);
+StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
+StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
 Texture2D g_Textures[] : register(t0, space1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 
@@ -25,34 +28,28 @@ sampler g_PointClampSampler : register(s4);
 SamplerComparisonState g_PointComparisonLessSampler : register(s5);
 SamplerComparisonState g_LinearComparisonLessSampler : register(s6);
 
-void VS_Main(
-    uint inInstanceConstIndex : INSTANCE_START_LOCATION, // per-instance attribute
-    uint inVertexID : SV_VertexID,
-    out float4 outPosition : SV_POSITION,
-    out float3 outNormal : NORMAL,
-    out float3 outWorldPosition : POSITION_WS,
-    out nointerpolation uint outInstanceConstsIdx : TEXCOORD0,
-    out float2 outUV : TEXCOORD1
-)
+struct VertexOut
 {
-    // Retrieve the instance constants for the given index
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inInstanceConstIndex];
+    float4 m_Position : SV_POSITION;
+    float3 m_Normal : NORMAL;
+    float3 m_WorldPosition : POSITION_WS;
+    nointerpolation uint m_InstanceConstsIdx : TEXCOORD0;
+    nointerpolation uint m_MeshletIdx : TEXCOORD1;
+    float2 m_UV : TEXCOORD2;
+};
+
+VertexOut GetVertexAttributes(uint instanceConstIdx, uint vertexIdx)
+{
+    VertexOut vOut = (VertexOut)0;
     
-    // Retrieve the mesh data for the current instance
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
+    RawVertexFormat vertexInfo = g_VirtualVertexBuffer[meshData.m_StartVertexLocation + vertexIdx];
     
-    // Retrieve the vertex information for the current vertex
-    RawVertexFormat vertexInfo = g_VirtualVertexBuffer[meshData.m_StartVertexLocation + inVertexID];
-    
-    // Transform the vertex position to world space
     float4 position = float4(vertexInfo.m_Position, 1.0f);
     float4 worldPos = mul(position, instanceConsts.m_WorldMatrix);
     
-    // Transform the world space position to clip space
-    outPosition = mul(worldPos, g_BasePassConsts.m_ViewProjMatrix);
-    
-    // Pass the instance constants index to the pixel shader
-    outInstanceConstsIdx = inInstanceConstIndex;
+    vOut.m_Position = mul(worldPos, g_BasePassConsts.m_ViewProjMatrix);
     
     // Alien math to calculate the normal and tangent in world space, without inverse-transposing the world matrix
     // https://github.com/graphitemaster/normals_revisited
@@ -60,15 +57,69 @@ void VS_Main(
     // https://www.shadertoy.com/view/3s33zj
     float3x3 adjugateWorldMatrix = MakeAdjugateMatrix(instanceConsts.m_WorldMatrix);
     
-    // Transform the vertex normal to world space and normalize it
     float3 UnpackedNormal = UnpackR10G10B10A2F(vertexInfo.m_PackedNormal).xyz;
-    outNormal = normalize(mul(UnpackedNormal, adjugateWorldMatrix));
+    vOut.m_Normal = normalize(mul(UnpackedNormal, adjugateWorldMatrix));
     
-    // Pass the vertex texture coordinates to the pixel shader
-    outUV = vertexInfo.m_TexCoord;
+    vOut.m_UV = vertexInfo.m_TexCoord;
+    vOut.m_WorldPosition = worldPos.xyz;
+
+    return vOut;
+}
+
+void VS_Main(
+    uint inInstanceConstIndex : INSTANCE_START_LOCATION, // per-instance attribute
+    uint inVertexID : SV_VertexID,
+    out VertexOut outVertex
+)
+{
+    outVertex = GetVertexAttributes(inInstanceConstIndex, inVertexID);
+    outVertex.m_InstanceConstsIdx = inInstanceConstIndex;
+}
+
+[NumThreads(kMeshletMaxVertices, 1, 1)]
+[OutputTopology("triangle")]
+void MS_Main(
+    uint3 dispatchThreadID : SV_DispatchThreadID,
+    uint3 groupThreadID : SV_GroupThreadID,
+    uint3 groupId : SV_GroupID,
+    uint groupIndex : SV_GroupIndex,
+    out indices uint3 tris[kMeshletMaxVertices],
+    out vertices VertexOut verts[kMeshletMaxVertices]
+)
+{
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[g_BasePassConsts.m_InstanceConstIdx];
+    MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
+    MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletOffset];
     
-    // Pass the world space position to the pixel shader
-    outWorldPosition = worldPos.xyz;
+    uint numVertices = meshletData.m_VertexAndTriangleCount & 0xFF;
+    uint numPrimitives = (meshletData.m_VertexAndTriangleCount >> 8) & 0xFF;
+    
+    if (groupThreadID.x >= numVertices)
+    {
+        return;
+    }
+    
+    SetMeshOutputCounts(numVertices, numPrimitives);
+    
+    //for (uint i = 0; i < numVertices; ++i)
+    {
+        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexOffsetsBufferIdx + groupThreadID.x] + meshletData.m_StartVertexLocation;
+        
+        VertexOut vOut = GetVertexAttributes(g_BasePassConsts.m_InstanceConstIdx, vertexIdx);
+        vOut.m_MeshletIdx = groupId.x;
+        
+        verts[groupThreadID.x] = vOut;
+    }
+    
+    //for (uint i = 0; i < numPrimitives; ++i)
+    {
+        uint indexOffset = meshletData.m_IndicesBufferIdx + (groupThreadID.x * 3);
+        uint a = g_MeshletIndexIDsBuffer[indexOffset + 0];
+        uint b = g_MeshletIndexIDsBuffer[indexOffset + 1];
+        uint c = g_MeshletIndexIDsBuffer[indexOffset + 2];
+        
+        tris[groupThreadID.x] = uint3(a, b, c);
+    }
 }
 
 // Christian Schuler, "Normal Mapping without Precomputed Tangents", ShaderX 5, Chapter 2.6, pp. 131-140
@@ -178,42 +229,34 @@ GBufferParams GetGBufferParams(
 }
 
 void PS_Main_GBuffer(
-    in float4 inPosition : SV_POSITION,
-    in float3 inNormal : NORMAL,
-    in float3 inWorldPosition : POSITION_WS,
-    in uint inInstanceConstsIdx : TEXCOORD0,
-    in float2 inUV : TEXCOORD1,
+    in VertexOut inVertex,
     out uint4 outGBufferA : SV_Target0)
 {
-    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inUV, inWorldPosition);
+    GBufferParams gbufferParams = GetGBufferParams(inVertex.m_InstanceConstsIdx, inVertex.m_Normal, inVertex.m_UV, inVertex.m_WorldPosition);
     
-    // for colorizing instances
-    uint seed = inInstanceConstsIdx;
+    // for colorizing instances/meshlets
+    uint seed = inVertex.m_MeshletIdx != 0 ? inVertex.m_MeshletIdx : inVertex.m_InstanceConstsIdx;
     gbufferParams.m_RandFloat = QuickRandomFloat(seed);
     
     PackGBuffer(gbufferParams, outGBufferA);
 }
 
 void PS_Main_Forward(
-    in float4 inPosition : SV_POSITION,
-    in float3 inNormal : NORMAL,
-    in float3 inWorldPosition : POSITION_WS,
-    in uint inInstanceConstsIdx : TEXCOORD0,
-    in float2 inUV : TEXCOORD1,
+    in VertexOut inVertex,
     out float4 outColor : SV_Target)
 {
     // Get the common base pass values for the current instance
-    GBufferParams gbufferParams = GetGBufferParams(inInstanceConstsIdx, inNormal, inUV, inWorldPosition);
+    GBufferParams gbufferParams = GetGBufferParams(inVertex.m_InstanceConstsIdx, inVertex.m_Normal, inVertex.m_UV, inVertex.m_WorldPosition);
     
     const float materialSpecular = 0.5f; // TODO?
     float3 specular = ComputeF0(materialSpecular, gbufferParams.m_Metallic, gbufferParams.m_Metallic);
-    float3 V = normalize(g_BasePassConsts.m_CameraOrigin - inWorldPosition);
+    float3 V = normalize(g_BasePassConsts.m_CameraOrigin - inVertex.m_WorldPosition);
     float3 L = g_BasePassConsts.m_DirectionalLightVector;
     
     float3 lighting = DefaultLitBxDF(specular, gbufferParams.m_Roughness, gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal, V, L);
     
     ShadowFilteringParams shadowFilteringParams;
-    shadowFilteringParams.m_WorldPosition = inWorldPosition;
+    shadowFilteringParams.m_WorldPosition = inVertex.m_WorldPosition;
     shadowFilteringParams.m_CameraPosition = g_BasePassConsts.m_CameraOrigin;
     shadowFilteringParams.m_CSMDistances = g_BasePassConsts.m_CSMDistances;
     shadowFilteringParams.m_DirLightViewProj = g_BasePassConsts.m_DirLightViewProj;
@@ -230,7 +273,7 @@ void PS_Main_Forward(
     lighting += gbufferParams.m_Emissive;
     
     // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
-    lighting += AmbientTerm(g_SSAOTexture, g_BasePassConsts.m_SSAOEnabled ? uint2(inPosition.xy) : uint2(0, 0), gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal);
+    lighting += AmbientTerm(g_SSAOTexture, g_BasePassConsts.m_SSAOEnabled ? uint2(inVertex.m_WorldPosition.xy) : uint2(0, 0), gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal);
     
     outColor = float4(lighting, gbufferParams.m_Albedo.a);
 }

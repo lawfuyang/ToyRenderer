@@ -1,6 +1,7 @@
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
 • Meshlet drawing pipeline
+    • pack meshlet indices buffer values (3 indices into 1 uint32)
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/SimpleMeshlet
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/MeshletCull
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/DynamicLOD

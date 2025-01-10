@@ -299,7 +299,8 @@ public:
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
 
-        const uint32_t nbInstances = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
+		std::span<const uint32_t> primitivesIDs = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs : scene->m_OpaquePrimitiveIDs;
+        const uint32_t nbInstances = primitivesIDs.size();
 
         if (nbInstances == 0)
         {
@@ -314,65 +315,110 @@ public:
         const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
         const nvrhi::TextureDesc& viewportTexDesc = depthAttachment.texture ? depthAttachment.texture->getDesc() : params.m_FrameBufferDesc.colorAttachments[0].texture->getDesc();
 
-        // pass consts
-        BasePassConstants basePassConstants;
-        basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
-        basePassConstants.m_DirectionalLightVector = scene->m_DirLightVec * scene->m_DirLightStrength;
-        basePassConstants.m_DirectionalLightColor = scene->m_DirLightColor;
-        basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
-        basePassConstants.m_CameraOrigin = view.m_Eye;
-        basePassConstants.m_SSAOEnabled = g_GraphicPropertyGrid.m_AmbientOcclusionControllables.m_bEnabled;
+        auto SetStates = [&](bool bMeshletPipeline, uint32_t instanceIdx = 0)
+            {
+                // pass consts
+                BasePassConstants basePassConstants;
+				basePassConstants.m_InstanceConstIdx = instanceIdx;
+                basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
+                basePassConstants.m_DirectionalLightVector = scene->m_DirLightVec * scene->m_DirLightStrength;
+                basePassConstants.m_DirectionalLightColor = scene->m_DirLightColor;
+                basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
+                basePassConstants.m_CameraOrigin = view.m_Eye;
+                basePassConstants.m_SSAOEnabled = g_GraphicPropertyGrid.m_AmbientOcclusionControllables.m_bEnabled;
 
-        memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
+                memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
 
-        for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
+                for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
+                {
+                    basePassConstants.m_DirLightViewProj[i] = scene->m_Views[Scene::EView::CSM0 + i].m_ViewProjectionMatrix;
+                }
+
+                nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
+
+                // bind and set root signature
+                nvrhi::BindingSetDesc bindingSetDesc;
+                bindingSetDesc.bindings = {
+                    nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_GlobalVertexBuffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Graphic.m_GlobalMaterialDataBuffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalMeshletDataBuffer),
+					nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMeshletVertexOffsetsBuffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMeshletIndicesBuffer),
+                    nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
+                    nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
+                    nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
+                    nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler)
+                };
+
+                nvrhi::BindingSetHandle bindingSet;
+                nvrhi::BindingLayoutHandle bindingLayout;
+                g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+                nvrhi::ShaderHandle pixelShaderHandle = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
+				nvrhi::Viewport viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height };
+
+                if (bMeshletPipeline)
+                {
+                    nvrhi::MeshletPipelineDesc PSODesc;
+					PSODesc.MS = g_Graphic.GetShader("basepass_MS_Main");
+					PSODesc.PS = pixelShaderHandle;
+                    PSODesc.renderState = params.m_RenderState;
+                    PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
+
+                    nvrhi::MeshletState meshletState;
+					meshletState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
+					meshletState.framebuffer = frameBuffer;
+					meshletState.viewport.addViewportAndScissorRect(viewport);
+                    meshletState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
+
+					commandList->setMeshletState(meshletState);
+                }
+                else
+                {
+                    nvrhi::GraphicsPipelineDesc PSODesc;
+                    PSODesc.VS = g_Graphic.GetShader("basepass_VS_Main");
+                    PSODesc.PS = pixelShaderHandle;
+                    PSODesc.renderState = params.m_RenderState;
+                    PSODesc.inputLayout = g_CommonResources.GPUCullingLayout;
+                    PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
+
+                    nvrhi::GraphicsState drawState;
+                    drawState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
+                    drawState.framebuffer = frameBuffer;
+                    drawState.viewport.addViewportAndScissorRect(viewport);
+                    drawState.indexBuffer = { g_Graphic.m_GlobalIndexBuffer, g_Graphic.m_GlobalIndexBuffer->getDesc().format, 0 };
+                    drawState.vertexBuffers = { { startInstanceConstsOffsetsBuffer, 0, 0} };
+                    drawState.indirectParams = drawIndexedIndirectArgumentsBuffer;
+                    drawState.indirectCountBuffer = instanceCountBuffer;
+                    drawState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
+
+                    commandList->setGraphicsState(drawState);
+                }
+            };
+
+        if (g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableMeshletRendering)
         {
-            basePassConstants.m_DirLightViewProj[i] = scene->m_Views[Scene::EView::CSM0 + i].m_ViewProjectionMatrix;
+            for (uint32_t primitiveID : primitivesIDs)
+            {
+				const Primitive& primitive = scene->m_Primitives.at(primitiveID);
+				const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+
+                SetStates(true, primitiveID);
+
+				commandList->dispatchMesh(mesh.m_NumMeshlets);
+            }
         }
+        else
+        {
+            SetStates(false);
 
-        nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
-
-        // bind and set root signature
-        nvrhi::BindingSetDesc bindingSetDesc;
-        bindingSetDesc.bindings = {
-            nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_GlobalVertexBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Graphic.m_GlobalMaterialDataBuffer),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler)
-        };
-
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-        // PSO
-        nvrhi::GraphicsPipelineDesc PSODesc;
-        PSODesc.VS = g_Graphic.GetShader("basepass_VS_Main");
-        PSODesc.PS = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
-        PSODesc.renderState = params.m_RenderState;
-        PSODesc.inputLayout = g_CommonResources.GPUCullingLayout;
-        PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
-
-        nvrhi::GraphicsState drawState;
-        drawState.framebuffer = frameBuffer;
-        drawState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
-        drawState.indexBuffer = { g_Graphic.m_GlobalIndexBuffer, g_Graphic.m_GlobalIndexBuffer->getDesc().format, 0 };
-        drawState.vertexBuffers = { { startInstanceConstsOffsetsBuffer, 0, 0} };
-        drawState.indirectParams = drawIndexedIndirectArgumentsBuffer;
-        drawState.indirectCountBuffer = instanceCountBuffer;
-        drawState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
-        drawState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
-
-        commandList->setGraphicsState(drawState);
-
-        // NOTE: treating the 2nd arg for 'drawIndexedIndirect' as 'MaxCommandCount' is only legit for d3d12!
-        const uint32_t maxCommandCount = nbInstances;
-        commandList->drawIndexedIndirect(0, std::max(1U, maxCommandCount));
+            // NOTE: treating the 2nd arg for 'drawIndexedIndirect' as 'MaxCommandCount' is only legit for d3d12!
+            const uint32_t maxCommandCount = nbInstances;
+            commandList->drawIndexedIndirect(0, std::max(1U, maxCommandCount));
+        }
     }
 
     void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
@@ -413,30 +459,38 @@ public:
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
         commandList->clearBufferUInt(counterStatsBuffer, 0);
 
-		GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
-		RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
-
         const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
-        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
-        if (bDoOcclusionCulling)
+
+        if (controllables.m_bEnableMeshletRendering)
         {
-            GenerateHZB(commandList, renderGraph, params);
-
-            GPUCulling(commandList, renderGraph, params, true /* bLateCull */, false /* bAlphaMaskPrimitives */);
             RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
-
-            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
-            RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
-            GPUCulling(commandList, renderGraph, params, true /* bLateCull */, true /* bAlphaMaskPrimitives */);
-            RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
-
-            GenerateHZB(commandList, renderGraph, params);
         }
         else
         {
-			// cull & render for alpha mask primitives, but no occlusion culling
-            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
-            RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
+            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
+
+            const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
+            if (bDoOcclusionCulling)
+            {
+                GenerateHZB(commandList, renderGraph, params);
+
+                GPUCulling(commandList, renderGraph, params, true /* bLateCull */, false /* bAlphaMaskPrimitives */);
+                RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
+
+                GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
+                RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
+                GPUCulling(commandList, renderGraph, params, true /* bLateCull */, true /* bAlphaMaskPrimitives */);
+                RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
+
+                GenerateHZB(commandList, renderGraph, params);
+            }
+            else
+            {
+                // cull & render for alpha mask primitives, but no occlusion culling
+                GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
+                RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
+            }
         }
 
 		// copy counter buffer, so that it can be read on CPU next frame
@@ -454,15 +508,17 @@ public:
     {
 		BasePassRenderer::Setup(renderGraph);
 
-        nvrhi::TextureDesc desc;
-        desc.width = g_Graphic.m_RenderResolution.x;
-        desc.height = g_Graphic.m_RenderResolution.y;
-        desc.isRenderTarget = true;
-        desc.setClearValue(nvrhi::Color{ 0.0f });
-        desc.initialState = nvrhi::ResourceStates::ShaderResource;
-        desc.format = Graphic::kGBufferAFormat;
-        desc.debugName = "GBufferA";
-        renderGraph.CreateTransientResource(g_GBufferARDGTextureHandle, desc);
+        {
+            nvrhi::TextureDesc desc;
+            desc.width = g_Graphic.m_RenderResolution.x;
+            desc.height = g_Graphic.m_RenderResolution.y;
+            desc.isRenderTarget = true;
+            desc.setClearValue(nvrhi::Color{ 0.0f });
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            desc.format = Graphic::kGBufferAFormat;
+            desc.debugName = "GBufferA";
+            renderGraph.CreateTransientResource(g_GBufferARDGTextureHandle, desc);
+        }
 
         {
             nvrhi::TextureDesc desc;

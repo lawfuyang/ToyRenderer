@@ -109,7 +109,7 @@ void Mesh::Initialize(
     std::span<const RawVertexFormat> vertices,
     std::span<const uint32_t> indices,
     std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
-    std::vector<uint8_t>& meshletIndicesOut,
+    std::vector<uint32_t>& meshletIndicesOut,
     std::vector<MeshletData>& meshletsOut,
     std::string_view meshName)
 {
@@ -129,7 +129,7 @@ void Mesh::Initialize(
     meshletTriangles.resize(numMaxMeshlets * kMeshletMaxTriangles * 3);
 
     const float kMeshletConeWeight = 0.25f;
-    const uint32_t numMeshlets = meshopt_buildMeshlets(
+    m_NumMeshlets = meshopt_buildMeshlets(
         meshlets.data(),
         meshletVertices.data(),
         meshletTriangles.data(),
@@ -141,6 +141,8 @@ void Mesh::Initialize(
         kMeshletMaxVertices,
         kMeshletMaxTriangles,
         kMeshletConeWeight);
+
+	meshlets.resize(m_NumMeshlets);
 
     for (const meshopt_Meshlet& meshlet : meshlets)
     {
@@ -164,16 +166,19 @@ void Mesh::Initialize(
 
         const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(&meshletVertices[meshlet.vertex_offset], &meshletTriangles[meshlet.triangle_offset], meshlet.triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(RawVertexFormat));
 
+        assert(meshlet.vertex_count <= UINT8_MAX);
+		assert(meshlet.triangle_count <= UINT8_MAX);
+
         MeshletData& m = meshletsOut.emplace_back();
         m.m_StartVertexLocation = m_StartVertexLocation + minVertex;
-		m.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 16);
+		m.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 8);
 		m.m_BoundingSphere = Vector4{ meshletBounds.center[0], meshletBounds.center[1], meshletBounds.center[2], meshletBounds.radius };
 		m.m_ConeAxisAndCutoff = meshletBounds.cone_axis_s8[0] | (meshletBounds.cone_axis_s8[1] << 8) | (meshletBounds.cone_axis_s8[2] << 16) | (meshletBounds.cone_cutoff_s8 << 24);
 
         // NOTE: m_VertexOffsetsBufferIdx & m_IndicesBufferIdx will be initialized after all mesh data are loaded
     }
 
-    LOG_DEBUG("New Mesh: %s, vertices: %d, indices: %d, numMeshlets: %d", meshName.data(), vertices.size(), indices.size(), numMeshlets);
+    LOG_DEBUG("New Mesh: %s, vertices: %d, indices: %d, numMeshlets: %d", meshName.data(), vertices.size(), indices.size(), m_NumMeshlets);
 }
 
 bool Mesh::IsValid() const

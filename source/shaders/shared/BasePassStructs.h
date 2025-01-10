@@ -7,7 +7,7 @@ struct BasePassConstants
 {
     Matrix m_ViewProjMatrix;
     Vector3 m_DirectionalLightVector;
-	uint32_t PAD0;
+	uint32_t m_InstanceConstIdx; // for non-instanced rendering
     Vector3 m_DirectionalLightColor;
 	float m_InvShadowMapResolution;
 	Vector3 m_CameraOrigin;

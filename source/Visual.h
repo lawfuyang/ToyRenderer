@@ -38,7 +38,7 @@ public:
         std::span<const RawVertexFormat> rawVertices,
         std::span<const uint32_t> indices, 
         std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
-        std::vector<uint8_t>& meshletIndicesOut,
+        std::vector<uint32_t>& meshletIndicesOut,
 		std::vector<MeshletData>& meshletsOut,
         std::string_view meshName);
 
@@ -47,6 +47,7 @@ public:
     uint32_t m_StartVertexLocation = UINT_MAX;
     uint32_t m_StartIndexLocation = UINT_MAX;
     uint32_t m_MeshDataBufferIdx = UINT_MAX;
+    uint32_t m_NumMeshlets = 0;
 
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
