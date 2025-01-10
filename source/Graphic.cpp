@@ -263,7 +263,18 @@ void Graphic::InitDevice()
             for (constexpr auto kFeatures = magic_enum::enum_entries<nvrhi::Feature>();
                 const auto& feature : kFeatures)
             {
-                LOG_DEBUG("Feature Support for [%s]: [%d]", feature.second.data(), m_NVRHIDevice->queryFeatureSupport(feature.first));
+                const bool bFeatureSupported = m_NVRHIDevice->queryFeatureSupport(feature.first);
+                LOG_DEBUG("Feature Support for [%s]: [%d]", feature.second.data(), bFeatureSupported);
+
+                auto EnsureFeatureSupport = [&](nvrhi::Feature featureRequested)
+                    {
+                        if (feature.first == featureRequested)
+                        {
+                            assert(bFeatureSupported);
+                        }
+                    };
+
+                EnsureFeatureSupport(nvrhi::Feature::Meshlets);
             }
 
             m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();

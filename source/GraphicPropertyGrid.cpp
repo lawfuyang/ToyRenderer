@@ -62,7 +62,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
         LightingControllables& params = m_LightingControllables;
 
         // keep in sync with 'kDeferredLightingDebugMode_*'
-        static const char* debugModeNames[] = { "None", "Lighting Only", "Colorize Instances", "Albedo", "Normal", "Emissive", "Metalness", "Roughness", "Ambient Occlusion", "Ambient", "Shadow Mask" };
+        static const char* debugModeNames[] = { "None", "Lighting Only", "Colorize Instances/Meshlets", "Albedo", "Normal", "Emissive", "Metalness", "Roughness", "Ambient Occlusion", "Ambient", "Shadow Mask" };
 
 		static int debugModeIdx = 0;
         if (ImGui::Combo("##LightingDebugModeCombo", &debugModeIdx, debugModeNames, std::size(debugModeNames)))

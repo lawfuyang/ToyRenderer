@@ -735,18 +735,19 @@ struct GLTFSceneLoader
         std::vector<uint32_t> globalMeshletIndices;
         std::vector<MeshletData> globalMeshletDatas;
 
-        // flatten meshlet buffers
-		for (GlobalMeshletDataEntry& meshletDataEntry : m_MeshletDataEntries)
+        assert(m_MeshletDataEntries.size() == m_GlobalMeshData.size());
+
+        // flatten per-primitive meshlet buffers into global buffers
+        for (uint32_t i = 0; i < m_MeshletDataEntries.size(); ++i)
 		{
+            GlobalMeshletDataEntry& meshletDataEntry = m_MeshletDataEntries.at(i);
+
+            m_GlobalMeshData.at(i).m_MeshletDataOffset = globalMeshletDatas.size();
+
             for (MeshletData& meshletData : meshletDataEntry.m_Meshlets)
             {
-				meshletData.m_StartVertexLocation = globalMeshletVertexIdxOffsets.size();
-				meshletData.m_IndicesBufferIdx = globalMeshletIndices.size();
-            }
-
-            for (MeshData& meshData : m_GlobalMeshData)
-            {
-				meshData.m_MeshletOffset = globalMeshletDatas.size();
+				meshletData.m_VertexBufferIdx += globalMeshletVertexIdxOffsets.size();
+				meshletData.m_IndicesBufferIdx += globalMeshletIndices.size();
             }
 
 			globalMeshletVertexIdxOffsets.insert(globalMeshletVertexIdxOffsets.end(), meshletDataEntry.m_VertexIdxOffsets.begin(), meshletDataEntry.m_VertexIdxOffsets.end());

@@ -357,8 +357,8 @@ public:
                 nvrhi::BindingLayoutHandle bindingLayout;
                 g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-                nvrhi::ShaderHandle pixelShaderHandle = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
-				nvrhi::Viewport viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height };
+                const nvrhi::ShaderHandle pixelShaderHandle = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
+				const nvrhi::Viewport viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height };
 
                 if (bMeshletPipeline)
                 {

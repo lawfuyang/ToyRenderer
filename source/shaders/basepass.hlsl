@@ -83,42 +83,41 @@ void MS_Main(
     uint3 groupThreadID : SV_GroupThreadID,
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex,
-    out indices uint3 tris[kMeshletMaxVertices],
-    out vertices VertexOut verts[kMeshletMaxVertices]
+    out vertices VertexOut meshletVertexOut[kMeshletMaxVertices],
+    out indices uint3 meshletTrianglesOut[kMeshletMaxVertices]
 )
 {
+    uint meshletIdx = groupId.x;
+    uint meshletVertexIdx = groupThreadID.x;
+    
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[g_BasePassConsts.m_InstanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
-    MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletOffset];
+    MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataOffset + meshletIdx];
     
-    uint numVertices = meshletData.m_VertexAndTriangleCount & 0xFF;
+    uint numVertices = (meshletData.m_VertexAndTriangleCount >> 0) & 0xFF;
     uint numPrimitives = (meshletData.m_VertexAndTriangleCount >> 8) & 0xFF;
-    
-    if (groupThreadID.x >= numVertices)
-    {
-        return;
-    }
     
     SetMeshOutputCounts(numVertices, numPrimitives);
     
-    //for (uint i = 0; i < numVertices; ++i)
+    if (meshletVertexIdx < numVertices)
     {
-        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexOffsetsBufferIdx + groupThreadID.x] + meshletData.m_StartVertexLocation;
+        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexBufferIdx + meshletVertexIdx];
         
         VertexOut vOut = GetVertexAttributes(g_BasePassConsts.m_InstanceConstIdx, vertexIdx);
-        vOut.m_MeshletIdx = groupId.x;
+        vOut.m_MeshletIdx = meshletIdx;
         
-        verts[groupThreadID.x] = vOut;
+        meshletVertexOut[meshletVertexIdx] = vOut;
     }
     
-    //for (uint i = 0; i < numPrimitives; ++i)
+    if (meshletVertexIdx < numPrimitives)
     {
-        uint indexOffset = meshletData.m_IndicesBufferIdx + (groupThreadID.x * 3);
-        uint a = g_MeshletIndexIDsBuffer[indexOffset + 0];
-        uint b = g_MeshletIndexIDsBuffer[indexOffset + 1];
-        uint c = g_MeshletIndexIDsBuffer[indexOffset + 2];
+        uint packedIndices = g_MeshletIndexIDsBuffer[meshletData.m_IndicesBufferIdx + meshletVertexIdx];
+    
+        uint a = (packedIndices >> 0) & 0xFF;
+        uint b = (packedIndices >> 8) & 0xFF;
+        uint c = (packedIndices >> 16) & 0xFF;
         
-        tris[groupThreadID.x] = uint3(a, b, c);
+        meshletTrianglesOut[meshletVertexIdx] = uint3(a, b, c);
     }
 }
 

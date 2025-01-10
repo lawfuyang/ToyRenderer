@@ -120,8 +120,8 @@ void Mesh::Initialize(
     AABB::CreateFromPoints(m_AABB, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
 
     std::vector<meshopt_Meshlet> meshlets;
-    std::vector<unsigned int> meshletVertices;
-    std::vector<unsigned char> meshletTriangles;
+    std::vector<uint32_t> meshletVertices;
+    std::vector<uint8_t> meshletTriangles;
 
     const uint32_t numMaxMeshlets = meshopt_buildMeshletsBound(indices.size(), kMeshletMaxVertices, kMeshletMaxTriangles);
     meshlets.resize(numMaxMeshlets);
@@ -146,36 +146,38 @@ void Mesh::Initialize(
 
     for (const meshopt_Meshlet& meshlet : meshlets)
     {
-        meshopt_optimizeMeshlet(&meshletVertices[meshlet.vertex_offset], &meshletTriangles[meshlet.triangle_offset], meshlet.triangle_count, meshlet.vertex_count);
+        meshopt_optimizeMeshlet(&meshletVertices.at(meshlet.vertex_offset), &meshletTriangles.at(meshlet.triangle_offset), meshlet.triangle_count, meshlet.vertex_count);
 
-        uint32_t minVertex = UINT32_MAX;
-        for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
-        {
-            minVertex = std::min(meshletVertices[meshlet.vertex_offset + i], minVertex);
-        }
+        MeshletData& newMeshlet = meshletsOut.emplace_back();
+        newMeshlet.m_VertexBufferIdx = meshletVertexIdxOffsetsOut.size();
+        newMeshlet.m_IndicesBufferIdx = meshletIndicesOut.size();
 
         for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
         {
-            meshletVertexIdxOffsetsOut.push_back(meshletVertices[meshlet.vertex_offset + i] - minVertex);
+            meshletVertexIdxOffsetsOut.push_back(meshletVertices.at(meshlet.vertex_offset + i));
         }
 
         for (uint32_t i = 0; i < meshlet.triangle_count; ++i)
         {
-            meshletIndicesOut.push_back(meshletTriangles[meshlet.triangle_offset + i]);
+            const uint8_t a = meshletTriangles.at(meshlet.triangle_offset + (i * 3) + 0);
+            const uint8_t b = meshletTriangles.at(meshlet.triangle_offset + (i * 3) + 1);
+            const uint8_t c = meshletTriangles.at(meshlet.triangle_offset + (i * 3) + 2);
+
+            const uint32_t packedIndices = a | (b << 8) | (c << 16);
+
+            meshletIndicesOut.push_back(packedIndices);
         }
 
-        const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(&meshletVertices[meshlet.vertex_offset], &meshletTriangles[meshlet.triangle_offset], meshlet.triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(RawVertexFormat));
+        const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(&meshletVertices.at(meshlet.vertex_offset), &meshletTriangles.at(meshlet.triangle_offset), meshlet.triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(RawVertexFormat));
 
         assert(meshlet.vertex_count <= UINT8_MAX);
 		assert(meshlet.triangle_count <= UINT8_MAX);
 
-        MeshletData& m = meshletsOut.emplace_back();
-        m.m_StartVertexLocation = m_StartVertexLocation + minVertex;
-		m.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 8);
-		m.m_BoundingSphere = Vector4{ meshletBounds.center[0], meshletBounds.center[1], meshletBounds.center[2], meshletBounds.radius };
-		m.m_ConeAxisAndCutoff = meshletBounds.cone_axis_s8[0] | (meshletBounds.cone_axis_s8[1] << 8) | (meshletBounds.cone_axis_s8[2] << 16) | (meshletBounds.cone_cutoff_s8 << 24);
+		newMeshlet.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 8);
+		newMeshlet.m_BoundingSphere = Vector4{ meshletBounds.center[0], meshletBounds.center[1], meshletBounds.center[2], meshletBounds.radius };
+		newMeshlet.m_ConeAxisAndCutoff = meshletBounds.cone_axis_s8[0] | (meshletBounds.cone_axis_s8[1] << 8) | (meshletBounds.cone_axis_s8[2] << 16) | (meshletBounds.cone_cutoff_s8 << 24);
 
-        // NOTE: m_VertexOffsetsBufferIdx & m_IndicesBufferIdx will be initialized after all mesh data are loaded
+        // NOTE: m_VertexBufferIdx & m_IndicesBufferIdx will be properly offset to the global value after all mesh data are loaded
     }
 
     LOG_DEBUG("New Mesh: %s, vertices: %d, indices: %d, numMeshlets: %d", meshName.data(), vertices.size(), indices.size(), m_NumMeshlets);
