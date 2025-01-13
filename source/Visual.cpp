@@ -123,10 +123,10 @@ void Mesh::Initialize(
     std::vector<uint32_t> meshletVertices;
     std::vector<uint8_t> meshletTriangles;
 
-    const uint32_t numMaxMeshlets = meshopt_buildMeshletsBound(indices.size(), kMeshletMaxVertices, kMeshletMaxTriangles);
+    const uint32_t numMaxMeshlets = meshopt_buildMeshletsBound(indices.size(), kMaxMeshletSize, kMaxMeshletSize);
     meshlets.resize(numMaxMeshlets);
-    meshletVertices.resize(numMaxMeshlets * kMeshletMaxVertices);
-    meshletTriangles.resize(numMaxMeshlets * kMeshletMaxTriangles * 3);
+    meshletVertices.resize(numMaxMeshlets * kMaxMeshletSize);
+    meshletTriangles.resize(numMaxMeshlets * kMaxMeshletSize * 3);
 
     const float kMeshletConeWeight = 0.25f;
     m_NumMeshlets = meshopt_buildMeshlets(
@@ -138,8 +138,8 @@ void Mesh::Initialize(
         (const float*)vertices.data(),
         vertices.size(),
         sizeof(RawVertexFormat),
-        kMeshletMaxVertices,
-        kMeshletMaxTriangles,
+        kMaxMeshletSize,
+        kMaxMeshletSize,
         kMeshletConeWeight);
 
 	meshlets.resize(m_NumMeshlets);
@@ -159,9 +159,10 @@ void Mesh::Initialize(
 
         for (uint32_t i = 0; i < meshlet.triangle_count; ++i)
         {
-            const uint8_t a = meshletTriangles.at(meshlet.triangle_offset + (i * 3) + 0);
-            const uint8_t b = meshletTriangles.at(meshlet.triangle_offset + (i * 3) + 1);
-            const uint8_t c = meshletTriangles.at(meshlet.triangle_offset + (i * 3) + 2);
+            const uint32_t baseOffset = meshlet.triangle_offset + (i * 3);
+            const uint8_t a = meshletTriangles.at(baseOffset + 0);
+            const uint8_t b = meshletTriangles.at(baseOffset + 1);
+            const uint8_t c = meshletTriangles.at(baseOffset + 2);
 
             const uint32_t packedIndices = a | (b << 8) | (c << 16);
 

@@ -38,12 +38,10 @@ struct VertexOut
     float2 m_UV : TEXCOORD2;
 };
 
-VertexOut GetVertexAttributes(uint instanceConstIdx, uint vertexIdx)
+VertexOut GetVertexAttributes(BasePassInstanceConstants instanceConsts, MeshData meshData, uint instanceConstIdx, uint vertexIdx)
 {
     VertexOut vOut = (VertexOut)0;
     
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstIdx];
-    MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
     RawVertexFormat vertexInfo = g_VirtualVertexBuffer[meshData.m_StartVertexLocation + vertexIdx];
     
     float4 position = float4(vertexInfo.m_Position, 1.0f);
@@ -73,18 +71,20 @@ void VS_Main(
     out VertexOut outVertex
 )
 {
-    outVertex = GetVertexAttributes(inInstanceConstIndex, inVertexID);
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inInstanceConstIndex];
+    MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
+    outVertex = GetVertexAttributes(instanceConsts, meshData, inInstanceConstIndex, inVertexID);
 }
 
-[NumThreads(kMeshletMaxVertices, 1, 1)]
+[NumThreads(kMaxMeshletSize, 1, 1)]
 [OutputTopology("triangle")]
 void MS_Main(
     uint3 dispatchThreadID : SV_DispatchThreadID,
     uint3 groupThreadID : SV_GroupThreadID,
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex,
-    out vertices VertexOut meshletVertexOut[kMeshletMaxVertices],
-    out indices uint3 meshletTrianglesOut[kMeshletMaxVertices]
+    out vertices VertexOut meshletVertexOut[kMaxMeshletSize],
+    out indices uint3 meshletTrianglesOut[kMaxMeshletSize]
 )
 {
     uint meshletIdx = groupId.x;
@@ -103,7 +103,7 @@ void MS_Main(
     {
         uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexBufferIdx + meshletVertexIdx];
         
-        VertexOut vOut = GetVertexAttributes(g_BasePassConsts.m_InstanceConstIdx, vertexIdx);
+        VertexOut vOut = GetVertexAttributes(instanceConsts, meshData, g_BasePassConsts.m_InstanceConstIdx, vertexIdx);
         vOut.m_MeshletIdx = meshletIdx;
         
         meshletVertexOut[meshletVertexIdx] = vOut;
