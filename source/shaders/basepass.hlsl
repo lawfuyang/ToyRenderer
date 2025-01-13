@@ -62,6 +62,7 @@ VertexOut GetVertexAttributes(uint instanceConstIdx, uint vertexIdx)
     
     vOut.m_UV = vertexInfo.m_TexCoord;
     vOut.m_WorldPosition = worldPos.xyz;
+    vOut.m_InstanceConstsIdx = instanceConstIdx;
 
     return vOut;
 }
@@ -73,7 +74,6 @@ void VS_Main(
 )
 {
     outVertex = GetVertexAttributes(inInstanceConstIndex, inVertexID);
-    outVertex.m_InstanceConstsIdx = inInstanceConstIndex;
 }
 
 [NumThreads(kMeshletMaxVertices, 1, 1)]
