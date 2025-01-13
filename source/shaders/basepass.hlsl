@@ -88,7 +88,7 @@ void MS_Main(
 )
 {
     uint meshletIdx = groupId.x;
-    uint meshletVertexIdx = groupThreadID.x;
+    uint meshletOutputIdx = groupThreadID.x;
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[g_BasePassConsts.m_InstanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
@@ -99,25 +99,25 @@ void MS_Main(
     
     SetMeshOutputCounts(numVertices, numPrimitives);
     
-    if (meshletVertexIdx < numVertices)
+    if (meshletOutputIdx < numVertices)
     {
-        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexBufferIdx + meshletVertexIdx];
+        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexBufferIdx + meshletOutputIdx];
         
         VertexOut vOut = GetVertexAttributes(instanceConsts, meshData, g_BasePassConsts.m_InstanceConstIdx, vertexIdx);
         vOut.m_MeshletIdx = meshletIdx;
         
-        meshletVertexOut[meshletVertexIdx] = vOut;
+        meshletVertexOut[meshletOutputIdx] = vOut;
     }
     
-    if (meshletVertexIdx < numPrimitives)
+    if (meshletOutputIdx < numPrimitives)
     {
-        uint packedIndices = g_MeshletIndexIDsBuffer[meshletData.m_IndicesBufferIdx + meshletVertexIdx];
+        uint packedIndices = g_MeshletIndexIDsBuffer[meshletData.m_IndicesBufferIdx + meshletOutputIdx];
     
         uint a = (packedIndices >> 0) & 0xFF;
         uint b = (packedIndices >> 8) & 0xFF;
         uint c = (packedIndices >> 16) & 0xFF;
         
-        meshletTrianglesOut[meshletVertexIdx] = uint3(a, b, c);
+        meshletTrianglesOut[meshletOutputIdx] = uint3(a, b, c);
     }
 }
 
