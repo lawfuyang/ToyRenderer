@@ -177,7 +177,6 @@ public:
         const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
         const uint32_t nbInstances = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
-
         if (nbInstances == 0)
         {
             return;
@@ -207,17 +206,6 @@ public:
             }
         }
 
-        // read back nb visible instances from counter
-        {
-            uint32_t readbackResults[kNbGPUCullingBufferCounters]{};
-            m_CounterStatsReadbackBuffer.Read(device, readbackResults);
-
-            // TODO: support transparent
-            GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
-            cullingCounters.m_Early = readbackResults[kCullingEarlyBufferCounterIdx];
-            cullingCounters.m_Late = readbackResults[kCullingLateBufferCounterIdx];
-        }
-
         uint32_t flags = controllables.m_bEnableFrustumCulling ? CullingFlag_FrustumCullingEnable : 0;
         flags |= bDoOcclusionCulling ? CullingFlag_OcclusionCullingEnable : 0;
 
@@ -232,10 +220,7 @@ public:
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
         passParameters.m_Flags = flags;
-        passParameters.m_Frustum.x = frustumX.x;
-        passParameters.m_Frustum.y = frustumX.z;
-        passParameters.m_Frustum.z = frustumY.y;
-        passParameters.m_Frustum.w = frustumY.z;
+		passParameters.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
         passParameters.m_HZBDimensions = HZBDims;
         passParameters.m_ViewMatrix = view.m_ViewMatrix;
         passParameters.m_PrevViewMatrix = view.m_PrevFrameViewMatrix;
@@ -265,7 +250,7 @@ public:
 
         if (!bLateCull)
         {
-            g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, ComputeShaderUtils::GetGroupCount(nbInstances, kNbGPUCullingGroupThreads));
+            g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, ComputeShaderUtils::GetGroupCount(nbInstances, 64));
 
             if (bDoOcclusionCulling)
             {
@@ -310,6 +295,7 @@ public:
         nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
         nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_StartInstanceConstsOffsetsRDGBufferHandle);
+        nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
 
         nvrhi::FramebufferHandle frameBuffer = device->createFramebuffer(params.m_FrameBufferDesc);
         const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
@@ -321,11 +307,22 @@ public:
                 BasePassConstants basePassConstants;
 				basePassConstants.m_InstanceConstIdx = instanceIdx;
                 basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
+				basePassConstants.m_ViewMatrix = view.m_ViewMatrix;
                 basePassConstants.m_DirectionalLightVector = scene->m_DirLightVec * scene->m_DirLightStrength;
                 basePassConstants.m_DirectionalLightColor = scene->m_DirLightColor;
                 basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
                 basePassConstants.m_CameraOrigin = view.m_Eye;
                 basePassConstants.m_SSAOEnabled = g_GraphicPropertyGrid.m_AmbientOcclusionControllables.m_bEnabled;
+
+                // temp meshlet stuff until we move it all to indirect GPU Culling
+                Matrix projectionT = view.m_ProjectionMatrix.Transpose();
+                Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
+                Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
+                frustumX.Normalize();
+                frustumY.Normalize();
+
+				basePassConstants.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
+				basePassConstants.m_EnableFrustumCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableFrustumCulling;
 
                 memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
 
@@ -347,6 +344,7 @@ public:
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalMeshletDataBuffer),
 					nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMeshletVertexOffsetsBuffer),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMeshletIndicesBuffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_UAV(0, counterStatsBuffer),
                     nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
                     nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
                     nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
@@ -358,11 +356,11 @@ public:
                 g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
                 const nvrhi::ShaderHandle pixelShaderHandle = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
-				const nvrhi::Viewport viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height };
 
                 if (bMeshletPipeline)
                 {
                     nvrhi::MeshletPipelineDesc PSODesc;
+					PSODesc.AS = g_Graphic.GetShader("basepass_AS_Main");
 					PSODesc.MS = g_Graphic.GetShader("basepass_MS_Main");
 					PSODesc.PS = pixelShaderHandle;
                     PSODesc.renderState = params.m_RenderState;
@@ -371,7 +369,7 @@ public:
                     nvrhi::MeshletState meshletState;
 					meshletState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
 					meshletState.framebuffer = frameBuffer;
-					meshletState.viewport.addViewportAndScissorRect(viewport);
+                    meshletState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
                     meshletState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
 
 					commandList->setMeshletState(meshletState);
@@ -388,7 +386,7 @@ public:
                     nvrhi::GraphicsState drawState;
                     drawState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
                     drawState.framebuffer = frameBuffer;
-                    drawState.viewport.addViewportAndScissorRect(viewport);
+                    drawState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
                     drawState.indexBuffer = { g_Graphic.m_GlobalIndexBuffer, g_Graphic.m_GlobalIndexBuffer->getDesc().format, 0 };
                     drawState.vertexBuffers = { { startInstanceConstsOffsetsBuffer, 0, 0} };
                     drawState.indirectParams = drawIndexedIndirectArgumentsBuffer;
@@ -408,7 +406,7 @@ public:
 
                 SetStates(true, primitiveID);
 
-				commandList->dispatchMesh(mesh.m_NumMeshlets);
+				commandList->dispatchMesh(DivideAndRoundUp(mesh.m_NumMeshlets, 32));
             }
         }
         else
@@ -456,8 +454,25 @@ public:
     {
         assert(params.m_View);
 
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+        Scene* scene = g_Graphic.m_Scene.get();
+        View& view = *params.m_View;
+
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
         commandList->clearBufferUInt(counterStatsBuffer, 0);
+
+        // read back nb visible instances from counter
+        {
+            uint32_t readbackResults[kNbGPUCullingBufferCounters]{};
+            m_CounterStatsReadbackBuffer.Read(device, readbackResults);
+
+            // TODO: support transparent
+            GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
+            cullingCounters.m_Early = readbackResults[kCullingEarlyBufferCounterIdx];
+            cullingCounters.m_Late = readbackResults[kCullingLateBufferCounterIdx];
+            cullingCounters.m_MeshletsFrustum = readbackResults[kCullingMeshletsFrustumBufferCounterIdx];
+            cullingCounters.m_MeshletsCone = readbackResults[kCullingMeshletsConeBufferCounterIdx];
+        }
 
         const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
@@ -494,7 +509,6 @@ public:
         }
 
 		// copy counter buffer, so that it can be read on CPU next frame
-		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         m_CounterStatsReadbackBuffer.CopyTo(device, commandList, counterStatsBuffer);
     }
 };

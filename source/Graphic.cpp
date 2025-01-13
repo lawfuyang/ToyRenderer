@@ -671,6 +671,11 @@ nvrhi::MeshletPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::MeshletPipelin
 {
     size_t psoHash = HashCommonGraphicStates(psoDesc, frameBuffer);
 
+	if (psoDesc.AS)
+	{
+		HashCombine(psoHash, psoDesc.AS->getDesc().debugName);
+	}
+
 	HashCombine(psoHash, psoDesc.MS->getDesc().debugName);
 
     static std::mutex s_CachedMeshletPSOsLock;

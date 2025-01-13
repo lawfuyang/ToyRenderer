@@ -36,26 +36,8 @@ RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u4);
 RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u5);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
-// Niagara's frustum culling
-bool FrustumCullBS(float3 sphereCenterViewSpace, float radius)
-{
-    bool visible = true;
-    
-	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-    visible &= sphereCenterViewSpace.z * g_GPUCullingPassConstants.m_Frustum.y + abs(sphereCenterViewSpace.x) * g_GPUCullingPassConstants.m_Frustum.x < radius;
-    visible &= sphereCenterViewSpace.z * g_GPUCullingPassConstants.m_Frustum.w + abs(sphereCenterViewSpace.y) * g_GPUCullingPassConstants.m_Frustum.z < radius;
-    
-	// the near plane culling uses camera space Z directly
-    // NOTE: this seems unnecessary?
-#if 0
-    visible &= (sphereCenterViewSpace.z - radius) < g_GPUCullingPassConstants.m_NearPlane;
-#endif
-    
-    return visible;
-}
-
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
-bool OcclusionCullBS(float3 sphereCenterViewSpace, float radius)
+bool OcclusionCull(float3 sphereCenterViewSpace, float radius)
 {
     float3 c = sphereCenterViewSpace;
     
@@ -122,7 +104,7 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
     g_StartInstanceConstsOffsets[outInstanceIdx] = instanceConstsIdx;
 }
 
-[numthreads(kNbGPUCullingGroupThreads, 1, 1)]
+[numthreads(64, 1, 1)]
 void CS_GPUCulling(
     uint3 dispatchThreadID : SV_DispatchThreadID,
     uint3 groupThreadID : SV_GroupThreadID,
@@ -157,7 +139,7 @@ void CS_GPUCulling(
     float sphereRadius = instanceConsts.m_BoundingSphere.w;
     
     // Frustum test instance against the current view
-    bool bIsVisible = !bDoFrustumCulling || FrustumCullBS(sphereCenterViewSpace, sphereRadius);
+    bool bIsVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_GPUCullingPassConstants.m_Frustum);
     
     if (!bIsVisible)
     {
@@ -175,7 +157,7 @@ void CS_GPUCulling(
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
     // Occlusion test instance against *previous* HZB. If the instance was occluded the previous frame, re-test in the second phase.    
-    if (!OcclusionCullBS(sphereCenterViewSpace, sphereRadius))
+    if (!OcclusionCull(sphereCenterViewSpace, sphereRadius))
     {
         uint outLateCullInstanceIdx;
         InterlockedAdd(g_LateCullInstanceIndicesCounter[0], 1, outLateCullInstanceIdx);
@@ -188,7 +170,7 @@ void CS_GPUCulling(
     }
 #else
     // Occlusion test instance against the updated HZB
-    if (OcclusionCullBS(sphereCenterViewSpace, sphereRadius))
+    if (OcclusionCull(sphereCenterViewSpace, sphereRadius))
     {
         SubmitInstance(instanceConstsIdx, instanceConsts);
     }
@@ -205,7 +187,7 @@ void CS_BuildLateCullIndirectArgs(
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex)
 {
-    g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountX = DivideAndRoundUp(g_NumLateCullInstances[0], kNbGPUCullingGroupThreads);
+    g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountX = DivideAndRoundUp(g_NumLateCullInstances[0], 64);
     g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountY = 1;
     g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountZ = 1;
 }

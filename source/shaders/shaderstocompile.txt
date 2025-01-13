@@ -1,9 +1,10 @@
 imgui.hlsl -T vs -E VS_Main
 imgui.hlsl -T ps -E PS_Main
 basepass.hlsl -T vs -E VS_Main
-basepass.hlsl -T ms -E MS_Main
 basepass.hlsl -T ps -E PS_Main_GBuffer -D ALPHA_MASK_MODE={0,1}
 basepass.hlsl -T ps -E PS_Main_Forward
+basepass.hlsl -T as -E AS_Main
+basepass.hlsl -T ms -E MS_Main
 fullscreen.hlsl -T vs -E VS_FullScreenTriangle
 fullscreen.hlsl -T vs -E VS_FullScreenCube
 fullscreen.hlsl -T ps -E PS_Passthrough

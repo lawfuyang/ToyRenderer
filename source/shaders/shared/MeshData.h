@@ -24,4 +24,9 @@ struct MeshletData
 	uint32_t m_VertexAndTriangleCount; // 1x uint8_t + 1x uint8_t
 };
 
+struct MeshletPayload
+{
+	uint32_t m_MeshletIndices[64];
+};
+
 #endif

@@ -5,12 +5,12 @@
 
 static const uint32_t kCullingEarlyBufferCounterIdx = 0;
 static const uint32_t kCullingLateBufferCounterIdx = 1;
-static const uint32_t kNbGPUCullingBufferCounters = 2;
+static const uint32_t kCullingMeshletsFrustumBufferCounterIdx = 2;
+static const uint32_t kCullingMeshletsConeBufferCounterIdx = 3;
+static const uint32_t kNbGPUCullingBufferCounters = 4;
 
 static const uint32_t CullingFlag_FrustumCullingEnable = (1 << 0);
 static const uint32_t CullingFlag_OcclusionCullingEnable = (1 << 1);
-
-static const uint32_t kNbGPUCullingGroupThreads = 64;
 
 struct GPUCullingPassConstants
 {

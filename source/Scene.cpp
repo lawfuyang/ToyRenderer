@@ -686,7 +686,13 @@ void Scene::UpdateIMGUIPropertyGrid()
 			ImGui::Text("Culling: Early:[%d]", view.m_GPUCullingCounters.m_Early);
 			ImGui::SameLine();
 
-			ImGui::Text("Late:[%d]", view.m_GPUCullingCounters.m_Late);
+			ImGui::Text("Late: [%d]", view.m_GPUCullingCounters.m_Late);
+            ImGui::SameLine();
+
+			ImGui::Text("Meshlets Frustum: [%d]", view.m_GPUCullingCounters.m_MeshletsFrustum);
+			ImGui::SameLine();
+
+			ImGui::Text("Meshlets Cone: [%d]", view.m_GPUCullingCounters.m_MeshletsCone);
 
             ImGui::Unindent();
         }

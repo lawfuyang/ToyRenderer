@@ -18,6 +18,7 @@ StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t3);
 StructuredBuffer<MeshletData> g_MeshletDataBuffer : register(t4);
 StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
 StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
+RWStructuredBuffer<uint> g_CullingCounters : register(u0);
 Texture2D g_Textures[] : register(t0, space1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 
@@ -76,6 +77,50 @@ void VS_Main(
     outVertex = GetVertexAttributes(instanceConsts, meshData, inInstanceConstIndex, inVertexID);
 }
 
+groupshared MeshletPayload s_MeshletPayload;
+
+[NumThreads(32, 1, 1)]
+void AS_Main(
+    uint3 dispatchThreadID : SV_DispatchThreadID,
+    uint3 groupThreadID : SV_GroupThreadID,
+    uint3 groupId : SV_GroupID,
+    uint groupIndex : SV_GroupIndex
+)
+{
+    bool bVisible = false;
+    
+    uint meshletIdx = dispatchThreadID.x;
+    
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[g_BasePassConsts.m_InstanceConstIdx];
+    MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
+    
+    if (meshletIdx < meshData.m_MeshletCount)
+    {
+        MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataOffset + meshletIdx];
+        
+        float3 sphereCenterWorldSpace = mul(float4(meshletData.m_BoundingSphere.xyz, 1.0f), instanceConsts.m_WorldMatrix).xyz;
+        float3 sphereCenterViewSpace = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_ViewMatrix).xyz;
+        sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
+        
+        float sphereRadius = max(max(instanceConsts.m_WorldMatrix._11, instanceConsts.m_WorldMatrix._22), instanceConsts.m_WorldMatrix._33) * meshletData.m_BoundingSphere.w;
+        
+        const bool bDoFrustumCulling = g_BasePassConsts.m_EnableFrustumCulling;
+        bVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_BasePassConsts.m_Frustum);
+        
+        if (bVisible)
+        {
+            const uint kCullingMeshletsFrustumBufferCounterIdx = 2; // temp until we move all of this shit to gpuculling.hlsl
+            InterlockedAdd(g_CullingCounters[kCullingMeshletsFrustumBufferCounterIdx], 1);
+            
+            uint payloadIdx = WavePrefixCountBits(bVisible);
+            s_MeshletPayload.m_MeshletIndices[payloadIdx] = meshletIdx;
+        }
+    }
+    
+    uint numVisible = WaveActiveCountBits(bVisible);
+    DispatchMesh(numVisible, 1, 1, s_MeshletPayload);
+}
+
 [NumThreads(kMaxMeshletSize, 1, 1)]
 [OutputTopology("triangle")]
 void MS_Main(
@@ -83,11 +128,12 @@ void MS_Main(
     uint3 groupThreadID : SV_GroupThreadID,
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex,
+    in payload MeshletPayload inPayload,
     out vertices VertexOut meshletVertexOut[kMaxMeshletSize],
     out indices uint3 meshletTrianglesOut[kMaxMeshletSize]
 )
 {
-    uint meshletIdx = groupId.x;
+    uint meshletIdx = inPayload.m_MeshletIndices[groupId.x];
     uint meshletOutputIdx = groupThreadID.x;
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[g_BasePassConsts.m_InstanceConstIdx];

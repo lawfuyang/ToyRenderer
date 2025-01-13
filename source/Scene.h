@@ -13,6 +13,8 @@ struct GPUCullingCounters
 {
     uint32_t m_Early;
     uint32_t m_Late;
+    uint32_t m_MeshletsFrustum;
+	uint32_t m_MeshletsCone;
 };
 
 class View
