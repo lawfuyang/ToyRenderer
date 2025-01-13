@@ -53,6 +53,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
 		ImGui::Checkbox("Enable Frustum Culling", &params.m_bEnableFrustumCulling);
 		ImGui::Checkbox("Enable Occlusion Culling", &params.m_bEnableOcclusionCulling);
 		ImGui::Checkbox("Enable Meshlet Rendering", &params.m_bEnableMeshletRendering);
+        ImGui::Checkbox("Enable Meshlet Cone Culling", &params.m_bEnableMeshletConeCulling);
 
 		ImGui::TreePop();
 	}

@@ -19,6 +19,7 @@ struct BasePassConstants
 	// temp meshlet stuff until we move it all to indirect GPU Culling
 	Vector4 m_Frustum;
 	uint32_t m_EnableFrustumCulling;
+	uint32_t m_bEnableMeshletConeCulling;
 };
 
 struct BasePassInstanceConstants

@@ -323,6 +323,7 @@ public:
 
 				basePassConstants.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
 				basePassConstants.m_EnableFrustumCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableFrustumCulling;
+				basePassConstants.m_bEnableMeshletConeCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableMeshletConeCulling;
 
                 memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
 
@@ -357,13 +358,22 @@ public:
 
                 const nvrhi::ShaderHandle pixelShaderHandle = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
 
+                nvrhi::RenderState finalRenderState = params.m_RenderState;
+				
+                // assume alpha mask primitives are double-sided too
+                if (bAlphaMaskPrimitives)
+                {
+                    finalRenderState.rasterState = g_CommonResources.CullNone;
+                    finalRenderState.depthStencilState.backFaceStencil.passOp = nvrhi::StencilOp::Replace;
+                }
+
                 if (bMeshletPipeline)
                 {
                     nvrhi::MeshletPipelineDesc PSODesc;
 					PSODesc.AS = g_Graphic.GetShader("basepass_AS_Main");
 					PSODesc.MS = g_Graphic.GetShader("basepass_MS_Main");
 					PSODesc.PS = pixelShaderHandle;
-                    PSODesc.renderState = params.m_RenderState;
+                    PSODesc.renderState = finalRenderState;
                     PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
 
                     nvrhi::MeshletState meshletState;
@@ -379,7 +389,7 @@ public:
                     nvrhi::GraphicsPipelineDesc PSODesc;
                     PSODesc.VS = g_Graphic.GetShader("basepass_VS_Main");
                     PSODesc.PS = pixelShaderHandle;
-                    PSODesc.renderState = params.m_RenderState;
+                    PSODesc.renderState = finalRenderState;
                     PSODesc.inputLayout = g_CommonResources.GPUCullingLayout;
                     PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
 
@@ -576,13 +586,12 @@ public:
         nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthWriteStencilWrite;
         depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
         depthStencilState.frontFaceStencil.passOp = nvrhi::StencilOp::Replace;
-        depthStencilState.backFaceStencil.passOp = nvrhi::StencilOp::Replace;
 
         RenderBasePassParams params;
         params.m_PS = g_Graphic.GetShader("basepass_PS_Main_GBuffer ALPHA_MASK_MODE=0");
         params.m_PSAlphaMask = g_Graphic.GetShader("basepass_PS_Main_GBuffer ALPHA_MASK_MODE=1");
         params.m_View = &view;
-        params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, g_CommonResources.CullNone };
+        params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, Graphic::kFrontCCW ? g_CommonResources.CullClockwise : g_CommonResources.CullCounterClockwise };
         params.m_FrameBufferDesc = frameBufferDesc;
 
         RenderBasePass(commandList, renderGraph, params);

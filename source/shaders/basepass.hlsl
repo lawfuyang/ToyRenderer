@@ -87,6 +87,10 @@ void AS_Main(
     uint groupIndex : SV_GroupIndex
 )
 {
+    // temp until we move all of this shit to gpuculling.hlsl
+    const uint kCullingMeshletsFrustumBufferCounterIdx = 2;
+    const uint kCullingMeshletsConeBufferCounterIdx = 3;
+    
     bool bVisible = false;
     
     uint meshletIdx = dispatchThreadID.x;
@@ -109,12 +113,35 @@ void AS_Main(
         
         if (bVisible)
         {
-            const uint kCullingMeshletsFrustumBufferCounterIdx = 2; // temp until we move all of this shit to gpuculling.hlsl
             InterlockedAdd(g_CullingCounters[kCullingMeshletsFrustumBufferCounterIdx], 1);
             
-            uint payloadIdx = WavePrefixCountBits(bVisible);
-            s_MeshletPayload.m_MeshletIndices[payloadIdx] = meshletIdx;
+            if (g_BasePassConsts.m_bEnableMeshletConeCulling)
+            {
+                float4 coneAxisAndCutoff;
+                coneAxisAndCutoff.x = (meshletData.m_ConeAxisAndCutoff >> 0) & 0xFF;
+                coneAxisAndCutoff.y = (meshletData.m_ConeAxisAndCutoff >> 8) & 0xFF;
+                coneAxisAndCutoff.z = (meshletData.m_ConeAxisAndCutoff >> 16) & 0xFF;
+                coneAxisAndCutoff.w = (meshletData.m_ConeAxisAndCutoff >> 24) & 0xFF;
+            
+                coneAxisAndCutoff /= 255.0f;
+                coneAxisAndCutoff = coneAxisAndCutoff * 2.0f - 1.0f;
+            
+                coneAxisAndCutoff.xyz = normalize(mul(float4(coneAxisAndCutoff.xyz, 0.0f), instanceConsts.m_WorldMatrix).xyz);
+                coneAxisAndCutoff.xyz = normalize(mul(float4(coneAxisAndCutoff.xyz, 0.0f), g_BasePassConsts.m_ViewMatrix).xyz);
+            
+                bVisible = ConeCull(sphereCenterViewSpace, sphereRadius, coneAxisAndCutoff.xyz, coneAxisAndCutoff.w);
+                if (bVisible)
+                {
+                    InterlockedAdd(g_CullingCounters[kCullingMeshletsConeBufferCounterIdx], 1);
+                }
+            }
         }
+    }
+    
+    if (bVisible)
+    {
+        uint payloadIdx = WavePrefixCountBits(bVisible);
+        s_MeshletPayload.m_MeshletIndices[payloadIdx] = meshletIdx;
     }
     
     uint numVisible = WaveActiveCountBits(bVisible);

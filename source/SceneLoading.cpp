@@ -399,6 +399,12 @@ struct GLTFSceneLoader
                 assert(gltfMaterial.transmission.transmission_texture.texture == nullptr);
             }
 
+            if (gltfMaterial.double_sided)
+            {
+                // forcefully tag this as 'Mask', as double-sided rendering is enabled for this mode
+                sceneMaterial.m_AlphaMode = AlphaMode::Mask;
+            }
+
             if (gltfMaterial.normal_texture.texture)
             {
                 sceneMaterial.m_MaterialFlags |= MaterialFlag_UseNormalTexture;
