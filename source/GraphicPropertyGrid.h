@@ -20,7 +20,7 @@ public:
         bool m_bEnableFrustumCulling = true;
         bool m_bEnableOcclusionCulling = true;
         bool m_bEnableMeshletRendering = false;
-        bool m_bEnableMeshletConeCulling = false; // doesn't work properly yet
+        bool m_bEnableMeshletConeCulling = true;
     };
 	InstanceRenderingControllables m_InstanceRenderingControllables;
 
