@@ -323,7 +323,7 @@ public:
 
 				basePassConstants.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
 				basePassConstants.m_EnableFrustumCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableFrustumCulling;
-				basePassConstants.m_bEnableMeshletConeCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableMeshletConeCulling;
+				basePassConstants.m_bEnableMeshletConeCulling = !bAlphaMaskPrimitives && g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableMeshletConeCulling;
 
                 memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
 

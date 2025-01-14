@@ -117,19 +117,22 @@ void AS_Main(
             
             if (g_BasePassConsts.m_bEnableMeshletConeCulling)
             {
-                float4 coneAxisAndCutoff;
-                coneAxisAndCutoff.x = (meshletData.m_ConeAxisAndCutoff >> 0) & 0xFF;
-                coneAxisAndCutoff.y = (meshletData.m_ConeAxisAndCutoff >> 8) & 0xFF;
-                coneAxisAndCutoff.z = (meshletData.m_ConeAxisAndCutoff >> 16) & 0xFF;
-                coneAxisAndCutoff.w = (meshletData.m_ConeAxisAndCutoff >> 24) & 0xFF;
-            
+                float4 coneAxisAndCutoff = float4(
+                    (meshletData.m_ConeAxisAndCutoff >> 0) & 0xFF,
+                    (meshletData.m_ConeAxisAndCutoff >> 8) & 0xFF,
+                    (meshletData.m_ConeAxisAndCutoff >> 16) & 0xFF,
+                    (meshletData.m_ConeAxisAndCutoff >> 24) & 0xFF
+                );
                 coneAxisAndCutoff /= 255.0f;
-                coneAxisAndCutoff = coneAxisAndCutoff * 2.0f - 1.0f;
+                
+                // xyz = cone axis. need to map from [0,1] to [-1,1]
+                coneAxisAndCutoff.xyz = coneAxisAndCutoff.xyz * 2.0f - 1.0f;
             
-                coneAxisAndCutoff.xyz = normalize(mul(float4(coneAxisAndCutoff.xyz, 0.0f), instanceConsts.m_WorldMatrix).xyz);
-                coneAxisAndCutoff.xyz = normalize(mul(float4(coneAxisAndCutoff.xyz, 0.0f), g_BasePassConsts.m_ViewMatrix).xyz);
-            
-                bVisible = ConeCull(sphereCenterViewSpace, sphereRadius, coneAxisAndCutoff.xyz, coneAxisAndCutoff.w);
+                coneAxisAndCutoff.xyz = normalize(mul(coneAxisAndCutoff.xyz, MakeAdjugateMatrix(instanceConsts.m_WorldMatrix)));
+                coneAxisAndCutoff.xyz = mul(coneAxisAndCutoff.xyz, ToFloat3x3(g_BasePassConsts.m_ViewMatrix));
+                coneAxisAndCutoff.z *= -1.0f;
+                
+                bVisible = !ConeCull(sphereCenterViewSpace, sphereRadius, coneAxisAndCutoff.xyz, coneAxisAndCutoff.w);
                 if (bVisible)
                 {
                     InterlockedAdd(g_CullingCounters[kCullingMeshletsConeBufferCounterIdx], 1);

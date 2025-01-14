@@ -172,7 +172,9 @@ void Mesh::Initialize(
         const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(&meshletVertices.at(meshlet.vertex_offset), &meshletTriangles.at(meshlet.triangle_offset), meshlet.triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(RawVertexFormat));
 
         assert(meshlet.vertex_count <= UINT8_MAX);
-		assert(meshlet.triangle_count <= UINT8_MAX);
+        assert(meshlet.triangle_count <= UINT8_MAX);
+        assert(Vector3{ meshletBounds.cone_axis }.Length() < (1.0f + kKindaSmallNumber));
+        assert(meshletBounds.cone_cutoff_s8 <= (UINT8_MAX / 2));
 
 		newMeshlet.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 8);
 		newMeshlet.m_BoundingSphere = Vector4{ meshletBounds.center[0], meshletBounds.center[1], meshletBounds.center[2], meshletBounds.radius };
@@ -180,7 +182,13 @@ void Mesh::Initialize(
 		const uint32_t packedAxisX = (meshletBounds.cone_axis[0] + 1.0f) * 0.5f * UINT8_MAX;
 		const uint32_t packedAxisY = (meshletBounds.cone_axis[1] + 1.0f) * 0.5f * UINT8_MAX;
 		const uint32_t packedAxisZ = (meshletBounds.cone_axis[2] + 1.0f) * 0.5f * UINT8_MAX;
-		const uint32_t packedCutoff = (meshletBounds.cone_cutoff + 1.0f) * 0.5f * UINT8_MAX;
+        const uint32_t packedCutoff = meshletBounds.cone_cutoff_s8 * 2;
+
+        assert(packedAxisX <= UINT8_MAX);
+        assert(packedAxisY <= UINT8_MAX);
+        assert(packedAxisZ <= UINT8_MAX);
+        assert(packedCutoff <= UINT8_MAX);
+
 		newMeshlet.m_ConeAxisAndCutoff = packedAxisX | (packedAxisY << 8) | (packedAxisZ << 16) | (packedCutoff << 24);
 
         // NOTE: m_VertexBufferIdx & m_IndicesBufferIdx will be properly offset to the global value after all mesh data are loaded

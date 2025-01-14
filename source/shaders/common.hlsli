@@ -6,6 +6,11 @@ static const float M_PI = 3.14159265358979323846f;
 static const float kNearDepth = 1.0f;
 static const float kFarDepth = 0.0f;
 
+float3x3 ToFloat3x3(float4x4 m)
+{
+    return float3x3(m[0].xyz, m[1].xyz, m[2].xyz);
+}
+
 template<typename T>
 T Pow4(T x)
 {
