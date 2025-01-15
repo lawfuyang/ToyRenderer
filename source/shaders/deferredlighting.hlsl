@@ -5,7 +5,6 @@
 #include "random.hlsli"
 #include "packunpack.hlsli"
 
-#include "shared/CommonConsts.h"
 #include "shared/DeferredLightingStructs.h"
 #include "shared/IndirectArguments.h"
 

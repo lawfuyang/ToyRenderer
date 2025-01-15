@@ -34,13 +34,16 @@ class BasePassRenderer : public IRenderer
     RenderGraph::ResourceHandle m_StartInstanceConstsOffsetsRDGBufferHandle;
     RenderGraph::ResourceHandle m_LateCullDispatchIndirectArgsRDGBufferHandle;
     RenderGraph::ResourceHandle m_LateCullInstanceCountBufferRDGBufferHandle;
-    RenderGraph::ResourceHandle m_lateCullInstanceIDsBufferRDGBufferHandle;
+    RenderGraph::ResourceHandle m_LateCullInstanceIDsBufferRDGBufferHandle;
 
     FFXHelpers::SPD m_SPDHelper;
     FencedReadbackBuffer m_CounterStatsReadbackBuffer;
     RenderGraph::ResourceHandle m_CounterStatsRDGBufferHandle;
 
-    const bool m_bDoOcclusionCulling;
+    RenderGraph::ResourceHandle m_MeshletAmplificationDataBufferRDGBufferHandle;
+    RenderGraph::ResourceHandle m_MeshletDispatchArgumentsBufferRDGBufferHandle;
+
+    const bool m_EnableOcclusionCullingForPass;
 
 public:
     struct RenderBasePassParams
@@ -54,7 +57,7 @@ public:
 
     BasePassRenderer(const char* rendererName, bool bDoOcclusionCulling)
         : IRenderer(rendererName)
-		, m_bDoOcclusionCulling(bDoOcclusionCulling)
+		, m_EnableOcclusionCullingForPass(bDoOcclusionCulling)
     {}
 
 	void Initialize() override
@@ -70,6 +73,9 @@ public:
         {
             return true;
 		}
+
+        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
+        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
 
 		{
 			nvrhi::BufferDesc desc;
@@ -116,8 +122,26 @@ public:
 			renderGraph.CreateTransientResource(m_StartInstanceConstsOffsetsRDGBufferHandle, desc);
 		}
 
-        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
-        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(MeshletAmplificationData) * Graphic::kMaxThreadGroupsPerDimension;
+            desc.structStride = sizeof(MeshletAmplificationData);
+            desc.canHaveUAVs = true;
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            desc.debugName = "MeshletAmplificationDataBuffer";
+            renderGraph.CreateTransientResource(m_MeshletAmplificationDataBufferRDGBufferHandle, desc);
+        }
+
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(DispatchIndirectArguments);
+            desc.structStride = sizeof(DispatchIndirectArguments);
+            desc.canHaveUAVs = true;
+            desc.isDrawIndirectArgs = true;
+            desc.initialState = nvrhi::ResourceStates::IndirectArgument;
+            desc.debugName = "MeshletDispatchArgumentsBuffer";
+            renderGraph.CreateTransientResource(m_MeshletDispatchArgumentsBufferRDGBufferHandle, desc);
+        }
 
 		if (bDoOcclusionCulling)
 		{
@@ -154,7 +178,7 @@ public:
                 desc.initialState = nvrhi::ResourceStates::ShaderResource;
 				desc.debugName = "LateCullInstanceIDsBuffer";
 
-				renderGraph.CreateTransientResource(m_lateCullInstanceIDsBufferRDGBufferHandle, desc);
+				renderGraph.CreateTransientResource(m_LateCullInstanceIDsBufferRDGBufferHandle, desc);
             }
 		}
 
@@ -174,7 +198,6 @@ public:
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
-        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
         const uint32_t nbInstances = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
         if (nbInstances == 0)
@@ -182,14 +205,18 @@ public:
             return;
         }
 
-        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
+        const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
+        const bool bDoMeshletRendering = instanceControllables.m_bEnableMeshletRendering;
+        const bool bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass && !bDoMeshletRendering;
 
         nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
         nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_StartInstanceConstsOffsetsRDGBufferHandle);
+        nvrhi::BufferHandle meshletAmplificationDataBuffer = renderGraph.GetBuffer(m_MeshletAmplificationDataBufferRDGBufferHandle);
+        nvrhi::BufferHandle meshletDispatchArgumentsBuffer = renderGraph.GetBuffer(m_MeshletDispatchArgumentsBufferRDGBufferHandle);
         nvrhi::BufferHandle lateCullDispatchIndirectArgsBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullDispatchIndirectArgsRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
         nvrhi::BufferHandle lateCullInstanceCountBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceCountBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
-		nvrhi::BufferHandle lateCullInstanceIDsBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_lateCullInstanceIDsBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
+		nvrhi::BufferHandle lateCullInstanceIDsBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceIDsBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
 
         {
@@ -198,6 +225,7 @@ public:
 			commandList->clearBufferUInt(instanceCountBuffer, 0);
 			commandList->clearBufferUInt(startInstanceConstsOffsetsBuffer, 0);
 			commandList->clearBufferUInt(drawIndexedIndirectArgumentsBuffer, 0);
+            commandList->clearBufferUInt(meshletDispatchArgumentsBuffer, 0);
 
             if (!bLateCull && bDoOcclusionCulling)
             {
@@ -206,7 +234,7 @@ public:
             }
         }
 
-        uint32_t flags = controllables.m_bEnableFrustumCulling ? CullingFlag_FrustumCullingEnable : 0;
+        uint32_t flags = instanceControllables.m_bEnableFrustumCulling ? CullingFlag_FrustumCullingEnable : 0;
         flags |= bDoOcclusionCulling ? CullingFlag_OcclusionCullingEnable : 0;
 
         const Vector2U HZBDims = bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
@@ -237,8 +265,8 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? scene->m_AlphaMaskInstanceIDsBuffer : scene->m_OpaqueInstanceIDsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::Texture_SRV(3, bDoOcclusionCulling ? scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, drawIndexedIndirectArgumentsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, startInstanceConstsOffsetsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, bDoMeshletRendering ? meshletAmplificationDataBuffer : drawIndexedIndirectArgumentsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, bDoMeshletRendering ? meshletDispatchArgumentsBuffer : startInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(4, lateCullInstanceCountBuffer),
@@ -246,11 +274,11 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
-        const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d", bLateCull ? 1 : 0);
+        const std::string shaderName = bDoMeshletRendering ? "gpuculling_CS_GPUCullingMeshlets" : StringFormat("gpuculling_CS_GPUCulling LATE=%d", bLateCull ? 1 : 0);
 
         if (!bLateCull)
         {
-            g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, ComputeShaderUtils::GetGroupCount(nbInstances, 64));
+            g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave));
 
             if (bDoOcclusionCulling)
             {
@@ -292,20 +320,29 @@ public:
             return;
         }
 
-        nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
-        nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
-        nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_StartInstanceConstsOffsetsRDGBufferHandle);
-        nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
+        const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
-        nvrhi::FramebufferHandle frameBuffer = device->createFramebuffer(params.m_FrameBufferDesc);
-        const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
-        const nvrhi::TextureDesc& viewportTexDesc = depthAttachment.texture ? depthAttachment.texture->getDesc() : params.m_FrameBufferDesc.colorAttachments[0].texture->getDesc();
-
-        auto SetStates = [&](bool bMeshletPipeline, uint32_t instanceIdx = 0)
+        auto SetStates = [&](bool bMeshletPipeline)
             {
+                nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
+                nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
+                nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_StartInstanceConstsOffsetsRDGBufferHandle);
+                nvrhi::BufferHandle meshletAmplificationDataBuffer = renderGraph.GetBuffer(m_MeshletAmplificationDataBufferRDGBufferHandle);
+                nvrhi::BufferHandle meshletDispatchArgumentsBuffer = renderGraph.GetBuffer(m_MeshletDispatchArgumentsBufferRDGBufferHandle);
+                nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
+
+                nvrhi::FramebufferHandle frameBuffer = device->createFramebuffer(params.m_FrameBufferDesc);
+                const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
+                const nvrhi::TextureDesc& viewportTexDesc = depthAttachment.texture ? depthAttachment.texture->getDesc() : params.m_FrameBufferDesc.colorAttachments[0].texture->getDesc();
+
+                Matrix projectionT = view.m_ProjectionMatrix.Transpose();
+                Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
+                Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
+                frustumX.Normalize();
+                frustumY.Normalize();
+
                 // pass consts
                 BasePassConstants basePassConstants;
-				basePassConstants.m_InstanceConstIdx = instanceIdx;
                 basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
 				basePassConstants.m_ViewMatrix = view.m_ViewMatrix;
                 basePassConstants.m_DirectionalLightVector = scene->m_DirLightVec * scene->m_DirLightStrength;
@@ -313,17 +350,9 @@ public:
                 basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
                 basePassConstants.m_CameraOrigin = view.m_Eye;
                 basePassConstants.m_SSAOEnabled = g_GraphicPropertyGrid.m_AmbientOcclusionControllables.m_bEnabled;
-
-                // temp meshlet stuff until we move it all to indirect GPU Culling
-                Matrix projectionT = view.m_ProjectionMatrix.Transpose();
-                Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
-                Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
-                frustumX.Normalize();
-                frustumY.Normalize();
-
 				basePassConstants.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
-				basePassConstants.m_EnableFrustumCulling = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableFrustumCulling;
-				basePassConstants.m_bEnableMeshletConeCulling = !bAlphaMaskPrimitives && g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableMeshletConeCulling;
+				basePassConstants.m_EnableFrustumCulling = instanceControllables.m_bEnableFrustumCulling;
+				basePassConstants.m_bEnableMeshletConeCulling = !bAlphaMaskPrimitives && instanceControllables.m_bEnableMeshletConeCulling;
 
                 memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
 
@@ -345,6 +374,7 @@ public:
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalMeshletDataBuffer),
 					nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMeshletVertexOffsetsBuffer),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMeshletIndicesBuffer),
+                    nvrhi::BindingSetItem::StructuredBuffer_SRV(7, meshletAmplificationDataBuffer),
                     nvrhi::BindingSetItem::StructuredBuffer_UAV(0, counterStatsBuffer),
                     nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
                     nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
@@ -380,6 +410,7 @@ public:
 					meshletState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
 					meshletState.framebuffer = frameBuffer;
                     meshletState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
+                    meshletState.indirectParams = meshletDispatchArgumentsBuffer;
                     meshletState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
 
 					commandList->setMeshletState(meshletState);
@@ -407,17 +438,12 @@ public:
                 }
             };
 
-        if (g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bEnableMeshletRendering)
+        if (instanceControllables.m_bEnableMeshletRendering)
         {
-            for (uint32_t primitiveID : primitivesIDs)
-            {
-				const Primitive& primitive = scene->m_Primitives.at(primitiveID);
-				const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+            SetStates(true);
 
-                SetStates(true, primitiveID);
-
-				commandList->dispatchMesh(DivideAndRoundUp(mesh.m_NumMeshlets, 32));
-            }
+            // TODO: dispatchMeshIndirect
+            commandList->dispatchMeshIndirect(0);
         }
         else
         {
@@ -478,8 +504,8 @@ public:
 
             // TODO: support transparent
             GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
-            cullingCounters.m_Early = readbackResults[kCullingEarlyBufferCounterIdx];
-            cullingCounters.m_Late = readbackResults[kCullingLateBufferCounterIdx];
+            cullingCounters.m_EarlyInstances = readbackResults[kCullingEarlyInstancesBufferCounterIdx];
+            cullingCounters.m_LateInstances = readbackResults[kCullingLateInstancesBufferCounterIdx];
             cullingCounters.m_MeshletsFrustum = readbackResults[kCullingMeshletsFrustumBufferCounterIdx];
             cullingCounters.m_MeshletsCone = readbackResults[kCullingMeshletsConeBufferCounterIdx];
         }
@@ -488,6 +514,7 @@ public:
 
         if (controllables.m_bEnableMeshletRendering)
         {
+            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
             RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
         }
         else
@@ -495,7 +522,7 @@ public:
             GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
             RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
 
-            const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_bDoOcclusionCulling;
+            const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
             if (bDoOcclusionCulling)
             {
                 GenerateHZB(commandList, renderGraph, params);

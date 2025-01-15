@@ -1,7 +1,7 @@
 #ifndef _MINMAX_DOWNSAMPLE_STRUCTS_
 #define _MINMAX_DOWNSAMPLE_STRUCTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct MinMaxDownsampleConsts
 {

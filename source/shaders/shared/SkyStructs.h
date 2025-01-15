@@ -1,7 +1,7 @@
 #ifndef _SKY_CONSTANTS_
 #define _SKY_CONSTANTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct HosekWilkieSkyParameters
 {

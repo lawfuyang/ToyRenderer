@@ -1,7 +1,7 @@
 #ifndef _RAW_VERTEX_FORMAT_H_
 #define _RAW_VERTEX_FORMAT_H_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct RawVertexFormat
 {

@@ -1,6 +1,8 @@
 #ifndef __COMMON_HLSL__
 #define __COMMON_HLSL__
 
+#include "shared/CommonConsts.h"
+
 static const float M_PI = 3.14159265358979323846f;
 
 static const float kNearDepth = 1.0f;

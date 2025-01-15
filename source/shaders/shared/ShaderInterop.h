@@ -1,5 +1,5 @@
-#ifndef _STRUCTS_COMMON_H_
-#define _STRUCTS_COMMON_H_
+#ifndef _SHADER_INTEROP_H_
+#define _SHADER_INTEROP_H_
 
 #if defined(__cplusplus)
     #include "MathUtilities.h"
@@ -28,4 +28,4 @@
     #define Matrix float4x4
 #endif // #if defined(__cplusplus)
 
-#endif // #define _STRUCTS_COMMON_H_
+#endif // #define _SHADER_INTEROP_H_

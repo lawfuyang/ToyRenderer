@@ -1,7 +1,7 @@
 #ifndef _BLOOM_STRUCTS_
 #define _BLOOM_STRUCTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct BloomDownsampleConsts
 {

@@ -743,6 +743,8 @@ struct GLTFSceneLoader
 
         assert(m_MeshletDataEntries.size() == m_GlobalMeshData.size());
 
+        uint32_t totalMeshletCount = 0;
+
         // flatten per-primitive meshlet buffers into global buffers
         for (uint32_t i = 0; i < m_MeshletDataEntries.size(); ++i)
 		{
@@ -756,10 +758,16 @@ struct GLTFSceneLoader
 				meshletData.m_IndicesBufferIdx += globalMeshletIndices.size();
             }
 
+            totalMeshletCount += meshletDataEntry.m_Meshlets.size();
+
 			globalMeshletVertexIdxOffsets.insert(globalMeshletVertexIdxOffsets.end(), meshletDataEntry.m_VertexIdxOffsets.begin(), meshletDataEntry.m_VertexIdxOffsets.end());
 			globalMeshletIndices.insert(globalMeshletIndices.end(), meshletDataEntry.m_Indices.begin(), meshletDataEntry.m_Indices.end());
             globalMeshletDatas.insert(globalMeshletDatas.end(), meshletDataEntry.m_Meshlets.begin(), meshletDataEntry.m_Meshlets.end());
 		}
+
+        // we will build a giant linear buffer of meshlets for Amplification Shader indirect dispatches, and we process them all in one giant dispatch
+        // TODO: if the amount of thread groups dispatched bursts the API limit, we'll use the 'Y' dimension as well
+        assert(DivideAndRoundUp(totalMeshletCount, kNumThreadsPerWave) <= Graphic::kMaxThreadGroupsPerDimension);
 
         {
             nvrhi::BufferDesc desc;

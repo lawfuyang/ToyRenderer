@@ -1,7 +1,7 @@
 #ifndef _INDIRECT_ARGUMENTS_H_
 #define _INDIRECT_ARGUMENTS_H_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct DrawIndirectArguments
 {

@@ -1,4 +1,4 @@
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct ShadowMaskConsts
 {

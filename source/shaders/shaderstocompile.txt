@@ -17,6 +17,7 @@ ambientocclusion.hlsl -T cs -E CS_XeGTAO_MainPass -D DEBUG_OUTPUT_MODE={0,1,2,3}
 ambientocclusion.hlsl -T cs -E CS_XeGTAO_Denoise
 gpuculling.hlsl -T cs -E CS_GPUCulling -D LATE={0,1}
 gpuculling.hlsl -T cs -E CS_BuildLateCullIndirectArgs
+gpuculling.hlsl -T cs -E CS_GPUCullingMeshlets
 ../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 minmaxdownsample.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T ps -E PS_Main

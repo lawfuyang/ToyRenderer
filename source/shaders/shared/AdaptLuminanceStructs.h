@@ -1,7 +1,7 @@
 #ifndef _HDR_CONSTANTS_
 #define _HDR_CONSTANTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct GenerateLuminanceHistogramParameters
 {

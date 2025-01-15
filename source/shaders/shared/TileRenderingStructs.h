@@ -1,7 +1,7 @@
 #ifndef _TILE_RENDERING_STRUCTS_
 #define _TILE_RENDERING_STRUCTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct TileRenderingConsts
 {

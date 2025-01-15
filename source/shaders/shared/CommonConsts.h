@@ -1,17 +1,28 @@
 #ifndef _COMMON_CONSTS_H_
 #define _COMMON_CONSTS_H_
 
-// NOTE: this will be shared by both C++ & HLSL files. So this file must be compilable by both
+#include "ShaderInterop.h"
 
-static const int MaterialFlag_UseDiffuseTexture           = (1 << 0);
-static const int MaterialFlag_UseNormalTexture            = (1 << 1);
-static const int MaterialFlag_UseMetallicRoughnessTexture = (1 << 2);
-static const int MaterialFlag_UseEmissiveTexture          = (1 << 3);
+static const uint32_t kNumThreadsPerWave = 32;
 
-static const int SamplerIdx_AnisotropicClamp  = 0;
-static const int SamplerIdx_AnisotropicWrap   = 1;
-static const int SamplerIdx_AnisotropicBorder = 2;
-static const int SamplerIdx_AnisotropicMirror = 3;
-static const int SamplerIdx_Count             = 4;
+static const uint32_t MaterialFlag_UseDiffuseTexture           = (1 << 0);
+static const uint32_t MaterialFlag_UseNormalTexture            = (1 << 1);
+static const uint32_t MaterialFlag_UseMetallicRoughnessTexture = (1 << 2);
+static const uint32_t MaterialFlag_UseEmissiveTexture          = (1 << 3);
+
+static const uint32_t SamplerIdx_AnisotropicClamp  = 0;
+static const uint32_t SamplerIdx_AnisotropicWrap   = 1;
+static const uint32_t SamplerIdx_AnisotropicBorder = 2;
+static const uint32_t SamplerIdx_AnisotropicMirror = 3;
+static const uint32_t SamplerIdx_Count             = 4;
+
+static const uint32_t kCullingEarlyInstancesBufferCounterIdx = 0;
+static const uint32_t kCullingLateInstancesBufferCounterIdx = 1;
+static const uint32_t kCullingMeshletsFrustumBufferCounterIdx = 2;
+static const uint32_t kCullingMeshletsConeBufferCounterIdx = 3;
+static const uint32_t kNbGPUCullingBufferCounters = 4;
+
+static const uint32_t CullingFlag_FrustumCullingEnable = (1 << 0);
+static const uint32_t CullingFlag_OcclusionCullingEnable = (1 << 1);
 
 #endif // #define _COMMON_CONSTS_H_

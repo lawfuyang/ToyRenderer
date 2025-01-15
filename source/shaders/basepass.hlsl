@@ -6,9 +6,9 @@
 
 #include "shared/MeshData.h"
 #include "shared/BasePassStructs.h"
-#include "shared/CommonConsts.h"
 #include "shared/RawVertexFormat.h"
 #include "shared/MaterialData.h"
+#include "shared/IndirectArguments.h"
 
 cbuffer g_PassConstantsBuffer : register(b0) { BasePassConstants g_BasePassConsts; }
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
@@ -18,6 +18,7 @@ StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t3);
 StructuredBuffer<MeshletData> g_MeshletDataBuffer : register(t4);
 StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
 StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
+StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
 RWStructuredBuffer<uint> g_CullingCounters : register(u0);
 Texture2D g_Textures[] : register(t0, space1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
@@ -79,7 +80,7 @@ void VS_Main(
 
 groupshared MeshletPayload s_MeshletPayload;
 
-[NumThreads(32, 1, 1)]
+[NumThreads(kNumThreadsPerWave, 1, 1)]
 void AS_Main(
     uint3 dispatchThreadID : SV_DispatchThreadID,
     uint3 groupThreadID : SV_GroupThreadID,
@@ -87,17 +88,16 @@ void AS_Main(
     uint groupIndex : SV_GroupIndex
 )
 {
-    // temp until we move all of this shit to gpuculling.hlsl
-    const uint kCullingMeshletsFrustumBufferCounterIdx = 2;
-    const uint kCullingMeshletsConeBufferCounterIdx = 3;
-    
     bool bVisible = false;
     
-    uint meshletIdx = dispatchThreadID.x;
+    MeshletAmplificationData amplificationData = g_MeshletAmplificationDataBuffer[groupId.x];
     
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[g_BasePassConsts.m_InstanceConstIdx];
+    uint instanceConstIdx = amplificationData.m_InstanceConstIdx;
+    
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
     
+    uint meshletIdx = amplificationData.m_MeshletGroupOffset + groupThreadID.x;
     if (meshletIdx < meshData.m_MeshletCount)
     {
         MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataOffset + meshletIdx];
@@ -143,7 +143,7 @@ void AS_Main(
     
     if (bVisible)
     {
-        s_MeshletPayload.m_InstanceConstIdx = g_BasePassConsts.m_InstanceConstIdx;
+        s_MeshletPayload.m_InstanceConstIdx = instanceConstIdx;
         
         uint payloadIdx = WavePrefixCountBits(bVisible);
         s_MeshletPayload.m_MeshletIndices[payloadIdx] = meshletIdx;

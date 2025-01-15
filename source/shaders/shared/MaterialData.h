@@ -1,7 +1,7 @@
 #ifndef _MATERIAL_DATA_H_
 #define _MATERIAL_DATA_H_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct MaterialData
 {

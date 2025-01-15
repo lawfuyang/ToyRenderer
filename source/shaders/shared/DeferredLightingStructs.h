@@ -1,7 +1,7 @@
 #ifndef _DEFERRED_LIGHTING_CONSTANTS_
 #define _DEFERRED_LIGHTING_CONSTANTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 static const uint32_t kDeferredLightingDebugMode_LightingOnly      = 1;
 static const uint32_t kDeferredLightingDebugMode_ColorizeInstances = 2;

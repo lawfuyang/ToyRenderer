@@ -1,14 +1,14 @@
 #ifndef _BASE_PASS_CONSTANTS_
 #define _BASE_PASS_CONSTANTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct BasePassConstants
 {
     Matrix m_ViewProjMatrix;
 	Matrix m_ViewMatrix;
     Vector3 m_DirectionalLightVector;
-	uint32_t m_InstanceConstIdx; // for non-instanced rendering
+	uint32_t PAD0;
     Vector3 m_DirectionalLightColor;
 	float m_InvShadowMapResolution;
 	Vector3 m_CameraOrigin;

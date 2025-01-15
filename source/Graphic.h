@@ -28,6 +28,7 @@ public:
 
     static constexpr uint32_t kMaxTextureMipsToGenerate = 12;
     static constexpr uint32_t kNbCSMCascades = 4;
+    static constexpr uint32_t kMaxThreadGroupsPerDimension = 65535; // both d3d12 & vulkan have a limit of 65535 thread groups per dimension
 
     static constexpr uint32_t kStencilBit_Opaque = 0x0;
     static constexpr uint32_t kStencilBit_Sky = 0x1;

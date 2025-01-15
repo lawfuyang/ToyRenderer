@@ -29,7 +29,9 @@ StructuredBuffer<uint> g_PrimitiveIndices : register(t1);
 StructuredBuffer<MeshData> g_MeshData : register(t2);
 Texture2D g_HZB : register(t3);
 RWStructuredBuffer<DrawIndexedIndirectArguments> g_DrawArgumentsOutput : register(u0);
+RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(u0);
 RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
+RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
 RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u4);
@@ -83,9 +85,9 @@ bool OcclusionCull(float3 sphereCenterViewSpace, float radius)
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts)
 {
 #if LATE
-    InterlockedAdd(g_CullingCounters[kCullingLateBufferCounterIdx], 1);
+    InterlockedAdd(g_CullingCounters[kCullingLateInstancesBufferCounterIdx], 1);
 #else
-    InterlockedAdd(g_CullingCounters[kCullingEarlyBufferCounterIdx], 1);
+    InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
 #endif
     
     uint outInstanceIdx;
@@ -104,7 +106,7 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
     g_StartInstanceConstsOffsets[outInstanceIdx] = instanceConstsIdx;
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(kNumThreadsPerWave, 1, 1)]
 void CS_GPUCulling(
     uint3 dispatchThreadID : SV_DispatchThreadID,
     uint3 groupThreadID : SV_GroupThreadID,
@@ -190,4 +192,46 @@ void CS_BuildLateCullIndirectArgs(
     g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountX = DivideAndRoundUp(g_NumLateCullInstances[0], 64);
     g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountY = 1;
     g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountZ = 1;
+}
+
+[numthreads(kNumThreadsPerWave, 1, 1)]
+void CS_GPUCullingMeshlets(
+    uint3 dispatchThreadID : SV_DispatchThreadID,
+    uint3 groupThreadID : SV_GroupThreadID,
+    uint3 groupId : SV_GroupID,
+    uint groupIndex : SV_GroupIndex
+)
+{
+    uint nbInstances = g_GPUCullingPassConstants.m_NbInstances;
+    
+    if (dispatchThreadID.x >= nbInstances)
+    {
+        return;
+    }
+    
+    if (dispatchThreadID.x == 0)
+    {
+        g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountY = 1;
+        g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountZ = 1;
+    }
+    
+    uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
+    MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
+    
+    InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
+    
+    uint numWorkGroups = DivideAndRoundUp(meshData.m_MeshletCount, kNumThreadsPerWave);
+    
+    uint workGroupOffset;
+    InterlockedAdd(g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountX, numWorkGroups, workGroupOffset);
+    
+    for (uint i = 0; i < numWorkGroups; ++i)
+    {
+        MeshletAmplificationData newData;
+        newData.m_InstanceConstIdx = instanceConstsIdx;
+        newData.m_MeshletGroupOffset = i * kNumThreadsPerWave;
+        
+        g_MeshletAmplificationDataBuffer[workGroupOffset + i] = newData;
+    }
 }

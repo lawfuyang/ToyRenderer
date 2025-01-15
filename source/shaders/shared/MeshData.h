@@ -1,7 +1,7 @@
 #ifndef _MESH_DATA_H_
 #define _MESH_DATA_H_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 static const uint32_t kMaxMeshletSize = 64;
 
@@ -28,6 +28,12 @@ struct MeshletPayload
 {
 	uint32_t m_InstanceConstIdx;
 	uint32_t m_MeshletIndices[64];
+};
+
+struct MeshletAmplificationData
+{
+    uint32_t m_InstanceConstIdx;
+    uint32_t m_MeshletGroupOffset;
 };
 
 #endif

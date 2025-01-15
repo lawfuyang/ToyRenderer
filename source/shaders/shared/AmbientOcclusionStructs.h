@@ -1,7 +1,7 @@
 #ifndef _AMBIENT_OCCLUSION_CONSTANTS_
 #define _AMBIENT_OCCLUSION_CONSTANTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct XeGTAOMainPassConstantBuffer
 {

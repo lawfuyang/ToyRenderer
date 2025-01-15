@@ -1,7 +1,7 @@
 #ifndef _POSTPROCESS_CONSTANTS_
 #define _POSTPROCESS_CONSTANTS_
 
-#include "StructsCommon.h"
+#include "ShaderInterop.h"
 
 struct PostProcessParameters
 {

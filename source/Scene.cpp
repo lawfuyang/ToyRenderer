@@ -678,12 +678,12 @@ void Scene::UpdateIMGUIPropertyGrid()
         // TODO: support transparent
 		const View& mainView = m_Views[EView::Main];
 
-		ImGui::Text("Main View:");
+		ImGui::Text("Opaque:");
 
 		ImGui::Indent();
 
-		ImGui::Text("Early:[%d]", mainView.m_GPUCullingCounters.m_Early);
-		ImGui::Text("Late: [%d]", mainView.m_GPUCullingCounters.m_Late);
+		ImGui::Text("Early Instances:[%d]", mainView.m_GPUCullingCounters.m_EarlyInstances);
+		ImGui::Text("Late Instances: [%d]", mainView.m_GPUCullingCounters.m_LateInstances);
 		ImGui::Text("Meshlets Frustum: [%d]", mainView.m_GPUCullingCounters.m_MeshletsFrustum);
 		ImGui::Text("Meshlets Cone: [%d]", mainView.m_GPUCullingCounters.m_MeshletsCone);
 
