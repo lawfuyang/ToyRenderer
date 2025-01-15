@@ -26,6 +26,7 @@ struct MeshletData
 
 struct MeshletPayload
 {
+	uint32_t m_InstanceConstIdx;
 	uint32_t m_MeshletIndices[64];
 };
 

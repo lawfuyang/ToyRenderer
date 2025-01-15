@@ -143,6 +143,8 @@ void AS_Main(
     
     if (bVisible)
     {
+        s_MeshletPayload.m_InstanceConstIdx = g_BasePassConsts.m_InstanceConstIdx;
+        
         uint payloadIdx = WavePrefixCountBits(bVisible);
         s_MeshletPayload.m_MeshletIndices[payloadIdx] = meshletIdx;
     }
@@ -166,7 +168,7 @@ void MS_Main(
     uint meshletIdx = inPayload.m_MeshletIndices[groupId.x];
     uint meshletOutputIdx = groupThreadID.x;
     
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[g_BasePassConsts.m_InstanceConstIdx];
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inPayload.m_InstanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
     MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataOffset + meshletIdx];
     
@@ -179,7 +181,7 @@ void MS_Main(
     {
         uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexBufferIdx + meshletOutputIdx];
         
-        VertexOut vOut = GetVertexAttributes(instanceConsts, meshData, g_BasePassConsts.m_InstanceConstIdx, vertexIdx);
+        VertexOut vOut = GetVertexAttributes(instanceConsts, meshData, inPayload.m_InstanceConstIdx, vertexIdx);
         vOut.m_MeshletIdx = meshletIdx;
         
         meshletVertexOut[meshletOutputIdx] = vOut;
