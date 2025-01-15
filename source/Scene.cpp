@@ -676,26 +676,18 @@ void Scene::UpdateIMGUIPropertyGrid()
 		const auto& InstanceRenderingControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
         // TODO: support transparent
-        for (size_t i = 0; i < EnumUtils::Count<EView>(); i++)
-        {
-            const View& view = m_Views[i];
+		const View& mainView = m_Views[EView::Main];
 
-            ImGui::Text("[%s]:", EnumUtils::ToString((EView)i));
+		ImGui::Text("Main View:");
 
-            ImGui::Indent();
-			ImGui::Text("Culling: Early:[%d]", view.m_GPUCullingCounters.m_Early);
-			ImGui::SameLine();
+		ImGui::Indent();
 
-			ImGui::Text("Late: [%d]", view.m_GPUCullingCounters.m_Late);
-            ImGui::SameLine();
+		ImGui::Text("Early:[%d]", mainView.m_GPUCullingCounters.m_Early);
+		ImGui::Text("Late: [%d]", mainView.m_GPUCullingCounters.m_Late);
+		ImGui::Text("Meshlets Frustum: [%d]", mainView.m_GPUCullingCounters.m_MeshletsFrustum);
+		ImGui::Text("Meshlets Cone: [%d]", mainView.m_GPUCullingCounters.m_MeshletsCone);
 
-			ImGui::Text("Meshlets Frustum: [%d]", view.m_GPUCullingCounters.m_MeshletsFrustum);
-			ImGui::SameLine();
-
-			ImGui::Text("Meshlets Cone: [%d]", view.m_GPUCullingCounters.m_MeshletsCone);
-
-            ImGui::Unindent();
-        }
+		ImGui::Unindent();
 
         ImGui::TreePop();
     }
