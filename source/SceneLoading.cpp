@@ -19,6 +19,7 @@
 #include "shaders/shared/MeshData.h"
 
 CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
+CommandLineOption<bool> g_SkipLoadingSceneTextures{ "skiploadingscenetextures", false };
 
 #define SCENE_LOAD_PROFILE(x) \
     PROFILE_SCOPED(x);        \
@@ -236,6 +237,12 @@ struct GLTFSceneLoader
             return;
         }
 
+        if (g_SkipLoadingSceneTextures.Get())
+        {
+			LOG_DEBUG("Skipping loading scene textures");
+			return;
+        }
+
         tf::Taskflow taskflow;
 
         m_SceneImages.resize(m_GLTFData->textures_count);
@@ -291,10 +298,16 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Load Materials");
 
-        auto HandleTextureView = [&](Texture& texture, const cgltf_texture_view& textureView)
+        auto HandleTextureView = [&](Texture& texture, const cgltf_texture_view& textureView, const Texture& defaultTexture)
             {
                 const cgltf_image* image = textureView.texture->has_basisu ? textureView.texture->basisu_image : textureView.texture->image;
                 assert(image);
+
+                if (g_SkipLoadingSceneTextures.Get())
+                {
+                    texture = defaultTexture;
+                    return;
+                }
 
                 texture = m_SceneImages.at(cgltf_texture_index(m_GLTFData, textureView.texture));
 
@@ -341,7 +354,7 @@ struct GLTFSceneLoader
             if (gltfMaterial.emissive_texture.texture)
             {
 				sceneMaterial.m_MaterialFlags |= MaterialFlag_UseEmissiveTexture;
-				HandleTextureView(sceneMaterial.m_EmissiveTexture, gltfMaterial.emissive_texture);
+				HandleTextureView(sceneMaterial.m_EmissiveTexture, gltfMaterial.emissive_texture, g_CommonResources.BlackTexture);
 			}
 
             if (gltfMaterial.has_pbr_specular_glossiness)
@@ -349,12 +362,12 @@ struct GLTFSceneLoader
                 if (gltfMaterial.pbr_specular_glossiness.diffuse_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
-                    HandleTextureView(sceneMaterial.m_AlbedoTexture, gltfMaterial.pbr_specular_glossiness.diffuse_texture);
+                    HandleTextureView(sceneMaterial.m_AlbedoTexture, gltfMaterial.pbr_specular_glossiness.diffuse_texture, g_CommonResources.WhiteTexture);
                 }
                 if (gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
-                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture);
+                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture, g_CommonResources.DefaultRoughnessMetallicTexture);
                 }
 
                 sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_specular_glossiness.diffuse_factor[0] };
@@ -366,12 +379,12 @@ struct GLTFSceneLoader
                 if (gltfMaterial.pbr_metallic_roughness.base_color_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
-                    HandleTextureView(sceneMaterial.m_AlbedoTexture, gltfMaterial.pbr_metallic_roughness.base_color_texture);
+                    HandleTextureView(sceneMaterial.m_AlbedoTexture, gltfMaterial.pbr_metallic_roughness.base_color_texture, g_CommonResources.WhiteTexture);
                 }
                 if (gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
-                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
+                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTexture, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture, g_CommonResources.DefaultRoughnessMetallicTexture);
                 }
 
                 sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
@@ -408,7 +421,7 @@ struct GLTFSceneLoader
             if (gltfMaterial.normal_texture.texture)
             {
                 sceneMaterial.m_MaterialFlags |= MaterialFlag_UseNormalTexture;
-                HandleTextureView(sceneMaterial.m_NormalTexture, gltfMaterial.normal_texture);
+                HandleTextureView(sceneMaterial.m_NormalTexture, gltfMaterial.normal_texture, g_CommonResources.DefaultNormalTexture);
             }
 
             sceneMaterial.m_MaterialDataBufferIdx = i;

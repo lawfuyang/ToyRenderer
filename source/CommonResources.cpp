@@ -181,9 +181,11 @@ void CommonResources::Initialize()
 {
     PROFILE_FUNCTION();
 
-    CreateDefaultTexture("Black 2D Texture",       BlackTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
-    CreateDefaultTexture("White 2D Texture",       WhiteTexture,       nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
-    CreateDefaultTexture("Dummy UAV 2D Texture",   DummyUAV2DTexture,  nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true /*bUAV*/);
+    CreateDefaultTexture("Black 2D Texture", BlackTexture, nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture("White 2D Texture", WhiteTexture, nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
+	CreateDefaultTexture("Default Roughness Metallic Texture", DefaultRoughnessMetallicTexture, nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 1.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
+	CreateDefaultTexture("Default Normal Texture", DefaultNormalTexture, nvrhi::Format::RGBA8_UNORM, Color{ 0.5f, 0.5f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture("Dummy UAV 2D Texture", DummyUAV2DTexture, nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true /*bUAV*/);
     CreateDefaultTexture("R8 UInt Max 2D Texture", R8UIntMax2DTexture, nvrhi::Format::R8_UINT, UINT8_MAX, 1, false /*bUAV*/);
 
     CreateDefaultBuffer("DummyUIntStructuredBuffer", DummyUIntStructuredBuffer, sizeof(uint32_t), sizeof(uint32_t), true /*bUAV*/, false /*bRaw*/);

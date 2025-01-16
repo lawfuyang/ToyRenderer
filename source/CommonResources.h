@@ -12,6 +12,8 @@ public:
     // Textures
     Texture BlackTexture;
     Texture WhiteTexture;
+    Texture DefaultRoughnessMetallicTexture;
+    Texture DefaultNormalTexture;
     Texture DummyUAV2DTexture;
     Texture R8UIntMax2DTexture;
 
