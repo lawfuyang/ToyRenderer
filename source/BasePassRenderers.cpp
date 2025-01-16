@@ -239,7 +239,7 @@ public:
 
         const Vector2U HZBDims = bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
 
-        Matrix projectionT = view.m_ProjectionMatrix.Transpose();
+        Matrix projectionT = view.m_CullingProjectionMatrix.Transpose();
         Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
         Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
         frustumX.Normalize();
@@ -250,11 +250,11 @@ public:
         passParameters.m_Flags = flags;
 		passParameters.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
         passParameters.m_HZBDimensions = HZBDims;
-        passParameters.m_ViewMatrix = view.m_ViewMatrix;
+        passParameters.m_ViewMatrix = view.m_CullingViewMatrix;
         passParameters.m_PrevViewMatrix = view.m_PrevFrameViewMatrix;
         passParameters.m_NearPlane = view.m_ZNearP;
-        passParameters.m_P00 = view.m_ProjectionMatrix.m[0][0];
-        passParameters.m_P11 = view.m_ProjectionMatrix.m[1][1];
+        passParameters.m_P00 = view.m_CullingProjectionMatrix.m[0][0];
+        passParameters.m_P11 = view.m_CullingProjectionMatrix.m[1][1];
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -335,7 +335,7 @@ public:
                 const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
                 const nvrhi::TextureDesc& viewportTexDesc = depthAttachment.texture ? depthAttachment.texture->getDesc() : params.m_FrameBufferDesc.colorAttachments[0].texture->getDesc();
 
-                Matrix projectionT = view.m_ProjectionMatrix.Transpose();
+                Matrix projectionT = view.m_CullingProjectionMatrix.Transpose();
                 Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
                 Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
                 frustumX.Normalize();
@@ -344,7 +344,7 @@ public:
                 // pass consts
                 BasePassConstants basePassConstants;
                 basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
-				basePassConstants.m_ViewMatrix = view.m_ViewMatrix;
+				basePassConstants.m_ViewMatrix = view.m_CullingViewMatrix;
                 basePassConstants.m_DirectionalLightVector = scene->m_DirLightVec * scene->m_DirLightStrength;
                 basePassConstants.m_DirectionalLightColor = scene->m_DirLightColor;
                 basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;

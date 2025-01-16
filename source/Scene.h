@@ -37,6 +37,9 @@ public:
     Vector3 m_Right;
     Vector3 m_Up;
 
+    Matrix m_CullingViewMatrix;
+	Matrix m_CullingProjectionMatrix;
+
     Matrix m_ViewMatrix;
     Matrix m_ProjectionMatrix;
     Matrix m_ViewProjectionMatrix;

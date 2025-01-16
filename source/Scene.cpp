@@ -136,6 +136,13 @@ void View::Update()
 
     Frustum::CreateFromMatrix(m_Frustum, m_ProjectionMatrix);
     m_Frustum.Transform(m_Frustum, m_InvViewMatrix);
+
+	const bool bFreezeCullingCamera = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera;
+    if (!bFreezeCullingCamera)
+    {
+		m_CullingViewMatrix = m_ViewMatrix;
+		m_CullingProjectionMatrix = m_ProjectionMatrix;
+    }
 }
 
 void View::UpdateVectors(float yaw, float pitch)

@@ -54,6 +54,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
 		ImGui::Checkbox("Enable Occlusion Culling", &params.m_bEnableOcclusionCulling);
 		ImGui::Checkbox("Enable Meshlet Rendering", &params.m_bEnableMeshletRendering);
         ImGui::Checkbox("Enable Meshlet Cone Culling", &params.m_bEnableMeshletConeCulling);
+		ImGui::Checkbox("Freeze Culling Camera", &params.m_bFreezeCullingCamera);
 
 		ImGui::TreePop();
 	}
