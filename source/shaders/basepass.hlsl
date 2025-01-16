@@ -106,7 +106,7 @@ void AS_Main(
         float3 sphereCenterViewSpace = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_ViewMatrix).xyz;
         sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
         
-        float sphereRadius = max(max(instanceConsts.m_WorldMatrix._11, instanceConsts.m_WorldMatrix._22), instanceConsts.m_WorldMatrix._33) * meshletData.m_BoundingSphere.w;
+        float sphereRadius = ScaleBoundingSphere(meshletData.m_BoundingSphere.w, instanceConsts.m_WorldMatrix);
         
         const bool bDoFrustumCulling = g_BasePassConsts.m_EnableFrustumCulling;
         bVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_BasePassConsts.m_Frustum);
