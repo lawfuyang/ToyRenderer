@@ -12,9 +12,11 @@ class RenderGraph;
 struct GPUCullingCounters
 {
     uint32_t m_EarlyInstances;
+    uint32_t m_EarlyMeshletsFrustum;
+    uint32_t m_EarlyMeshletsCone;
     uint32_t m_LateInstances;
-    uint32_t m_MeshletsFrustum;
-	uint32_t m_MeshletsCone;
+    uint32_t m_LateMeshletsFrustum;
+    uint32_t m_LateMeshletsCone;
 };
 
 class View

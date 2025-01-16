@@ -17,10 +17,12 @@ static const uint32_t SamplerIdx_AnisotropicMirror = 3;
 static const uint32_t SamplerIdx_Count             = 4;
 
 static const uint32_t kCullingEarlyInstancesBufferCounterIdx = 0;
-static const uint32_t kCullingLateInstancesBufferCounterIdx = 1;
-static const uint32_t kCullingMeshletsFrustumBufferCounterIdx = 2;
-static const uint32_t kCullingMeshletsConeBufferCounterIdx = 3;
-static const uint32_t kNbGPUCullingBufferCounters = 4;
+static const uint32_t kCullingEarlyMeshletsFrustumBufferCounterIdx = 1;
+static const uint32_t kCullingEarlyMeshletsConeBufferCounterIdx = 2;
+static const uint32_t kCullingLateInstancesBufferCounterIdx = 3;
+static const uint32_t kCullingLateMeshletsFrustumBufferCounterIdx = 4;
+static const uint32_t kCullingLateMeshletsConeBufferCounterIdx = 5;
+static const uint32_t kNbGPUCullingBufferCounters = 6;
 
 static const uint32_t CullingFlag_FrustumCullingEnable = (1 << 0);
 static const uint32_t CullingFlag_OcclusionCullingEnable = (1 << 1);

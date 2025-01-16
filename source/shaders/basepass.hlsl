@@ -113,7 +113,7 @@ void AS_Main(
         
         if (bVisible)
         {
-            InterlockedAdd(g_CullingCounters[kCullingMeshletsFrustumBufferCounterIdx], 1);
+            InterlockedAdd(g_CullingCounters[kCullingEarlyMeshletsFrustumBufferCounterIdx], 1);
             
             if (g_BasePassConsts.m_bEnableMeshletConeCulling)
             {
@@ -135,7 +135,7 @@ void AS_Main(
                 bVisible = !ConeCull(sphereCenterViewSpace, sphereRadius, coneAxisAndCutoff.xyz, coneAxisAndCutoff.w);
                 if (bVisible)
                 {
-                    InterlockedAdd(g_CullingCounters[kCullingMeshletsConeBufferCounterIdx], 1);
+                    InterlockedAdd(g_CullingCounters[kCullingEarlyMeshletsConeBufferCounterIdx], 1);
                 }
             }
         }

@@ -503,9 +503,11 @@ public:
             // TODO: support transparent
             GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
             cullingCounters.m_EarlyInstances = readbackResults[kCullingEarlyInstancesBufferCounterIdx];
+            cullingCounters.m_EarlyMeshletsFrustum = readbackResults[kCullingEarlyMeshletsFrustumBufferCounterIdx];
+            cullingCounters.m_EarlyMeshletsCone = readbackResults[kCullingEarlyMeshletsConeBufferCounterIdx];
             cullingCounters.m_LateInstances = readbackResults[kCullingLateInstancesBufferCounterIdx];
-            cullingCounters.m_MeshletsFrustum = readbackResults[kCullingMeshletsFrustumBufferCounterIdx];
-            cullingCounters.m_MeshletsCone = readbackResults[kCullingMeshletsConeBufferCounterIdx];
+			cullingCounters.m_LateMeshletsFrustum = readbackResults[kCullingLateMeshletsFrustumBufferCounterIdx];
+			cullingCounters.m_LateMeshletsCone = readbackResults[kCullingLateMeshletsConeBufferCounterIdx];
         }
 
         const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
