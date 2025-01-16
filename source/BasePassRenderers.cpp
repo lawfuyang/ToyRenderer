@@ -441,8 +441,6 @@ public:
         if (instanceControllables.m_bEnableMeshletRendering)
         {
             SetStates(true);
-
-            // TODO: dispatchMeshIndirect
             commandList->dispatchMeshIndirect(0);
         }
         else
