@@ -219,6 +219,20 @@ void CS_GPUCullingMeshlets(
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
     
+    const bool bDoFrustumCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_FrustumCullingEnable;
+    
+    float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
+    sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
+    
+    float sphereRadius = instanceConsts.m_BoundingSphere.w;
+    
+    bool bIsVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_GPUCullingPassConstants.m_Frustum);
+    
+    if (!bIsVisible)
+    {
+        return;
+    }
+    
     InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
     
     uint numWorkGroups = DivideAndRoundUp(meshData.m_MeshletCount, kNumThreadsPerWave);
