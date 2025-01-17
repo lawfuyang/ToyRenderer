@@ -1078,8 +1078,8 @@ void Graphic::AddFullScreenPass(
     const nvrhi::DepthStencilState& depthStencilState = depthStencilStateIn ? *depthStencilStateIn : g_CommonResources.DepthNoneStencilNone;
 
     // PSO
-    nvrhi::GraphicsPipelineDesc PSODesc;
-    PSODesc.VS = g_Graphic.GetShader("fullscreen_VS_FullScreenTriangle");
+    nvrhi::MeshletPipelineDesc PSODesc;
+    PSODesc.MS = g_Graphic.GetShader("fullscreen_MS_FullScreenTriangle");
     PSODesc.PS = g_Graphic.GetShader(pixelShaderName);
     PSODesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ blendState }, depthStencilState, g_CommonResources.CullNone };
     PSODesc.bindingLayouts = { bindingLayout };
@@ -1090,23 +1090,20 @@ void Graphic::AddFullScreenPass(
 
     const nvrhi::Viewport& viewPort = viewPortIn ? *viewPortIn : nvrhi::Viewport{ (float)renderTargetDesc.width, (float)renderTargetDesc.height };
 
-    nvrhi::GraphicsState drawState;
-    drawState.framebuffer = frameBuffer;
-    drawState.viewport.addViewportAndScissorRect(viewPort);
-    drawState.bindings = { bindingSet };
-    drawState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
+    nvrhi::MeshletState meshletState;
+    meshletState.framebuffer = frameBuffer;
+    meshletState.viewport.addViewportAndScissorRect(viewPort);
+    meshletState.bindings = { bindingSet };
+    meshletState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
 
-    commandList->setGraphicsState(drawState);
+    commandList->setMeshletState(meshletState);
 
     if (pushConstantsData)
 	{
 		commandList->setPushConstants(pushConstantsData, pushConstantsBytes);
 	}
 
-    nvrhi::DrawArguments drawArguments;
-    drawArguments.vertexCount = 3;
-
-    commandList->draw(drawArguments);
+    commandList->dispatchMesh(1, 1, 1);
 }
 
 void Graphic::AddComputePass(

@@ -4,7 +4,6 @@
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/DynamicLOD
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/MeshletInstancing (?)
 	• triangle culling (?)
-    • fullscreen MS Shader for fun
 • Anti-Aliasing
 	• TAA: https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/TemporalAntialiasing
 	• FSR: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/super-resolution-upscaler.md

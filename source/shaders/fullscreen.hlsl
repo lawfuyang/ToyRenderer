@@ -1,27 +1,43 @@
 #include "common.hlsli"
-	
-void VS_FullScreenTriangle(
-    in uint inVertexID : SV_VertexID,
-    out float4 outPosition : SV_POSITION,
-    out float2 outUV : TEXCOORD0
+
+struct VertexOut
+{
+    float4 m_Position : SV_POSITION;
+    float2 m_UV : TEXCOORD;
+};
+
+[NumThreads(3, 1, 1)]
+[OutputTopology("triangle")]
+void MS_FullScreenTriangle(
+    uint3 groupThreadID : SV_GroupThreadID,
+    out indices uint3 tris[1],
+    out vertices VertexOut verts[3]
 )
 {
-    float4 positions[3] =
+    static const float4 kPositions[3] =
     {
         { -1.0f, 3.0f, kFarDepth, 1.0f },
         { -1.0f, -1.0f, kFarDepth, 1.0f },
         { 3.0f, -1.0f, kFarDepth, 1.0f }
     };
     
-    float2 UVs[3] = 
+    static const float2 kUVs[3] =
     {
         { 0.0f, -1.0f },
         { 0.0f, 1.0f },
         { 2.0f, 1.0f }
     };
     
-    outPosition = positions[inVertexID];
-    outUV = UVs[inVertexID];
+    SetMeshOutputCounts(3, 1);
+    
+    VertexOut vout;
+    vout.m_Position = kPositions[groupThreadID.x];
+    vout.m_UV = kUVs[groupThreadID.x];
+    
+    verts[groupThreadID.x] = vout;
+    
+    static const uint3 kTriangle = uint3(0, 1, 2);
+    tris[groupThreadID.x] = kTriangle;
 }
 
 void VS_FullScreenCube(
