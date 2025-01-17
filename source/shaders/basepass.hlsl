@@ -1,4 +1,5 @@
 #include "common.hlsli"
+#include "culling.hlsli"
 #include "shadowfiltering.hlsl"
 #include "lightingcommon.hlsli"
 #include "random.hlsli"
@@ -113,8 +114,6 @@ void AS_Main(
         
         if (bVisible)
         {
-            InterlockedAdd(g_CullingCounters[kCullingEarlyMeshletsFrustumBufferCounterIdx], 1);
-            
             if (g_BasePassConsts.m_bEnableMeshletConeCulling)
             {
                 float4 coneAxisAndCutoff = float4(
@@ -133,16 +132,18 @@ void AS_Main(
                 coneAxisAndCutoff.z *= -1.0f;
                 
                 bVisible = !ConeCull(sphereCenterViewSpace, sphereRadius, coneAxisAndCutoff.xyz, coneAxisAndCutoff.w);
-                if (bVisible)
-                {
-                    InterlockedAdd(g_CullingCounters[kCullingEarlyMeshletsConeBufferCounterIdx], 1);
-                }
             }
         }
     }
     
     if (bVisible)
     {
+    #if LATE_CULL
+        InterlockedAdd(g_CullingCounters[kCullingLateMeshletsBufferCounterIdx], 1);
+    #else
+        InterlockedAdd(g_CullingCounters[kCullingEarlyMeshletsBufferCounterIdx], 1);
+    #endif
+        
         s_MeshletPayload.m_InstanceConstIdx = instanceConstIdx;
         
         uint payloadIdx = WavePrefixCountBits(bVisible);

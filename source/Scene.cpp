@@ -140,8 +140,8 @@ void View::Update()
 	const bool bFreezeCullingCamera = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera;
     if (!bFreezeCullingCamera)
     {
+        m_CullingPrevFrameViewMatrix = m_CullingViewMatrix;
 		m_CullingViewMatrix = m_ViewMatrix;
-		m_CullingProjectionMatrix = m_ProjectionMatrix;
     }
 }
 
@@ -690,8 +690,7 @@ void Scene::UpdateIMGUIPropertyGrid()
 		ImGui::Indent();
 
 		ImGui::Text("Instances:[%d]", mainView.m_GPUCullingCounters.m_EarlyInstances);
-		ImGui::Text("Meshlets Frustum: [%d]", mainView.m_GPUCullingCounters.m_EarlyMeshletsFrustum);
-		ImGui::Text("Meshlets Cone: [%d]", mainView.m_GPUCullingCounters.m_EarlyMeshletsCone);
+		ImGui::Text("Meshlets: [%d]", mainView.m_GPUCullingCounters.m_EarlyMeshlets);
 
 		ImGui::Unindent();
 
@@ -700,8 +699,7 @@ void Scene::UpdateIMGUIPropertyGrid()
         ImGui::Indent();
 
         ImGui::Text("Instances: [%d]", mainView.m_GPUCullingCounters.m_LateInstances);
-        ImGui::Text("Meshlets Frustum: [%d]", mainView.m_GPUCullingCounters.m_LateMeshletsFrustum);
-        ImGui::Text("Meshlets Cone: [%d]", mainView.m_GPUCullingCounters.m_LateMeshletsCone);
+        ImGui::Text("Meshlets: [%d]", mainView.m_GPUCullingCounters.m_LateMeshlets);
 
         ImGui::Unindent();
 

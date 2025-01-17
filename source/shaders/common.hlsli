@@ -112,29 +112,6 @@ float3x3 MakeAdjugateMatrix(float4x4 m)
 	);
 }
 
-// Niagara's frustum culling
-bool FrustumCull(float3 sphereCenterViewSpace, float radius, float4 frustum)
-{
-    bool visible = true;
-    
-	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-    visible &= sphereCenterViewSpace.z * frustum.y + abs(sphereCenterViewSpace.x) * frustum.x < radius;
-    visible &= sphereCenterViewSpace.z * frustum.w + abs(sphereCenterViewSpace.y) * frustum.z < radius;
-    
-	// the near plane culling uses camera space Z directly
-    // NOTE: this seems unnecessary?
-#if 0
-    visible &= (sphereCenterViewSpace.z - radius) < g_GPUCullingPassConstants.m_NearPlane;
-#endif
-    
-    return visible;
-}
-
-bool ConeCull(float3 sphereCenterViewSpace, float radius, float3 coneAxis, float coneCutoff)
-{
-    return dot(sphereCenterViewSpace, coneAxis) >= coneCutoff * length(sphereCenterViewSpace) + radius;
-}
-
 float ScaleBoundingSphere(float radius, float4x4 worldMatrix)
 {
     float3 dx = dot(worldMatrix._11_11_11, worldMatrix._11_11_11).xxx;

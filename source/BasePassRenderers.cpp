@@ -207,7 +207,7 @@ public:
 
         const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
         const bool bDoMeshletRendering = instanceControllables.m_bEnableMeshletRendering;
-        const bool bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass && !bDoMeshletRendering;
+        const bool bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
 
         nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
@@ -239,7 +239,7 @@ public:
 
         const Vector2U HZBDims = bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
 
-        Matrix projectionT = view.m_CullingProjectionMatrix.Transpose();
+        Matrix projectionT = view.m_ProjectionMatrix.Transpose();
         Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
         Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
         frustumX.Normalize();
@@ -251,10 +251,10 @@ public:
 		passParameters.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
         passParameters.m_HZBDimensions = HZBDims;
         passParameters.m_ViewMatrix = view.m_CullingViewMatrix;
-        passParameters.m_PrevViewMatrix = view.m_PrevFrameViewMatrix;
+        passParameters.m_PrevViewMatrix = view.m_CullingPrevFrameViewMatrix;
         passParameters.m_NearPlane = view.m_ZNearP;
-        passParameters.m_P00 = view.m_CullingProjectionMatrix.m[0][0];
-        passParameters.m_P11 = view.m_CullingProjectionMatrix.m[1][1];
+        passParameters.m_P00 = view.m_ProjectionMatrix.m[0][0];
+        passParameters.m_P11 = view.m_ProjectionMatrix.m[1][1];
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -274,7 +274,7 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
-        const std::string shaderName = bDoMeshletRendering ? "gpuculling_CS_GPUCullingMeshlets" : StringFormat("gpuculling_CS_GPUCulling LATE=%d", bLateCull ? 1 : 0);
+        const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d MESHLET=%d", bLateCull, bDoMeshletRendering);
 
         if (!bLateCull)
         {
@@ -303,6 +303,7 @@ public:
         nvrhi::CommandListHandle commandList,
         const RenderGraph& renderGraph,
         const RenderBasePassParams& params,
+        bool bIsLateCull,
         bool bAlphaMaskPrimitives)
     {
         PROFILE_FUNCTION();
@@ -335,7 +336,7 @@ public:
                 const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
                 const nvrhi::TextureDesc& viewportTexDesc = depthAttachment.texture ? depthAttachment.texture->getDesc() : params.m_FrameBufferDesc.colorAttachments[0].texture->getDesc();
 
-                Matrix projectionT = view.m_CullingProjectionMatrix.Transpose();
+                Matrix projectionT = view.m_ProjectionMatrix.Transpose();
                 Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
                 Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
                 frustumX.Normalize();
@@ -400,7 +401,7 @@ public:
                 if (bMeshletPipeline)
                 {
                     nvrhi::MeshletPipelineDesc PSODesc;
-					PSODesc.AS = g_Graphic.GetShader("basepass_AS_Main");
+					PSODesc.AS = g_Graphic.GetShader(StringFormat("basepass_AS_Main LATE_CULL=%d", bIsLateCull));
 					PSODesc.MS = g_Graphic.GetShader("basepass_MS_Main");
 					PSODesc.PS = pixelShaderHandle;
                     PSODesc.renderState = finalRenderState;
@@ -455,6 +456,12 @@ public:
 
     void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
     {
+        const bool bFreezeCullingCamera = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera;
+        if (bFreezeCullingCamera)
+        {
+            return;
+        }
+
         PROFILE_FUNCTION();
         PROFILE_GPU_SCOPED(commandList, "Generate HZB");
 
@@ -503,46 +510,36 @@ public:
             // TODO: support transparent
             GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
             cullingCounters.m_EarlyInstances = readbackResults[kCullingEarlyInstancesBufferCounterIdx];
-            cullingCounters.m_EarlyMeshletsFrustum = readbackResults[kCullingEarlyMeshletsFrustumBufferCounterIdx];
-            cullingCounters.m_EarlyMeshletsCone = readbackResults[kCullingEarlyMeshletsConeBufferCounterIdx];
+            cullingCounters.m_EarlyMeshlets = readbackResults[kCullingEarlyMeshletsBufferCounterIdx];
             cullingCounters.m_LateInstances = readbackResults[kCullingLateInstancesBufferCounterIdx];
-			cullingCounters.m_LateMeshletsFrustum = readbackResults[kCullingLateMeshletsFrustumBufferCounterIdx];
-			cullingCounters.m_LateMeshletsCone = readbackResults[kCullingLateMeshletsConeBufferCounterIdx];
+			cullingCounters.m_LateMeshlets = readbackResults[kCullingLateMeshletsBufferCounterIdx];
         }
 
         const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
-        if (controllables.m_bEnableMeshletRendering)
+        GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
+        RenderInstances(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
+
+        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
+        if (bDoOcclusionCulling)
         {
-            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
-            RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
+            GenerateHZB(commandList, renderGraph, params);
+
+            GPUCulling(commandList, renderGraph, params, true /* bLateCull */, false /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, true /* bLateCull */, false /* bAlphaMaskPrimitives */);
+
+            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
+            GPUCulling(commandList, renderGraph, params, true /* bLateCull */, true /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, true /* bLateCull */, true /* bAlphaMaskPrimitives */);
+
+            GenerateHZB(commandList, renderGraph, params);
         }
         else
         {
-            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
-            RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
-
-            const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
-            if (bDoOcclusionCulling)
-            {
-                GenerateHZB(commandList, renderGraph, params);
-
-                GPUCulling(commandList, renderGraph, params, true /* bLateCull */, false /* bAlphaMaskPrimitives */);
-                RenderInstances(commandList, renderGraph, params, false /* bAlphaMaskPrimitives */);
-
-                GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
-                RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
-                GPUCulling(commandList, renderGraph, params, true /* bLateCull */, true /* bAlphaMaskPrimitives */);
-                RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
-
-                GenerateHZB(commandList, renderGraph, params);
-            }
-            else
-            {
-                // cull & render for alpha mask primitives, but no occlusion culling
-                GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
-                RenderInstances(commandList, renderGraph, params, true /* bAlphaMaskPrimitives */);
-            }
+            // cull & render for alpha mask primitives, but no occlusion culling
+            GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
+            RenderInstances(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
         }
 
 		// copy counter buffer, so that it can be read on CPU next frame

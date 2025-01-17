@@ -1,4 +1,5 @@
 #include "common.hlsli"
+#include "culling.hlsli"
 
 #include "shared/MeshData.h"
 #include "shared/BasePassStructs.h"
@@ -21,6 +22,7 @@
 
 #if __INTELLISENSE__
 #define LATE 0
+#define MESHLET 1
 #endif
 
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
@@ -38,50 +40,6 @@ RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u4);
 RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u5);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
-// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
-bool OcclusionCull(float3 sphereCenterViewSpace, float radius)
-{
-    float3 c = sphereCenterViewSpace;
-    
-    // trivially accept if sphere intersects camera near plane
-    if ((c.z - g_GPUCullingPassConstants.m_NearPlane) < radius)
-        return true;
-    
-    float r = radius;
-    float P00 = g_GPUCullingPassConstants.m_P00;
-    float P11 = g_GPUCullingPassConstants.m_P11;
-
-    float3 cr = c * r;
-    float czr2 = c.z * c.z - r * r;
-
-    float vx = sqrt(c.x * c.x + czr2);
-    float minx = (vx * c.x - cr.z) / (vx * c.z + cr.x);
-    float maxx = (vx * c.x + cr.z) / (vx * c.z - cr.x);
-
-    float vy = sqrt(c.y * c.y + czr2);
-    float miny = (vy * c.y - cr.z) / (vy * c.z + cr.y);
-    float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
-
-    float4 aabb = float4(minx * P00, miny * P11, maxx * P00, maxy * P11);
-    
-    aabb.xy = clamp(aabb.xy, -1, 1);
-    aabb.zw = clamp(aabb.zw, -1, 1);
-    
-    // clip space -> uv space
-    aabb.xy = ClipXYToUV(aabb.xy);
-    aabb.zw = ClipXYToUV(aabb.zw);
-    
-    float width = (aabb.z - aabb.x) * g_GPUCullingPassConstants.m_HZBDimensions.x;
-    float height = (aabb.w - aabb.y) * g_GPUCullingPassConstants.m_HZBDimensions.y;
-    float level = floor(log2(max(width, height)));
-    
-    // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-    float depth = g_HZB.SampleLevel(g_LinearClampMinReductionSampler, (aabb.xy + aabb.zw) * 0.5f, level).x;
-    float depthSphere = g_GPUCullingPassConstants.m_NearPlane / (c.z - r);
-
-    return depthSphere >= depth;
-}
-
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts)
 {
 #if LATE
@@ -89,11 +47,28 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
 #else
     InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
 #endif
-    
-    uint outInstanceIdx;
-    InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);
 
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
+    
+#if MESHLET
+    uint numWorkGroups = DivideAndRoundUp(meshData.m_MeshletCount, kNumThreadsPerWave);
+    
+    uint workGroupOffset;
+    InterlockedAdd(g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountX, numWorkGroups, workGroupOffset);
+    g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountY = 1;
+    g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountZ = 1;
+    
+    for (uint i = 0; i < numWorkGroups; ++i)
+    {
+        MeshletAmplificationData newData;
+        newData.m_InstanceConstIdx = instanceConstsIdx;
+        newData.m_MeshletGroupOffset = i * kNumThreadsPerWave;
+        
+        g_MeshletAmplificationDataBuffer[workGroupOffset + i] = newData;
+    }
+#else
+    uint outInstanceIdx;
+    InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);
     
     DrawIndexedIndirectArguments newArgs;
     newArgs.m_IndexCount = meshData.m_IndexCount;
@@ -104,6 +79,7 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
     
     g_DrawArgumentsOutput[outInstanceIdx] = newArgs;
     g_StartInstanceConstsOffsets[outInstanceIdx] = instanceConstsIdx;
+#endif
 }
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
@@ -158,8 +134,16 @@ void CS_GPUCulling(
     sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevViewMatrix).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
-    // Occlusion test instance against *previous* HZB. If the instance was occluded the previous frame, re-test in the second phase.    
-    if (!OcclusionCull(sphereCenterViewSpace, sphereRadius))
+    // Occlusion test instance against *previous* HZB. If the instance was occluded the previous frame, re-test in the second phase.
+    if (!OcclusionCull(
+            sphereCenterViewSpace,
+            sphereRadius,
+            g_GPUCullingPassConstants.m_NearPlane,
+            g_GPUCullingPassConstants.m_P00,
+            g_GPUCullingPassConstants.m_P11,
+            g_HZB,
+            g_GPUCullingPassConstants.m_HZBDimensions,
+            g_LinearClampMinReductionSampler))
     {
         uint outLateCullInstanceIdx;
         InterlockedAdd(g_LateCullInstanceIndicesCounter[0], 1, outLateCullInstanceIdx);
@@ -172,7 +156,15 @@ void CS_GPUCulling(
     }
 #else
     // Occlusion test instance against the updated HZB
-    if (OcclusionCull(sphereCenterViewSpace, sphereRadius))
+    if (OcclusionCull(
+            sphereCenterViewSpace,
+            sphereRadius,
+            g_GPUCullingPassConstants.m_NearPlane,
+            g_GPUCullingPassConstants.m_P00,
+            g_GPUCullingPassConstants.m_P11,
+            g_HZB,
+            g_GPUCullingPassConstants.m_HZBDimensions,
+            g_LinearClampMinReductionSampler))
     {
         SubmitInstance(instanceConstsIdx, instanceConsts);
     }
@@ -192,60 +184,4 @@ void CS_BuildLateCullIndirectArgs(
     g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountX = DivideAndRoundUp(g_NumLateCullInstances[0], 64);
     g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountY = 1;
     g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountZ = 1;
-}
-
-[numthreads(kNumThreadsPerWave, 1, 1)]
-void CS_GPUCullingMeshlets(
-    uint3 dispatchThreadID : SV_DispatchThreadID,
-    uint3 groupThreadID : SV_GroupThreadID,
-    uint3 groupId : SV_GroupID,
-    uint groupIndex : SV_GroupIndex
-)
-{
-    uint nbInstances = g_GPUCullingPassConstants.m_NbInstances;
-    
-    if (dispatchThreadID.x >= nbInstances)
-    {
-        return;
-    }
-    
-    if (dispatchThreadID.x == 0)
-    {
-        g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountY = 1;
-        g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountZ = 1;
-    }
-    
-    uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
-    MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
-    
-    const bool bDoFrustumCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_FrustumCullingEnable;
-    
-    float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
-    sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
-    
-    float sphereRadius = instanceConsts.m_BoundingSphere.w;
-    
-    bool bIsVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_GPUCullingPassConstants.m_Frustum);
-    
-    if (!bIsVisible)
-    {
-        return;
-    }
-    
-    InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
-    
-    uint numWorkGroups = DivideAndRoundUp(meshData.m_MeshletCount, kNumThreadsPerWave);
-    
-    uint workGroupOffset;
-    InterlockedAdd(g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountX, numWorkGroups, workGroupOffset);
-    
-    for (uint i = 0; i < numWorkGroups; ++i)
-    {
-        MeshletAmplificationData newData;
-        newData.m_InstanceConstIdx = instanceConstsIdx;
-        newData.m_MeshletGroupOffset = i * kNumThreadsPerWave;
-        
-        g_MeshletAmplificationDataBuffer[workGroupOffset + i] = newData;
-    }
 }

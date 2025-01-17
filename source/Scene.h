@@ -12,11 +12,9 @@ class RenderGraph;
 struct GPUCullingCounters
 {
     uint32_t m_EarlyInstances;
-    uint32_t m_EarlyMeshletsFrustum;
-    uint32_t m_EarlyMeshletsCone;
+    uint32_t m_EarlyMeshlets;
     uint32_t m_LateInstances;
-    uint32_t m_LateMeshletsFrustum;
-    uint32_t m_LateMeshletsCone;
+    uint32_t m_LateMeshlets;
 };
 
 class View
@@ -40,7 +38,7 @@ public:
     Vector3 m_Up;
 
     Matrix m_CullingViewMatrix;
-	Matrix m_CullingProjectionMatrix;
+    Matrix m_CullingPrevFrameViewMatrix;
 
     Matrix m_ViewMatrix;
     Matrix m_ProjectionMatrix;
