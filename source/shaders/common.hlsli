@@ -112,7 +112,7 @@ float3x3 MakeAdjugateMatrix(float4x4 m)
 	);
 }
 
-float ScaleBoundingSphere(float radius, float4x4 worldMatrix)
+float GetMaxScaleFromWorldMatrix(float4x4 worldMatrix)
 {
     float3 dx = dot(worldMatrix._11_11_11, worldMatrix._11_11_11).xxx;
     float3 dy = dot(worldMatrix._22_22_22, worldMatrix._22_22_22).xxx;
@@ -120,8 +120,7 @@ float ScaleBoundingSphere(float radius, float4x4 worldMatrix)
     
     float3 d = Max3(dx, dy, dz);
     
-    float scale = sqrt(d.x);
-    return radius * scale;
+    return sqrt(d.x);
 }
 
 #endif // __COMMON_HLSL__
