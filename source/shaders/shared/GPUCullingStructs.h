@@ -6,7 +6,7 @@
 struct GPUCullingPassConstants
 {
 	uint32_t m_NbInstances;
-	uint32_t m_Flags;
+	uint32_t m_CullingFlags;
 	Vector2U m_HZBDimensions;
 	Vector4 m_Frustum;
 	Matrix m_ViewMatrix;

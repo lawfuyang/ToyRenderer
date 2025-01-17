@@ -44,6 +44,13 @@ class BasePassRenderer : public IRenderer
     RenderGraph::ResourceHandle m_MeshletDispatchArgumentsBufferRDGBufferHandle;
 
     const bool m_EnableOcclusionCullingForPass;
+    bool m_bDoMeshletRendering;
+    bool m_DoFrustumCulling;
+    bool m_bDoOcclusionCulling;
+    bool m_bDoMeshletConeCulling;
+    uint32_t m_CullingFlags;
+
+    Vector4 m_CullingFrustum;
 
 public:
     struct RenderBasePassParams
@@ -205,18 +212,14 @@ public:
             return;
         }
 
-        const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
-        const bool bDoMeshletRendering = instanceControllables.m_bEnableMeshletRendering;
-        const bool bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
-
         nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle drawIndexedIndirectArgumentsBuffer = renderGraph.GetBuffer(m_DrawIndexedIndirectArgumentsRDGBufferHandle);
         nvrhi::BufferHandle startInstanceConstsOffsetsBuffer = renderGraph.GetBuffer(m_StartInstanceConstsOffsetsRDGBufferHandle);
         nvrhi::BufferHandle meshletAmplificationDataBuffer = renderGraph.GetBuffer(m_MeshletAmplificationDataBufferRDGBufferHandle);
         nvrhi::BufferHandle meshletDispatchArgumentsBuffer = renderGraph.GetBuffer(m_MeshletDispatchArgumentsBufferRDGBufferHandle);
-        nvrhi::BufferHandle lateCullDispatchIndirectArgsBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullDispatchIndirectArgsRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
-        nvrhi::BufferHandle lateCullInstanceCountBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceCountBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
-		nvrhi::BufferHandle lateCullInstanceIDsBuffer = bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceIDsBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
+        nvrhi::BufferHandle lateCullDispatchIndirectArgsBuffer = m_bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullDispatchIndirectArgsRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
+        nvrhi::BufferHandle lateCullInstanceCountBuffer = m_bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceCountBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
+		nvrhi::BufferHandle lateCullInstanceIDsBuffer = m_bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceIDsBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
 
         {
@@ -227,28 +230,19 @@ public:
 			commandList->clearBufferUInt(drawIndexedIndirectArgumentsBuffer, 0);
             commandList->clearBufferUInt(meshletDispatchArgumentsBuffer, 0);
 
-            if (!bLateCull && bDoOcclusionCulling)
+            if (!bLateCull && m_bDoOcclusionCulling)
             {
                 commandList->clearBufferUInt(lateCullInstanceCountBuffer, 0);
 				commandList->clearBufferUInt(lateCullInstanceIDsBuffer, 0);
             }
         }
 
-        uint32_t flags = instanceControllables.m_bEnableFrustumCulling ? CullingFlag_FrustumCullingEnable : 0;
-        flags |= bDoOcclusionCulling ? CullingFlag_OcclusionCullingEnable : 0;
-
-        const Vector2U HZBDims = bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
-
-        Matrix projectionT = view.m_ProjectionMatrix.Transpose();
-        Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
-        Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
-        frustumX.Normalize();
-        frustumY.Normalize();
+        const Vector2U HZBDims = m_bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
 
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
-        passParameters.m_Flags = flags;
-		passParameters.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
+        passParameters.m_CullingFlags = m_CullingFlags;
+        passParameters.m_Frustum = m_CullingFrustum;
         passParameters.m_HZBDimensions = HZBDims;
         passParameters.m_ViewMatrix = view.m_CullingViewMatrix;
         passParameters.m_PrevViewMatrix = view.m_CullingPrevFrameViewMatrix;
@@ -264,9 +258,9 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? scene->m_AlphaMaskInstanceIDsBuffer : scene->m_OpaqueInstanceIDsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
-            nvrhi::BindingSetItem::Texture_SRV(3, bDoOcclusionCulling ? scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, bDoMeshletRendering ? meshletAmplificationDataBuffer : drawIndexedIndirectArgumentsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, bDoMeshletRendering ? meshletDispatchArgumentsBuffer : startInstanceConstsOffsetsBuffer),
+            nvrhi::BindingSetItem::Texture_SRV(3, m_bDoOcclusionCulling ? scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, m_bDoMeshletRendering ? meshletAmplificationDataBuffer : drawIndexedIndirectArgumentsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, m_bDoMeshletRendering ? meshletDispatchArgumentsBuffer : startInstanceConstsOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(4, lateCullInstanceCountBuffer),
@@ -274,13 +268,13 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
-        const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d MESHLET=%d", bLateCull, bDoMeshletRendering);
+        const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d MESHLET=%d", bLateCull, m_bDoMeshletRendering);
 
         if (!bLateCull)
         {
             g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave));
 
-            if (bDoOcclusionCulling)
+            if (m_bDoOcclusionCulling)
             {
                 bindingSetDesc.bindings = {
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(0, lateCullInstanceCountBuffer),
@@ -292,7 +286,7 @@ public:
         }
         else
         {
-            if (bDoOcclusionCulling)
+            if (m_bDoOcclusionCulling)
             {
                 g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, lateCullDispatchIndirectArgsBuffer, 0);
             }
@@ -321,8 +315,6 @@ public:
             return;
         }
 
-        const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
-
         auto SetStates = [&](bool bMeshletPipeline)
             {
                 nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
@@ -336,11 +328,8 @@ public:
                 const nvrhi::FramebufferAttachment& depthAttachment = params.m_FrameBufferDesc.depthAttachment;
                 const nvrhi::TextureDesc& viewportTexDesc = depthAttachment.texture ? depthAttachment.texture->getDesc() : params.m_FrameBufferDesc.colorAttachments[0].texture->getDesc();
 
-                Matrix projectionT = view.m_ProjectionMatrix.Transpose();
-                Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
-                Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
-                frustumX.Normalize();
-                frustumY.Normalize();
+                // don't do cone culling for alpha mask primitives
+                const uint32_t finalCullingFlags = bAlphaMaskPrimitives ? (m_CullingFlags & ~kCullingFlagMeshletConeCullingEnable) : m_CullingFlags;
 
                 // pass consts
                 BasePassConstants basePassConstants;
@@ -351,9 +340,8 @@ public:
                 basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
                 basePassConstants.m_CameraOrigin = view.m_Eye;
                 basePassConstants.m_SSAOEnabled = g_GraphicPropertyGrid.m_AmbientOcclusionControllables.m_bEnabled;
-				basePassConstants.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
-				basePassConstants.m_EnableFrustumCulling = instanceControllables.m_bEnableFrustumCulling;
-				basePassConstants.m_bEnableMeshletConeCulling = !bAlphaMaskPrimitives && instanceControllables.m_bEnableMeshletConeCulling;
+                basePassConstants.m_Frustum = m_CullingFrustum;
+                basePassConstants.m_CullingFlags = finalCullingFlags;
 
                 memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
 
@@ -439,7 +427,7 @@ public:
                 }
             };
 
-        if (instanceControllables.m_bEnableMeshletRendering)
+        if (m_bDoMeshletRendering)
         {
             SetStates(true);
             commandList->dispatchMeshIndirect(0);
@@ -456,8 +444,7 @@ public:
 
     void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
     {
-        const bool bFreezeCullingCamera = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera;
-        if (bFreezeCullingCamera)
+        if (g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera)
         {
             return;
         }
@@ -515,13 +502,28 @@ public:
 			cullingCounters.m_LateMeshlets = readbackResults[kCullingLateMeshletsBufferCounterIdx];
         }
 
-        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
+        const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
+        m_bDoMeshletRendering = instanceControllables.m_bEnableMeshletRendering;
+        m_DoFrustumCulling = instanceControllables.m_bEnableFrustumCulling;
+        m_bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
+        m_bDoMeshletConeCulling = instanceControllables.m_bEnableMeshletConeCulling;
+
+        m_CullingFlags = m_DoFrustumCulling ? kCullingFlagFrustumCullingEnable : 0;
+        m_CullingFlags |= m_bDoOcclusionCulling ? kCullingFlagOcclusionCullingEnable : 0;
+        m_CullingFlags |= m_bDoMeshletConeCulling ? kCullingFlagMeshletConeCullingEnable : 0;
+
+        Matrix projectionT = view.m_ProjectionMatrix.Transpose();
+        Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
+        Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
+        frustumX.Normalize();
+        frustumY.Normalize();
+
+        m_CullingFrustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
 
         GPUCulling(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
         RenderInstances(commandList, renderGraph, params, false /* bLateCull */, false /* bAlphaMaskPrimitives */);
 
-        const bool bDoOcclusionCulling = controllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
-        if (bDoOcclusionCulling)
+        if (m_bDoOcclusionCulling)
         {
             GenerateHZB(commandList, renderGraph, params);
 

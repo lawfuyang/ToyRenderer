@@ -8,18 +8,14 @@ struct BasePassConstants
     Matrix m_ViewProjMatrix;
 	Matrix m_ViewMatrix;
     Vector3 m_DirectionalLightVector;
-	uint32_t PAD0;
+	uint32_t m_CullingFlags;
     Vector3 m_DirectionalLightColor;
 	float m_InvShadowMapResolution;
 	Vector3 m_CameraOrigin;
 	uint32_t m_SSAOEnabled;
 	Vector4 m_CSMDistances; // for some reason, this can't be an array of 4 floats. as it will have 16 byte offsets per element?!?!?!?
 	Matrix m_DirLightViewProj[4];
-
-	// temp meshlet stuff until we move it all to indirect GPU Culling
 	Vector4 m_Frustum;
-	uint32_t m_EnableFrustumCulling;
-	uint32_t m_bEnableMeshletConeCulling;
 };
 
 struct BasePassInstanceConstants

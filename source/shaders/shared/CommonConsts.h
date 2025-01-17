@@ -22,7 +22,8 @@ static const uint32_t kCullingLateInstancesBufferCounterIdx = 2;
 static const uint32_t kCullingLateMeshletsBufferCounterIdx = 3;
 static const uint32_t kNbGPUCullingBufferCounters = 4;
 
-static const uint32_t CullingFlag_FrustumCullingEnable = (1 << 0);
-static const uint32_t CullingFlag_OcclusionCullingEnable = (1 << 1);
+static const uint32_t kCullingFlagFrustumCullingEnable     = (1 << 0);
+static const uint32_t kCullingFlagOcclusionCullingEnable   = (1 << 1);
+static const uint32_t kCullingFlagMeshletConeCullingEnable = (1 << 2);
 
 #endif // #define _COMMON_CONSTS_H_

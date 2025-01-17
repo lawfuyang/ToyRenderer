@@ -106,8 +106,8 @@ void CS_GPUCulling(
     uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];
 #endif
     
-    const bool bDoOcclusionCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_OcclusionCullingEnable;
-    const bool bDoFrustumCulling = g_GPUCullingPassConstants.m_Flags & CullingFlag_FrustumCullingEnable;
+    const bool bDoFrustumCulling = g_GPUCullingPassConstants.m_CullingFlags & kCullingFlagFrustumCullingEnable;
+    const bool bDoOcclusionCulling = g_GPUCullingPassConstants.m_CullingFlags & kCullingFlagOcclusionCullingEnable;
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
     
