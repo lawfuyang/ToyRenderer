@@ -6,58 +6,75 @@
 #include "Graphic.h"
 #include "MathUtilities.h"
 
-static void CreateDefaultTexture(
-    std::string_view name,
-    Texture& destTex,
-    nvrhi::Format format,
-    uint32_t data,
-    uint32_t arraySize,
-    bool bUAV)
+static void CreateDefaultTextures()
 {
-    PROFILE_FUNCTION();
+    auto CreateDefaultTexture = [](
+        std::string_view name,
+        nvrhi::Format format,
+        uint32_t data,
+        uint32_t arraySize,
+        bool bUAV)
+        {
+            PROFILE_SCOPED(name.data());
 
-    nvrhi::TextureDesc textureDesc;
-    textureDesc.arraySize = arraySize;
-    textureDesc.dimension = arraySize > 1 ? nvrhi::TextureDimension::Texture2DArray : nvrhi::TextureDimension::Texture2D;
-    textureDesc.format = format;
-    textureDesc.debugName = name;
-    textureDesc.isUAV = bUAV;
-    textureDesc.initialState = bUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource;
-    destTex.LoadFromMemory(&data, textureDesc);
+            nvrhi::TextureDesc textureDesc;
+            textureDesc.arraySize = arraySize;
+            textureDesc.dimension = arraySize > 1 ? nvrhi::TextureDimension::Texture2DArray : nvrhi::TextureDimension::Texture2D;
+            textureDesc.format = format;
+            textureDesc.debugName = name;
+            textureDesc.isUAV = bUAV;
+            textureDesc.initialState = bUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource;
+
+            Texture tex;
+            tex.LoadFromMemory(&data, textureDesc);
+            return tex;
+        };
+
+    g_CommonResources.BlackTexture                    = CreateDefaultTexture("Black 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
+    g_CommonResources.WhiteTexture                    = CreateDefaultTexture("White 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
+    g_CommonResources.DefaultRoughnessMetallicTexture = CreateDefaultTexture("Default Roughness Metallic Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 1.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
+    g_CommonResources.DefaultNormalTexture            = CreateDefaultTexture("Default Normal Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.5f, 0.5f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
+    g_CommonResources.DummyUAV2DTexture               = CreateDefaultTexture("Dummy UAV 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true /*bUAV*/);
+    g_CommonResources.R8UIntMax2DTexture              = CreateDefaultTexture("R8 UInt Max 2D Texture", nvrhi::Format::R8_UINT, UINT8_MAX, 1, false /*bUAV*/);
 }
 
-static void CreateDefaultBuffer(
-    std::string_view name,
-    nvrhi::BufferHandle& destBuffer,
-    uint32_t byteSize,
-    uint32_t structStride,
-    bool bUAV,
-    bool bRaw)
+static void CreateDefaultBuffers()
 {
-    PROFILE_FUNCTION();
+    auto CreateDefaultBuffer = [](
+        std::string_view name,
+        uint32_t byteSize,
+        uint32_t structStride,
+        bool bUAV,
+        bool bRaw)
+        {
+            PROFILE_SCOPED(name.data());
 
-    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+            nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-    nvrhi::BufferDesc desc;
-    desc.byteSize = byteSize;
-    desc.structStride = bRaw ? 0 : structStride; // if non-zero it's structured
-    desc.debugName = name;
-    desc.canHaveUAVs = bUAV;
-    desc.canHaveRawViews = bRaw;
-    desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            nvrhi::BufferDesc desc;
+            desc.byteSize = byteSize;
+            desc.structStride = bRaw ? 0 : structStride; // if non-zero it's structured
+            desc.debugName = name;
+            desc.canHaveUAVs = bUAV;
+            desc.canHaveRawViews = bRaw;
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-    // TODO: support these
-    //desc.format = nvrhi::Format::UNKNOWN; // for typed buffer views
-    //desc.canHaveTypedViews = false;
-    //desc.isVertexBuffer = false;
-    //desc.isIndexBuffer = false;
-    //desc.isConstantBuffer = false;
-    //desc.isDrawIndirectArgs = false;
-    //desc.isAccelStructBuildInput = false;
-    //desc.isAccelStructStorage = false;
-    //desc.isShaderBindingTable = false;
+            // TODO: support these
+            //desc.format = nvrhi::Format::UNKNOWN; // for typed buffer views
+            //desc.canHaveTypedViews = false;
+            //desc.isVertexBuffer = false;
+            //desc.isIndexBuffer = false;
+            //desc.isConstantBuffer = false;
+            //desc.isDrawIndirectArgs = false;
+            //desc.isAccelStructBuildInput = false;
+            //desc.isAccelStructStorage = false;
+            //desc.isShaderBindingTable = false;
 
-    destBuffer = device->createBuffer(desc);
+            return device->createBuffer(desc);
+        };
+
+    g_CommonResources.DummyUIntStructuredBuffer = CreateDefaultBuffer("DummyUIntStructuredBuffer", sizeof(uint32_t), sizeof(uint32_t), true /*bUAV*/, false /*bRaw*/);
+    g_CommonResources.DummyRawBuffer            = CreateDefaultBuffer("DummyRawBuffer", sizeof(uint32_t), 0, true /*bUAV*/, true /*bRaw*/);
 }
 
 static void CreateDefaultSamplers()
@@ -165,16 +182,8 @@ void CommonResources::Initialize()
 {
     PROFILE_FUNCTION();
 
-    CreateDefaultTexture("Black 2D Texture", BlackTexture, nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
-    CreateDefaultTexture("White 2D Texture", WhiteTexture, nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
-	CreateDefaultTexture("Default Roughness Metallic Texture", DefaultRoughnessMetallicTexture, nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 1.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
-	CreateDefaultTexture("Default Normal Texture", DefaultNormalTexture, nvrhi::Format::RGBA8_UNORM, Color{ 0.5f, 0.5f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
-    CreateDefaultTexture("Dummy UAV 2D Texture", DummyUAV2DTexture, nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true /*bUAV*/);
-    CreateDefaultTexture("R8 UInt Max 2D Texture", R8UIntMax2DTexture, nvrhi::Format::R8_UINT, UINT8_MAX, 1, false /*bUAV*/);
-
-    CreateDefaultBuffer("DummyUIntStructuredBuffer", DummyUIntStructuredBuffer, sizeof(uint32_t), sizeof(uint32_t), true /*bUAV*/, false /*bRaw*/);
-	CreateDefaultBuffer("DummyRawBuffer", DummyRawBuffer, sizeof(uint32_t), 0, true /*bUAV*/, true /*bRaw*/);
-
+    CreateDefaultTextures();
+    CreateDefaultBuffers();
     CreateDefaultSamplers();
     CreateDefaultDepthStencilStates();
     CreateDefaultBlendModes();
