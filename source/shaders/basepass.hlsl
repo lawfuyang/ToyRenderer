@@ -105,12 +105,7 @@ void AS_Main(
         
         float sphereRadius = ScaleBoundingSphere(meshletData.m_BoundingSphere.w, instanceConsts.m_WorldMatrix);
         
-    #if LATE_CULL
-        // frustum test already done & passed for early cull pass
-        bVisible = true;
-    #else
         bVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_BasePassConsts.m_Frustum);
-    #endif
         
     #if LATE_CULL
         if (bVisible && bDoOcclusionCulling)
