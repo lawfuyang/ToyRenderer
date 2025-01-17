@@ -130,20 +130,24 @@ void CS_GPUCulling(
         return;
     }
     
+    // test against prev frame HZB for early cull
 #if !LATE
     sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevViewMatrix).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
+#endif
     
+    bool bOcclusionCullResult = OcclusionCull(sphereCenterViewSpace,
+                                    sphereRadius,
+                                    g_GPUCullingPassConstants.m_NearPlane,
+                                    g_GPUCullingPassConstants.m_P00,
+                                    g_GPUCullingPassConstants.m_P11,
+                                    g_HZB,
+                                    g_GPUCullingPassConstants.m_HZBDimensions,
+                                    g_LinearClampMinReductionSampler);
+    
+#if !LATE
     // Occlusion test instance against *previous* HZB. If the instance was occluded the previous frame, re-test in the second phase.
-    if (!OcclusionCull(
-            sphereCenterViewSpace,
-            sphereRadius,
-            g_GPUCullingPassConstants.m_NearPlane,
-            g_GPUCullingPassConstants.m_P00,
-            g_GPUCullingPassConstants.m_P11,
-            g_HZB,
-            g_GPUCullingPassConstants.m_HZBDimensions,
-            g_LinearClampMinReductionSampler))
+    if (!bOcclusionCullResult)
     {
         uint outLateCullInstanceIdx;
         InterlockedAdd(g_LateCullInstanceIndicesCounter[0], 1, outLateCullInstanceIdx);
@@ -156,15 +160,7 @@ void CS_GPUCulling(
     }
 #else
     // Occlusion test instance against the updated HZB
-    if (OcclusionCull(
-            sphereCenterViewSpace,
-            sphereRadius,
-            g_GPUCullingPassConstants.m_NearPlane,
-            g_GPUCullingPassConstants.m_P00,
-            g_GPUCullingPassConstants.m_P11,
-            g_HZB,
-            g_GPUCullingPassConstants.m_HZBDimensions,
-            g_LinearClampMinReductionSampler))
+    if (bOcclusionCullResult)
     {
         SubmitInstance(instanceConstsIdx, instanceConsts);
     }
