@@ -160,7 +160,7 @@ void AS_Main(
     DispatchMesh(numVisible, 1, 1, s_MeshletPayload);
 }
 
-[NumThreads(kMaxMeshletSize, 1, 1)]
+[NumThreads(kMeshletShaderThreadGroupSize, 1, 1)]
 [OutputTopology("triangle")]
 void MS_Main(
     uint3 dispatchThreadID : SV_DispatchThreadID,
@@ -168,12 +168,12 @@ void MS_Main(
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex,
     in payload MeshletPayload inPayload,
-    out vertices VertexOut meshletVertexOut[kMaxMeshletSize],
-    out indices uint3 meshletTrianglesOut[kMaxMeshletSize]
+    out vertices VertexOut meshletVertexOut[kMaxMeshletVertices],
+    out indices uint3 meshletTrianglesOut[kMaxMeshletTriangles]
 )
 {
     uint meshletIdx = inPayload.m_MeshletIndices[groupId.x];
-    uint meshletOutputIdx = groupThreadID.x;
+    uint outputIdx = groupThreadID.x;
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inPayload.m_InstanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
@@ -184,25 +184,25 @@ void MS_Main(
     
     SetMeshOutputCounts(numVertices, numPrimitives);
     
-    if (meshletOutputIdx < numVertices)
+    if (outputIdx < numVertices)
     {
-        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexBufferIdx + meshletOutputIdx];
+        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexBufferIdx + outputIdx];
         
         VertexOut vOut = GetVertexAttributes(instanceConsts, meshData, inPayload.m_InstanceConstIdx, vertexIdx);
         vOut.m_MeshletIdx = meshletIdx;
         
-        meshletVertexOut[meshletOutputIdx] = vOut;
+        meshletVertexOut[outputIdx] = vOut;
     }
     
-    if (meshletOutputIdx < numPrimitives)
+    if (outputIdx < numPrimitives)
     {
-        uint packedIndices = g_MeshletIndexIDsBuffer[meshletData.m_IndicesBufferIdx + meshletOutputIdx];
+        uint packedIndices = g_MeshletIndexIDsBuffer[meshletData.m_IndicesBufferIdx + outputIdx];
     
         uint a = (packedIndices >> 0) & 0xFF;
         uint b = (packedIndices >> 8) & 0xFF;
         uint c = (packedIndices >> 16) & 0xFF;
         
-        meshletTrianglesOut[meshletOutputIdx] = uint3(a, b, c);
+        meshletTrianglesOut[outputIdx] = uint3(a, b, c);
     }
 }
 

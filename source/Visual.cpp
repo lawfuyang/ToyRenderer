@@ -129,7 +129,7 @@ void Mesh::Initialize(
     uint32_t numTotalMeshlets = 0;
     for (uint32_t i = 0; i < Graphic::kMaxNumMeshLODs; ++i)
     {
-        // note: we're using the same value for all LODs; if this changes, we need to remove/change 95% exit criteria below
+        // note: we're using the same value for all LODs; if this changes, we need to remove/change 'kMinIndexReductionPercentage' exit criteria below
         static const float kTargetError = 0.1f;
         static const float kTargetIndexCountPercentage = 0.65f;
         static const uint32_t kSimplifyOptions = 0;
@@ -184,12 +184,12 @@ void Mesh::Initialize(
     std::vector<uint32_t> meshletVertices;
     std::vector<uint8_t> meshletTriangles;
 
-    const uint32_t numMaxMeshlets = meshopt_buildMeshletsBound(indices.size(), kMaxMeshletSize, kMaxMeshletSize);
+    const uint32_t numMaxMeshlets = meshopt_buildMeshletsBound(indices.size(), kMaxMeshletVertices, kMaxMeshletTriangles);
     meshlets.resize(numMaxMeshlets);
-    meshletVertices.resize(numMaxMeshlets * kMaxMeshletSize);
-    meshletTriangles.resize(numMaxMeshlets * kMaxMeshletSize * 3);
+    meshletVertices.resize(numMaxMeshlets * kMaxMeshletVertices);
+    meshletTriangles.resize(numMaxMeshlets * kMaxMeshletTriangles * 3);
 
-    const float kMeshletConeWeight = 0.25f;
+    static const float kMeshletConeWeight = 0.25f;
     m_NumMeshlets = meshopt_buildMeshlets(
         meshlets.data(),
         meshletVertices.data(),
@@ -199,8 +199,8 @@ void Mesh::Initialize(
         (const float*)vertices.data(),
         vertices.size(),
         sizeof(RawVertexFormat),
-        kMaxMeshletSize,
-        kMaxMeshletSize,
+        kMaxMeshletVertices,
+        kMaxMeshletTriangles,
         kMeshletConeWeight);
 
 	meshlets.resize(m_NumMeshlets);
