@@ -310,7 +310,6 @@ public:
         BasePassConstants basePassConstants;
         basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
         basePassConstants.m_ViewMatrix = view.m_CullingViewMatrix;
-        basePassConstants.m_PrevViewMatrix = view.m_CullingPrevFrameViewMatrix;
         basePassConstants.m_DirectionalLightVector = scene->m_DirLightVec * scene->m_DirLightStrength;
         basePassConstants.m_DirectionalLightColor = scene->m_DirLightColor;
         basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;

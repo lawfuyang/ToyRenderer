@@ -7,7 +7,6 @@ struct BasePassConstants
 {
     Matrix m_ViewProjMatrix;
 	Matrix m_ViewMatrix;
-	Matrix m_PrevViewMatrix;
     Vector3 m_DirectionalLightVector;
 	uint32_t m_CullingFlags;
     Vector3 m_DirectionalLightColor;

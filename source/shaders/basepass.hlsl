@@ -112,16 +112,10 @@ void AS_Main(
         bVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_BasePassConsts.m_Frustum);
     #endif
         
+    #if LATE_CULL
         if (bVisible && bDoOcclusionCulling)
         {
-            float3 sphereCenterViewSpaceForOcclusionCull = sphereCenterViewSpace;
-            
-        #if !LATE_CULL
-            sphereCenterViewSpaceForOcclusionCull = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_PrevViewMatrix).xyz;
-            sphereCenterViewSpaceForOcclusionCull.z *= -1.0f; // TODO: fix inverted view-space Z coord
-        #endif
-            
-            bVisible = OcclusionCull(sphereCenterViewSpaceForOcclusionCull,
+            bVisible = OcclusionCull(sphereCenterViewSpace,
                 sphereRadius,
                 g_BasePassConsts.m_NearPlane,
                 g_BasePassConsts.m_P00,
@@ -130,6 +124,7 @@ void AS_Main(
                 g_BasePassConsts.m_HZBDimensions,
                 g_LinearClampMinReductionSampler);
         }
+    #endif // LATE_CULL
         
         if (bVisible && bDoConeCulling)
         {
