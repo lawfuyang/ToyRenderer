@@ -89,22 +89,6 @@ static void CreateDefaultSamplers()
     g_CommonResources.LinearClampMinReductionSampler   = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Minimum, 1);
 }
 
-static void CreateDefaultInputLayouts()
-{
-    PROFILE_FUNCTION();
-
-    static const nvrhi::VertexAttributeDesc s_GPUCullingLayout[] =
-    {
-        { "INSTANCE_START_LOCATION", nvrhi::Format::R32_UINT, 1, 0, 0, sizeof(uint32_t), true }
-    };
-
-    // VS is not needed in 'createInputLayout', there are no separate IL objects in DX12
-    nvrhi::IShader* dummyVS = nullptr;
-
-    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-    g_CommonResources.GPUCullingLayout = device->createInputLayout(s_GPUCullingLayout, (uint32_t)std::size(s_GPUCullingLayout), dummyVS);
-}
-
 static void CreateDefaultDepthStencilStates()
 {
     PROFILE_FUNCTION();
@@ -192,7 +176,6 @@ void CommonResources::Initialize()
 	CreateDefaultBuffer("DummyRawBuffer", DummyRawBuffer, sizeof(uint32_t), 0, true /*bUAV*/, true /*bRaw*/);
 
     CreateDefaultSamplers();
-    CreateDefaultInputLayouts();
     CreateDefaultDepthStencilStates();
     CreateDefaultBlendModes();
     CreateDefaultRasterStates();

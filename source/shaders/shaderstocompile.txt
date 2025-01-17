@@ -1,6 +1,5 @@
 imgui.hlsl -T vs -E VS_Main
 imgui.hlsl -T ps -E PS_Main
-basepass.hlsl -T vs -E VS_Main
 basepass.hlsl -T ps -E PS_Main_GBuffer -D ALPHA_MASK_MODE={0,1}
 basepass.hlsl -T ps -E PS_Main_Forward
 basepass.hlsl -T as -E AS_Main -D LATE_CULL={0,1}
@@ -15,7 +14,7 @@ postprocess.hlsl -T ps -E PS_PostProcess
 ambientocclusion.hlsl -T cs -E CS_XeGTAO_PrefilterDepths
 ambientocclusion.hlsl -T cs -E CS_XeGTAO_MainPass -D DEBUG_OUTPUT_MODE={0,1,2,3}
 ambientocclusion.hlsl -T cs -E CS_XeGTAO_Denoise
-gpuculling.hlsl -T cs -E CS_GPUCulling -D LATE_CULL={0,1} -D MESHLET={0,1}
+gpuculling.hlsl -T cs -E CS_GPUCulling -D LATE_CULL={0,1}
 gpuculling.hlsl -T cs -E CS_BuildLateCullIndirectArgs
 ../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 minmaxdownsample.hlsl -T cs -E CS_Main

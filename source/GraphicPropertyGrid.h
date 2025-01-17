@@ -19,7 +19,6 @@ public:
     {
         bool m_bEnableFrustumCulling = true;
         bool m_bEnableOcclusionCulling = true;
-        bool m_bEnableMeshletRendering = true;
         bool m_bEnableMeshletConeCulling = true;
         bool m_bFreezeCullingCamera = false;
     };

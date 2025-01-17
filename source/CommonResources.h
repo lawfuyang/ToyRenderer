@@ -36,9 +36,6 @@ public:
     nvrhi::SamplerHandle PointClampComparisonLessSampler;
     nvrhi::SamplerHandle LinearClampComparisonLessSampler;
 
-    // Input Layouts
-    nvrhi::InputLayoutHandle GPUCullingLayout;
-
     // Blend States
     nvrhi::BlendState::RenderTarget BlendOpaque;
     nvrhi::BlendState::RenderTarget BlendModulate;

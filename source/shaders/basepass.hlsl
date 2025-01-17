@@ -71,17 +71,6 @@ VertexOut GetVertexAttributes(BasePassInstanceConstants instanceConsts, MeshData
     return vOut;
 }
 
-void VS_Main(
-    uint inInstanceConstIndex : INSTANCE_START_LOCATION, // per-instance attribute
-    uint inVertexID : SV_VertexID,
-    out VertexOut outVertex
-)
-{
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inInstanceConstIndex];
-    MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
-    outVertex = GetVertexAttributes(instanceConsts, meshData, inInstanceConstIndex, inVertexID);
-}
-
 groupshared MeshletPayload s_MeshletPayload;
 
 [NumThreads(kNumThreadsPerWave, 1, 1)]
@@ -125,12 +114,14 @@ void AS_Main(
         
         if (bVisible && bDoOcclusionCulling)
         {
+            float3 sphereCenterViewSpaceForOcclusionCull = sphereCenterViewSpace;
+            
         #if !LATE_CULL
-            sphereCenterViewSpace = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_PrevViewMatrix).xyz;
-            sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
+            sphereCenterViewSpaceForOcclusionCull = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_PrevViewMatrix).xyz;
+            sphereCenterViewSpaceForOcclusionCull.z *= -1.0f; // TODO: fix inverted view-space Z coord
         #endif
             
-            bVisible = OcclusionCull(sphereCenterViewSpace,
+            bVisible = OcclusionCull(sphereCenterViewSpaceForOcclusionCull,
                 sphereRadius,
                 g_BasePassConsts.m_NearPlane,
                 g_BasePassConsts.m_P00,

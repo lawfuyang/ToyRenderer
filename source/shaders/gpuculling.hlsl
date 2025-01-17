@@ -22,7 +22,6 @@
 
 #if __INTELLISENSE__
 #define LATE_CULL 0
-#define MESHLET 1
 #endif
 
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
@@ -30,9 +29,7 @@ StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(
 StructuredBuffer<uint> g_PrimitiveIndices : register(t1);
 StructuredBuffer<MeshData> g_MeshData : register(t2);
 Texture2D g_HZB : register(t3);
-RWStructuredBuffer<DrawIndexedIndirectArguments> g_DrawArgumentsOutput : register(u0);
 RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(u0);
-RWStructuredBuffer<uint> g_StartInstanceConstsOffsets : register(u1);
 RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
 RWStructuredBuffer<uint> g_CullingCounters : register(u3);
@@ -50,7 +47,6 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
 
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
     
-#if MESHLET
     uint numWorkGroups = DivideAndRoundUp(meshData.m_MeshletCount, kNumThreadsPerWave);
     
     uint workGroupOffset;
@@ -66,20 +62,6 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
         
         g_MeshletAmplificationDataBuffer[workGroupOffset + i] = newData;
     }
-#else
-    uint outInstanceIdx;
-    InterlockedAdd(g_InstanceIndexCounter[0], 1, outInstanceIdx);
-    
-    DrawIndexedIndirectArguments newArgs;
-    newArgs.m_IndexCount = meshData.m_IndexCount;
-    newArgs.m_InstanceCount = 1;
-    newArgs.m_StartIndexLocation = meshData.m_StartIndexLocation;
-    newArgs.m_BaseVertexLocation = 0;
-    newArgs.m_StartInstanceLocation = outInstanceIdx;
-    
-    g_DrawArgumentsOutput[outInstanceIdx] = newArgs;
-    g_StartInstanceConstsOffsets[outInstanceIdx] = instanceConstsIdx;
-#endif
 }
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
