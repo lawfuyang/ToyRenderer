@@ -108,7 +108,7 @@ bool Primitive::IsValid() const
 void Mesh::Initialize(
     const std::vector<RawVertexFormat>& vertices,
     const std::vector<uint32_t>& indices,
-    uint32_t globalVertexBufferOffset,
+    uint32_t globalVertexBufferIdx,
     std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
     std::vector<uint32_t>& meshletIndicesOut,
     std::vector<MeshletData>& meshletsOut,
@@ -220,7 +220,7 @@ void Mesh::Initialize(
 
         for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
         {
-            meshletVertexIdxOffsetsOut.push_back(globalVertexBufferOffset + meshletVertices.at(meshlet.vertex_offset + i));
+            meshletVertexIdxOffsetsOut.push_back(globalVertexBufferIdx + meshletVertices.at(meshlet.vertex_offset + i));
         }
 
         for (uint32_t i = 0; i < meshlet.triangle_count; ++i)
@@ -257,7 +257,7 @@ void Mesh::Initialize(
 
 		newMeshlet.m_ConeAxisAndCutoff = packedAxisX | (packedAxisY << 8) | (packedAxisZ << 16) | (packedCutoff << 24);
 
-        // NOTE: m_VertexBufferIdx & m_IndicesBufferIdx will be properly offset to the global value after all mesh data are loaded
+        // NOTE: m_MeshletVertexIDsBufferIdx & m_MeshletIndexIDsBufferIdx will be properly offset to the global value after all mesh data are loaded
     }
 
     std::string logStr;

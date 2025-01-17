@@ -46,7 +46,7 @@ public:
     void Initialize(
         const std::vector<RawVertexFormat>& rawVertices,
         const std::vector<uint32_t>& indices,
-        uint32_t globalVertexBufferOffset,
+        uint32_t globalVertexBufferIdx,
         std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
         std::vector<uint32_t>& meshletIndicesOut,
 		std::vector<MeshletData>& meshletsOut,
