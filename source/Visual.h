@@ -31,18 +31,30 @@ public:
     Vector2 m_UVScale = Vector2::One;
 };
 
+struct MeshLOD
+{
+    uint32_t m_StartIndexLocation = UINT_MAX;
+    uint32_t m_NumIndices = 0;
+    uint32_t m_MeshDataBufferIdx = UINT_MAX;
+    uint32_t m_NumMeshlets = 0;
+    float m_Error = 0.0f;
+};
+
 class Mesh
 {
 public:
     void Initialize(
-        std::span<const RawVertexFormat> rawVertices,
-        std::span<const uint32_t> indices, 
+        const std::vector<RawVertexFormat>& rawVertices,
+        const std::vector<uint32_t>& indices,
         std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
         std::vector<uint32_t>& meshletIndicesOut,
 		std::vector<MeshletData>& meshletsOut,
         std::string_view meshName);
 
     bool IsValid() const;
+
+    MeshLOD m_LODs[8];
+    uint32_t m_NumLODs = 0;
 
     uint32_t m_StartVertexLocation = UINT_MAX;
     uint32_t m_StartIndexLocation = UINT_MAX;

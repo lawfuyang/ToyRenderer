@@ -106,8 +106,8 @@ bool Primitive::IsValid() const
 }
 
 void Mesh::Initialize(
-    std::span<const RawVertexFormat> vertices,
-    std::span<const uint32_t> indices,
+    const std::vector<RawVertexFormat>& vertices,
+    const std::vector<uint32_t>& indices,
     std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
     std::vector<uint32_t>& meshletIndicesOut,
     std::vector<MeshletData>& meshletsOut,
@@ -115,9 +115,70 @@ void Mesh::Initialize(
 {
     PROFILE_FUNCTION();
 
+    static_assert(std::is_same_v<uint32_t, Graphic::IndexBufferFormat_t>);
+    static_assert(_countof(m_LODs) == Graphic::kMaxNumMeshLODs);
+
     // init BV(s)
     Sphere::CreateFromPoints(m_BoundingSphere, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
     AABB::CreateFromPoints(m_AABB, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
+
+    const float LODErrorScalingFactor = meshopt_simplifyScale(&vertices[0].m_Position.x, vertices.size(), sizeof(RawVertexFormat));
+
+    std::vector<uint32_t> LODIndices = indices;
+    float LODError = 0.0f;
+    uint32_t numTotalMeshlets = 0;
+    for (uint32_t i = 0; i < Graphic::kMaxNumMeshLODs; ++i)
+    {
+        // note: we're using the same value for all LODs; if this changes, we need to remove/change 95% exit criteria below
+        static const float kTargetError = 0.1f;
+        static const float kTargetIndexCountPercentage = 0.65f;
+        static const uint32_t kSimplifyOptions = 0;
+
+        MeshLOD& newLOD = m_LODs[m_NumLODs++];
+
+        //lod.indexOffset = result.indices.size();
+        newLOD.m_NumIndices = LODIndices.size();
+        //lod.meshletOffset = result.meshlets.size();
+        //lod.meshletCount = buildMeshlets ? uint32_t(appendMeshlets(result, positions, lodIndices, mesh.vertexOffset, fast)) : 0;
+        numTotalMeshlets += newLOD.m_NumMeshlets;
+
+        //result.indices.insert(result.indices.end(), lodIndices.begin(), lodIndices.end());
+
+        newLOD.m_Error = LODError * LODErrorScalingFactor;
+
+        const size_t targetIndexCount = (size_t(double(LODIndices.size()) * kTargetIndexCountPercentage) / 3) * 3;
+        float resultError = 0.0f;
+        const size_t numSimplifiedIndices = meshopt_simplify(
+            LODIndices.data(),
+            LODIndices.data(),
+            LODIndices.size(),
+            (const float*)vertices.data(),
+            vertices.size(),
+            sizeof(RawVertexFormat),
+            targetIndexCount,
+            kTargetError,
+            kSimplifyOptions,
+            &resultError);
+        assert(numSimplifiedIndices <= LODIndices.size());
+
+        // we've reached the error bound
+        if (numSimplifiedIndices == LODIndices.size() || numSimplifiedIndices == 0)
+        {
+            break;
+        }
+
+        // while we could keep this LOD, it's too close to the last one (and it can't go below that due to constant error bound above)
+        static const float kMinIndexReductionPercentage = 0.95f;
+        if (numSimplifiedIndices >= size_t(double(LODIndices.size()) * kMinIndexReductionPercentage))
+        {
+            break;
+        }
+
+        LODIndices.resize(numSimplifiedIndices);
+        LODError = std::max(LODError, resultError); // important! since we start from last LOD, we need to accumulate the error
+
+        meshopt_optimizeVertexCache(LODIndices.data(), LODIndices.data(), LODIndices.size(), vertices.size());
+    }
 
     std::vector<meshopt_Meshlet> meshlets;
     std::vector<uint32_t> meshletVertices;
@@ -143,6 +204,8 @@ void Mesh::Initialize(
         kMeshletConeWeight);
 
 	meshlets.resize(m_NumMeshlets);
+
+    numTotalMeshlets += m_NumMeshlets;
 
     for (const meshopt_Meshlet& meshlet : meshlets)
     {
@@ -194,7 +257,15 @@ void Mesh::Initialize(
         // NOTE: m_VertexBufferIdx & m_IndicesBufferIdx will be properly offset to the global value after all mesh data are loaded
     }
 
-    LOG_DEBUG("New Mesh: %s, vertices: %d, indices: %d, numMeshlets: %d", meshName.data(), vertices.size(), indices.size(), m_NumMeshlets);
+    std::string logStr;
+    logStr += StringFormat("New Mesh: %s, Vertices: %d, Indices: %d, Meshlets: %d", meshName.data(), vertices.size(), indices.size(), numTotalMeshlets);
+
+    for (uint32_t i = 0; i < m_NumLODs; ++i)
+    {
+        logStr += StringFormat("\n\tLOD %d, Indices: %d, Meshlets: %d, Error: %.2f", i, m_LODs[i].m_NumIndices, m_LODs[i].m_NumMeshlets, m_LODs[i].m_Error);
+    }
+
+    LOG_DEBUG("%s", logStr.c_str());
 }
 
 bool Mesh::IsValid() const

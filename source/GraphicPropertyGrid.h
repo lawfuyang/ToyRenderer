@@ -21,6 +21,7 @@ public:
         bool m_bEnableOcclusionCulling = true;
         bool m_bEnableMeshletConeCulling = true;
         bool m_bFreezeCullingCamera = false;
+        int m_ForceMeshLOD = -1;
     };
 	InstanceRenderingControllables m_InstanceRenderingControllables;
 
