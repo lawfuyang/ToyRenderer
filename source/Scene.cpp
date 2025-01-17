@@ -140,7 +140,7 @@ void View::Update()
 	const bool bFreezeCullingCamera = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera;
     if (!bFreezeCullingCamera)
     {
-        m_CullingPrevFrameViewMatrix = m_CullingViewMatrix;
+        m_CullingPrevFrameViewMatrix = m_PrevFrameViewMatrix;
 		m_CullingViewMatrix = m_ViewMatrix;
     }
 }
