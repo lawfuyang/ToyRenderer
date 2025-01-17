@@ -50,6 +50,7 @@ class BasePassRenderer : public IRenderer
     bool m_bDoMeshletConeCulling;
     uint32_t m_CullingFlags;
 
+    Vector2U m_HZBDimensions;
     Vector4 m_CullingFrustum;
 
 public:
@@ -237,13 +238,11 @@ public:
             }
         }
 
-        const Vector2U HZBDims = m_bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
-
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
         passParameters.m_CullingFlags = m_CullingFlags;
         passParameters.m_Frustum = m_CullingFrustum;
-        passParameters.m_HZBDimensions = HZBDims;
+        passParameters.m_HZBDimensions = m_HZBDimensions;
         passParameters.m_ViewMatrix = view.m_CullingViewMatrix;
         passParameters.m_PrevViewMatrix = view.m_CullingPrevFrameViewMatrix;
         passParameters.m_NearPlane = view.m_ZNearP;
@@ -268,7 +267,7 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
-        const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE=%d MESHLET=%d", bLateCull, m_bDoMeshletRendering);
+        const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE_CULL=%d MESHLET=%d", bLateCull, m_bDoMeshletRendering);
 
         if (!bLateCull)
         {
@@ -335,6 +334,7 @@ public:
                 BasePassConstants basePassConstants;
                 basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
 				basePassConstants.m_ViewMatrix = view.m_CullingViewMatrix;
+                basePassConstants.m_PrevViewMatrix = view.m_CullingPrevFrameViewMatrix;
                 basePassConstants.m_DirectionalLightVector = scene->m_DirLightVec * scene->m_DirLightStrength;
                 basePassConstants.m_DirectionalLightColor = scene->m_DirLightColor;
                 basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
@@ -342,6 +342,10 @@ public:
                 basePassConstants.m_SSAOEnabled = g_GraphicPropertyGrid.m_AmbientOcclusionControllables.m_bEnabled;
                 basePassConstants.m_Frustum = m_CullingFrustum;
                 basePassConstants.m_CullingFlags = finalCullingFlags;
+                basePassConstants.m_HZBDimensions = m_HZBDimensions;
+                basePassConstants.m_P00 = view.m_ProjectionMatrix.m[0][0];
+                basePassConstants.m_P11 = view.m_ProjectionMatrix.m[1][1];
+                basePassConstants.m_NearPlane = view.m_ZNearP;
 
                 memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
 
@@ -364,11 +368,13 @@ public:
 					nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMeshletVertexOffsetsBuffer),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMeshletIndicesBuffer),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(7, meshletAmplificationDataBuffer),
+                    nvrhi::BindingSetItem::Texture_SRV(8, m_bDoOcclusionCulling ? scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
                     nvrhi::BindingSetItem::StructuredBuffer_UAV(0, counterStatsBuffer),
                     nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
                     nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
                     nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
-                    nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler)
+                    nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
+                    nvrhi::BindingSetItem::Sampler(4, g_CommonResources.LinearClampMinReductionSampler)
                 };
 
                 nvrhi::BindingSetHandle bindingSet;
@@ -454,10 +460,8 @@ public:
 
         Scene* scene = g_Graphic.m_Scene.get();
 
-        const Vector2U HZBDims{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height };
-
         MinMaxDownsampleConsts PassParameters;
-        PassParameters.m_OutputDimensions = HZBDims;
+        PassParameters.m_OutputDimensions = m_HZBDimensions;
         PassParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
 
         nvrhi::TextureHandle depthStencilBuffer = params.m_FrameBufferDesc.depthAttachment.texture;
@@ -470,7 +474,7 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
-        const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(HZBDims, 8);
+        const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_HZBDimensions, 8);
         g_Graphic.AddComputePass(commandList, "minmaxdownsample_CS_Main", bindingSetDesc, dispatchGroupSize, &PassParameters, sizeof(PassParameters));
 
         // generate HZB mip chain
@@ -511,6 +515,8 @@ public:
         m_CullingFlags = m_DoFrustumCulling ? kCullingFlagFrustumCullingEnable : 0;
         m_CullingFlags |= m_bDoOcclusionCulling ? kCullingFlagOcclusionCullingEnable : 0;
         m_CullingFlags |= m_bDoMeshletConeCulling ? kCullingFlagMeshletConeCullingEnable : 0;
+
+        m_HZBDimensions = m_bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
 
         Matrix projectionT = view.m_ProjectionMatrix.Transpose();
         Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };

@@ -21,7 +21,7 @@
 */
 
 #if __INTELLISENSE__
-#define LATE 0
+#define LATE_CULL 0
 #define MESHLET 1
 #endif
 
@@ -42,7 +42,7 @@ SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts)
 {
-#if LATE
+#if LATE_CULL
     InterlockedAdd(g_CullingCounters[kCullingLateInstancesBufferCounterIdx], 1);
 #else
     InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
@@ -89,7 +89,7 @@ void CS_GPUCulling(
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex)
 {    
-#if LATE
+#if LATE_CULL
     uint nbInstances = g_LateCullInstanceIndicesCounter[0];
 #else
     uint nbInstances = g_GPUCullingPassConstants.m_NbInstances;
@@ -100,7 +100,7 @@ void CS_GPUCulling(
         return;
     }
     
-#if LATE
+#if LATE_CULL
     uint instanceConstsIdx = g_LateCullInstanceIndicesBuffer[dispatchThreadID.x];
 #else
     uint instanceConstsIdx = g_PrimitiveIndices[dispatchThreadID.x];
@@ -117,7 +117,12 @@ void CS_GPUCulling(
     float sphereRadius = instanceConsts.m_BoundingSphere.w;
     
     // Frustum test instance against the current view
-    bool bIsVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_GPUCullingPassConstants.m_Frustum);
+    #if LATE_CULL
+        // frustum test already done & passed for early cull pass
+        bool bIsVisible = true;
+    #else
+        bool bIsVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_GPUCullingPassConstants.m_Frustum);
+    #endif
     
     if (!bIsVisible)
     {
@@ -131,7 +136,7 @@ void CS_GPUCulling(
     }
     
     // test against prev frame HZB for early cull
-#if !LATE
+#if !LATE_CULL
     sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevViewMatrix).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
 #endif
@@ -145,7 +150,7 @@ void CS_GPUCulling(
                                     g_GPUCullingPassConstants.m_HZBDimensions,
                                     g_LinearClampMinReductionSampler);
     
-#if !LATE
+#if !LATE_CULL
     // Occlusion test instance against *previous* HZB. If the instance was occluded the previous frame, re-test in the second phase.
     if (!bOcclusionCullResult)
     {

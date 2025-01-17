@@ -7,6 +7,7 @@ struct BasePassConstants
 {
     Matrix m_ViewProjMatrix;
 	Matrix m_ViewMatrix;
+	Matrix m_PrevViewMatrix;
     Vector3 m_DirectionalLightVector;
 	uint32_t m_CullingFlags;
     Vector3 m_DirectionalLightColor;
@@ -16,6 +17,10 @@ struct BasePassConstants
 	Vector4 m_CSMDistances; // for some reason, this can't be an array of 4 floats. as it will have 16 byte offsets per element?!?!?!?
 	Matrix m_DirLightViewProj[4];
 	Vector4 m_Frustum;
+	Vector2U m_HZBDimensions;
+	float m_P00;
+	float m_P11;
+	float m_NearPlane;
 };
 
 struct BasePassInstanceConstants

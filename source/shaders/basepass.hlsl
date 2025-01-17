@@ -20,16 +20,19 @@ StructuredBuffer<MeshletData> g_MeshletDataBuffer : register(t4);
 StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
 StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
 StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
+Texture2D g_HZB : register(t8);
 RWStructuredBuffer<uint> g_CullingCounters : register(u0);
 Texture2D g_Textures[] : register(t0, space1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
+SamplerState g_LinearClampMinReductionSampler : register(s4);
 
 // forward shading specific resources
-Texture2DArray g_DirLightShadowDepthTexture : register(t4);
-Texture2D<uint> g_SSAOTexture : register(t5);
-sampler g_PointClampSampler : register(s4);
-SamplerComparisonState g_PointComparisonLessSampler : register(s5);
-SamplerComparisonState g_LinearComparisonLessSampler : register(s6);
+Texture2DArray g_DirLightShadowDepthTexture : register(t9);
+Texture2D<uint> g_SSAOTexture : register(t10);
+sampler g_PointClampSampler : register(s5);
+SamplerComparisonState g_PointComparisonLessSampler : register(s6);
+SamplerComparisonState g_LinearComparisonLessSampler : register(s7);
+
 
 struct VertexOut
 {
@@ -113,11 +116,28 @@ void AS_Main(
         
         float sphereRadius = ScaleBoundingSphere(meshletData.m_BoundingSphere.w, instanceConsts.m_WorldMatrix);
         
+    #if LATE_CULL
+        // frustum test already done & passed for early cull pass
+        bVisible = true;
+    #else
         bVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_BasePassConsts.m_Frustum);
+    #endif
         
         if (bVisible && bDoOcclusionCulling)
         {
-
+        #if !LATE_CULL
+            sphereCenterViewSpace = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_PrevViewMatrix).xyz;
+            sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
+        #endif
+            
+            bVisible = OcclusionCull(sphereCenterViewSpace,
+                sphereRadius,
+                g_BasePassConsts.m_NearPlane,
+                g_BasePassConsts.m_P00,
+                g_BasePassConsts.m_P11,
+                g_HZB,
+                g_BasePassConsts.m_HZBDimensions,
+                g_LinearClampMinReductionSampler);
         }
         
         if (bVisible && bDoConeCulling)
