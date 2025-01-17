@@ -48,7 +48,7 @@ VertexOut GetVertexAttributes(BasePassInstanceConstants instanceConsts, MeshData
 {
     VertexOut vOut = (VertexOut)0;
     
-    RawVertexFormat vertexInfo = g_VirtualVertexBuffer[meshData.m_StartVertexLocation + vertexIdx];
+    RawVertexFormat vertexInfo = g_VirtualVertexBuffer[vertexIdx];
     
     float4 position = float4(vertexInfo.m_Position, 1.0f);
     float4 worldPos = mul(position, instanceConsts.m_WorldMatrix);
@@ -95,9 +95,9 @@ void AS_Main(
     bool bVisible = false;
     
     uint meshletIdx = amplificationData.m_MeshletGroupOffset + groupThreadID.x;
-    if (meshletIdx < meshData.m_MeshletCount)
+    if (meshletIdx < meshData.m_NumMeshlets)
     {
-        MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataOffset + meshletIdx];
+        MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataBufferIdx + meshletIdx];
         
         float3 sphereCenterWorldSpace = mul(float4(meshletData.m_BoundingSphere.xyz, 1.0f), instanceConsts.m_WorldMatrix).xyz;
         float3 sphereCenterViewSpace = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_ViewMatrix).xyz;
@@ -177,7 +177,7 @@ void MS_Main(
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inPayload.m_InstanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
-    MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataOffset + meshletIdx];
+    MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataBufferIdx + meshletIdx];
     
     uint numVertices = (meshletData.m_VertexAndTriangleCount >> 0) & 0xFF;
     uint numPrimitives = (meshletData.m_VertexAndTriangleCount >> 8) & 0xFF;
@@ -186,7 +186,7 @@ void MS_Main(
     
     if (outputIdx < numVertices)
     {
-        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_VertexBufferIdx + outputIdx];
+        uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_MeshletVertexIDsBufferIdx + outputIdx];
         
         VertexOut vOut = GetVertexAttributes(instanceConsts, meshData, inPayload.m_InstanceConstIdx, vertexIdx);
         vOut.m_MeshletIdx = meshletIdx;
@@ -196,7 +196,7 @@ void MS_Main(
     
     if (outputIdx < numPrimitives)
     {
-        uint packedIndices = g_MeshletIndexIDsBuffer[meshletData.m_IndicesBufferIdx + outputIdx];
+        uint packedIndices = g_MeshletIndexIDsBuffer[meshletData.m_MeshletIndexIDsBufferIdx + outputIdx];
     
         uint a = (packedIndices >> 0) & 0xFF;
         uint b = (packedIndices >> 8) & 0xFF;

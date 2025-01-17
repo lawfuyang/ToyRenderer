@@ -46,6 +46,7 @@ public:
     void Initialize(
         const std::vector<RawVertexFormat>& rawVertices,
         const std::vector<uint32_t>& indices,
+        uint32_t globalVertexBufferOffset,
         std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
         std::vector<uint32_t>& meshletIndicesOut,
 		std::vector<MeshletData>& meshletsOut,
@@ -56,10 +57,7 @@ public:
     MeshLOD m_LODs[8];
     uint32_t m_NumLODs = 0;
 
-    uint32_t m_StartVertexLocation = UINT_MAX;
-    uint32_t m_StartIndexLocation = UINT_MAX;
     uint32_t m_MeshDataBufferIdx = UINT_MAX;
-    uint32_t m_NumMeshlets = 0;
 
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };

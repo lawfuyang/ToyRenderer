@@ -47,7 +47,7 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
 
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
     
-    uint numWorkGroups = DivideAndRoundUp(meshData.m_MeshletCount, kNumThreadsPerWave);
+    uint numWorkGroups = DivideAndRoundUp(meshData.m_NumMeshlets, kNumThreadsPerWave);
     
     uint workGroupOffset;
     InterlockedAdd(g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountX, numWorkGroups, workGroupOffset);

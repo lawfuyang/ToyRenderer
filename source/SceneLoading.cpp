@@ -503,15 +503,15 @@ struct GLTFSceneLoader
                 const cgltf_accessor* positionAccessor = cgltf_find_accessor(&gltfPrimitive, cgltf_attribute_type_position, 0);
                 assert(positionAccessor);
 
-                newSceneMesh->m_StartVertexLocation = totalVertices;
-                newSceneMesh->m_StartIndexLocation = totalIndices;
+                const uint32_t globalVertexBufferOffset = totalVertices;
+                const uint32_t globalIndexBufferOffset = totalIndices;
 
                 const uint32_t nbVertices = positionAccessor->count;
 
                 totalVertices += nbVertices;
                 totalIndices += gltfPrimitive.indices->count;
 
-                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx, meshletDataOffsetsIdx, nbVertices]
+                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx, meshletDataOffsetsIdx, globalVertexBufferOffset, globalIndexBufferOffset, nbVertices]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
@@ -591,6 +591,7 @@ struct GLTFSceneLoader
                         newSceneMesh->Initialize(
                             vertices,
                             indices,
+                            globalVertexBufferOffset,
                             m_MeshletDataEntries[meshletDataOffsetsIdx].m_VertexIdxOffsets,
                             m_MeshletDataEntries[meshletDataOffsetsIdx].m_Indices,
                             m_MeshletDataEntries[meshletDataOffsetsIdx].m_Meshlets,
@@ -598,14 +599,11 @@ struct GLTFSceneLoader
 
                         newSceneMesh->m_MeshDataBufferIdx = globalMeshDataIdx;
 
-                        memcpy(&m_GlobalVertices[newSceneMesh->m_StartVertexLocation], vertices.data(), vertices.size() * sizeof(RawVertexFormat));
-                        memcpy(&m_GlobalIndices[newSceneMesh->m_StartIndexLocation], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
+                        memcpy(&m_GlobalVertices[globalVertexBufferOffset], vertices.data(), vertices.size() * sizeof(RawVertexFormat));
+                        memcpy(&m_GlobalIndices[globalIndexBufferOffset], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
 
                         MeshData& meshData = m_GlobalMeshData[globalMeshDataIdx];
-                        meshData.m_IndexCount = indices.size();
-                        meshData.m_StartIndexLocation = newSceneMesh->m_StartIndexLocation;
-                        meshData.m_StartVertexLocation = newSceneMesh->m_StartVertexLocation;
-                        meshData.m_MeshletCount = m_MeshletDataEntries[meshletDataOffsetsIdx].m_Meshlets.size();
+                        meshData.m_NumMeshlets = m_MeshletDataEntries[meshletDataOffsetsIdx].m_Meshlets.size();
                         meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
 
 						// meshData.m_MeshletDataOffset will be initialized later
@@ -763,12 +761,12 @@ struct GLTFSceneLoader
 		{
             GlobalMeshletDataEntry& meshletDataEntry = m_MeshletDataEntries.at(i);
 
-            m_GlobalMeshData.at(i).m_MeshletDataOffset = globalMeshletDatas.size();
+            m_GlobalMeshData.at(i).m_MeshletDataBufferIdx = globalMeshletDatas.size();
 
             for (MeshletData& meshletData : meshletDataEntry.m_Meshlets)
             {
-				meshletData.m_VertexBufferIdx += globalMeshletVertexIdxOffsets.size();
-				meshletData.m_IndicesBufferIdx += globalMeshletIndices.size();
+				meshletData.m_MeshletVertexIDsBufferIdx += globalMeshletVertexIdxOffsets.size();
+				meshletData.m_MeshletIndexIDsBufferIdx += globalMeshletIndices.size();
             }
 
             totalMeshletCount += meshletDataEntry.m_Meshlets.size();

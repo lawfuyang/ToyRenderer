@@ -108,6 +108,7 @@ bool Primitive::IsValid() const
 void Mesh::Initialize(
     const std::vector<RawVertexFormat>& vertices,
     const std::vector<uint32_t>& indices,
+    uint32_t globalVertexBufferOffset,
     std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
     std::vector<uint32_t>& meshletIndicesOut,
     std::vector<MeshletData>& meshletsOut,
@@ -115,6 +116,8 @@ void Mesh::Initialize(
 {
     PROFILE_FUNCTION();
 
+    static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletVertices);
+    static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletTriangles);
     static_assert(std::is_same_v<uint32_t, Graphic::IndexBufferFormat_t>);
     static_assert(_countof(m_LODs) == Graphic::kMaxNumMeshLODs);
 
@@ -190,7 +193,7 @@ void Mesh::Initialize(
     meshletTriangles.resize(numMaxMeshlets * kMaxMeshletTriangles * 3);
 
     static const float kMeshletConeWeight = 0.25f;
-    m_NumMeshlets = meshopt_buildMeshlets(
+    const uint32_t numMeshlets = meshopt_buildMeshlets(
         meshlets.data(),
         meshletVertices.data(),
         meshletTriangles.data(),
@@ -203,21 +206,21 @@ void Mesh::Initialize(
         kMaxMeshletTriangles,
         kMeshletConeWeight);
 
-	meshlets.resize(m_NumMeshlets);
+	meshlets.resize(numMeshlets);
 
-    numTotalMeshlets += m_NumMeshlets;
+    numTotalMeshlets += numMeshlets;
 
     for (const meshopt_Meshlet& meshlet : meshlets)
     {
         meshopt_optimizeMeshlet(&meshletVertices.at(meshlet.vertex_offset), &meshletTriangles.at(meshlet.triangle_offset), meshlet.triangle_count, meshlet.vertex_count);
 
         MeshletData& newMeshlet = meshletsOut.emplace_back();
-        newMeshlet.m_VertexBufferIdx = meshletVertexIdxOffsetsOut.size();
-        newMeshlet.m_IndicesBufferIdx = meshletIndicesOut.size();
+        newMeshlet.m_MeshletVertexIDsBufferIdx = meshletVertexIdxOffsetsOut.size();
+        newMeshlet.m_MeshletIndexIDsBufferIdx = meshletIndicesOut.size();
 
         for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
         {
-            meshletVertexIdxOffsetsOut.push_back(meshletVertices.at(meshlet.vertex_offset + i));
+            meshletVertexIdxOffsetsOut.push_back(globalVertexBufferOffset + meshletVertices.at(meshlet.vertex_offset + i));
         }
 
         for (uint32_t i = 0; i < meshlet.triangle_count; ++i)
@@ -270,9 +273,7 @@ void Mesh::Initialize(
 
 bool Mesh::IsValid() const
 {
-    return m_StartVertexLocation != UINT_MAX
-        && m_StartIndexLocation != UINT_MAX
-        && m_MeshDataBufferIdx != UINT_MAX;
+    return m_MeshDataBufferIdx != UINT_MAX;
 }
 
 bool Material::IsValid() const
