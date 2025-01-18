@@ -266,7 +266,18 @@ void Mesh::Initialize(
 
 bool Mesh::IsValid() const
 {
-    return m_MeshDataBufferIdx != UINT_MAX;
+    bool bResult = true;
+
+    bResult &= m_NumLODs > 0;
+
+    for (uint32_t i = 0; i < m_NumLODs; ++i)
+    {
+        bResult &= m_LODs[i].m_MeshDataBufferIdx != UINT_MAX;
+    }
+
+    bResult &= m_MeshDataBufferIdx != UINT_MAX;
+
+    return bResult;
 }
 
 bool Material::IsValid() const
