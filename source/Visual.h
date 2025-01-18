@@ -33,7 +33,6 @@ public:
 
 struct MeshLOD
 {
-    uint32_t m_StartIndexLocation = UINT_MAX;
     uint32_t m_NumIndices = 0;
     uint32_t m_MeshDataBufferIdx = UINT_MAX;
     uint32_t m_NumMeshlets = 0;

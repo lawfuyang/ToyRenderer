@@ -39,12 +39,6 @@ SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts)
 {
-#if LATE_CULL
-    InterlockedAdd(g_CullingCounters[kCullingLateInstancesBufferCounterIdx], 1);
-#else
-    InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
-#endif
-
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
     
     uint numWorkGroups = DivideAndRoundUp(meshData.m_NumMeshlets, kNumThreadsPerWave);
@@ -54,6 +48,14 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
     g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountY = 1;
     g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountZ = 1;
     
+    // drop workgroups if we exceed the max number of thread groups
+    // set counter to a invalid value to signal that we burst the limit
+    if (workGroupOffset + numWorkGroups >= kMaxThreadGroupsPerDimension)
+    {
+        g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx] = 0xFFFFFFFF;
+        return;
+    }
+    
     for (uint i = 0; i < numWorkGroups; ++i)
     {
         MeshletAmplificationData newData;
@@ -62,6 +64,12 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
         
         g_MeshletAmplificationDataBuffer[workGroupOffset + i] = newData;
     }
+    
+#if LATE_CULL
+    InterlockedAdd(g_CullingCounters[kCullingLateInstancesBufferCounterIdx], 1);
+#else
+    InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
+#endif
 }
 
 [numthreads(kNumThreadsPerWave, 1, 1)]

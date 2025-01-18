@@ -42,6 +42,7 @@ struct GLTFSceneLoader
 
     struct GlobalMeshletDataEntry
     {
+        uint32_t m_SceneMeshIdx;
         std::vector<uint32_t> m_VertexIdxOffsets;
         std::vector<uint32_t> m_Indices;
         std::vector<MeshletData> m_Meshlets;
@@ -495,8 +496,9 @@ struct GLTFSceneLoader
                 const uint32_t globalMeshDataIdx = m_GlobalMeshData.size();
                 m_GlobalMeshData.emplace_back();
 
-				const uint32_t meshletDataOffsetsIdx = m_MeshletDataEntries.size();
+				const uint32_t meshletDataEntryIdx = m_MeshletDataEntries.size();
                 m_MeshletDataEntries.emplace_back();
+                m_MeshletDataEntries.back().m_SceneMeshIdx = sceneMeshIdx;
 
                 const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
 
@@ -511,7 +513,7 @@ struct GLTFSceneLoader
                 totalVertices += nbVertices;
                 totalIndices += gltfPrimitive.indices->count;
 
-                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx, meshletDataOffsetsIdx, globalVertexBufferIdxOffset, globalIndexBufferIdxOffset, nbVertices]
+                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx, meshletDataEntryIdx, globalVertexBufferIdxOffset, globalIndexBufferIdxOffset, nbVertices]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
@@ -592,9 +594,9 @@ struct GLTFSceneLoader
                             vertices,
                             indices,
                             globalVertexBufferIdxOffset,
-                            m_MeshletDataEntries[meshletDataOffsetsIdx].m_VertexIdxOffsets,
-                            m_MeshletDataEntries[meshletDataOffsetsIdx].m_Indices,
-                            m_MeshletDataEntries[meshletDataOffsetsIdx].m_Meshlets,
+                            m_MeshletDataEntries[meshletDataEntryIdx].m_VertexIdxOffsets,
+                            m_MeshletDataEntries[meshletDataEntryIdx].m_Indices,
+                            m_MeshletDataEntries[meshletDataEntryIdx].m_Meshlets,
                             m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
 
                         newSceneMesh->m_MeshDataBufferIdx = globalMeshDataIdx;
@@ -603,10 +605,10 @@ struct GLTFSceneLoader
                         memcpy(&m_GlobalIndices[globalIndexBufferIdxOffset], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
 
                         MeshData& meshData = m_GlobalMeshData[globalMeshDataIdx];
-                        meshData.m_NumMeshlets = m_MeshletDataEntries[meshletDataOffsetsIdx].m_Meshlets.size();
+                        meshData.m_NumMeshlets = newSceneMesh->m_LODs[0].m_NumMeshlets; // TODO: remove when LOD is implemented
                         meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
 
-						// meshData.m_MeshletDataOffset will be initialized later
+						// meshData.m_MeshletDataBufferIdx will be initialized later
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
                         if (gltfPrimitive.material)
@@ -754,12 +756,11 @@ struct GLTFSceneLoader
 
         assert(m_MeshletDataEntries.size() == m_GlobalMeshData.size());
 
-        uint32_t totalMeshletCount = 0;
-
         // flatten per-primitive meshlet buffers into global buffers
         for (uint32_t i = 0; i < m_MeshletDataEntries.size(); ++i)
 		{
             GlobalMeshletDataEntry& meshletDataEntry = m_MeshletDataEntries.at(i);
+            Mesh& sceneMesh = g_Graphic.m_Meshes.at(meshletDataEntry.m_SceneMeshIdx);
 
             m_GlobalMeshData.at(i).m_MeshletDataBufferIdx = globalMeshletDatas.size();
 
@@ -769,16 +770,16 @@ struct GLTFSceneLoader
 				meshletData.m_MeshletIndexIDsBufferIdx += globalMeshletIndices.size();
             }
 
-            totalMeshletCount += meshletDataEntry.m_Meshlets.size();
+            for (uint32_t lodIdx = 0; lodIdx < sceneMesh.m_NumLODs; ++lodIdx)
+            {
+                MeshLOD& meshLOD = sceneMesh.m_LODs[lodIdx];
+                meshLOD.m_MeshDataBufferIdx += globalMeshletDatas.size();
+            }
 
 			globalMeshletVertexIdxOffsets.insert(globalMeshletVertexIdxOffsets.end(), meshletDataEntry.m_VertexIdxOffsets.begin(), meshletDataEntry.m_VertexIdxOffsets.end());
 			globalMeshletIndices.insert(globalMeshletIndices.end(), meshletDataEntry.m_Indices.begin(), meshletDataEntry.m_Indices.end());
             globalMeshletDatas.insert(globalMeshletDatas.end(), meshletDataEntry.m_Meshlets.begin(), meshletDataEntry.m_Meshlets.end());
 		}
-
-        // we will build a giant linear buffer of meshlets for Amplification Shader indirect dispatches, and we process them all in one giant dispatch
-        // TODO: if the amount of thread groups dispatched bursts the API limit, we'll use the 'Y' dimension as well
-        assert(DivideAndRoundUp(totalMeshletCount, kNumThreadsPerWave) <= Graphic::kMaxThreadGroupsPerDimension);
 
         {
             nvrhi::BufferDesc desc;

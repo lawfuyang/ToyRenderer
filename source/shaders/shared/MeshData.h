@@ -7,6 +7,8 @@ static const uint32_t kMaxMeshletVertices = 64;
 static const uint32_t kMaxMeshletTriangles = 96;
 static const uint32_t kMeshletShaderThreadGroupSize = 96;
 
+static const uint32_t kMaxNumMeshLODs = 8;
+
 struct MeshData
 {
 	Vector4 m_BoundingSphere;
