@@ -33,44 +33,6 @@ sampler g_PointClampSampler : register(s5);
 SamplerComparisonState g_PointComparisonLessSampler : register(s6);
 SamplerComparisonState g_LinearComparisonLessSampler : register(s7);
 
-
-struct VertexOut
-{
-    float4 m_Position : SV_POSITION;
-    float3 m_Normal : NORMAL;
-    float3 m_WorldPosition : POSITION_WS;
-    nointerpolation uint m_InstanceConstsIdx : TEXCOORD0;
-    nointerpolation uint m_MeshletIdx : TEXCOORD1;
-    float2 m_UV : TEXCOORD2;
-};
-
-VertexOut GetVertexAttributes(BasePassInstanceConstants instanceConsts, MeshData meshData, uint instanceConstIdx, uint vertexIdx)
-{
-    VertexOut vOut = (VertexOut)0;
-    
-    RawVertexFormat vertexInfo = g_VirtualVertexBuffer[vertexIdx];
-    
-    float4 position = float4(vertexInfo.m_Position, 1.0f);
-    float4 worldPos = mul(position, instanceConsts.m_WorldMatrix);
-    
-    vOut.m_Position = mul(worldPos, g_BasePassConsts.m_ViewProjMatrix);
-    
-    // Alien math to calculate the normal and tangent in world space, without inverse-transposing the world matrix
-    // https://github.com/graphitemaster/normals_revisited
-    // https://x.com/iquilezles/status/1866219178409316362
-    // https://www.shadertoy.com/view/3s33zj
-    float3x3 adjugateWorldMatrix = MakeAdjugateMatrix(instanceConsts.m_WorldMatrix);
-    
-    float3 UnpackedNormal = UnpackR10G10B10A2F(vertexInfo.m_PackedNormal).xyz;
-    vOut.m_Normal = normalize(mul(UnpackedNormal, adjugateWorldMatrix));
-    
-    vOut.m_UV = vertexInfo.m_TexCoord;
-    vOut.m_WorldPosition = worldPos.xyz;
-    vOut.m_InstanceConstsIdx = instanceConstIdx;
-
-    return vOut;
-}
-
 groupshared MeshletPayload s_MeshletPayload;
 
 [NumThreads(kNumThreadsPerWave, 1, 1)]
@@ -160,6 +122,16 @@ void AS_Main(
     DispatchMesh(numVisible, 1, 1, s_MeshletPayload);
 }
 
+struct VertexOut
+{
+    float4 m_Position : SV_POSITION;
+    float3 m_Normal : NORMAL;
+    float3 m_WorldPosition : POSITION_WS;
+    nointerpolation uint m_InstanceConstsIdx : TEXCOORD0;
+    nointerpolation uint m_MeshletIdx : TEXCOORD1;
+    float2 m_UV : TEXCOORD2;
+};
+
 [NumThreads(kMeshletShaderThreadGroupSize, 1, 1)]
 [OutputTopology("triangle")]
 void MS_Main(
@@ -187,9 +159,25 @@ void MS_Main(
     if (outputIdx < numVertices)
     {
         uint vertexIdx = g_MeshletVertexIDsBuffer[meshletData.m_MeshletVertexIDsBufferIdx + outputIdx];
+        RawVertexFormat vertexInfo = g_VirtualVertexBuffer[vertexIdx];
+    
+        float4 vertexPosition = float4(vertexInfo.m_Position, 1.0f);
+        float4 worldPos = mul(vertexPosition, instanceConsts.m_WorldMatrix);
+    
+        // Alien math to calculate the normal and tangent in world space, without inverse-transposing the world matrix
+        // https://github.com/graphitemaster/normals_revisited
+        // https://x.com/iquilezles/status/1866219178409316362
+        // https://www.shadertoy.com/view/3s33zj
+        float3x3 adjugateWorldMatrix = MakeAdjugateMatrix(instanceConsts.m_WorldMatrix);
+        float3 UnpackedNormal = UnpackR10G10B10A2F(vertexInfo.m_PackedNormal).xyz;
         
-        VertexOut vOut = GetVertexAttributes(instanceConsts, meshData, inPayload.m_InstanceConstIdx, vertexIdx);
+        VertexOut vOut = (VertexOut)0;
+        vOut.m_Position = mul(worldPos, g_BasePassConsts.m_ViewProjMatrix);
+        vOut.m_Normal = normalize(mul(UnpackedNormal, adjugateWorldMatrix));
+        vOut.m_WorldPosition = worldPos.xyz;
+        vOut.m_InstanceConstsIdx = inPayload.m_InstanceConstIdx;
         vOut.m_MeshletIdx = meshletIdx;
+        vOut.m_UV = vertexInfo.m_TexCoord;
         
         meshletVertexOut[outputIdx] = vOut;
     }
