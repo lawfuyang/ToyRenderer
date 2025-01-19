@@ -29,6 +29,7 @@
     • integrate D3DX12Residency into nvrhi
     • utilize 'SDL_AsyncIOFromFile' for async mip reading
     • Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
+	• accelerate with https://github.com/microsoft/DirectStorage
 • volumetric clouds
 • Static Animations
 • Skinning:
