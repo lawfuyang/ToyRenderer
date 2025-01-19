@@ -8,12 +8,21 @@ static const uint32_t kMaxMeshletTriangles = 96;
 static const uint32_t kMeshletShaderThreadGroupSize = 96;
 
 static const uint32_t kMaxNumMeshLODs = 8;
+static const uint32_t kInvalidMeshLOD = 0xFF;
+
+struct MeshLODData
+{
+	uint32_t m_MeshletDataBufferIdx;
+	uint32_t m_NumMeshlets;
+	float m_Error;
+	uint32_t PAD0;
+};
 
 struct MeshData
 {
 	Vector4 m_BoundingSphere;
-	uint32_t m_MeshletDataBufferIdx;
-	uint32_t m_NumMeshlets;
+    MeshLODData m_MeshLODDatas[kMaxNumMeshLODs];
+	uint32_t m_NumLODs;
 };
 
 struct MeshletData
@@ -27,13 +36,15 @@ struct MeshletData
 
 struct MeshletPayload
 {
-	uint32_t m_InstanceConstIdx;
 	uint32_t m_MeshletIndices[64];
+	uint32_t m_InstanceConstIdx;
+	uint32_t m_MeshLOD;
 };
 
 struct MeshletAmplificationData
 {
     uint32_t m_InstanceConstIdx;
+	uint32_t m_MeshLOD;
     uint32_t m_MeshletGroupOffset;
 };
 

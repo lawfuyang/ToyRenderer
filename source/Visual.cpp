@@ -143,7 +143,7 @@ void Mesh::Initialize(
 
         MeshLOD& newLOD = m_LODs[m_NumLODs++];
         newLOD.m_NumIndices = LODIndices.size();
-        newLOD.m_MeshDataBufferIdx = meshletsOut.size(); // NOTE: this will be properly offset at the global level after all mesh data are loaded
+        newLOD.m_MeshletDataBufferIdx = meshletsOut.size(); // NOTE: this will be properly offset at the global level after all mesh data are loaded
 
         std::vector<meshopt_Meshlet> meshlets;
         std::vector<uint32_t> meshletVertices;
@@ -196,7 +196,13 @@ void Mesh::Initialize(
                 meshletIndicesOut.push_back(packedIndices);
             }
 
-            const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(&meshletVertices.at(meshlet.vertex_offset), &meshletTriangles.at(meshlet.triangle_offset), meshlet.triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(RawVertexFormat));
+            const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(
+                &meshletVertices.at(meshlet.vertex_offset),
+                &meshletTriangles.at(meshlet.triangle_offset),
+                meshlet.triangle_count,
+                (const float*)vertices.data(),
+                vertices.size(),
+                sizeof(RawVertexFormat));
 
             assert(meshlet.vertex_count <= UINT8_MAX);
             assert(meshlet.triangle_count <= UINT8_MAX);
@@ -256,9 +262,14 @@ void Mesh::Initialize(
 
     std::string logStr = StringFormat("New Mesh: %s, Vertices: %d", meshName.data(), vertices.size());
 
-    for (uint32_t i = 0; i < m_NumLODs; ++i)
+    static const bool kbDebugLODDetails = true;
+    if constexpr (kbDebugLODDetails)
     {
-        logStr += StringFormat("\n\tLOD %d, Indices: %d, MeshDataBufferIdx: %d, Meshlets: %d, Error: %.2f", i, m_LODs[i].m_NumIndices, m_LODs[i].m_MeshDataBufferIdx, m_LODs[i].m_NumMeshlets, m_LODs[i].m_Error);
+        for (uint32_t i = 0; i < m_NumLODs; ++i)
+        {
+            logStr += StringFormat("\n\tLOD %d, Indices: %d, MeshletDataBufferIdx: %d, Meshlets: %d, Error: %.2f",
+                i, m_LODs[i].m_NumIndices, m_LODs[i].m_MeshletDataBufferIdx, m_LODs[i].m_NumMeshlets, m_LODs[i].m_Error);
+        }
     }
 
     LOG_DEBUG("%s", logStr.c_str());
@@ -272,7 +283,7 @@ bool Mesh::IsValid() const
 
     for (uint32_t i = 0; i < m_NumLODs; ++i)
     {
-        bResult &= m_LODs[i].m_MeshDataBufferIdx != UINT_MAX;
+        bResult &= m_LODs[i].m_MeshletDataBufferIdx != UINT_MAX;
     }
 
     bResult &= m_MeshDataBufferIdx != UINT_MAX;

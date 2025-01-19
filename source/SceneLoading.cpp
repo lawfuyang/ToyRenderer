@@ -605,10 +605,18 @@ struct GLTFSceneLoader
                         memcpy(&m_GlobalIndices[globalIndexBufferIdxOffset], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
 
                         MeshData& meshData = m_GlobalMeshData[globalMeshDataIdx];
-                        meshData.m_NumMeshlets = newSceneMesh->m_LODs[0].m_NumMeshlets; // TODO: remove when LOD is implemented
                         meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
+                        meshData.m_NumLODs = newSceneMesh->m_NumLODs;
+                        
+                        for (uint32_t meshLODIdx = 0; meshLODIdx < kMaxNumMeshLODs; ++meshLODIdx)
+                        {
+                            MeshLODData& meshLODData = meshData.m_MeshLODDatas[meshLODIdx];
+                            MeshLOD& meshLOD = newSceneMesh->m_LODs[meshLODIdx];
 
-						// meshData.m_MeshletDataBufferIdx will be initialized later
+                            meshLODData.m_MeshletDataBufferIdx = meshLOD.m_MeshletDataBufferIdx;
+                            meshLODData.m_NumMeshlets = meshLOD.m_NumMeshlets;
+                            meshLODData.m_Error = meshLOD.m_Error;
+                        }
 
                         Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
                         if (gltfPrimitive.material)
@@ -762,18 +770,16 @@ struct GLTFSceneLoader
             GlobalMeshletDataEntry& meshletDataEntry = m_MeshletDataEntries.at(i);
             Mesh& sceneMesh = g_Graphic.m_Meshes.at(meshletDataEntry.m_SceneMeshIdx);
 
-            m_GlobalMeshData.at(i).m_MeshletDataBufferIdx = globalMeshletDatas.size();
-
             for (MeshletData& meshletData : meshletDataEntry.m_Meshlets)
             {
 				meshletData.m_MeshletVertexIDsBufferIdx += globalMeshletVertexIdxOffsets.size();
 				meshletData.m_MeshletIndexIDsBufferIdx += globalMeshletIndices.size();
             }
 
-            for (uint32_t lodIdx = 0; lodIdx < sceneMesh.m_NumLODs; ++lodIdx)
+            for (uint32_t lodIdx = 0; lodIdx < kMaxNumMeshLODs; ++lodIdx)
             {
-                MeshLOD& meshLOD = sceneMesh.m_LODs[lodIdx];
-                meshLOD.m_MeshDataBufferIdx += globalMeshletDatas.size();
+                MeshLODData& meshLODData = m_GlobalMeshData.at(i).m_MeshLODDatas[lodIdx];
+                meshLODData.m_MeshletDataBufferIdx += globalMeshletDatas.size();
             }
 
 			globalMeshletVertexIdxOffsets.insert(globalMeshletVertexIdxOffsets.end(), meshletDataEntry.m_VertexIdxOffsets.begin(), meshletDataEntry.m_VertexIdxOffsets.end());

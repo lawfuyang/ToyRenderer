@@ -53,13 +53,14 @@ void AS_Main(
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
+    MeshLODData meshLODData = meshData.m_MeshLODDatas[amplificationData.m_MeshLOD];
     
     bool bVisible = false;
     
     uint meshletIdx = amplificationData.m_MeshletGroupOffset + groupThreadID.x;
-    if (meshletIdx < meshData.m_NumMeshlets)
+    if (meshletIdx < meshLODData.m_NumMeshlets)
     {
-        MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataBufferIdx + meshletIdx];
+        MeshletData meshletData = g_MeshletDataBuffer[meshLODData.m_MeshletDataBufferIdx + meshletIdx];
         
         float3 sphereCenterWorldSpace = mul(float4(meshletData.m_BoundingSphere.xyz, 1.0f), instanceConsts.m_WorldMatrix).xyz;
         float3 sphereCenterViewSpace = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_ViewMatrix).xyz;
@@ -113,6 +114,7 @@ void AS_Main(
     #endif
         
         s_MeshletPayload.m_InstanceConstIdx = instanceConstIdx;
+        s_MeshletPayload.m_MeshLOD = amplificationData.m_MeshLOD;
         
         uint payloadIdx = WavePrefixCountBits(bVisible);
         s_MeshletPayload.m_MeshletIndices[payloadIdx] = meshletIdx;
@@ -149,7 +151,8 @@ void MS_Main(
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inPayload.m_InstanceConstIdx];
     MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
-    MeshletData meshletData = g_MeshletDataBuffer[meshData.m_MeshletDataBufferIdx + meshletIdx];
+    MeshLODData meshLODData = meshData.m_MeshLODDatas[inPayload.m_MeshLOD];
+    MeshletData meshletData = g_MeshletDataBuffer[meshLODData.m_MeshletDataBufferIdx + meshletIdx];
     
     uint numVertices = (meshletData.m_VertexAndTriangleCount >> 0) & 0xFF;
     uint numPrimitives = (meshletData.m_VertexAndTriangleCount >> 8) & 0xFF;

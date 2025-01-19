@@ -41,7 +41,17 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
 {
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
     
-    uint numWorkGroups = DivideAndRoundUp(meshData.m_NumMeshlets, kNumThreadsPerWave);
+    uint meshLOD = 0;
+    
+    uint forcedMeshLOD = g_GPUCullingPassConstants.m_ForcedMeshLOD;
+    if (forcedMeshLOD != kInvalidMeshLOD)
+    {
+        meshLOD = min(forcedMeshLOD, meshData.m_NumLODs - 1);
+    }
+    
+    MeshLODData meshLODData = meshData.m_MeshLODDatas[meshLOD];
+    
+    uint numWorkGroups = DivideAndRoundUp(meshLODData.m_NumMeshlets, kNumThreadsPerWave);
     
     uint workGroupOffset;
     InterlockedAdd(g_MeshletDispatchArgumentsBuffer[0].m_ThreadGroupCountX, numWorkGroups, workGroupOffset);
@@ -60,6 +70,7 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
     {
         MeshletAmplificationData newData;
         newData.m_InstanceConstIdx = instanceConstsIdx;
+        newData.m_MeshLOD = meshLOD;
         newData.m_MeshletGroupOffset = i * kNumThreadsPerWave;
         
         g_MeshletAmplificationDataBuffer[workGroupOffset + i] = newData;

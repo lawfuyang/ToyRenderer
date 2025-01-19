@@ -210,6 +210,10 @@ public:
             }
         }
 
+        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
+
+        const uint32_t forcedMeshLOD = controllables.m_ForceMeshLOD >= 0 ? controllables.m_ForceMeshLOD : kInvalidMeshLOD;
+
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
         passParameters.m_CullingFlags = m_CullingFlags;
@@ -220,6 +224,7 @@ public:
         passParameters.m_NearPlane = view.m_ZNearP;
         passParameters.m_P00 = view.m_ProjectionMatrix.m[0][0];
         passParameters.m_P11 = view.m_ProjectionMatrix.m[1][1];
+        passParameters.m_ForcedMeshLOD = forcedMeshLOD;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 

@@ -34,7 +34,7 @@ public:
 struct MeshLOD
 {
     uint32_t m_NumIndices = 0;
-    uint32_t m_MeshDataBufferIdx = UINT_MAX;
+    uint32_t m_MeshletDataBufferIdx = UINT_MAX;
     uint32_t m_NumMeshlets = 0;
     float m_Error = 0.0f;
 };
