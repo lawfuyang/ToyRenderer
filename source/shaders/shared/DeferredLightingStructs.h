@@ -3,17 +3,6 @@
 
 #include "ShaderInterop.h"
 
-static const uint32_t kDeferredLightingDebugMode_LightingOnly      = 1;
-static const uint32_t kDeferredLightingDebugMode_ColorizeInstances = 2;
-static const uint32_t kDeferredLightingDebugMode_Albedo            = 3;
-static const uint32_t kDeferredLightingDebugMode_Normal            = 4;
-static const uint32_t kDeferredLightingDebugMode_Emissive          = 5;
-static const uint32_t kDeferredLightingDebugMode_Metalness         = 6;
-static const uint32_t kDeferredLightingDebugMode_Roughness         = 7;
-static const uint32_t kDeferredLightingDebugMode_AmbientOcclusion  = 8;
-static const uint32_t kDeferredLightingDebugMode_Ambient           = 9;
-static const uint32_t kDeferredLightingDebugMode_ShadowMask        = 10;
-
 struct DeferredLightingConsts
 {
 	Matrix m_InvViewProjMatrix;

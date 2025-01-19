@@ -20,6 +20,7 @@ struct BasePassConstants
 	float m_P00;
 	float m_P11;
 	float m_NearPlane;
+	uint32_t m_DebugMode;
 };
 
 struct BasePassInstanceConstants

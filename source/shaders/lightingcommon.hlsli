@@ -12,12 +12,12 @@ struct GBufferParams
     float3 m_Normal;
     float m_Roughness;
     float m_Metallic;
-    float m_RandFloat;
+    float m_DebugValue;
 };
 
 void PackGBuffer(in GBufferParams gbufferParams, out uint4 packedGBufferA)
 {
-    packedGBufferA.x = PackRGBA8(float4(gbufferParams.m_Albedo.rgb, gbufferParams.m_RandFloat));
+    packedGBufferA.x = PackRGBA8(float4(gbufferParams.m_Albedo.rgb, gbufferParams.m_DebugValue));
     packedGBufferA.y = PackUnorm2x16(PackOctadehron(gbufferParams.m_Normal));
     packedGBufferA.z = PackR9G9B9E5(gbufferParams.m_Emissive);
     packedGBufferA.w = PackRGBA8(float4(gbufferParams.m_Roughness, gbufferParams.m_Metallic, 0.0f, 0.0f));
@@ -32,7 +32,7 @@ void UnpackGBuffer(in uint4 packedGBufferA, out GBufferParams gbufferParams)
     
     gbufferParams.m_Albedo.rgb = unpackedGBufferA_X.rgb;
     gbufferParams.m_Albedo.a = 1.0f;
-    gbufferParams.m_RandFloat = unpackedGBufferA_X.w;
+    gbufferParams.m_DebugValue = unpackedGBufferA_X.w;
     gbufferParams.m_Normal = unpackedGBufferA_Y;
     gbufferParams.m_Emissive = unpackedGBufferA_Z;
     gbufferParams.m_Roughness = unpackedGBufferA_W.x;

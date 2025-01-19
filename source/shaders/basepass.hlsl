@@ -33,6 +33,17 @@ sampler g_PointClampSampler : register(s5);
 SamplerComparisonState g_PointComparisonLessSampler : register(s6);
 SamplerComparisonState g_LinearComparisonLessSampler : register(s7);
 
+struct VertexOut
+{
+    float4 m_Position : SV_POSITION;
+    float3 m_Normal : NORMAL;
+    float3 m_WorldPosition : POSITION_WS;
+    nointerpolation uint m_InstanceConstsIdx : TEXCOORD0;
+    nointerpolation uint m_MeshletIdx : TEXCOORD1;
+    nointerpolation uint m_MeshLOD : TEXCOORD2;
+    float2 m_UV : TEXCOORD3;
+};
+
 groupshared MeshletPayload s_MeshletPayload;
 
 [NumThreads(kNumThreadsPerWave, 1, 1)]
@@ -124,16 +135,6 @@ void AS_Main(
     DispatchMesh(numVisible, 1, 1, s_MeshletPayload);
 }
 
-struct VertexOut
-{
-    float4 m_Position : SV_POSITION;
-    float3 m_Normal : NORMAL;
-    float3 m_WorldPosition : POSITION_WS;
-    nointerpolation uint m_InstanceConstsIdx : TEXCOORD0;
-    nointerpolation uint m_MeshletIdx : TEXCOORD1;
-    float2 m_UV : TEXCOORD2;
-};
-
 [NumThreads(kMeshletShaderThreadGroupSize, 1, 1)]
 [OutputTopology("triangle")]
 void MS_Main(
@@ -180,6 +181,7 @@ void MS_Main(
         vOut.m_WorldPosition = worldPos.xyz;
         vOut.m_InstanceConstsIdx = inPayload.m_InstanceConstIdx;
         vOut.m_MeshletIdx = meshletIdx;
+        vOut.m_MeshLOD = inPayload.m_MeshLOD;
         vOut.m_UV = vertexInfo.m_TexCoord;
         
         meshletVertexOut[outputIdx] = vOut;
@@ -309,9 +311,18 @@ void PS_Main_GBuffer(
 {
     GBufferParams gbufferParams = GetGBufferParams(inVertex.m_InstanceConstsIdx, inVertex.m_Normal, inVertex.m_UV, inVertex.m_WorldPosition);
     
-    // for colorizing instances/meshlets
-    uint seed = inVertex.m_MeshletIdx != 0 ? inVertex.m_MeshletIdx : inVertex.m_InstanceConstsIdx;
-    gbufferParams.m_RandFloat = QuickRandomFloat(seed);
+    switch (g_BasePassConsts.m_DebugMode)
+    {
+        case kDeferredLightingDebugMode_ColorizeInstances:
+            gbufferParams.m_DebugValue = QuickRandomFloat(inVertex.m_InstanceConstsIdx);
+            break;
+        case kDeferredLightingDebugMode_ColorizeMeshlets:
+            gbufferParams.m_DebugValue = QuickRandomFloat(inVertex.m_MeshletIdx);
+            break;
+        case kDeferredLightingDebugMode_MeshLOD:
+            gbufferParams.m_DebugValue = (float)inVertex.m_MeshLOD / 255.0f;
+            break;
+    }
     
     PackGBuffer(gbufferParams, outGBufferA);
 }

@@ -326,6 +326,7 @@ public:
         basePassConstants.m_P00 = view.m_ProjectionMatrix.m[0][0];
         basePassConstants.m_P11 = view.m_ProjectionMatrix.m[1][1];
         basePassConstants.m_NearPlane = view.m_ZNearP;
+        basePassConstants.m_DebugMode = g_GraphicPropertyGrid.m_LightingControllables.m_DebugMode;
 
         memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
 

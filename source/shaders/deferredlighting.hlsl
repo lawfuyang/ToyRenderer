@@ -70,9 +70,9 @@ void PS_Main_Debug(
         float lightingOnlyShadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
         rgb = dot(gbufferParams.m_Normal, g_DeferredLightingConsts.m_DirectionalLightVector).xxx * lightingOnlyShadowFactor;
     }
-    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ColorizeInstances)
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ColorizeInstances || g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ColorizeMeshlets)
     {
-        uint seed = gbufferParams.m_RandFloat * 255.0f;
+        uint seed = gbufferParams.m_DebugValue * 255.0f;
         
         float randR = QuickRandomFloat(seed);
         float randG = QuickRandomFloat(seed);
@@ -110,6 +110,22 @@ void PS_Main_Debug(
     else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ShadowMask)
     {
         rgb = shadowFactor.rrr;
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_MeshLOD)
+    {
+        static const float3 kLODColors[8] =
+            {
+                { 1.0f, 0.0f, 0.0f },   // LOD 0 - Red (highest detail, most important)
+                { 1.0f, 0.5f, 0.0f },   // LOD 1 - Orange
+                { 1.0f, 1.0f, 0.0f },   // LOD 2 - Yellow
+                { 0.5f, 1.0f, 0.0f },   // LOD 3 - Light Green
+                { 0.0f, 1.0f, 0.0f },   // LOD 4 - Green
+                { 0.0f, 0.5f, 1.0f },   // LOD 5 - Light Blue
+                { 0.0f, 0.0f, 1.0f },   // LOD 6 - Blue
+                { 0.5f, 0.0f, 1.0f }    // LOD 7 - Purple (lowest detail, least important)
+            };
+        
+        rgb = kLODColors[gbufferParams.m_DebugValue * 255];
     }
     
     outColor = float4(rgb, 1.0f);

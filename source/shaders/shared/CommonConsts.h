@@ -27,4 +27,24 @@ static const uint32_t kCullingFlagFrustumCullingEnable     = (1 << 0);
 static const uint32_t kCullingFlagOcclusionCullingEnable   = (1 << 1);
 static const uint32_t kCullingFlagMeshletConeCullingEnable = (1 << 2);
 
+static const uint32_t kMaxMeshletVertices = 64;
+static const uint32_t kMaxMeshletTriangles = 96;
+static const uint32_t kMeshletShaderThreadGroupSize = 96;
+
+static const uint32_t kMaxNumMeshLODs = 8;
+static const uint32_t kInvalidMeshLOD = 0xFF;
+
+static const uint32_t kDeferredLightingDebugMode_LightingOnly      = 1;
+static const uint32_t kDeferredLightingDebugMode_ColorizeInstances = 2;
+static const uint32_t kDeferredLightingDebugMode_ColorizeMeshlets  = 3;
+static const uint32_t kDeferredLightingDebugMode_Albedo            = 4;
+static const uint32_t kDeferredLightingDebugMode_Normal            = 5;
+static const uint32_t kDeferredLightingDebugMode_Emissive          = 6;
+static const uint32_t kDeferredLightingDebugMode_Metalness         = 7;
+static const uint32_t kDeferredLightingDebugMode_Roughness         = 8;
+static const uint32_t kDeferredLightingDebugMode_AmbientOcclusion  = 9;
+static const uint32_t kDeferredLightingDebugMode_Ambient           = 10;
+static const uint32_t kDeferredLightingDebugMode_ShadowMask        = 11;
+static const uint32_t kDeferredLightingDebugMode_MeshLOD           = 12;
+
 #endif // #define _COMMON_CONSTS_H_
