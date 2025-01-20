@@ -284,7 +284,7 @@ void Mesh::Initialize(
 
     std::string logStr = StringFormat("New Mesh: %s, Vertices: %d", meshName.data(), vertices.size());
 
-    static const bool kbDebugLODDetails = true;
+    static const bool kbDebugLODDetails = false;
     if constexpr (kbDebugLODDetails)
     {
         for (uint32_t i = 0; i < m_NumLODs; ++i)
