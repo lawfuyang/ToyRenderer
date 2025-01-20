@@ -318,11 +318,6 @@ public:
         BasePassConstants basePassConstants;
         basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
         basePassConstants.m_ViewMatrix = view.m_CullingViewMatrix;
-        basePassConstants.m_DirectionalLightVector = scene->m_DirLightVec * scene->m_DirLightStrength;
-        basePassConstants.m_DirectionalLightColor = scene->m_DirLightColor;
-        basePassConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
-        basePassConstants.m_CameraOrigin = view.m_Eye;
-        basePassConstants.m_SSAOEnabled = g_GraphicPropertyGrid.m_AmbientOcclusionControllables.m_bEnabled;
         basePassConstants.m_Frustum = m_CullingFrustum;
         basePassConstants.m_CullingFlags = finalCullingFlags;
         basePassConstants.m_HZBDimensions = m_HZBDimensions;
@@ -330,13 +325,6 @@ public:
         basePassConstants.m_P11 = view.m_ProjectionMatrix.m[1][1];
         basePassConstants.m_NearPlane = view.m_ZNearP;
         basePassConstants.m_DebugMode = g_GraphicPropertyGrid.m_LightingControllables.m_DebugMode;
-
-        memcpy(&basePassConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(basePassConstants.m_CSMDistances));
-
-        for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
-        {
-            basePassConstants.m_DirLightViewProj[i] = scene->m_Views[Scene::EView::CSM0 + i].m_ViewProjectionMatrix;
-        }
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
 

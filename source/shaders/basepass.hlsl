@@ -331,35 +331,6 @@ void PS_Main_Forward(
     in VertexOut inVertex,
     out float4 outColor : SV_Target)
 {
-    // Get the common base pass values for the current instance
     GBufferParams gbufferParams = GetGBufferParams(inVertex.m_InstanceConstsIdx, inVertex.m_Normal, inVertex.m_UV, inVertex.m_WorldPosition);
-    
-    const float materialSpecular = 0.5f; // TODO?
-    float3 specular = ComputeF0(materialSpecular, gbufferParams.m_Metallic, gbufferParams.m_Metallic);
-    float3 V = normalize(g_BasePassConsts.m_CameraOrigin - inVertex.m_WorldPosition);
-    float3 L = g_BasePassConsts.m_DirectionalLightVector;
-    
-    float3 lighting = DefaultLitBxDF(specular, gbufferParams.m_Roughness, gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal, V, L);
-    
-    ShadowFilteringParams shadowFilteringParams;
-    shadowFilteringParams.m_WorldPosition = inVertex.m_WorldPosition;
-    shadowFilteringParams.m_CameraPosition = g_BasePassConsts.m_CameraOrigin;
-    shadowFilteringParams.m_CSMDistances = g_BasePassConsts.m_CSMDistances;
-    shadowFilteringParams.m_DirLightViewProj = g_BasePassConsts.m_DirLightViewProj;
-    shadowFilteringParams.m_InvShadowMapResolution = g_BasePassConsts.m_InvShadowMapResolution;
-    shadowFilteringParams.m_DirLightShadowDepthTexture = g_DirLightShadowDepthTexture;
-    shadowFilteringParams.m_PointClampSampler = g_PointClampSampler;
-    shadowFilteringParams.m_PointComparisonLessSampler = g_PointComparisonLessSampler;
-    shadowFilteringParams.m_LinearComparisonLessSampler = g_LinearComparisonLessSampler;
-    
-    // Compute the shadow factor using shadow filtering
-    float shadowFactor = ShadowFiltering(shadowFilteringParams);
-    lighting *= shadowFactor;
-    
-    lighting += gbufferParams.m_Emissive;
-    
-    // NOTE: supposed to be viewspace normal, but i dont care for now because i plan to integrate AMD Brixelizer
-    lighting += AmbientTerm(g_SSAOTexture, g_BasePassConsts.m_SSAOEnabled ? uint2(inVertex.m_WorldPosition.xy) : uint2(0, 0), gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal);
-    
-    outColor = float4(lighting, gbufferParams.m_Albedo.a);
+    outColor = float4(gbufferParams.m_Albedo.rgb + gbufferParams.m_Emissive, gbufferParams.m_Albedo.a);
 }
