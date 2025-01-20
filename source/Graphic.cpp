@@ -275,6 +275,9 @@ void Graphic::InitDevice()
                     };
 
                 EnsureFeatureSupport(nvrhi::Feature::Meshlets);
+                EnsureFeatureSupport(nvrhi::Feature::RayTracingAccelStruct);
+                EnsureFeatureSupport(nvrhi::Feature::RayTracingPipeline);
+                EnsureFeatureSupport(nvrhi::Feature::RayQuery);
             }
 
             m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();

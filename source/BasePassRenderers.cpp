@@ -600,7 +600,7 @@ class SunCSMBasePassRenderer : public BasePassRenderer
 {
     const uint32_t m_CSMIndex;
 
-    uint32_t ForceMeshLODForPass() const { return 0; }
+    uint32_t ForceMeshLODForPass() const override { return 0; }
 
 public:
     SunCSMBasePassRenderer(uint32_t CSMIdx)
