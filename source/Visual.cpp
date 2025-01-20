@@ -139,6 +139,8 @@ void Mesh::Initialize(
         static const float kTargetIndexCountPercentage = 0.65f;
         static const float kMinIndexReductionPercentage = 0.95f;
         static const uint32_t kSimplifyOptions = 0;
+        static const Vector3 kAttributeWeights{ 1.0f, 1.0f, 1.0f };
+        static const unsigned char* kVertexLock = nullptr;
         static const float kMeshletConeWeight = 0.25f;
 
         MeshLOD& newLOD = m_LODs[m_NumLODs++];
@@ -227,15 +229,35 @@ void Mesh::Initialize(
 
         newLOD.m_Error = LODError * LODErrorScalingFactor;
 
+        std::vector<Vector3> unpackedNormals;
+        for (const RawVertexFormat& v : vertices)
+        {
+            // Unccale to 10-bit integers from [0-1023] > [0-1]
+            const uint32_t xInt = (uint32_t)(v.m_PackedNormal >> 20) & 0x3FF;
+            const uint32_t yInt = (uint32_t)(v.m_PackedNormal >> 10) & 0x3FF;
+            const uint32_t zInt = (uint32_t)(v.m_PackedNormal >> 0 ) & 0x3FF;
+
+            // Unnormalize x, y, z from [0, 1] to [-1, 1]
+            Vector3 normal{ (float)xInt / 1023.0f, (float)yInt / 1023.0f, (float)zInt / 1023.0f };
+            normal = (normal * 2.0f) - Vector3::One;
+
+            unpackedNormals.push_back(normal);
+        }
+
         const size_t targetIndexCount = (size_t(double(LODIndices.size()) * kTargetIndexCountPercentage) / 3) * 3;
         float resultError = 0.0f;
-        const size_t numSimplifiedIndices = meshopt_simplify(
+        const size_t numSimplifiedIndices = meshopt_simplifyWithAttributes(
             LODIndices.data(),
             LODIndices.data(),
             LODIndices.size(),
             (const float*)vertices.data(),
             vertices.size(),
             sizeof(RawVertexFormat),
+            (const float*)unpackedNormals.data(),
+            sizeof(Vector3),
+            &kAttributeWeights.x,
+            sizeof(Vector3) / sizeof(float),
+            kVertexLock,
             targetIndexCount,
             kTargetError,
             kSimplifyOptions,
