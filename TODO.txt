@@ -61,8 +61,6 @@
 Raytracing
 • Hard shadows
     • Adria-DX12\Adria\Resources\Shaders\RayTracing\RayTracedShadows.hlsl
-• Accel Structure Memory Management
-	• https://github.com/NVIDIAGameWorks/RTXMU
 • GI
 	• https://github.com/NVIDIAGameWorks/RTXGI
 • Hybrid Stochastic Reflections
