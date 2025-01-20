@@ -83,7 +83,7 @@ public:
 
     View m_Views[EnumUtils::Count<EView>()];
 
-    float m_SunOrientation = 0.0f;
+    float m_SunOrientation = 270.0f;
     float m_SunInclination = 30.0f;
     Vector3 m_DirLightVec = Vector3{ 0.5773502691896258f, 0.5773502691896258f, -0.5773502691896258f };
     Vector3 m_DirLightColor = Vector3::One;
@@ -117,6 +117,7 @@ private:
     void UpdateCSMViews();
     void UpdateInstanceConstsBuffer();
     void UpdateInstanceIDsBuffers();
+    void UpdateDirectionalLightVector();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;

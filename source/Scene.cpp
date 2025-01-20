@@ -226,6 +226,8 @@ void Scene::Initialize()
     m_RenderGraph->Initialize();
 
     CalculateCSMSplitDistances();
+
+    UpdateDirectionalLightVector();
 }
 
 void Scene::SetCamera(uint32_t idx)
@@ -549,6 +551,19 @@ void Scene::UpdateInstanceIDsBuffers()
     }
 }
 
+void Scene::UpdateDirectionalLightVector()
+{
+    const float orientationRadians = ConvertToRadians(m_SunOrientation);
+    const float costheta = cosf(orientationRadians);
+    const float sintheta = sinf(orientationRadians);
+    const float inclinationRadians = ConvertToRadians(m_SunInclination);
+    const float cosphi = cosf(inclinationRadians);
+    const float sinphi = sinf(inclinationRadians);
+    m_DirLightVec = Vector3{ costheta * cosphi, sinphi, sintheta * cosphi };
+
+    assert(m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
+}
+
 void Scene::Update()
 {
     PROFILE_FUNCTION();
@@ -661,15 +676,7 @@ void Scene::UpdateIMGUIPropertyGrid()
         bUpdateDirection |= ImGui::SliderFloat("Sun Inclination", &m_SunInclination, 0.0f, 89.0f);
         if (bUpdateDirection)
         {
-            const float orientationRadians = ConvertToRadians(m_SunOrientation);
-            const float costheta = cosf(orientationRadians);
-            const float sintheta = sinf(orientationRadians);
-            const float inclinationRadians = ConvertToRadians(m_SunInclination);
-            const float cosphi = cosf(inclinationRadians);
-            const float sinphi = sinf(inclinationRadians);
-            m_DirLightVec = Vector3{ costheta * cosphi, sinphi, sintheta * cosphi };
-
-            assert(m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
+            UpdateDirectionalLightVector();
         }
 
         ImGui::InputFloat3("Directional Light Color", (float*)&m_DirLightColor, "%.1f");
