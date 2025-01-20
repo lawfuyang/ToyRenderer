@@ -46,20 +46,28 @@ public:
         const std::vector<RawVertexFormat>& rawVertices,
         const std::vector<uint32_t>& indices,
         uint32_t globalVertexBufferIdx,
+        uint32_t globalIndexBufferIdxOffset,
         std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
         std::vector<uint32_t>& meshletIndicesOut,
 		std::vector<MeshletData>& meshletsOut,
         std::string_view meshName);
 
+    void BuildBLAS(nvrhi::CommandListHandle commandList);
+
     bool IsValid() const;
+
+    uint64_t m_GlobalIndexBufferIdx = 0;
+    uint64_t m_GlobalVertexBufferIdx = 0;
+    uint32_t m_NumIndices = 0;
+    uint32_t m_NumVertices = 0;
 
     MeshLOD m_LODs[8];
     uint32_t m_NumLODs = 0;
-
     uint32_t m_MeshDataBufferIdx = UINT_MAX;
-
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
+    nvrhi::rt::AccelStructHandle m_BLAS; // TODO: move to per-LOD BLAS
+    std::string m_DebugName;
 };
 
 class Material

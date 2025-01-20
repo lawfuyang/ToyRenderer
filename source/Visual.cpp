@@ -116,12 +116,19 @@ void Mesh::Initialize(
     const std::vector<RawVertexFormat>& vertices,
     const std::vector<uint32_t>& indices,
     uint32_t globalVertexBufferIdx,
+    uint32_t globalIndexBufferIdxOffset,
     std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
     std::vector<uint32_t>& meshletIndicesOut,
     std::vector<MeshletData>& meshletsOut,
     std::string_view meshName)
 {
     PROFILE_FUNCTION();
+
+    m_GlobalIndexBufferIdx = globalIndexBufferIdxOffset;
+    m_GlobalVertexBufferIdx = globalVertexBufferIdx;
+    m_NumIndices = indices.size();
+    m_NumVertices = vertices.size();
+    m_DebugName = meshName;
 
     // init BV(s)
     Sphere::CreateFromPoints(m_BoundingSphere, vertices.size(), (const DirectX::XMFLOAT3*)vertices.data(), sizeof(RawVertexFormat));
@@ -134,18 +141,19 @@ void Mesh::Initialize(
 
     for (uint32_t lodIdx = 0; lodIdx < Graphic::kMaxNumMeshLODs; ++lodIdx)
     {
+        PROFILE_SCOPED("Process LOD");
+
         // note: we're using the same 'kTargetError' value for all LODs; if this changes, we need to remove/change 'kMinIndexReductionPercentage' exit criteria
         static const float kTargetError = 0.1f;
         static const float kTargetIndexCountPercentage = 0.65f;
         static const float kMinIndexReductionPercentage = 0.95f;
         static const uint32_t kSimplifyOptions = 0;
-        static const Vector3 kAttributeWeights{ 1.0f, 1.0f, 1.0f };
-        static const unsigned char* kVertexLock = nullptr;
         static const float kMeshletConeWeight = 0.25f;
 
         MeshLOD& newLOD = m_LODs[m_NumLODs++];
         newLOD.m_NumIndices = LODIndices.size();
         newLOD.m_MeshletDataBufferIdx = meshletsOut.size(); // NOTE: this will be properly offset at the global level after all mesh data are loaded
+        newLOD.m_Error = LODError * LODErrorScalingFactor;
 
         std::vector<meshopt_Meshlet> meshlets;
         std::vector<uint32_t> meshletVertices;
@@ -156,128 +164,118 @@ void Mesh::Initialize(
         meshletVertices.resize(numMaxMeshlets * kMaxMeshletVertices);
         meshletTriangles.resize(numMaxMeshlets * kMaxMeshletTriangles * 3);
 
-        newLOD.m_NumMeshlets = meshopt_buildMeshlets(
-            meshlets.data(),
-            meshletVertices.data(),
-            meshletTriangles.data(),
-            LODIndices.data(),
-            LODIndices.size(),
-            (const float*)vertices.data(),
-            vertices.size(),
-            sizeof(RawVertexFormat),
-            kMaxMeshletVertices,
-            kMaxMeshletTriangles,
-            kMeshletConeWeight);
+        {
+            PROFILE_SCOPED("Build Meshlets");
+
+            newLOD.m_NumMeshlets = meshopt_buildMeshlets(
+                meshlets.data(),
+                meshletVertices.data(),
+                meshletTriangles.data(),
+                LODIndices.data(),
+                LODIndices.size(),
+                (const float*)vertices.data(),
+                vertices.size(),
+                sizeof(RawVertexFormat),
+                kMaxMeshletVertices,
+                kMaxMeshletTriangles,
+                kMeshletConeWeight);
+        }
 
         meshlets.resize(newLOD.m_NumMeshlets);
 
-        for (const meshopt_Meshlet& meshlet : meshlets)
         {
-            meshopt_optimizeMeshlet(&meshletVertices.at(meshlet.vertex_offset), &meshletTriangles.at(meshlet.triangle_offset), meshlet.triangle_count, meshlet.vertex_count);
+            PROFILE_SCOPED("Generate MeshletDatas");
 
-            MeshletData& newMeshlet = meshletsOut.emplace_back();
-
-            // NOTE: these will be properly offset to the global value after all mesh data are loaded
-            newMeshlet.m_MeshletVertexIDsBufferIdx = meshletVertexIdxOffsetsOut.size();
-            newMeshlet.m_MeshletIndexIDsBufferIdx = meshletIndicesOut.size();
-
-            for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
+            for (const meshopt_Meshlet& meshlet : meshlets)
             {
-                meshletVertexIdxOffsetsOut.push_back(globalVertexBufferIdx + meshletVertices.at(meshlet.vertex_offset + i));
+                meshopt_optimizeMeshlet(&meshletVertices.at(meshlet.vertex_offset), &meshletTriangles.at(meshlet.triangle_offset), meshlet.triangle_count, meshlet.vertex_count);
+
+                MeshletData& newMeshlet = meshletsOut.emplace_back();
+
+                // NOTE: these will be properly offset to the global value after all mesh data are loaded
+                newMeshlet.m_MeshletVertexIDsBufferIdx = meshletVertexIdxOffsetsOut.size();
+                newMeshlet.m_MeshletIndexIDsBufferIdx = meshletIndicesOut.size();
+
+                for (uint32_t i = 0; i < meshlet.vertex_count; ++i)
+                {
+                    meshletVertexIdxOffsetsOut.push_back(globalVertexBufferIdx + meshletVertices.at(meshlet.vertex_offset + i));
+                }
+
+                for (uint32_t i = 0; i < meshlet.triangle_count; ++i)
+                {
+                    const uint32_t baseOffset = meshlet.triangle_offset + (i * 3);
+                    const uint8_t a = meshletTriangles.at(baseOffset + 0);
+                    const uint8_t b = meshletTriangles.at(baseOffset + 1);
+                    const uint8_t c = meshletTriangles.at(baseOffset + 2);
+
+                    const uint32_t packedIndices = a | (b << 8) | (c << 16);
+
+                    meshletIndicesOut.push_back(packedIndices);
+                }
+
+                const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(
+                    &meshletVertices.at(meshlet.vertex_offset),
+                    &meshletTriangles.at(meshlet.triangle_offset),
+                    meshlet.triangle_count,
+                    (const float*)vertices.data(),
+                    vertices.size(),
+                    sizeof(RawVertexFormat));
+
+                assert(meshlet.vertex_count <= UINT8_MAX);
+                assert(meshlet.triangle_count <= UINT8_MAX);
+                assert(Vector3{ meshletBounds.cone_axis }.Length() < (1.0f + kKindaSmallNumber));
+                assert(meshletBounds.cone_cutoff_s8 <= (UINT8_MAX / 2));
+
+                newMeshlet.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 8);
+                newMeshlet.m_BoundingSphere = Vector4{ meshletBounds.center[0], meshletBounds.center[1], meshletBounds.center[2], meshletBounds.radius };
+
+                const uint32_t packedAxisX = (meshletBounds.cone_axis[0] + 1.0f) * 0.5f * UINT8_MAX;
+                const uint32_t packedAxisY = (meshletBounds.cone_axis[1] + 1.0f) * 0.5f * UINT8_MAX;
+                const uint32_t packedAxisZ = (meshletBounds.cone_axis[2] + 1.0f) * 0.5f * UINT8_MAX;
+                const uint32_t packedCutoff = meshletBounds.cone_cutoff_s8 * 2;
+
+                assert(packedAxisX <= UINT8_MAX);
+                assert(packedAxisY <= UINT8_MAX);
+                assert(packedAxisZ <= UINT8_MAX);
+                assert(packedCutoff <= UINT8_MAX);
+
+                newMeshlet.m_ConeAxisAndCutoff = packedAxisX | (packedAxisY << 8) | (packedAxisZ << 16) | (packedCutoff << 24);
             }
+        }
 
-            for (uint32_t i = 0; i < meshlet.triangle_count; ++i)
-            {
-                const uint32_t baseOffset = meshlet.triangle_offset + (i * 3);
-                const uint8_t a = meshletTriangles.at(baseOffset + 0);
-                const uint8_t b = meshletTriangles.at(baseOffset + 1);
-                const uint8_t c = meshletTriangles.at(baseOffset + 2);
+        {
+            PROFILE_SCOPED("Simplify Mesh");
 
-                const uint32_t packedIndices = a | (b << 8) | (c << 16);
-
-                meshletIndicesOut.push_back(packedIndices);
-            }
-
-            const meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(
-                &meshletVertices.at(meshlet.vertex_offset),
-                &meshletTriangles.at(meshlet.triangle_offset),
-                meshlet.triangle_count,
+            const size_t targetIndexCount = (size_t(double(LODIndices.size()) * kTargetIndexCountPercentage) / 3) * 3;
+            float resultError = 0.0f;
+            const size_t numSimplifiedIndices = meshopt_simplify(
+                LODIndices.data(),
+                LODIndices.data(),
+                LODIndices.size(),
                 (const float*)vertices.data(),
                 vertices.size(),
-                sizeof(RawVertexFormat));
+                sizeof(RawVertexFormat),
+                targetIndexCount,
+                kTargetError,
+                kSimplifyOptions,
+                &resultError);
+            assert(numSimplifiedIndices <= LODIndices.size());
 
-            assert(meshlet.vertex_count <= UINT8_MAX);
-            assert(meshlet.triangle_count <= UINT8_MAX);
-            assert(Vector3{ meshletBounds.cone_axis }.Length() < (1.0f + kKindaSmallNumber));
-            assert(meshletBounds.cone_cutoff_s8 <= (UINT8_MAX / 2));
+            // we've reached the error bound
+            if (numSimplifiedIndices == LODIndices.size() || numSimplifiedIndices == 0)
+            {
+                break;
+            }
 
-            newMeshlet.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 8);
-            newMeshlet.m_BoundingSphere = Vector4{ meshletBounds.center[0], meshletBounds.center[1], meshletBounds.center[2], meshletBounds.radius };
+            // while we could keep this LOD, it's too close to the last one (and it can't go below that due to constant error bound above)
+            if (numSimplifiedIndices >= size_t(double(LODIndices.size()) * kMinIndexReductionPercentage))
+            {
+                break;
+            }
 
-            const uint32_t packedAxisX = (meshletBounds.cone_axis[0] + 1.0f) * 0.5f * UINT8_MAX;
-            const uint32_t packedAxisY = (meshletBounds.cone_axis[1] + 1.0f) * 0.5f * UINT8_MAX;
-            const uint32_t packedAxisZ = (meshletBounds.cone_axis[2] + 1.0f) * 0.5f * UINT8_MAX;
-            const uint32_t packedCutoff = meshletBounds.cone_cutoff_s8 * 2;
-
-            assert(packedAxisX <= UINT8_MAX);
-            assert(packedAxisY <= UINT8_MAX);
-            assert(packedAxisZ <= UINT8_MAX);
-            assert(packedCutoff <= UINT8_MAX);
-
-            newMeshlet.m_ConeAxisAndCutoff = packedAxisX | (packedAxisY << 8) | (packedAxisZ << 16) | (packedCutoff << 24);
+            LODIndices.resize(numSimplifiedIndices);
+            LODError = std::max(LODError, resultError); // important! since we start from last LOD, we need to accumulate the error
         }
-
-        newLOD.m_Error = LODError * LODErrorScalingFactor;
-
-        std::vector<Vector3> unpackedNormals;
-        for (const RawVertexFormat& v : vertices)
-        {
-            // Unccale to 10-bit integers from [0-1023] > [0-1]
-            const uint32_t xInt = (uint32_t)(v.m_PackedNormal >> 20) & 0x3FF;
-            const uint32_t yInt = (uint32_t)(v.m_PackedNormal >> 10) & 0x3FF;
-            const uint32_t zInt = (uint32_t)(v.m_PackedNormal >> 0 ) & 0x3FF;
-
-            // Unnormalize x, y, z from [0, 1] to [-1, 1]
-            Vector3 normal{ (float)xInt / 1023.0f, (float)yInt / 1023.0f, (float)zInt / 1023.0f };
-            normal = (normal * 2.0f) - Vector3::One;
-
-            unpackedNormals.push_back(normal);
-        }
-
-        const size_t targetIndexCount = (size_t(double(LODIndices.size()) * kTargetIndexCountPercentage) / 3) * 3;
-        float resultError = 0.0f;
-        const size_t numSimplifiedIndices = meshopt_simplifyWithAttributes(
-            LODIndices.data(),
-            LODIndices.data(),
-            LODIndices.size(),
-            (const float*)vertices.data(),
-            vertices.size(),
-            sizeof(RawVertexFormat),
-            (const float*)unpackedNormals.data(),
-            sizeof(Vector3),
-            &kAttributeWeights.x,
-            sizeof(Vector3) / sizeof(float),
-            kVertexLock,
-            targetIndexCount,
-            kTargetError,
-            kSimplifyOptions,
-            &resultError);
-        assert(numSimplifiedIndices <= LODIndices.size());
-
-        // we've reached the error bound
-        if (numSimplifiedIndices == LODIndices.size() || numSimplifiedIndices == 0)
-        {
-            break;
-        }
-
-        // while we could keep this LOD, it's too close to the last one (and it can't go below that due to constant error bound above)
-        if (numSimplifiedIndices >= size_t(double(LODIndices.size()) * kMinIndexReductionPercentage))
-        {
-            break;
-        }
-
-        LODIndices.resize(numSimplifiedIndices);
-        LODError = std::max(LODError, resultError); // important! since we start from last LOD, we need to accumulate the error
 
         meshopt_optimizeVertexCache(LODIndices.data(), LODIndices.data(), LODIndices.size(), vertices.size());
     }
@@ -297,6 +295,32 @@ void Mesh::Initialize(
     LOG_DEBUG("%s", logStr.c_str());
 }
 
+void Mesh::BuildBLAS(nvrhi::CommandListHandle commandList)
+{
+    PROFILE_FUNCTION();
+
+    nvrhi::rt::GeometryDesc geometryDesc;
+    nvrhi::rt::GeometryTriangles& geometryTriangle = geometryDesc.geometryData.triangles;
+    geometryTriangle.indexBuffer = g_Graphic.m_GlobalIndexBuffer;
+    geometryTriangle.vertexBuffer = g_Graphic.m_GlobalVertexBuffer;
+    geometryTriangle.indexFormat = Graphic::kIndexBufferFormat;
+    geometryTriangle.vertexFormat = nvrhi::Format::RGB32_FLOAT;
+    geometryTriangle.indexOffset = m_GlobalIndexBufferIdx * nvrhi::getFormatInfo(geometryTriangle.indexFormat).bytesPerBlock;
+    geometryTriangle.vertexOffset = m_GlobalVertexBufferIdx * nvrhi::getFormatInfo(geometryTriangle.vertexFormat).bytesPerBlock;
+    geometryTriangle.indexCount = m_NumIndices;
+    geometryTriangle.vertexCount = m_NumVertices;
+    geometryTriangle.vertexStride = sizeof(RawVertexFormat);
+
+    nvrhi::rt::AccelStructDesc blasDesc;
+    blasDesc.bottomLevelGeometries = { geometryDesc };
+    blasDesc.debugName = StringFormat("%s BLAS", m_DebugName.c_str());
+    blasDesc.buildFlags = nvrhi::rt::AccelStructBuildFlags::AllowCompaction;
+
+    m_BLAS = g_Graphic.m_NVRHIDevice->createAccelStruct(blasDesc);
+
+    nvrhi::utils::BuildBottomLevelAccelStruct(commandList, m_BLAS, blasDesc);
+}
+
 bool Mesh::IsValid() const
 {
     bool bResult = true;
@@ -309,6 +333,8 @@ bool Mesh::IsValid() const
     }
 
     bResult &= m_MeshDataBufferIdx != UINT_MAX;
+
+    bResult &= !!m_BLAS;
 
     return bResult;
 }

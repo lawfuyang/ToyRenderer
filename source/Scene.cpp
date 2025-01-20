@@ -741,4 +741,31 @@ void Scene::OnSceneLoad()
 
     UpdateInstanceConstsBuffer();
 	UpdateInstanceIDsBuffers();
+
+    {
+        PROFILE_SCOPED("Build all Mesh BLAS(es)");
+
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Build BLAS CommandList");
+
+        for (Mesh& mesh : g_Graphic.m_Meshes)
+        {
+            mesh.BuildBLAS(commandList);
+        }
+    }
+
+    g_Graphic.ExecuteAllCommandLists();
+    g_Graphic.m_NVRHIDevice->waitForIdle();
+    g_Graphic.m_NVRHIDevice->runGarbageCollection();
+
+    {
+        PROFILE_SCOPED("CompactBottomLevelAccelStructs");
+
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Compact BLAS CommandList");
+
+        commandList->compactBottomLevelAccelStructs();
+    }
+
+    g_Graphic.ExecuteAllCommandLists();
 }

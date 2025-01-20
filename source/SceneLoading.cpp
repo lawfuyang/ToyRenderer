@@ -594,6 +594,7 @@ struct GLTFSceneLoader
                             vertices,
                             indices,
                             globalVertexBufferIdxOffset,
+                            globalIndexBufferIdxOffset,
                             m_MeshletDataEntries[meshletDataEntryIdx].m_VertexIdxOffsets,
                             m_MeshletDataEntries[meshletDataEntryIdx].m_Indices,
                             m_MeshletDataEntries[meshletDataEntryIdx].m_Meshlets,
@@ -793,6 +794,7 @@ struct GLTFSceneLoader
             desc.structStride = sizeof(RawVertexFormat);
             desc.debugName = "Global Vertex Buffer";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            desc.isAccelStructBuildInput = true;
             g_Graphic.m_GlobalVertexBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         }
 
@@ -803,6 +805,7 @@ struct GLTFSceneLoader
             desc.format = Graphic::kIndexBufferFormat;
             desc.isIndexBuffer = true;
             desc.initialState = nvrhi::ResourceStates::IndexBuffer;
+            desc.isAccelStructBuildInput = true;
             g_Graphic.m_GlobalIndexBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         }
 
