@@ -41,14 +41,17 @@ class BasePassRenderer : public IRenderer
     RenderGraph::ResourceHandle m_MeshletAmplificationDataBufferRDGBufferHandle;
     RenderGraph::ResourceHandle m_MeshletDispatchArgumentsBufferRDGBufferHandle;
 
-    const bool m_EnableOcclusionCullingForPass;
-    bool m_DoFrustumCulling;
-    bool m_bDoOcclusionCulling;
-    bool m_bDoMeshletConeCulling;
-    uint32_t m_CullingFlags;
+    bool m_DoFrustumCulling = true;
+    bool m_bDoOcclusionCulling = true;
+    bool m_bDoMeshletConeCulling = true;
+    uint32_t m_CullingFlags = 0;
 
-    Vector2U m_HZBDimensions;
-    Vector4 m_CullingFrustum;
+    Vector2U m_HZBDimensions = Vector2U{ 1,1 };
+    Vector4 m_CullingFrustum = Vector4{ 0.0f, 0.0f, 0.0f, 0.0f };
+
+protected:
+    virtual bool DoOcclusionCullingForPass() const { return false; }
+    virtual uint32_t ForceMeshLODForPass() const { return kInvalidMeshLOD; }
 
 public:
     struct RenderBasePassParams
@@ -60,9 +63,8 @@ public:
         nvrhi::FramebufferDesc m_FrameBufferDesc;
     };
 
-    BasePassRenderer(const char* rendererName, bool bDoOcclusionCulling)
+    BasePassRenderer(const char* rendererName)
         : IRenderer(rendererName)
-		, m_EnableOcclusionCullingForPass(bDoOcclusionCulling)
     {}
 
 	void Initialize() override
@@ -81,7 +83,7 @@ public:
 
         const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
         m_DoFrustumCulling = instanceControllables.m_bEnableFrustumCulling;
-        m_bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling && m_EnableOcclusionCullingForPass;
+        m_bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling && DoOcclusionCullingForPass();
         m_bDoMeshletConeCulling = instanceControllables.m_bEnableMeshletConeCulling;
 
 		{
@@ -212,7 +214,7 @@ public:
 
         const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
-        const uint32_t forcedMeshLOD = controllables.m_ForceMeshLOD >= 0 ? controllables.m_ForceMeshLOD : kInvalidMeshLOD;
+        const uint32_t forcedMeshLOD = (controllables.m_ForceMeshLOD >= 0) && (ForceMeshLODForPass() == kInvalidMeshLOD) ? controllables.m_ForceMeshLOD : kInvalidMeshLOD;
 
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
@@ -224,7 +226,8 @@ public:
         passParameters.m_NearPlane = view.m_ZNearP;
         passParameters.m_P00 = view.m_ProjectionMatrix.m[0][0];
         passParameters.m_P11 = view.m_ProjectionMatrix.m[1][1];
-        passParameters.m_ForcedMeshLOD = forcedMeshLOD;
+        passParameters.m_ForcedMeshLOD =  forcedMeshLOD;
+        passParameters.m_MeshLODTarget = (2.0f / view.m_ProjectionMatrix.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -484,8 +487,10 @@ public:
 
 class GBufferRenderer : public BasePassRenderer
 {
+    bool DoOcclusionCullingForPass() const override { return true; }
+
 public:
-    GBufferRenderer() : BasePassRenderer("GBufferRenderer", true) {}
+    GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
 
     bool Setup(RenderGraph& renderGraph) override
     {
@@ -575,7 +580,7 @@ public:
 class TransparentForwardRenderer : public BasePassRenderer
 {
 public:
-    TransparentForwardRenderer() : BasePassRenderer("TransparentForwardRenderer", false) {}
+    TransparentForwardRenderer() : BasePassRenderer("TransparentForwardRenderer") {}
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
@@ -595,9 +600,11 @@ class SunCSMBasePassRenderer : public BasePassRenderer
 {
     const uint32_t m_CSMIndex;
 
+    uint32_t ForceMeshLODForPass() const { return 0; }
+
 public:
     SunCSMBasePassRenderer(uint32_t CSMIdx)
-        : BasePassRenderer(StringFormat("CSM: %d", CSMIdx), false)
+        : BasePassRenderer(StringFormat("CSM: %d", CSMIdx))
         , m_CSMIndex(CSMIdx)
     {
         g_SunCSMBasePassRenderers[m_CSMIndex] = this;

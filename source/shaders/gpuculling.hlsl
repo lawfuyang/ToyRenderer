@@ -37,7 +37,7 @@ RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u4);
 RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u5);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
-void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts)
+void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts, float4 boundingSphereViewSpace)
 {
     MeshData meshData = g_MeshData[instanceConsts.m_MeshDataIdx];
     
@@ -47,6 +47,19 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
     if (forcedMeshLOD != kInvalidMeshLOD)
     {
         meshLOD = min(forcedMeshLOD, meshData.m_NumLODs - 1);
+    }
+    else
+    {
+        float distance = max(length(boundingSphereViewSpace.xyz) - boundingSphereViewSpace.w, 0.0f);
+        float threshold = distance * g_GPUCullingPassConstants.m_MeshLODTarget / GetMaxScaleFromWorldMatrix(instanceConsts.m_WorldMatrix);
+
+        for (uint i = 1; i < meshData.m_NumLODs; ++i)
+        {
+            if (meshData.m_MeshLODDatas[i].m_Error < threshold)
+            {
+                meshLOD = i;
+            }
+        }
     }
     
     MeshLODData meshLODData = meshData.m_MeshLODDatas[meshLOD];
@@ -96,6 +109,7 @@ void CS_GPUCulling(
     uint nbInstances = g_GPUCullingPassConstants.m_NbInstances;
 #endif
     
+
     if (dispatchThreadID.x >= nbInstances)
     {
         return;
@@ -132,7 +146,7 @@ void CS_GPUCulling(
     
     if (!bDoOcclusionCulling)
     {
-        SubmitInstance(instanceConstsIdx, instanceConsts);
+        SubmitInstance(instanceConstsIdx, instanceConsts, float4(sphereCenterViewSpace.xyz, sphereRadius));
         return;
     }
     
@@ -162,13 +176,13 @@ void CS_GPUCulling(
     else
     {
         // If instance is visible and wasn't occluded in the previous frame, submit it
-        SubmitInstance(instanceConstsIdx, instanceConsts);
+        SubmitInstance(instanceConstsIdx, instanceConsts, float4(sphereCenterViewSpace.xyz, sphereRadius));
     }
 #else
     // Occlusion test instance against the updated HZB
     if (bOcclusionCullResult)
     {
-        SubmitInstance(instanceConstsIdx, instanceConsts);
+        SubmitInstance(instanceConstsIdx, instanceConsts,float4(sphereCenterViewSpace.xyz, sphereRadius));
     }
 #endif
 }

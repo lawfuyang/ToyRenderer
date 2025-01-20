@@ -15,6 +15,7 @@ struct GPUCullingPassConstants
 	float m_P00;
     float m_P11;
 	uint32_t m_ForcedMeshLOD;
+	float m_MeshLODTarget;
 };
 
 #endif
