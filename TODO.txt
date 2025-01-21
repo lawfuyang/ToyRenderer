@@ -56,6 +56,7 @@
 • Depth of Field: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/techniques/depth-of-field.md
 • Utilize Bent Normals from XeGTAO to further attenuate lighting
 • Workgraphs
+	• https://github.com/NVIDIAGameWorks/donut_examples/tree/main/examples/work_graphs
     • convert occlusion culling chain dispatches
 
 Raytracing
