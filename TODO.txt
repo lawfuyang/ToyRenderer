@@ -60,7 +60,7 @@
 
 Raytracing
 • Hard shadows
-    • Adria-DX12\Adria\Resources\Shaders\RayTracing\RayTracedShadows.hlsl
+    • https://github.com/NVIDIAGameWorks/donut_examples/tree/main/examples/rt_shadows
 • GI
 	• https://github.com/NVIDIAGameWorks/RTXGI
 • Hybrid Stochastic Reflections
