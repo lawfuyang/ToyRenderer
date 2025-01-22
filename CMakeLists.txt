@@ -19,8 +19,6 @@ set(CMAKE_SUPPRESS_REGENERATION true)
 # Global compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zi")     # Program Database
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")     # Multi-Processor compilation
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")     # Level 4 warnings
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX")     # Warnings as errors
 
 # Set iterator debug level to 0 for all targets (no iterator debugging)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_ITERATOR_DEBUG_LEVEL=0")
@@ -80,6 +78,9 @@ add_subdirectory(extern/taskflow)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
+target_compile_definitions(ToyRenderer PUBLIC "/W4") # Level 4 warnings
+target_compile_definitions(ToyRenderer PUBLIC "/WX") # Warnings as errors
+
 # startup proj = 'ToyRenderer'
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ToyRenderer)
 
@@ -135,6 +136,7 @@ target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_ETC2_EAC_RG11=0)
 target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_FXT1=0)
 target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_PVRTC1=0)
 target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_PVRTC2=0)
+target_compile_definitions(basisu_encoder PRIVATE "/W0")
 
 if (ENABLE_UNITY_BUILD)
 	set_target_properties(ToyRenderer PROPERTIES UNITY_BUILD ON)
