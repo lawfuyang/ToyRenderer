@@ -108,16 +108,24 @@ void GraphicPropertyGrid::UpdateIMGUI()
         ShadowControllables& params = m_ShadowControllables;
 
         ImGui::Checkbox("Enabled", &params.m_bEnabled);
+        ImGui::Checkbox("Enable Hardware Raytraced Shadows", &params.m_bEnableHardwareRaytracedShadows);
 
-        bool bCalculateCSMSplitDistances = false;
-        bCalculateCSMSplitDistances |= ImGui::DragFloat("Max Shadow Distance", &params.m_MaxShadowDistance, 1.0f, 1.0f);
-        bCalculateCSMSplitDistances |= ImGui::SliderFloat("CSM Split Lambda", &params.m_CSMSplitLambda, 0.01f, 1.0f);
-        if (bCalculateCSMSplitDistances)
+        if (params.m_bEnableHardwareRaytracedShadows)
         {
-            scene->CalculateCSMSplitDistances();
-        }
 
-        ImGui::Text("Shadow Map Resolution: %u x %u", params.m_ShadowMapResolution, params.m_ShadowMapResolution);
+        }
+        else
+        {
+            bool bCalculateCSMSplitDistances = false;
+            bCalculateCSMSplitDistances |= ImGui::DragFloat("Max Shadow Distance", &params.m_MaxShadowDistance, 1.0f, 1.0f);
+            bCalculateCSMSplitDistances |= ImGui::SliderFloat("CSM Split Lambda", &params.m_CSMSplitLambda, 0.01f, 1.0f);
+            if (bCalculateCSMSplitDistances)
+            {
+                scene->CalculateCSMSplitDistances();
+            }
+
+            ImGui::Text("Shadow Map Resolution: %u x %u", params.m_ShadowMapResolution, params.m_ShadowMapResolution);
+        }
 
         ImGui::TreePop();
     }
