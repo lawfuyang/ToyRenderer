@@ -70,3 +70,8 @@ constexpr uint32_t AlignUp(uint32_t value, uint32_t alignment)
 
 void ModifyPerspectiveMatrix(Matrix& mat, float nearPlane, float farPlane, bool bReverseZ, bool bInfiniteZ);
 Vector2 ProjectWorldPositionToViewport(const Vector3& worldPos, const Matrix& viewProjMatrix, const Vector2U& viewportDim);
+
+// Fast shortcut for float3x4(transpose(affineToHomogenous(a)))
+// Useful for storing transformations in buffers and passing them to ray tracing APIs
+// NOTE: copied from Nvidia's Donut sample
+void AffineToColumnMajor(const Matrix& a, float m[12]);

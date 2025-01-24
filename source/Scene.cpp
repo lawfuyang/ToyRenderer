@@ -766,6 +766,36 @@ void Scene::OnSceneLoad()
 
         commandList->compactBottomLevelAccelStructs();
     }
+    g_Graphic.ExecuteAllCommandLists();
 
+    {
+        PROFILE_SCOPED("Build TLAS");
+
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Build TLAS");
+
+        nvrhi::rt::AccelStructDesc tlasDesc;
+        tlasDesc.topLevelMaxInstances = m_Primitives.size();
+        tlasDesc.debugName = "Scene TLAS";
+        tlasDesc.isTopLevel = true;
+        m_TLAS = g_Graphic.m_NVRHIDevice->createAccelStruct(tlasDesc);
+
+        std::vector<nvrhi::rt::InstanceDesc> instances;
+
+        for (const Primitive& primitive : m_Primitives)
+        {
+            const Node& node = m_Nodes.at(primitive.m_NodeID);
+            const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+
+            const Matrix worldMatrix = node.MakeLocalToWorldMatrix().Transpose();
+
+            nvrhi::rt::InstanceDesc& instanceDesc = instances.emplace_back();
+            instanceDesc.bottomLevelAS = mesh.m_BLAS;
+            instanceDesc.instanceMask = 1;
+            AffineToColumnMajor(worldMatrix, instanceDesc.transform);
+        }
+
+        commandList->buildTopLevelAccelStruct(m_TLAS, instances.data(), instances.size());
+    }
     g_Graphic.ExecuteAllCommandLists();
 }

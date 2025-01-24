@@ -108,6 +108,8 @@ public:
     nvrhi::BufferHandle m_AlphaMaskInstanceIDsBuffer;
     nvrhi::BufferHandle m_TransparentInstanceIDsBuffer;
 
+    nvrhi::rt::AccelStructHandle m_TLAS;
+
     nvrhi::TextureHandle m_HZB;
 
     std::vector<Camera> m_Cameras;
