@@ -200,18 +200,13 @@ struct GLTFSceneLoader
         {
             const cgltf_sampler& gltfSampler = m_GLTFData->samplers[i];
 
-            auto GLtoTextureAddressMode = [](int wrapMode)
+            auto GLtoTextureAddressMode = [](cgltf_wrap_mode wrapMode)
                 {
-                    // copied from tiny_gltf
-                    static const uint32_t kRepeat = 10497;
-                    static const uint32_t kClampToEdge = 33071;
-                    static const uint32_t kMirroredRepeat = 33648;
-
                     switch (wrapMode)
                     {
-                    case kClampToEdge: return nvrhi::SamplerAddressMode::Clamp;
-                    case kMirroredRepeat: return nvrhi::SamplerAddressMode::Mirror;
-                    case kRepeat: return nvrhi::SamplerAddressMode::Wrap;
+                    case cgltf_wrap_mode_clamp_to_edge: return nvrhi::SamplerAddressMode::Clamp;
+                    case cgltf_wrap_mode_mirrored_repeat: return nvrhi::SamplerAddressMode::Mirror;
+                    case cgltf_wrap_mode_repeat: return nvrhi::SamplerAddressMode::Wrap;
                     }
                     
                     assert(0);
