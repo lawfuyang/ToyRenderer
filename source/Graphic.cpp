@@ -612,21 +612,25 @@ static void HashBindingLayout(size_t& psoHash, const nvrhi::BindingLayoutVector&
     }
 }
 
-template <typename PSODescT>
-static std::size_t HashCommonGraphicStates(const PSODescT& psoDesc, nvrhi::FramebufferHandle frameBuffer)
+static std::size_t HashCommonGraphicStates(
+    nvrhi::PrimitiveType primType,
+    nvrhi::ShaderHandle PS,
+    const nvrhi::RenderState& renderState,
+    const nvrhi::BindingLayoutVector& bindingLayouts,
+    nvrhi::FramebufferHandle frameBuffer
+)
 {
     size_t psoHash = 0;
 
-    HashCombine(psoHash, psoDesc.primType);
-
-    if (psoDesc.PS)
+    HashCombine(psoHash, primType);
+    if (PS)
     {
-        HashCombine(psoHash, psoDesc.PS->getDesc().debugName);
+        HashCombine(psoHash, PS->getDesc().debugName);
     }
 
-    HashCombine(psoHash, HashRawMem(psoDesc.renderState));
+    HashCombine(psoHash, HashRawMem(renderState));
 
-    HashBindingLayout(psoHash, psoDesc.bindingLayouts);
+    HashBindingLayout(psoHash, bindingLayouts);
 
     const nvrhi::FramebufferDesc& frameBufferDesc = frameBuffer->getDesc();
     for (const nvrhi::FramebufferAttachment& RT : frameBufferDesc.colorAttachments)
@@ -634,6 +638,7 @@ static std::size_t HashCommonGraphicStates(const PSODescT& psoDesc, nvrhi::Frame
         const nvrhi::TextureDesc& RTDesc = RT.texture->getDesc();
         HashCombine(psoHash, RTDesc.format);
     }
+
     if (frameBufferDesc.depthAttachment.valid())
     {
         const nvrhi::TextureDesc& DepthBufferDesc = frameBufferDesc.depthAttachment.texture->getDesc();
@@ -645,7 +650,7 @@ static std::size_t HashCommonGraphicStates(const PSODescT& psoDesc, nvrhi::Frame
 
 nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer)
 {
-	size_t psoHash = HashCommonGraphicStates(psoDesc, frameBuffer);
+    size_t psoHash = HashCommonGraphicStates(psoDesc.primType, psoDesc.PS, psoDesc.renderState, psoDesc.bindingLayouts, frameBuffer);
     
     if (nvrhi::InputLayoutHandle inputLayout = psoDesc.inputLayout)
     {
@@ -675,7 +680,7 @@ nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipel
 
 nvrhi::MeshletPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::MeshletPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer)
 {
-    size_t psoHash = HashCommonGraphicStates(psoDesc, frameBuffer);
+    size_t psoHash = HashCommonGraphicStates(psoDesc.primType, psoDesc.MS, psoDesc.renderState, psoDesc.bindingLayouts, frameBuffer);
 
 	if (psoDesc.AS)
 	{
