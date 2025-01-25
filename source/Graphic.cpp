@@ -436,6 +436,7 @@ void Graphic::InitShaders()
                 shaderDesc.debugName = shaderDebugName;
 
                 // kinda manual... but it's robust enough
+                // NOTE: this enum doesn't matter if we're not using NVRHI_D3D12_WITH_NVAPI
                 std::string profileStr = profile;
                 StringUtils::ToLower(profileStr);
                 if (profileStr == "vs")
@@ -448,6 +449,8 @@ void Graphic::InitShaders()
                     shaderDesc.shaderType = nvrhi::ShaderType::Mesh;
                 else if (profileStr == "as")
                     shaderDesc.shaderType = nvrhi::ShaderType::Amplification;
+                else if (profileStr == "lib")
+                    shaderDesc.shaderType = nvrhi::ShaderType::AllRayTracing; // ???
                 else
                 {
                     assert(0);

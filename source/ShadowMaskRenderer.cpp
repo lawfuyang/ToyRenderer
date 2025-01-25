@@ -10,15 +10,12 @@
 #include "shaders/shared/MinMaxDownsampleStructs.h"
 
 RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
-RenderGraph::ResourceHandle g_ConservativeShadowMaskRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_ShadowMapArrayRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
 
 class ShadowMaskRenderer : public IRenderer
 {
-	FFXHelpers::SPD m_SPDHelper;
-
 public:
 	ShadowMaskRenderer() : IRenderer("ShadowMaskRenderer") {}
 
@@ -30,7 +27,11 @@ public:
 			return false;
 		}
 
-		m_SPDHelper.CreateTransientResources(renderGraph);
+		if (!shadowControllables.m_bEnableHardwareRaytracedShadows)
+		{
+			renderGraph.AddReadDependency(g_ShadowMapArrayRDGTextureHandle);
+			renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
+		}
 
 		nvrhi::TextureDesc desc;
 		desc.width = g_Graphic.m_RenderResolution.x;
@@ -38,19 +39,11 @@ public:
 		desc.format = nvrhi::Format::R8_UNORM;
 		desc.debugName = "Shadow Mask Texture";
 		desc.isRenderTarget = true;
+		desc.isUAV = shadowControllables.m_bEnableHardwareRaytracedShadows;
 		desc.setClearValue(nvrhi::Color{ 1.0f });
 		desc.initialState = nvrhi::ResourceStates::ShaderResource;
 		renderGraph.CreateTransientResource(g_ShadowMaskRDGTextureHandle, desc);
 
-        desc.width = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
-        desc.height = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
-		desc.debugName = "Convservative Shadow Mask Texture";
-		desc.mipLevels = ComputeNbMips(desc.width, desc.height);
-		desc.isUAV = true;
-		renderGraph.CreateTransientResource(g_ConservativeShadowMaskRDGTextureHandle, desc);
-
-		renderGraph.AddReadDependency(g_ShadowMapArrayRDGTextureHandle);
-		renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
 
         return true;
@@ -58,22 +51,36 @@ public:
 
 	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
 	{
+		if (g_GraphicPropertyGrid.m_ShadowControllables.m_bEnableHardwareRaytracedShadows)
+		{
+            RenderHardwareRaytracedShadows(commandList, renderGraph);
+		}
+		else
+		{
+            RenderShadowFiltering(commandList, renderGraph);
+		}
+	}
+
+	void RenderShadowFiltering(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
+	{
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 		Scene* scene = g_Graphic.m_Scene.get();
 		View& view = scene->m_Views[Scene::EView::Main];
 
-        // pass constants
-        ShadowMaskConsts passConstants;
-        passConstants.m_CameraOrigin = view.m_Eye;
-        passConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
-        passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
-        passConstants.m_CSMDistances = { scene->m_CSMSplitDistances[0], scene->m_CSMSplitDistances[1], scene->m_CSMSplitDistances[2], scene->m_CSMSplitDistances[3] };
+		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
+
+		// pass constants
+		ShadowMaskConsts passConstants;
+		passConstants.m_CameraOrigin = view.m_Eye;
+		passConstants.m_InvShadowMapResolution = 1.0f / shadowControllables.m_ShadowMapResolution;
+		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
+		passConstants.m_CSMDistances = { scene->m_CSMSplitDistances[0], scene->m_CSMSplitDistances[1], scene->m_CSMSplitDistances[2], scene->m_CSMSplitDistances[3] };
 		passConstants.m_InversedDepth = Graphic::kInversedShadowMapDepthBuffer;
 
-        for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
-        {
-            passConstants.m_DirLightViewProj[i] = scene->m_Views[Scene::EView::CSM0 + i].m_ViewProjectionMatrix;
-        }
+		for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
+		{
+			passConstants.m_DirLightViewProj[i] = scene->m_Views[Scene::EView::CSM0 + i].m_ViewProjectionMatrix;
+		}
 
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
@@ -92,7 +99,6 @@ public:
 		};
 
 		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
-		nvrhi::TextureHandle conservativeShadowMaskTexture = renderGraph.GetTexture(g_ConservativeShadowMaskRDGTextureHandle);
 
 		nvrhi::FramebufferDesc frameBufferDesc;
 		frameBufferDesc.addColorAttachment(shadowMaskTexture);
@@ -111,28 +117,13 @@ public:
 			"shadowmask_PS_Main",
 			nullptr, // no blend state
 			&depthStencilState);
+	}
 
-		// generate conservative shadow mask
-		{
-			const nvrhi::TextureDesc& outputDesc = conservativeShadowMaskTexture->getDesc();
+	void RenderHardwareRaytracedShadows(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
+	{
+		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
 
-			MinMaxDownsampleConsts minMaxDownsampleConsts;
-			minMaxDownsampleConsts.m_OutputDimensions = Vector2U{ outputDesc.width, outputDesc.height };
-			minMaxDownsampleConsts.m_bDownsampleMax = true;
-
-			nvrhi::BindingSetDesc bindingSetDesc;
-			bindingSetDesc.bindings = {
-				nvrhi::BindingSetItem::PushConstants(0, sizeof(MinMaxDownsampleConsts)),
-				nvrhi::BindingSetItem::Texture_SRV(0, shadowMaskTexture),
-				nvrhi::BindingSetItem::Texture_UAV(0, conservativeShadowMaskTexture),
-				nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
-			};
-
-			const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ outputDesc.width, outputDesc.height }, 8);
-			g_Graphic.AddComputePass(commandList, "minmaxdownsample_CS_Main", bindingSetDesc, dispatchGroupSize, &minMaxDownsampleConsts, sizeof(minMaxDownsampleConsts));
-
-			m_SPDHelper.Execute(commandList, renderGraph, shadowMaskTexture, conservativeShadowMaskTexture, nvrhi::SamplerReductionType::Maximum);
-		}
+        commandList->clearTextureUInt(shadowMaskTexture, nvrhi::AllSubresources, 1);
 	}
 };
 

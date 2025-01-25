@@ -11,7 +11,6 @@
 RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
-extern RenderGraph::ResourceHandle g_ConservativeShadowMaskRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_SSAORDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;

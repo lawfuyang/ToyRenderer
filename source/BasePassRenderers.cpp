@@ -612,6 +612,11 @@ public:
             return false;
         }
 
+        if (shadowControllables.m_bEnableHardwareRaytracedShadows)
+        {
+            return false;
+        }
+
         BasePassRenderer::Setup(renderGraph);
 
         // create shadow map array RDG Texture. CSM0 is responsible for creating it
@@ -651,6 +656,11 @@ public:
         View& view = scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
 
         nvrhi::TextureHandle shadowMapArray = renderGraph.GetTexture(g_ShadowMapArrayRDGTextureHandle);
+
+        if (m_CSMIndex == 0)
+        {
+            commandList->clearDepthStencilTexture(shadowMapArray, nvrhi::AllSubresources, true, Graphic::kFarShadowMapDepth, false, 0);
+        }
 
         nvrhi::FramebufferDesc frameBufferDesc;
         frameBufferDesc.setDepthAttachment(shadowMapArray)

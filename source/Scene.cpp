@@ -17,7 +17,6 @@
 
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
-extern RenderGraph::ResourceHandle g_ShadowMapArrayRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 
 class ClearBuffersRenderer : public IRenderer
@@ -30,12 +29,6 @@ public:
         renderGraph.AddWriteDependency(g_GBufferARDGTextureHandle);
         renderGraph.AddWriteDependency(g_LightingOutputRDGTextureHandle);
         renderGraph.AddWriteDependency(g_DepthStencilBufferRDGTextureHandle);
-
-        const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-        if (shadowControllables.m_bEnabled)
-        {
-            renderGraph.AddWriteDependency(g_ShadowMapArrayRDGTextureHandle);
-        }
 
         return true;
     }
@@ -82,19 +75,6 @@ public:
             const bool kClearStencil = true;
             const uint8_t kClearStencilValue = Graphic::kStencilBit_Sky;
             commandList->clearDepthStencilTexture(depthStencilBuffer, nvrhi::AllSubresources, true, Graphic::kFarDepth, kClearStencil, kClearStencilValue);
-        }
-
-        // clear shadow map array
-        {
-            const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-            if (shadowControllables.m_bEnabled)
-            {
-                PROFILE_GPU_SCOPED(commandList, "Clear Shadow Map Array");
-
-                nvrhi::TextureHandle shadowMapArray = renderGraph.GetTexture(g_ShadowMapArrayRDGTextureHandle);
-
-                commandList->clearDepthStencilTexture(shadowMapArray, nvrhi::AllSubresources, true, Graphic::kFarShadowMapDepth, false, 0);
-            }
         }
     }
 };
