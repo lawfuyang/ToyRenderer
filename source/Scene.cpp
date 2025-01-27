@@ -355,41 +355,6 @@ void Scene::UpdateCSMViews()
         CSMView.m_ZNearP = minZ;
         CSMView.m_ZFarP = (maxZ - minZ);
 
-        // TODO: fix shadow edge shimmering & jitter
-#if 0
-        // This code removes the shimmering effect along the edges of shadows due to the light changing to fit the camera.
-        Vec4 normalizeByBufferSize = Vec4((1.0f / width), (1.0f / width), 0.0f, 0.0f);
-
-        // We calculate the offsets as a percentage of the bound.
-        Vec4 boarderOffset = lightCameraOrthographicMax - lightCameraOrthographicMin;
-        boarderOffset = math::mulPerElem(boarderOffset, g_halfVector);
-        lightCameraOrthographicMax += boarderOffset;
-        lightCameraOrthographicMin -= boarderOffset;
-
-        // The world units per texel are used to snap  the orthographic projection
-        // to texel sized increments.
-        // Because we're fitting tighly to the cascades, the shimmering shadow edges will still be present when the
-        // camera rotates.  However, when zooming in or strafing the shadow edge will not shimmer.
-        Vec4 worldUnitsPerTexel = lightCameraOrthographicMax - lightCameraOrthographicMin;
-        worldUnitsPerTexel = math::mulPerElem(worldUnitsPerTexel, normalizeByBufferSize);
-
-        // We snap the camera to 1 pixel increments so that moving the camera does not cause the shadows to jitter.
-        // This is a matter of integer dividing by the world space size of a texel
-        lightCameraOrthographicMin = math::divPerElem(lightCameraOrthographicMin, worldUnitsPerTexel);
-        lightCameraOrthographicMin = Vec4(floorf(lightCameraOrthographicMin.getX()),
-            floorf(lightCameraOrthographicMin.getY()),
-            floorf(lightCameraOrthographicMin.getZ()),
-            floorf(lightCameraOrthographicMin.getW()));
-        lightCameraOrthographicMin = math::mulPerElem(lightCameraOrthographicMin, worldUnitsPerTexel);
-
-        lightCameraOrthographicMax = math::divPerElem(lightCameraOrthographicMax, worldUnitsPerTexel);
-        lightCameraOrthographicMax = Vec4(floorf(lightCameraOrthographicMax.getX()),
-            floorf(lightCameraOrthographicMax.getY()),
-            floorf(lightCameraOrthographicMax.getZ()),
-            floorf(lightCameraOrthographicMax.getW()));
-        lightCameraOrthographicMax = math::mulPerElem(lightCameraOrthographicMax, worldUnitsPerTexel);
-#endif
-
         if constexpr (Graphic::kInversedShadowMapDepthBuffer)
         {
             std::swap(CSMView.m_ZNearP, CSMView.m_ZFarP);

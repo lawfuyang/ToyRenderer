@@ -104,9 +104,7 @@ void CS_XeGTAO_MainPass(
     GBufferParams gbufferParams;
     UnpackGBuffer(g_GBufferA[dispatchThreadID.xy], gbufferParams);
     float3 viewSpaceNormals = mul(float4(gbufferParams.m_Normal, 1.0f), g_XeGTAOMainPassConstantBuffer.m_ViewMatrixNoTranslate).xyz;
-    
-    // XeGTAO follows LHS, so we need to flip Z
-    viewSpaceNormals.z *= -1.0f;
+    viewSpaceNormals.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
     XeGTAO_MainPass(dispatchThreadID.xy, sliceCount, stepsPerSlice, (lpfloat2)spatioTemporalNoise, (lpfloat3)viewSpaceNormals, g_GTAOConsts, g_srcWorkingDepth, g_PointClampSampler, g_outWorkingAOTerm, g_outWorkingEdges);
 }

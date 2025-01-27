@@ -110,7 +110,7 @@ void AS_Main(
             
             coneAxisAndCutoff.xyz = normalize(mul(coneAxisAndCutoff.xyz, MakeAdjugateMatrix(instanceConsts.m_WorldMatrix)));
             coneAxisAndCutoff.xyz = mul(coneAxisAndCutoff.xyz, ToFloat3x3(g_BasePassConsts.m_ViewMatrix));
-            coneAxisAndCutoff.z *= -1.0f;
+            coneAxisAndCutoff.z *= -1.0f; // TODO: fix inverted view-space Z coord
             
             bVisible = !ConeCull(sphereCenterViewSpace, sphereRadius, coneAxisAndCutoff.xyz, coneAxisAndCutoff.w);
         }
