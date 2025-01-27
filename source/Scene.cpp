@@ -91,13 +91,9 @@ void View::Update()
 
     // update prev frame matrices
     m_PrevFrameViewMatrix = m_ViewMatrix;
-    m_PrevFrameProjectionMatrix = m_ProjectionMatrix;
-    m_PrevFrameViewProjectionMatrix = m_ViewProjectionMatrix;
-    m_PrevFrameInvViewMatrix = m_InvViewMatrix;
-    m_PrevFrameInvProjectionMatrix = m_InvProjectionMatrix;
-    m_PrevFrameInvViewProjectionMatrix = m_InvViewProjectionMatrix;
 
-    m_ViewMatrix = Matrix::CreateLookAt(m_Eye, m_Eye + m_LookAt, Vector3::Up);
+    m_InvViewMatrix = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
+    m_ViewMatrix = m_InvViewMatrix.Invert();
 
     if (m_bIsPerspective)
     {
@@ -110,8 +106,6 @@ void View::Update()
     }
 
     m_ViewProjectionMatrix = m_ViewMatrix * m_ProjectionMatrix;
-    m_InvViewMatrix = m_ViewMatrix.Invert();
-    m_InvProjectionMatrix = m_ProjectionMatrix.Invert();
     m_InvViewProjectionMatrix = m_ViewProjectionMatrix.Invert();
 
     Frustum::CreateFromMatrix(m_Frustum, m_ProjectionMatrix);
@@ -130,21 +124,11 @@ void View::UpdateVectors(float yaw, float pitch)
     const float PIBy2 = std::numbers::pi * 0.5f;
 
     const float r = std::cos(pitch);
-    m_LookAt =
-    {
-        r * std::sin(yaw),
-        std::sin(pitch),
-        r * std::cos(yaw),
-    };
+    Vector3 lookAt { r * std::sin(yaw), std::sin(pitch), r * std::cos(yaw) };
+    Vector3 right = { std::sin(yaw - PIBy2), 0, std::cos(yaw - PIBy2) };
+    Vector3 up = right.Cross(lookAt);
 
-    m_Right =
-    {
-        std::sin(yaw - PIBy2),
-        0,
-        std::cos(yaw - PIBy2),
-    };
-
-    m_Up = m_Right.Cross(m_LookAt);
+    m_Orientation = Quaternion::CreateFromRotationMatrix(Matrix::CreateWorld(Vector3::Zero, lookAt, up));
 }
 
 void Scene::Initialize()
@@ -188,8 +172,6 @@ void Scene::Initialize()
     m_Views[Main].m_ZNearP = Graphic::kDefaultCameraNearPlane;
     m_Views[Main].m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
     m_Views[Main].m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };
-    m_Views[Main].m_LookAt = Vector3{ 0.0f, 0.0f, 1.0f };
-    m_Views[Main].m_Right = Vector3{ 1.0f, 0.0f, 0.0f };
     m_Views[Main].Update();
 
     for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
@@ -217,6 +199,7 @@ void Scene::SetCamera(uint32_t idx)
     View& view = m_Views[EView::Main];
 
     view.m_Eye = camera.m_Position;
+    view.m_Orientation = camera.m_Orientation;
 
     const Matrix matrix = Matrix::CreateFromQuaternion(camera.m_Orientation);
     const Vector3 forwardVector = matrix.Forward();
@@ -255,30 +238,26 @@ void Scene::UpdateMainViewCameraControls()
     m_MouseLastPos = m_CurrentMousePos;
     m_CurrentMousePos = { mouseX, mouseY };
 
-
-    // for some weird reason, windows underflows to 65535 when cursor is crosses left/top window
-    m_CurrentMousePos.x = m_CurrentMousePos.x > 60000.0f ? 0.0f : m_CurrentMousePos.x;
-    m_CurrentMousePos.y = m_CurrentMousePos.y > 60000.0f ? 0.0f : m_CurrentMousePos.y;
-    m_CurrentMousePos.Clamp(Vector2::Zero, { (float)g_Graphic.m_DisplayResolution.x, (float)g_Graphic.m_DisplayResolution.y });
-
     // Calculate the move vector in camera space.
     Vector3 finalMoveVector;
 
+    const Matrix viewMatrix = Matrix::CreateFromQuaternion(mainView.m_Orientation);
+
     if (keyboardStates[SDL_SCANCODE_A])
     {
-        finalMoveVector -= mainView.m_Right;
+        finalMoveVector -= viewMatrix.Right();
     }
 	if (keyboardStates[SDL_SCANCODE_D])
     {
-        finalMoveVector += mainView.m_Right;
+        finalMoveVector += viewMatrix.Right();
     }
 	if (keyboardStates[SDL_SCANCODE_W])
     {
-        finalMoveVector += mainView.m_LookAt;
+        finalMoveVector += viewMatrix.Forward();
     }
 	if (keyboardStates[SDL_SCANCODE_S])
     {
-        finalMoveVector -= mainView.m_LookAt;
+        finalMoveVector -= viewMatrix.Forward();
     }
 
     if (finalMoveVector.LengthSquared() > 0.1f)
@@ -327,8 +306,6 @@ void Scene::UpdateCSMViews()
         frustumCenter /= (float)std::size(frustumCorners);
 
         CSMView.m_Eye = frustumCenter + m_DirLightVec;
-        CSMView.m_LookAt = -m_DirLightVec;
-        CSMView.m_ViewMatrix = Matrix::CreateLookAt(CSMView.m_Eye, CSMView.m_Eye + CSMView.m_LookAt, Vector3::Up);
 
         float minX = kKindaBigNumber;
         float maxX = -kKindaBigNumber;

@@ -33,9 +33,7 @@ public:
     float m_Width = 100.0f;
     float m_Height = 100.0f;
     Vector3 m_Eye;
-    Vector3 m_LookAt;
-    Vector3 m_Right;
-    Vector3 m_Up;
+    Quaternion m_Orientation;
 
     Matrix m_CullingViewMatrix;
     Matrix m_CullingPrevFrameViewMatrix;
@@ -44,15 +42,9 @@ public:
     Matrix m_ProjectionMatrix;
     Matrix m_ViewProjectionMatrix;
     Matrix m_InvViewMatrix;
-    Matrix m_InvProjectionMatrix;
     Matrix m_InvViewProjectionMatrix;
 
     Matrix m_PrevFrameViewMatrix;
-    Matrix m_PrevFrameProjectionMatrix;
-    Matrix m_PrevFrameViewProjectionMatrix;
-    Matrix m_PrevFrameInvViewMatrix;
-    Matrix m_PrevFrameInvProjectionMatrix;
-    Matrix m_PrevFrameInvViewProjectionMatrix;
 
     Frustum m_Frustum;
 
