@@ -74,6 +74,7 @@ public:
     [[nodiscard]] nvrhi::GraphicsPipelineHandle GetOrCreatePSO(const nvrhi::GraphicsPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer);
     [[nodiscard]] nvrhi::MeshletPipelineHandle GetOrCreatePSO(const nvrhi::MeshletPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer);
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
+    [[nodiscard]] nvrhi::rt::PipelineHandle GetOrCreatePSO(const nvrhi::rt::PipelineDesc& psoDesc);
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle);
 
@@ -212,6 +213,7 @@ private:
     std::unordered_map<size_t, nvrhi::GraphicsPipelineHandle> m_CachedGraphicPSOs;
     std::unordered_map<size_t, nvrhi::MeshletPipelineHandle> m_CachedMeshletPSOs;
     std::unordered_map<size_t, nvrhi::ComputePipelineHandle> m_CachedComputePSOs;
+    std::unordered_map<size_t, nvrhi::rt::PipelineHandle> m_CachedRTPSOs;
     std::unordered_map<size_t, nvrhi::BindingLayoutHandle> m_CachedBindingLayouts;
     
     std::mutex m_PendingCommandListsLock;

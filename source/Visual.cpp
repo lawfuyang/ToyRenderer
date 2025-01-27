@@ -328,10 +328,13 @@ void Mesh::BuildBLAS(nvrhi::CommandListHandle commandList)
     geometryTriangle.indexFormat = Graphic::kIndexBufferFormat;
     geometryTriangle.vertexFormat = nvrhi::Format::RGB32_FLOAT;
     geometryTriangle.indexOffset = m_GlobalIndexBufferIdx * nvrhi::getFormatInfo(geometryTriangle.indexFormat).bytesPerBlock;
-    geometryTriangle.vertexOffset = m_GlobalVertexBufferIdx * nvrhi::getFormatInfo(geometryTriangle.vertexFormat).bytesPerBlock;
+    geometryTriangle.vertexOffset = m_GlobalVertexBufferIdx * sizeof(RawVertexFormat);
     geometryTriangle.indexCount = m_NumIndices;
     geometryTriangle.vertexCount = m_NumVertices;
     geometryTriangle.vertexStride = sizeof(RawVertexFormat);
+
+    geometryDesc.flags = nvrhi::rt::GeometryFlags::Opaque;
+    geometryDesc.geometryType = nvrhi::rt::GeometryType::Triangles;
 
     nvrhi::rt::AccelStructDesc blasDesc;
     blasDesc.bottomLevelGeometries = { geometryDesc };

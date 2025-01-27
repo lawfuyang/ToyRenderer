@@ -1,3 +1,9 @@
+• RT Shadows
+	• offset ray start world pos to alleviate shadow acne
+	• support alpha mask
+	• half/quarter res trace (controllable)
+	• soft shadows (penumbra)
+	• Hybrid: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-shadows.md
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
 • Meshlet drawing pipeline
@@ -60,16 +66,10 @@
 	• https://github.com/NVIDIAGameWorks/donut_examples/tree/main/examples/work_graphs
     • convert occlusion culling chain dispatches
 	• extend deferred lighting with different shading models (copy-paste brdfs from UE5 lol)
-
-Raytracing
-• Hard shadows
-    • https://github.com/NVIDIAGameWorks/donut_examples/tree/main/examples/rt_shadows
 • GI
 	• https://github.com/NVIDIAGameWorks/RTXGI
 • Hybrid Stochastic Reflections
 	• https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-reflections.md
-• Hybrid RT Shadows
-	• https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-shadows.md
 • Pathtracing
 	• https://github.com/NVIDIAGameWorks/RTX-Path-Tracing
 	

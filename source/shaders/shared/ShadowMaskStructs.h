@@ -13,9 +13,8 @@ struct ShadowMaskConsts
 struct HardwareRaytraceConsts
 {
     Matrix m_InvViewProjMatrix;
-    Vector2U m_RenderResolution;
-    Vector3 m_CameraOrigin;
-    uint32_t PAD0;
     Vector3 m_DirectionalLightDirection;
-    uint32_t PAD1;
+    uint32_t PAD0;
+    Vector2U m_OutputResolution;
+
 };

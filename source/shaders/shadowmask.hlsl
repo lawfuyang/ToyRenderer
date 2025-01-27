@@ -52,29 +52,38 @@ struct HitInfo
 void RT_RayGen()
 {
     uint2 rayIdx = DispatchRaysIndex().xy;
-    float2 screenUV = (rayIdx + float2(0.5f, 0.5f)) / g_HardwareRaytraceConsts.m_RenderResolution;
     float depth = g_DepthBuffer[rayIdx.xy].x;
+    
+    if (depth == kFarDepth)
+    {
+        return;
+    }
+    
+    float2 screenUV = (rayIdx + float2(0.5f, 0.5f)) / g_HardwareRaytraceConsts.m_OutputResolution;
     float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_HardwareRaytraceConsts.m_InvViewProjMatrix);
     
+    const uint kRayFlags =
+        RAY_FLAG_FORCE_OPAQUE |
+        RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH |
+        RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
+        RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
+    
     RayDesc rayDesc;
+    
+    // TODO: offset abit based on normal to offset shadow acne
+    // TODO: also based on screenspace distance? acne is worse over distance
     rayDesc.Origin = worldPosition;
+    
     rayDesc.Direction = g_HardwareRaytraceConsts.m_DirectionalLightDirection;
-    rayDesc.TMin = 0.01f;
+    rayDesc.TMin = 0.1f;
     rayDesc.TMax = kKindaBigNumber;
     
     HitInfo payload;
     payload.m_Missed = false;
     
-    const uint rayFlags =
-        RAY_FLAG_FORCE_OPAQUE |
-        RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH |
-        RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
-        RAY_FLAG_CULL_BACK_FACING_TRIANGLES |
-        RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
-    
     TraceRay(
         g_SceneTLAS,
-        rayFlags,
+        kRayFlags,
         0xFF,
         0,
         0,

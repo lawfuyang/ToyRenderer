@@ -121,9 +121,53 @@ public:
 
 	void RenderHardwareRaytracedShadows(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
 	{
-		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
+		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+		Scene* scene = g_Graphic.m_Scene.get();
+		View& view = scene->m_Views[Scene::EView::Main];
 
-        commandList->clearTextureUInt(shadowMaskTexture, nvrhi::AllSubresources, 1);
+		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
+		nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
+
+		HardwareRaytraceConsts passConstants;
+		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
+		passConstants.m_DirectionalLightDirection = scene->m_DirLightVec;
+		passConstants.m_OutputResolution = Vector2U{ shadowMaskTexture->getDesc().width , shadowMaskTexture->getDesc().height };
+		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
+
+		nvrhi::BindingSetDesc bindingSetDesc;
+		bindingSetDesc.bindings = {
+            nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+            nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopy),
+            nvrhi::BindingSetItem::RayTracingAccelStruct(1, scene->m_TLAS),
+            nvrhi::BindingSetItem::Texture_UAV(0, shadowMaskTexture)
+		};
+
+		nvrhi::BindingSetHandle bindingSet;
+		nvrhi::BindingLayoutHandle bindingLayout;
+		g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+		nvrhi::rt::PipelineDesc pipelineDesc;
+		pipelineDesc.shaders = {
+			{ "", g_Graphic.GetShader("shadowmask_RT_RayGen"), nullptr },
+			{ "", g_Graphic.GetShader("shadowmask_RT_Miss"), nullptr },
+		};
+		pipelineDesc.globalBindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
+		pipelineDesc.maxPayloadSize = sizeof(Vector4);
+
+        nvrhi::rt::PipelineHandle pipeline = g_Graphic.GetOrCreatePSO(pipelineDesc);
+		nvrhi::rt::ShaderTableHandle shaderTable = pipeline->createShaderTable();
+		shaderTable->setRayGenerationShader("RT_RayGen");
+		shaderTable->addMissShader("RT_Miss");
+
+		nvrhi::rt::State state;
+		state.shaderTable = shaderTable;
+		state.bindings = { bindingSet };
+		commandList->setRayTracingState(state);
+
+		nvrhi::rt::DispatchRaysArguments args;
+		args.width = passConstants.m_OutputResolution.x;
+		args.height = passConstants.m_OutputResolution.y;
+		commandList->dispatchRays(args);
 	}
 };
 

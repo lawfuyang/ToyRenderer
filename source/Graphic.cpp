@@ -411,6 +411,26 @@ void Graphic::InitShaders()
         const std::string profile = parseResult["T"].as<std::string>();
         const std::string entryPoint = parseResult["E"].as<std::string>();
 
+        // kinda manual... but it's robust enough
+        // NOTE: this enum doesn't matter if we're not using NVRHI_D3D12_WITH_NVAPI
+        nvrhi::ShaderType shaderType = nvrhi::ShaderType::None;
+        std::string profileStr = profile;
+        StringUtils::ToLower(profileStr);
+        if (profileStr == "vs")
+            shaderType = nvrhi::ShaderType::Vertex;
+        else if (profileStr == "ps")
+            shaderType = nvrhi::ShaderType::Pixel;
+        else if (profileStr == "cs")
+            shaderType = nvrhi::ShaderType::Compute;
+        else if (profileStr == "ms")
+            shaderType = nvrhi::ShaderType::Mesh;
+        else if (profileStr == "as")
+            shaderType = nvrhi::ShaderType::Amplification;
+        else if (profileStr == "lib")
+            shaderType = nvrhi::ShaderType::AllRayTracing; // ???
+
+        assert(shaderType != nvrhi::ShaderType::None);
+
         // reconstruct bin file name
         // NOTE: after tokenization the line string is the 1st token of the line, which is the file name
         std::string binFullPath = (std::filesystem::path{ GetExecutableDirectory() } / "shaders" / "").string();
@@ -428,33 +448,14 @@ void Graphic::InitShaders()
         std::vector<std::string> permutationDefines;
         ShaderMake::EnumeratePermutationsInBlob(shaderBlob.data(), shaderBlob.size(), permutationDefines);
 
-        auto InitShaderHandle = [&](const void* pBinary, uint32_t binarySize, std::string_view shaderDebugName)
+        auto InitShaderHandle = [&, entryPoint, shaderType](const void* pBinary, uint32_t binarySize, std::string_view shaderDebugName)
             {
                 PROFILE_SCOPED("Init Shader Handle");
 
                 nvrhi::ShaderDesc shaderDesc;
+                shaderDesc.shaderType = shaderType;
                 shaderDesc.debugName = shaderDebugName;
-
-                // kinda manual... but it's robust enough
-                // NOTE: this enum doesn't matter if we're not using NVRHI_D3D12_WITH_NVAPI
-                std::string profileStr = profile;
-                StringUtils::ToLower(profileStr);
-                if (profileStr == "vs")
-                    shaderDesc.shaderType = nvrhi::ShaderType::Vertex;
-                else if (profileStr == "ps")
-                    shaderDesc.shaderType = nvrhi::ShaderType::Pixel;
-                else if (profileStr == "cs")
-                    shaderDesc.shaderType = nvrhi::ShaderType::Compute;
-                else if (profileStr == "ms")
-                    shaderDesc.shaderType = nvrhi::ShaderType::Mesh;
-                else if (profileStr == "as")
-                    shaderDesc.shaderType = nvrhi::ShaderType::Amplification;
-                else if (profileStr == "lib")
-                    shaderDesc.shaderType = nvrhi::ShaderType::AllRayTracing; // ???
-                else
-                {
-                    assert(0);
-                }
+                shaderDesc.entryName = entryPoint;
 
                 size_t shaderHash = std::hash<std::string_view>{}(shaderDebugName);
                 nvrhi::ShaderHandle newShader = m_NVRHIDevice->createShader(shaderDesc, pBinary, binarySize);
@@ -596,7 +597,7 @@ nvrhi::BindingLayoutHandle Graphic::GetOrCreateBindingLayout(const nvrhi::Bindle
     return bindingLayout;
 }
 
-static void HashBindingLayout(size_t& psoHash, const nvrhi::BindingLayoutVector& bindingLayouts)
+static void HashBindingLayout(size_t& psoHash, std::span<const nvrhi::BindingLayoutHandle> bindingLayouts)
 {
     for (nvrhi::BindingLayoutHandle bindingLayout : bindingLayouts)
     {
@@ -611,6 +612,9 @@ static void HashBindingLayout(size_t& psoHash, const nvrhi::BindingLayoutVector&
         }
     }
 }
+ 
+static void HashShaderHandle(size_t& hash, nvrhi::ShaderHandle shader) { if (shader) { HashCombine(hash, shader->getDesc().debugName); } };
+static void HashBindingLayout(size_t& hash, nvrhi::BindingLayoutHandle layout) { if (layout) { HashBindingLayout(hash, { layout }); } };
 
 static std::size_t HashCommonGraphicStates(
     nvrhi::PrimitiveType primType,
@@ -723,6 +727,47 @@ nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelin
         computePipeline = m_NVRHIDevice->createComputePipeline(psoDesc);
     }
     return computePipeline;
+}
+
+nvrhi::rt::PipelineHandle Graphic::GetOrCreatePSO(const nvrhi::rt::PipelineDesc& psoDesc)
+{
+    size_t hash = 0;
+
+    for (const nvrhi::rt::PipelineShaderDesc& shaderDesc : psoDesc.shaders)
+    {
+        HashCombine(hash, shaderDesc.exportName);
+        HashShaderHandle(hash, shaderDesc.shader);
+        HashBindingLayout(hash, shaderDesc.bindingLayout);
+    }
+
+    for (const nvrhi::rt::PipelineHitGroupDesc& hitGroupDesc : psoDesc.hitGroups)
+    {
+        HashCombine(hash, hitGroupDesc.exportName);
+        HashShaderHandle(hash, hitGroupDesc.closestHitShader);
+        HashShaderHandle(hash, hitGroupDesc.anyHitShader);
+        HashShaderHandle(hash, hitGroupDesc.intersectionShader);
+        HashBindingLayout(hash, hitGroupDesc.bindingLayout);
+        HashCombine(hash, hitGroupDesc.isProceduralPrimitive);
+    }
+
+    HashBindingLayout(hash, psoDesc.globalBindingLayouts);
+    HashCombine(hash, psoDesc.maxPayloadSize);
+    HashCombine(hash, psoDesc.maxAttributeSize);
+    HashCombine(hash, psoDesc.maxRecursionDepth);
+    HashCombine(hash, psoDesc.hlslExtensionsUAV);
+
+    static std::mutex s_CachedRTPSOsLock;
+    AUTO_LOCK(s_CachedRTPSOsLock);
+
+    nvrhi::rt::PipelineHandle& pipeline = m_CachedRTPSOs[hash];
+    if (!pipeline)
+    {
+        PROFILE_SCOPED("createRTPipeline");
+        //LOG_DEBUG("New RT PSO: [%zx]", hash);
+        pipeline = m_NVRHIDevice->createRayTracingPipeline(psoDesc);
+    }
+
+    return pipeline;
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
@@ -940,6 +985,7 @@ void Graphic::Update()
         m_CachedGraphicPSOs.clear();
         m_CachedMeshletPSOs.clear();
         m_CachedComputePSOs.clear();
+        m_CachedRTPSOs.clear();
 
         // run as a task due to the usage of "corun" in the InitShaders function
         tf::Taskflow tf;
