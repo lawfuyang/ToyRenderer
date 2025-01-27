@@ -23,7 +23,6 @@ static_assert(SamplerIdx_AnisotropicBorder == (int)nvrhi::SamplerAddressMode::Bo
 static_assert(SamplerIdx_AnisotropicMirror == (int)nvrhi::SamplerAddressMode::Mirror);
 
 RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
-RenderGraph::ResourceHandle g_ShadowMapArrayRDGTextureHandle;
 RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
 
@@ -525,7 +524,7 @@ public:
             return;
         }
 
-        View& view = scene->m_Views[Scene::EView::Main];
+        View& view = scene->m_View;
 
         nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
         nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
@@ -582,106 +581,8 @@ public:
     }
 };
 
-IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
-
-class SunCSMBasePassRenderer : public BasePassRenderer
-{
-    const uint32_t m_CSMIndex;
-
-    uint32_t ForceMeshLODForPass() const override { return 0; }
-
-public:
-    SunCSMBasePassRenderer(uint32_t CSMIdx)
-        : BasePassRenderer(StringFormat("CSM: %d", CSMIdx))
-        , m_CSMIndex(CSMIdx)
-    {
-        g_SunCSMBasePassRenderers[m_CSMIndex] = this;
-    }
-
-    void Initialize() override
-	{
-		BasePassRenderer::Initialize();
-	}
-
-    bool Setup(RenderGraph& renderGraph) override
-    {
-        const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-
-        if (!shadowControllables.m_bEnabled)
-        {
-            return false;
-        }
-
-        if (shadowControllables.m_bEnableHardwareRaytracedShadows)
-        {
-            return false;
-        }
-
-        BasePassRenderer::Setup(renderGraph);
-
-        // create shadow map array RDG Texture. CSM0 is responsible for creating it
-        if (m_CSMIndex == 0)
-        {
-            nvrhi::TextureDesc desc;
-            desc.width = shadowControllables.m_ShadowMapResolution;
-            desc.height = shadowControllables.m_ShadowMapResolution;
-            desc.arraySize = Graphic::kNbCSMCascades;
-            desc.format = Graphic::kShadowMapFormat;
-            desc.dimension = nvrhi::TextureDimension::Texture2DArray;
-            desc.debugName = "Shadow Map Array";
-            desc.isRenderTarget = true;
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            desc.setClearValue(nvrhi::Color{ Graphic::kFarShadowMapDepth });
-
-            renderGraph.CreateTransientResource(g_ShadowMapArrayRDGTextureHandle, desc);
-        }
-        else
-        {
-            // CSMs 1-3 just need to add a write dependency to the shadow map array
-            renderGraph.AddWriteDependency(g_ShadowMapArrayRDGTextureHandle);
-        }
-
-        return true;
-    }
-
-    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
-    {
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        if (scene->m_Primitives.empty())
-        {
-            return;
-        }
-
-        View& view = scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
-
-        nvrhi::TextureHandle shadowMapArray = renderGraph.GetTexture(g_ShadowMapArrayRDGTextureHandle);
-
-        if (m_CSMIndex == 0)
-        {
-            commandList->clearDepthStencilTexture(shadowMapArray, nvrhi::AllSubresources, true, Graphic::kFarShadowMapDepth, false, 0);
-        }
-
-        nvrhi::FramebufferDesc frameBufferDesc;
-        frameBufferDesc.setDepthAttachment(shadowMapArray)
-            .depthAttachment.setArraySlice(m_CSMIndex);
-
-        nvrhi::DepthStencilState shadowDepthStencilState = g_CommonResources.DepthWriteStencilNone;
-        shadowDepthStencilState.depthFunc = Graphic::kInversedShadowMapDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual;
-
-        RenderBasePassParams params;
-        params.m_View = &scene->m_Views[Scene::EView::CSM0 + m_CSMIndex];
-        params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, shadowDepthStencilState, Graphic::kFrontCCW ? g_CommonResources.CullCounterClockwise : g_CommonResources.CullClockwise };
-        params.m_FrameBufferDesc = frameBufferDesc;
-
-        RenderBasePass(commandList, renderGraph, params);
-    }
-};
-
 static GBufferRenderer gs_GBufferRenderer;
 IRenderer* g_GBufferRenderer = &gs_GBufferRenderer;
 
 static TransparentForwardRenderer gs_TransparentForwardRenderer;
 IRenderer* g_TransparentForwardRenderer = &gs_TransparentForwardRenderer;
-
-static SunCSMBasePassRenderer gs_CSMRenderers[Graphic::kNbCSMCascades] = { 0, 1, 2, 3 };

@@ -27,7 +27,6 @@ public:
     float m_ZNearP = 0.1f;
     float m_ZFarP = 100.0f;
 
-    bool m_bIsPerspective = true;
     float m_FOV = ConvertToRadians(45.0f);
     float m_AspectRatio = 16.0f / 9.0f;
     float m_Width = 100.0f;
@@ -61,19 +60,16 @@ public:
         Quaternion m_Orientation;
     };
 
-    enum EView { Main, CSM0, CSM1, CSM2, CSM3 };
-
     void Initialize();
     void Update();
     void Shutdown();
     void UpdateIMGUIPropertyGrid();
     void OnSceneLoad();
-    void CalculateCSMSplitDistances();
     void SetCamera(uint32_t idx);
 
     std::shared_ptr<RenderGraph> m_RenderGraph;
 
-    View m_Views[EnumUtils::Count<EView>()];
+    View m_View;
 
     float m_SunOrientation = 270.0f;
     float m_SunInclination = 30.0f;
@@ -82,7 +78,6 @@ public:
     float m_DirLightStrength = 1.0f;
 
     float m_LastFrameExposure = 1.0f;
-    float m_CSMSplitDistances[4];
 
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
     Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
@@ -108,7 +103,6 @@ public:
 
 private:
     void UpdateMainViewCameraControls();
-    void UpdateCSMViews();
     void UpdateInstanceConstsBuffer();
     void UpdateInstanceIDsBuffers();
     void UpdateDirectionalLightVector();

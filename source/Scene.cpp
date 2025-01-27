@@ -95,15 +95,8 @@ void View::Update()
     m_InvViewMatrix = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
     m_ViewMatrix = m_InvViewMatrix.Invert();
 
-    if (m_bIsPerspective)
-    {
-        m_ProjectionMatrix = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, m_ZFarP);
-        ModifyPerspectiveMatrix(m_ProjectionMatrix, m_ZNearP, m_ZFarP, Graphic::kInversedDepthBuffer, Graphic::kInfiniteDepthBuffer);
-    }
-    else
-    {
-        m_ProjectionMatrix = Matrix::CreateOrthographic(m_Width, m_Height, m_ZNearP, m_ZFarP);
-    }
+    m_ProjectionMatrix = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, m_ZFarP);
+    ModifyPerspectiveMatrix(m_ProjectionMatrix, m_ZNearP, m_ZFarP, Graphic::kInversedDepthBuffer, Graphic::kInfiniteDepthBuffer);
 
     m_ViewProjectionMatrix = m_ViewMatrix * m_ProjectionMatrix;
     m_InvViewProjectionMatrix = m_ViewProjectionMatrix.Invert();
@@ -169,25 +162,14 @@ void Scene::Initialize()
         commandList->clearTextureFloat(m_HZB, nvrhi::AllSubresources, nvrhi::Color{ Graphic::kFarDepth });
     }
 
-    m_Views[Main].m_ZNearP = Graphic::kDefaultCameraNearPlane;
-    m_Views[Main].m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
-    m_Views[Main].m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };
-    m_Views[Main].Update();
-
-    for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
-    {
-        m_Views[CSM0 + i].m_bIsPerspective = false;
-    }
-
-    for (View& view : m_Views)
-    {
-        view.Initialize();
-    }
+    m_View.m_ZNearP = Graphic::kDefaultCameraNearPlane;
+    m_View.m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
+    m_View.m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };
+    m_View.Update();
+    m_View.Initialize();
 
     m_RenderGraph = std::make_shared<RenderGraph>();
     m_RenderGraph->Initialize();
-
-    CalculateCSMSplitDistances();
 
     UpdateDirectionalLightVector();
 }
@@ -196,10 +178,8 @@ void Scene::SetCamera(uint32_t idx)
 {
     const Camera& camera = m_Cameras.at(idx);
 
-    View& view = m_Views[EView::Main];
-
-    view.m_Eye = camera.m_Position;
-    view.m_Orientation = camera.m_Orientation;
+    m_View.m_Eye = camera.m_Position;
+    m_View.m_Orientation = camera.m_Orientation;
 
     const Matrix matrix = Matrix::CreateFromQuaternion(camera.m_Orientation);
     const Vector3 forwardVector = matrix.Forward();
@@ -207,7 +187,7 @@ void Scene::SetCamera(uint32_t idx)
     m_Yaw = atan2f(forwardVector.x, forwardVector.z);
     m_Pitch = asinf(forwardVector.y);
 
-    view.UpdateVectors(m_Yaw, m_Pitch);
+    m_View.UpdateVectors(m_Yaw, m_Pitch);
 }
 
 void Scene::UpdateMainViewCameraControls()
@@ -222,8 +202,6 @@ void Scene::UpdateMainViewCameraControls()
 
     float mouseX, mouseY;
 	const SDL_MouseButtonFlags mouseButtonFlags = SDL_GetMouseState(&mouseX, &mouseY);
-
-    View& mainView = m_Views[EView::Main];
 
     // right click + mouse wheel changes camera movement speed, like UE
     static float s_CameraMoveSpeed = 0.1f;
@@ -241,7 +219,7 @@ void Scene::UpdateMainViewCameraControls()
     // Calculate the move vector in camera space.
     Vector3 finalMoveVector;
 
-    const Matrix viewMatrix = Matrix::CreateFromQuaternion(mainView.m_Orientation);
+    const Matrix viewMatrix = Matrix::CreateFromQuaternion(m_View.m_Orientation);
 
     if (keyboardStates[SDL_SCANCODE_A])
     {
@@ -263,7 +241,7 @@ void Scene::UpdateMainViewCameraControls()
     if (finalMoveVector.LengthSquared() > 0.1f)
     {
         finalMoveVector.Normalize();
-        mainView.m_Eye += finalMoveVector * s_CameraMoveSpeed * g_Engine.m_CPUCappedFrameTimeMs;
+        m_View.m_Eye += finalMoveVector * s_CameraMoveSpeed * g_Engine.m_CPUCappedFrameTimeMs;
     }
 
     if (mouseButtonFlags & SDL_BUTTON_RMASK)
@@ -275,69 +253,7 @@ void Scene::UpdateMainViewCameraControls()
         m_Yaw -= s_MouseRotationSpeed * mouseDeltaVec.x;
         m_Pitch -= s_MouseRotationSpeed * mouseDeltaVec.y;
 
-        mainView.UpdateVectors(m_Yaw, m_Pitch);
-    }
-}
-
-void Scene::UpdateCSMViews()
-{
-    PROFILE_FUNCTION();
-
-    View& mainView = m_Views[EView::Main];
-
-    for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
-    {
-        View& CSMView = m_Views[EView::CSM0 + i];
-
-        const Matrix cascadeProj = Matrix::CreatePerspectiveFieldOfView(mainView.m_FOV, mainView.m_AspectRatio, i == 0 ? 0.1f : m_CSMSplitDistances[i - 1], m_CSMSplitDistances[i]);
-
-        Frustum cascadeFrustum;
-        Frustum::CreateFromMatrix(cascadeFrustum, cascadeProj);
-        cascadeFrustum.Transform(cascadeFrustum, mainView.m_InvViewMatrix);
-
-        Vector3 frustumCorners[8];
-        cascadeFrustum.GetCorners(frustumCorners);
-
-        Vector3 frustumCenter;
-        for (const Vector3& v : frustumCorners)
-        {
-            frustumCenter += v;
-        }
-        frustumCenter /= (float)std::size(frustumCorners);
-
-        CSMView.m_Eye = frustumCenter + m_DirLightVec;
-
-        float minX = kKindaBigNumber;
-        float maxX = -kKindaBigNumber;
-        float minY = kKindaBigNumber;
-        float maxY = -kKindaBigNumber;
-        float minZ = kKindaBigNumber;
-        float maxZ = -kKindaBigNumber;
-        for (const Vector3& v : frustumCorners)
-        {
-            // hack
-            static const float kExpansionBuffer = 1.1f;
-
-            const Vector3 trf = Vector3::Transform(v, CSMView.m_ViewMatrix);
-            minX = std::min(minX, trf.x) * kExpansionBuffer;
-            maxX = std::max(maxX, trf.x) * kExpansionBuffer;
-            minY = std::min(minY, trf.y) * kExpansionBuffer;
-            maxY = std::max(maxY, trf.y) * kExpansionBuffer;
-            minZ = std::min(minZ, trf.z) * kExpansionBuffer;
-            maxZ = std::max(maxZ, trf.z) * kExpansionBuffer;
-        }
-
-        CSMView.m_Width = std::max(1.0f, maxX - minX);
-        CSMView.m_Height = std::max(1.0f, maxY - minY);
-        CSMView.m_ZNearP = minZ;
-        CSMView.m_ZFarP = (maxZ - minZ);
-
-        if constexpr (Graphic::kInversedShadowMapDepthBuffer)
-        {
-            std::swap(CSMView.m_ZNearP, CSMView.m_ZFarP);
-        }
-
-        CSMView.Update();
+        m_View.UpdateVectors(m_Yaw, m_Pitch);
     }
 }
 
@@ -492,9 +408,7 @@ void Scene::Update()
 
     UpdateMainViewCameraControls();
 
-    m_Views[EView::Main].Update();
-
-    UpdateCSMViews();
+    m_View.Update();
 
     tf::Taskflow tf;
 
@@ -506,7 +420,6 @@ void Scene::Update()
         extern IRenderer* g_GBufferRenderer;
         extern IRenderer* g_ShadowMaskRenderer;
         extern IRenderer* g_DeferredLightingRenderer;
-        extern IRenderer* g_SunCSMBasePassRenderers[Graphic::kNbCSMCascades];
         extern IRenderer* g_TransparentForwardRenderer;
         extern IRenderer* g_IMGUIRenderer;
         extern IRenderer* g_SkyRenderer;
@@ -518,12 +431,6 @@ void Scene::Update()
         m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
         m_RenderGraph->AddRenderer(g_GBufferRenderer);
         m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
-
-        for (uint32_t i = 0; i < Graphic::kNbCSMCascades; i++)
-        {
-            m_RenderGraph->AddRenderer(g_SunCSMBasePassRenderers[i]);
-        }
-
         m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
         m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
         m_RenderGraph->AddRenderer(g_SkyRenderer);
@@ -538,27 +445,6 @@ void Scene::Update()
     m_RenderGraph->Compile();
 
     g_Engine.m_Executor->corun(tf);
-}
-
-void Scene::CalculateCSMSplitDistances()
-{
-    const GraphicPropertyGrid::ShadowControllables& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-
-    float tmpCSMSplitDistances[Graphic::kNbCSMCascades + 2]{};
-
-    for (uint32_t i = 0; i < std::size(tmpCSMSplitDistances); ++i)
-    {
-        const float f = (float)i / std::size(tmpCSMSplitDistances);
-        const float l = Graphic::kDefaultCameraNearPlane * pow(shadowControllables.m_MaxShadowDistance / Graphic::kDefaultCameraNearPlane, f);
-        const float u = Graphic::kDefaultCameraNearPlane + (shadowControllables.m_MaxShadowDistance - Graphic::kDefaultCameraNearPlane) * f;
-        tmpCSMSplitDistances[i] = l * shadowControllables.m_CSMSplitLambda + u * (1.0f - shadowControllables.m_CSMSplitLambda);
-    }
-
-    for (uint32_t i = 0; i < Graphic::kNbCSMCascades; ++i)
-    {
-        m_CSMSplitDistances[i] = tmpCSMSplitDistances[i + 2];
-    }
-    m_CSMSplitDistances[Graphic::kNbCSMCascades - 1] = shadowControllables.m_MaxShadowDistance;
 }
 
 void Scene::Shutdown()
@@ -612,14 +498,13 @@ void Scene::UpdateIMGUIPropertyGrid()
 		const auto& InstanceRenderingControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
         // TODO: support transparent
-		const View& mainView = m_Views[EView::Main];
 
 		ImGui::Text("Early:");
 
 		ImGui::Indent();
 
-		ImGui::Text("Instances:[%d]", mainView.m_GPUCullingCounters.m_EarlyInstances);
-		ImGui::Text("Meshlets: [%d]", mainView.m_GPUCullingCounters.m_EarlyMeshlets);
+		ImGui::Text("Instances:[%d]", m_View.m_GPUCullingCounters.m_EarlyInstances);
+		ImGui::Text("Meshlets: [%d]", m_View.m_GPUCullingCounters.m_EarlyMeshlets);
 
 		ImGui::Unindent();
 
@@ -627,8 +512,8 @@ void Scene::UpdateIMGUIPropertyGrid()
 
         ImGui::Indent();
 
-        ImGui::Text("Instances: [%d]", mainView.m_GPUCullingCounters.m_LateInstances);
-        ImGui::Text("Meshlets: [%d]", mainView.m_GPUCullingCounters.m_LateMeshlets);
+        ImGui::Text("Instances: [%d]", m_View.m_GPUCullingCounters.m_LateInstances);
+        ImGui::Text("Meshlets: [%d]", m_View.m_GPUCullingCounters.m_LateMeshlets);
 
         ImGui::Unindent();
 
@@ -641,19 +526,12 @@ void Scene::OnSceneLoad()
     PROFILE_FUNCTION();
     SCOPED_TIMER_FUNCTION();
 
-    View& mainView = m_Views[EView::Main];
-
-    // empirically resize CSM distances based on scene BS radius
-    g_GraphicPropertyGrid.m_ShadowControllables.m_MaxShadowDistance = std::min(300.0f, std::max(1.0f, m_BoundingSphere.Radius * 2));
-    CalculateCSMSplitDistances();
-
     // empirically set camera near plane based on scene BS radius
-    mainView.m_ZNearP = std::max(0.1f, std::min(m_BoundingSphere.Radius * 0.01f, 0.1f));
+    m_View.m_ZNearP = std::max(0.1f, std::min(m_BoundingSphere.Radius * 0.01f, 0.1f));
 
     LOG_DEBUG("Scene AABB: c:[%f, %f, %f] e:[%f, %f, %f]", m_AABB.Center.x, m_AABB.Center.y, m_AABB.Center.z, m_AABB.Extents.x, m_AABB.Extents.y, m_AABB.Extents.z);
     LOG_DEBUG("Scene Bounding Sphere: [%f, %f, %f][r: %f]", m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius);
-    LOG_DEBUG("CSM Split Distances: [%f, %f, %f, %f]", m_CSMSplitDistances[0], m_CSMSplitDistances[1], m_CSMSplitDistances[2], m_CSMSplitDistances[3]);
-    LOG_DEBUG("Camera Near Plane: %f", mainView.m_ZNearP);
+    LOG_DEBUG("Camera Near Plane: %f", m_View.m_ZNearP);
 
     // set to first camera if any
     if (!m_Cameras.empty())

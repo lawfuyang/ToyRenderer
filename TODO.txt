@@ -43,7 +43,7 @@
     • https://wickedengine.net/2017/09/skinning-in-compute-shader/
 • Terrain: https://learnopengl.com/Guest-Articles/2021/Tessellation/Height-map
 • Compute Queue
-    • async XeGTAO with CSM
+    • async XeGTAO
     • async GPU Culling
 	• async buffer clears (?)
 • Area Lights: https://learnopengl.com/Guest-Articles/2022/Area-Lights

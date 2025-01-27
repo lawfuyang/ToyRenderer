@@ -27,7 +27,6 @@ public:
     SingletonFunctionsSimple(Graphic);
 
     static constexpr uint32_t kMaxTextureMipsToGenerate = 12;
-    static constexpr uint32_t kNbCSMCascades = 4;
     static constexpr uint32_t kMaxThreadGroupsPerDimension = 65535; // both d3d12 & vulkan have a limit of 65535 thread groups per dimension
     static constexpr uint32_t kMaxNumMeshLODs = 8;
 
@@ -37,19 +36,15 @@ public:
     static constexpr bool kFrontCCW = true;
     static constexpr bool kInversedDepthBuffer = true;
     static constexpr bool kInfiniteDepthBuffer = true;
-    static constexpr bool kInversedShadowMapDepthBuffer = true;
 
     static constexpr float kNearDepth = kInversedDepthBuffer ? 1.0f : 0.0f;
     static constexpr float kFarDepth = 1.0f - kNearDepth;
-    static constexpr float kNearShadowMapDepth = kInversedShadowMapDepthBuffer ? 1.0f : 0.0f;
-    static constexpr float kFarShadowMapDepth = 1.0f - kNearShadowMapDepth;
     static constexpr float kDefaultCameraNearPlane = 0.1f;
 
     static constexpr nvrhi::Format kGBufferAFormat = nvrhi::Format::RGBA32_UINT;
     static constexpr nvrhi::Format kDepthStencilFormat = nvrhi::Format::D24S8;
     static constexpr nvrhi::Format kDepthBufferCopyFormat = nvrhi::Format::R16_FLOAT;
     static constexpr nvrhi::Format kHZBFormat = nvrhi::Format::R16_FLOAT;
-    static constexpr nvrhi::Format kShadowMapFormat = nvrhi::Format::D16;
     static constexpr nvrhi::Format kIndexBufferFormat = nvrhi::Format::R32_UINT;
     static constexpr nvrhi::Format kLightingOutputFormat = nvrhi::Format::R11G11B10_FLOAT;
     static constexpr nvrhi::Format kSSAOOutputFormat = nvrhi::Format::R8_UINT;

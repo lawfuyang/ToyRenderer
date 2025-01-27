@@ -126,7 +126,7 @@ public:
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
-        View& mainView = scene->m_Views[Scene::EView::Main];
+        View& mainView = scene->m_View;
 
         XeGTAO::GTAOConstants GTAOconsts{};
         const bool bRowMajor = true;

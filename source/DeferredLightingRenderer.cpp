@@ -56,7 +56,7 @@ public:
 	{
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 		Scene* scene = g_Graphic.m_Scene.get();
-		View& view = scene->m_Views[Scene::EView::Main];
+		View& view = scene->m_View;
 
 		const auto& lightingControllables = g_GraphicPropertyGrid.m_LightingControllables;
 		const auto& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
@@ -68,18 +68,10 @@ public:
 		passConstants.m_DirectionalLightColor = scene->m_DirLightColor;
 		passConstants.m_DirectionalLightStrength = scene->m_DirLightStrength;
 		passConstants.m_DirectionalLightVector = scene->m_DirLightVec;
-		passConstants.m_InvShadowMapResolution = 1.0f / g_GraphicPropertyGrid.m_ShadowControllables.m_ShadowMapResolution;
 		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
 		passConstants.m_SSAOEnabled = AOControllables.m_bEnabled;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
 		passConstants.m_DebugMode = lightingControllables.m_DebugMode;
-
-		for (size_t i = 0; i < Graphic::kNbCSMCascades; i++)
-		{
-			passConstants.m_DirLightViewProj[i] = scene->m_Views[Scene::EView::CSM0 + i].m_ViewProjectionMatrix;
-		}
-
-		memcpy(&passConstants.m_CSMDistances, scene->m_CSMSplitDistances, sizeof(passConstants.m_CSMDistances));
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
