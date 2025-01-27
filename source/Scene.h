@@ -67,6 +67,8 @@ public:
     void OnSceneLoad();
     void SetCamera(uint32_t idx);
 
+    bool IsShadowsEnabled() const;
+
     std::shared_ptr<RenderGraph> m_RenderGraph;
 
     View m_View;
@@ -113,3 +115,4 @@ private:
     float m_Yaw = 0.0f;
     float m_Pitch = 0.0f;
 };
+#define g_Scene g_Graphic.m_Scene

@@ -12,6 +12,7 @@ public:
     struct DebugControllables
     {
         uint32_t m_FPSLimit = 200.0f;
+        int m_DebugMode = 0;
     };
     DebugControllables m_DebugControllables;
 
@@ -57,7 +58,7 @@ public:
 
     struct LightingControllables
     {
-        int m_DebugMode = 0;
+
     };
     LightingControllables m_LightingControllables;
     

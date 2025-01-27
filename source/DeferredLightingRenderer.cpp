@@ -43,8 +43,7 @@ public:
 			renderGraph.AddReadDependency(g_SSAORDGTextureHandle);
 		}
 
-		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-		if (shadowControllables.m_bEnabled)
+		if (g_Scene->IsShadowsEnabled())
 		{
 			renderGraph.AddReadDependency(g_ShadowMaskRDGTextureHandle);
 		}
@@ -58,9 +57,8 @@ public:
 		Scene* scene = g_Graphic.m_Scene.get();
 		View& view = scene->m_View;
 
-		const auto& lightingControllables = g_GraphicPropertyGrid.m_LightingControllables;
+		const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
 		const auto& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
-		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
 
 		// pass constants
 		DeferredLightingConsts passConstants;
@@ -71,12 +69,12 @@ public:
 		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
 		passConstants.m_SSAOEnabled = AOControllables.m_bEnabled;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
-		passConstants.m_DebugMode = lightingControllables.m_DebugMode;
+		passConstants.m_DebugMode = debugControllables.m_DebugMode;
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
 		nvrhi::TextureHandle ssaoTexture = AOControllables.m_bEnabled ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
-		nvrhi::TextureHandle shadowMaskTexture = shadowControllables.m_bEnabled ? renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
+		nvrhi::TextureHandle shadowMaskTexture = g_Scene->IsShadowsEnabled() ? renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
@@ -100,7 +98,7 @@ public:
 		depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
 		depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
 
-		const bool bHasDebugView = lightingControllables.m_DebugMode != 0;
+		const bool bHasDebugView = debugControllables.m_DebugMode != 0;
 		const char* shaderName = bHasDebugView ? "deferredlighting_PS_Main_Debug" : "deferredlighting_PS_Main";
 
 		g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, shaderName, nullptr, &depthStencilState);

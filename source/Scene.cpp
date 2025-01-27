@@ -190,6 +190,11 @@ void Scene::SetCamera(uint32_t idx)
     m_View.UpdateVectors(m_Yaw, m_Pitch);
 }
 
+bool Scene::IsShadowsEnabled() const
+{
+    return !!m_TLAS && g_GraphicPropertyGrid.m_ShadowControllables.m_bEnabled;
+}
+
 void Scene::UpdateMainViewCameraControls()
 {
     // disable camera controls if imgui keyboard input is active... so we don't move the camera when inputing values to imgui

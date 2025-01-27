@@ -43,6 +43,31 @@ void GraphicPropertyGrid::UpdateIMGUI()
         DebugControllables& params = m_DebugControllables;
 
         ImGui::SliderInt("FPS Limit", (int*)&params.m_FPSLimit, 10, 240);
+
+        // keep in sync with 'kDeferredLightingDebugMode_*'
+        static const char* kDebugModeNames[] =
+        {
+            "None",
+            "Lighting Only",
+            "Colorize Instances",
+            "Colorize Meshlets",
+            "Albedo",
+            "Normal",
+            "Emissive",
+            "Metalness",
+            "Roughness",
+            "Ambient Occlusion",
+            "Ambient",
+            "Shadow Mask",
+            "Mesh LOD"
+        };
+
+        static int debugModeIdx = 0;
+        if (ImGui::Combo("##DebugModeCombo", &debugModeIdx, kDebugModeNames, std::size(kDebugModeNames)))
+        {
+            params.m_DebugMode = debugModeIdx;
+        }
+
         ImGui::TreePop();
     }
 
@@ -61,32 +86,6 @@ void GraphicPropertyGrid::UpdateIMGUI()
 
     if (ImGui::TreeNode("Lighting"))
     {
-        LightingControllables& params = m_LightingControllables;
-
-        // keep in sync with 'kDeferredLightingDebugMode_*'
-        static const char* kDebugModeNames[] = 
-        {
-            "None",
-            "Lighting Only",
-            "Colorize Instances",
-            "Colorize Meshlets",
-            "Albedo",
-            "Normal",
-            "Emissive",
-            "Metalness",
-            "Roughness",
-            "Ambient Occlusion",
-            "Ambient",
-            "Shadow Mask",
-            "Mesh LOD"
-        };
-
-		static int debugModeIdx = 0;
-        if (ImGui::Combo("##LightingDebugModeCombo", &debugModeIdx, kDebugModeNames, std::size(kDebugModeNames)))
-        {
-			params.m_DebugMode = debugModeIdx;
-        }
-
         ImGui::TreePop();
     }
 

@@ -463,7 +463,7 @@ void Graphic::InitShaders()
 
                 m_AllShaders[shaderHash] = newShader;
 
-                LOG_DEBUG("Init %s Shader: %s", nvrhi::utils::ShaderStageToString(shaderDesc.shaderType), shaderDebugName.data());
+                LOG_DEBUG("Shader name: %s, Type: %s, Entry: %s", shaderDebugName.data(), nvrhi::utils::ShaderStageToString(shaderType), entryPoint.c_str());
             };
 
         // no permutations
@@ -624,6 +624,8 @@ static std::size_t HashCommonGraphicStates(
     nvrhi::FramebufferHandle frameBuffer
 )
 {
+    assert(PS->getDesc().shaderType == nvrhi::ShaderType::Pixel);
+
     size_t psoHash = 0;
 
     HashCombine(psoHash, primType);
@@ -684,7 +686,7 @@ nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipel
 
 nvrhi::MeshletPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::MeshletPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer)
 {
-    size_t psoHash = HashCommonGraphicStates(psoDesc.primType, psoDesc.MS, psoDesc.renderState, psoDesc.bindingLayouts, frameBuffer);
+    size_t psoHash = HashCommonGraphicStates(psoDesc.primType, psoDesc.PS, psoDesc.renderState, psoDesc.bindingLayouts, frameBuffer);
 
 	if (psoDesc.AS)
 	{

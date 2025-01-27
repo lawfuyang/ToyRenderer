@@ -62,13 +62,13 @@ void PS_Main_Debug(
     UnpackGBuffer(g_GBufferA[inPosition.xy], gbufferParams);
     
     float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, inUV, 0).r;
+    shadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
     
     float3 rgb = 0.0f;
     
     if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_LightingOnly)
     {
-        float lightingOnlyShadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
-        rgb = dot(gbufferParams.m_Normal, g_DeferredLightingConsts.m_DirectionalLightVector).xxx * lightingOnlyShadowFactor;
+        rgb = dot(gbufferParams.m_Normal, g_DeferredLightingConsts.m_DirectionalLightVector).xxx * shadowFactor;
     }
     else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ColorizeInstances || g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ColorizeMeshlets)
     {

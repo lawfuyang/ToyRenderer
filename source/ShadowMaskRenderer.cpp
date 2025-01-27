@@ -19,8 +19,7 @@ public:
 
 	bool Setup(RenderGraph& renderGraph) override
     {
-		const auto& shadowControllables = g_GraphicPropertyGrid.m_ShadowControllables;
-		if (!shadowControllables.m_bEnabled)
+		if (!g_Scene->IsShadowsEnabled())
 		{
 			return false;
 		}
@@ -44,15 +43,14 @@ public:
 	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
 	{
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-		Scene* scene = g_Graphic.m_Scene.get();
-		View& view = scene->m_View;
+		View& view = g_Scene->m_View;
 
 		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
 
 		HardwareRaytraceConsts passConstants;
 		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
-		passConstants.m_DirectionalLightDirection = scene->m_DirLightVec;
+		passConstants.m_DirectionalLightDirection = g_Scene->m_DirLightVec;
 		passConstants.m_OutputResolution = Vector2U{ shadowMaskTexture->getDesc().width , shadowMaskTexture->getDesc().height };
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
@@ -60,7 +58,7 @@ public:
 		bindingSetDesc.bindings = {
 			nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
 			nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopy),
-			nvrhi::BindingSetItem::RayTracingAccelStruct(1, scene->m_TLAS),
+			nvrhi::BindingSetItem::RayTracingAccelStruct(1, g_Scene->m_TLAS),
 			nvrhi::BindingSetItem::Texture_UAV(0, shadowMaskTexture)
 		};
 
