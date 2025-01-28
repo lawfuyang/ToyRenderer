@@ -3,7 +3,7 @@
 
 #include "shared/ShadowMaskStructs.h"
 
-cbuffer g_PassConstantsBuffer : register(b0) { HardwareRaytraceConsts g_HardwareRaytraceConsts; }
+cbuffer g_PassConstantsBuffer : register(b0) { ShadowMaskConsts g_ShadowMaskConsts; }
 Texture2D g_DepthBuffer : register(t0);
 RaytracingAccelerationStructure g_SceneTLAS : register(t1);
 RWTexture2D<float4> g_ShadowMaskOutput : register(u0);
@@ -24,8 +24,8 @@ void RT_RayGen()
         return;
     }
     
-    float2 screenUV = (rayIdx + float2(0.5f, 0.5f)) / g_HardwareRaytraceConsts.m_OutputResolution;
-    float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_HardwareRaytraceConsts.m_ClipToWorld);
+    float2 screenUV = (rayIdx + float2(0.5f, 0.5f)) / g_ShadowMaskConsts.m_OutputResolution;
+    float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_ShadowMaskConsts.m_ClipToWorld);
     
     const uint kRayFlags =
         RAY_FLAG_FORCE_OPAQUE |
@@ -39,7 +39,7 @@ void RT_RayGen()
     // TODO: also based on screenspace distance? acne is worse over distance
     rayDesc.Origin = worldPosition;
     
-    rayDesc.Direction = g_HardwareRaytraceConsts.m_DirectionalLightDirection;
+    rayDesc.Direction = g_ShadowMaskConsts.m_DirectionalLightDirection;
     rayDesc.TMin = 0.1f;
     rayDesc.TMax = kKindaBigNumber;
     

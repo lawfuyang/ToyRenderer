@@ -48,7 +48,7 @@ public:
 		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
 
-		HardwareRaytraceConsts passConstants;
+		ShadowMaskConsts passConstants;
 		passConstants.m_ClipToWorld = view.m_ClipToWorld;
 		passConstants.m_DirectionalLightDirection = g_Scene->m_DirLightVec;
 		passConstants.m_OutputResolution = Vector2U{ shadowMaskTexture->getDesc().width , shadowMaskTexture->getDesc().height };

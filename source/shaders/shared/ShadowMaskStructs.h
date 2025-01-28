@@ -1,6 +1,6 @@
 #include "ShaderInterop.h"
 
-struct HardwareRaytraceConsts
+struct ShadowMaskConsts
 {
     Matrix m_ClipToWorld;
     Vector3 m_DirectionalLightDirection;
