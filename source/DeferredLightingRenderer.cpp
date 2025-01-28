@@ -4,7 +4,6 @@
 #include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
 #include "Scene.h"
-#include "TileRenderingHelper.h"
 
 #include "shaders/shared/DeferredLightingStructs.h"
 

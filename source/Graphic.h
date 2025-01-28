@@ -99,15 +99,12 @@ public:
         const void* pushConstantsData = nullptr,
         size_t pushConstantsBytes = 0);
 
-    void AddComputePass(
-        nvrhi::CommandListHandle commandList,
+    void AddComputePass(nvrhi::CommandListHandle commandList,
         std::string_view shaderName,
         const nvrhi::BindingSetDesc& bindingSetDesc,
         const Vector3U& dispatchGroupSize,
         nvrhi::BufferHandle indirectArgsBuffer,
         uint32_t indirectArgsBufferOffsetBytes,
-        nvrhi::BufferHandle indirectCountBuffer,
-        uint32_t indirectCountBufferOffsetBytes,
         const void* pushConstantsData,
         size_t pushConstantsBytes);
 
@@ -124,8 +121,6 @@ public:
             shaderName,
             bindingSetDesc,
             dispatchGroupSize,
-            nvrhi::BufferHandle{},
-            0,
             nvrhi::BufferHandle{},
             0,
             pushConstantsData,
@@ -150,8 +145,6 @@ public:
             Vector3U{ 0, 0, 0 },
             indirectArgsBuffer,
             indirectArgsBufferOffsetBytes,
-            indirectCountBuffer,
-            indirectCountBufferOffsetBytes,
             pushConstantsData,
             pushConstantsBytes);
     }

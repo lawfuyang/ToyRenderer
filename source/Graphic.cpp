@@ -1165,15 +1165,12 @@ void Graphic::AddFullScreenPass(
     commandList->dispatchMesh(1, 1, 1);
 }
 
-void Graphic::AddComputePass(
-    nvrhi::CommandListHandle commandList,
+void Graphic::AddComputePass(nvrhi::CommandListHandle commandList,
     std::string_view shaderName,
     const nvrhi::BindingSetDesc& bindingSetDesc,
     const Vector3U& dispatchGroupSize,
     nvrhi::BufferHandle indirectArgsBuffer,
     uint32_t indirectArgsBufferOffsetBytes,
-    nvrhi::BufferHandle indirectCountBuffer,
-    uint32_t indirectCountBufferOffsetBytes,
     const void* pushConstantsData,
     size_t pushConstantsBytes)
 {
@@ -1196,11 +1193,6 @@ void Graphic::AddComputePass(
     {
         assert(dispatchGroupSize.x == 0 && dispatchGroupSize.y == 0 && dispatchGroupSize.z == 0); // indirect dispatch does not need group size
         computeState.indirectParams = indirectArgsBuffer;
-
-        if (indirectCountBuffer)
-        {
-            computeState.indirectCountBuffer = indirectCountBuffer;
-        }
     }
 
     commandList->setComputeState(computeState);
@@ -1212,7 +1204,7 @@ void Graphic::AddComputePass(
 
     if (indirectArgsBuffer)
     {
-        commandList->dispatchIndirect(indirectArgsBufferOffsetBytes, indirectCountBufferOffsetBytes);
+        commandList->dispatchIndirect(indirectArgsBufferOffsetBytes);
     }
     else
     {
