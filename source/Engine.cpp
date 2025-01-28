@@ -173,6 +173,47 @@ void Engine::Shutdown()
 	}
 }
 
+// https://blog.bearcats.nl/perfect-sleep-function/
+static void TimerSleep(double microSeconds)
+{
+    using namespace std;
+    using namespace chrono;
+    static const int64_t kPeriod = 1;
+    static const int64_t kTolerance = 1'020'000;
+
+    auto t = high_resolution_clock::now();
+    const auto target = t + nanoseconds(int64_t(microSeconds * 1e3));
+
+    static HANDLE timer = ::CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+
+    const int64_t maxTicks = kPeriod * 9'500;
+    for (;;)
+    {
+        const int64_t remaining = (target - t).count();
+        int64_t ticks = (remaining - kTolerance) / 100;
+        if (ticks <= 0)
+        {
+            break;
+        }
+        if (ticks > maxTicks)
+        {
+            ticks = maxTicks;
+        }
+
+        LARGE_INTEGER due;
+        due.QuadPart = -ticks;
+        ::SetWaitableTimerEx(timer, &due, 0, NULL, NULL, NULL, 0);
+        ::WaitForSingleObject(timer, INFINITE);
+        t = high_resolution_clock::now();
+    }
+
+    // spin
+    while (high_resolution_clock::now() < target)
+    {
+        YieldProcessor();
+    }
+}
+
 void Engine::MainLoop()
 {
     LOG_DEBUG("Entering main loop");
@@ -252,10 +293,15 @@ void Engine::MainLoop()
 		if (const uint32_t fpsLimit = g_GraphicPropertyGrid.m_DebugControllables.m_FPSLimit;
             fpsLimit != 0)
 		{
-			const std::chrono::microseconds frameDuration{ 1000000 / fpsLimit };
+            PROFILE_SCOPED("Busy Wait Until FPS Limit");
 
-			PROFILE_SCOPED("Busy Wait Until FPS Limit");
-			while (frameTimer.GetElapsedMicroSeconds() < frameDuration.count()) { YieldProcessor(); }
+			const std::chrono::microseconds frameDuration{ 1000000 / fpsLimit };
+            const auto timeLeft = frameDuration - std::chrono::microseconds{ frameTimer.GetElapsedMicroSeconds() };
+
+            if (timeLeft.count() > 0)
+            {
+                TimerSleep(timeLeft.count());
+            }
 		}
 
         m_CPUCappedFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
