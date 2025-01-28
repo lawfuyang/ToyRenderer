@@ -1,5 +1,4 @@
 • RT Shadows
-	• offset ray start world pos to alleviate shadow acne
 	• support alpha mask
 	• half/quarter res trace (controllable)
 	• soft shadows (penumbra)
