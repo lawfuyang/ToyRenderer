@@ -95,8 +95,8 @@ void View::Update()
     m_ViewToWorld = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
     m_WorldToView = m_ViewToWorld.Invert();
 
-    m_ViewToClip = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, m_ZFarP);
-    ModifyPerspectiveMatrix(m_ViewToClip, m_ZNearP, m_ZFarP, Graphic::kInversedDepthBuffer, Graphic::kInfiniteDepthBuffer);
+    m_ViewToClip = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, kKindaBigNumber);
+    ModifyPerspectiveMatrix(m_ViewToClip, m_ZNearP, kKindaBigNumber, Graphic::kInversedDepthBuffer, Graphic::kInfiniteDepthBuffer);
 
     m_WorldToClip = m_WorldToView * m_ViewToClip;
     m_ClipToWorld = m_WorldToClip.Invert();

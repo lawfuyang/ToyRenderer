@@ -25,12 +25,9 @@ public:
     void UpdateVectors(float yaw, float pitch);
 
     float m_ZNearP = 0.1f;
-    float m_ZFarP = 100.0f;
 
     float m_FOV = ConvertToRadians(45.0f);
     float m_AspectRatio = 16.0f / 9.0f;
-    float m_Width = 100.0f;
-    float m_Height = 100.0f;
     Vector3 m_Eye;
     Quaternion m_Orientation;
 
