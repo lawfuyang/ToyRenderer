@@ -22,5 +22,6 @@ deferredlighting.hlsl -T ps -E PS_Main
 deferredlighting.hlsl -T ps -E PS_Main_Debug
 shadowmask.hlsl -T lib -E RT_RayGen
 shadowmask.hlsl -T lib -E RT_Miss
+shadowmask.hlsl -T lib -E RT_ClosestHit
 bloom.hlsl -T ps -E PS_Downsample
 bloom.hlsl -T ps -E PS_Upsample

@@ -9,9 +9,19 @@ RaytracingAccelerationStructure g_SceneTLAS : register(t1);
 Texture2D<uint4> g_GBufferA : register(t2);
 RWTexture2D<float4> g_ShadowMaskOutput : register(u0);
 
-struct HitInfo
+struct RayPayload
 {
-    bool m_Missed;
+    float m_HitT;
+    
+    bool IsHit()
+    {
+        return m_HitT >= 0.0f;
+    }
+};
+
+struct IntersectionAttributes
+{
+    float2 uv;
 };
 
 [shader("raygeneration")]
@@ -34,7 +44,6 @@ void RT_RayGen()
     const uint kRayFlags =
         RAY_FLAG_FORCE_OPAQUE |
         RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH |
-        RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
         RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
     
     // empirical offset to remove shadow acne
@@ -46,8 +55,8 @@ void RT_RayGen()
     rayDesc.TMin = 0.1f;
     rayDesc.TMax = kKindaBigNumber;
     
-    HitInfo payload;
-    payload.m_Missed = false;
+    RayPayload payload;
+    payload.m_HitT = -1.0f;
     
     TraceRay(
         g_SceneTLAS,
@@ -59,11 +68,17 @@ void RT_RayGen()
         rayDesc,
         payload);
     
-    g_ShadowMaskOutput[rayIdx] = payload.m_Missed ? 1.0f : 0.0f;
+    g_ShadowMaskOutput[rayIdx] = payload.IsHit() ? 0.0f : 1.0f;
 }
 
 [shader("miss")]
-void RT_Miss(inout HitInfo payload : SV_RayPayload)
+void RT_Miss(inout RayPayload payload : SV_RayPayload)
 {
-    payload.m_Missed = true;
+    payload.m_HitT = -1.0f;
+}
+
+[shader("closesthit")]
+void RT_ClosestHit(inout RayPayload payload : SV_RayPayload, in IntersectionAttributes attributes : SV_IntersectionAttributes)
+{
+    payload.m_HitT = RayTCurrent();
 }

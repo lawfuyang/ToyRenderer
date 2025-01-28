@@ -73,8 +73,20 @@ public:
 		nvrhi::rt::PipelineDesc pipelineDesc;
 		pipelineDesc.shaders = {
 			{ "", g_Graphic.GetShader("shadowmask_RT_RayGen"), nullptr },
-			{ "", g_Graphic.GetShader("shadowmask_RT_Miss"), nullptr },
+			{ "", g_Graphic.GetShader("shadowmask_RT_Miss"), nullptr }
 		};
+
+        pipelineDesc.hitGroups = {
+            {
+                "HitGroup",
+                g_Graphic.GetShader("shadowmask_RT_ClosestHit"),
+                nullptr, // anyHitShader
+                nullptr, // intersectionShader
+                nullptr, // bindingLayout
+                false // isProceduralPrimitive
+            },
+        };
+
 		pipelineDesc.globalBindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
 		pipelineDesc.maxPayloadSize = sizeof(Vector4);
 
@@ -82,6 +94,7 @@ public:
 		nvrhi::rt::ShaderTableHandle shaderTable = pipeline->createShaderTable();
 		shaderTable->setRayGenerationShader("RT_RayGen");
 		shaderTable->addMissShader("RT_Miss");
+        shaderTable->addHitGroup("HitGroup");
 
 		nvrhi::rt::State state;
 		state.shaderTable = shaderTable;

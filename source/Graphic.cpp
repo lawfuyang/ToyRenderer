@@ -614,7 +614,7 @@ static void HashBindingLayout(size_t& psoHash, std::span<const nvrhi::BindingLay
 }
  
 static void HashShaderHandle(size_t& hash, nvrhi::ShaderHandle shader) { if (shader) { HashCombine(hash, shader->getDesc().debugName); } };
-static void HashBindingLayout(size_t& hash, nvrhi::BindingLayoutHandle layout) { if (layout) { HashBindingLayout(hash, { layout }); } };
+static void HashBindingLayout(size_t& hash, nvrhi::BindingLayoutHandle layout) { if (layout) { HashBindingLayout(hash, std::array{ layout }); } };
 
 static std::size_t HashCommonGraphicStates(
     nvrhi::PrimitiveType primType,
