@@ -587,18 +587,23 @@ void Scene::OnSceneLoad()
 
         std::vector<nvrhi::rt::InstanceDesc> instances;
 
-        for (const Primitive& primitive : m_Primitives)
+        for (uint32_t instanceID = 0; instanceID < m_Primitives.size(); ++instanceID)
         {
+            const Primitive& primitive = m_Primitives.at(instanceID);
+
             const Node& node = m_Nodes.at(primitive.m_NodeID);
             const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
             nvrhi::rt::InstanceDesc& instanceDesc = instances.emplace_back();
-            instanceDesc.bottomLevelAS = mesh.m_BLAS;
-            instanceDesc.instanceMask = 1;
-            instanceDesc.flags = Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise : nvrhi::rt::InstanceFlags::None;
 
             const Matrix worldMatrixTransposed = node.MakeLocalToWorldMatrix().Transpose();
             memcpy(instanceDesc.transform, &worldMatrixTransposed, sizeof(instanceDesc.transform));
+
+            instanceDesc.instanceID = instanceID;
+            instanceDesc.instanceMask = 1;
+            instanceDesc.instanceContributionToHitGroupIndex = 0;
+            instanceDesc.flags = Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise : nvrhi::rt::InstanceFlags::None;
+            instanceDesc.bottomLevelAS = mesh.m_BLAS;
         }
 
         commandList->buildTopLevelAccelStruct(m_TLAS, instances.data(), instances.size());
