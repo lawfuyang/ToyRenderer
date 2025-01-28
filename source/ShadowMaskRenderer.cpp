@@ -11,6 +11,7 @@
 
 RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 
 class ShadowMaskRenderer : public IRenderer
 {
@@ -36,6 +37,7 @@ public:
 		renderGraph.CreateTransientResource(g_ShadowMaskRDGTextureHandle, desc);
 
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
+        renderGraph.AddReadDependency(g_GBufferARDGTextureHandle);
 
         return true;
     }
@@ -47,6 +49,7 @@ public:
 
 		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
+        nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
 
 		ShadowMaskConsts passConstants;
 		passConstants.m_ClipToWorld = view.m_ClipToWorld;
@@ -59,6 +62,7 @@ public:
 			nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
 			nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopy),
 			nvrhi::BindingSetItem::RayTracingAccelStruct(1, g_Scene->m_TLAS),
+            nvrhi::BindingSetItem::Texture_SRV(2, GBufferATexture),
 			nvrhi::BindingSetItem::Texture_UAV(0, shadowMaskTexture)
 		};
 
