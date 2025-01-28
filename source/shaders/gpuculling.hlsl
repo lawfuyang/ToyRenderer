@@ -126,7 +126,7 @@ void CS_GPUCulling(
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
     
-    float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_ViewMatrix).xyz;
+    float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_WorldToView).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
     float sphereRadius = instanceConsts.m_BoundingSphere.w;
@@ -152,7 +152,7 @@ void CS_GPUCulling(
     
     // test against prev frame HZB for early cull
 #if !LATE_CULL
-    sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevViewMatrix).xyz;
+    sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevWorldToView).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
 #endif
     

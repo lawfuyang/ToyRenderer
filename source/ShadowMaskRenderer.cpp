@@ -49,7 +49,7 @@ public:
 		nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
 
 		HardwareRaytraceConsts passConstants;
-		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
+		passConstants.m_ClipToWorld = view.m_ClipToWorld;
 		passConstants.m_DirectionalLightDirection = g_Scene->m_DirLightVec;
 		passConstants.m_OutputResolution = Vector2U{ shadowMaskTexture->getDesc().width , shadowMaskTexture->getDesc().height };
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);

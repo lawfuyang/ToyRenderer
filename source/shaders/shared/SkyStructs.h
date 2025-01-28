@@ -10,7 +10,7 @@ struct HosekWilkieSkyParameters
 
 struct SkyPassParameters
 {
-    Matrix m_InvViewProjMatrix;
+    Matrix m_ClipToWorld;
     Vector3 m_SunLightDir;
     uint32_t PAD0;
     Vector3 m_CameraPosition;

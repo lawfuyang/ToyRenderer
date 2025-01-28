@@ -5,7 +5,7 @@
 
 struct XeGTAOMainPassConstantBuffer
 {
-	Matrix m_ViewMatrixNoTranslate;
+	Matrix m_WorldToViewNoTranslate;
 	uint32_t m_Quality;
 };
 

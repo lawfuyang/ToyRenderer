@@ -5,8 +5,8 @@
 
 struct BasePassConstants
 {
-    Matrix m_ViewProjMatrix;
-	Matrix m_ViewMatrix;
+    Matrix m_WorldToClip;
+	Matrix m_WorldToView;
 	Vector4 m_Frustum;
 	Vector2U m_HZBDimensions;
 	float m_P00;

@@ -29,7 +29,7 @@ void PS_HosekWilkieSky(
     out float4 outColor : SV_TARGET
 )
 {
-    float3 worldPosition = ScreenUVToWorldPosition(inUV, 0.9f, g_SkyPassParameters.m_InvViewProjMatrix); // NOTE: depth input doesnt matter. we just want a world position so we can get 'V' vector
+    float3 worldPosition = ScreenUVToWorldPosition(inUV, 0.9f, g_SkyPassParameters.m_ClipToWorld); // NOTE: depth input doesnt matter. we just want a world position so we can get 'V' vector
     float3 V = normalize(worldPosition - g_SkyPassParameters.m_CameraPosition);
     
     float cos_theta = clamp(V.y, 0, 1);

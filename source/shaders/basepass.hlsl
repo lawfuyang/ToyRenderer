@@ -74,7 +74,7 @@ void AS_Main(
         MeshletData meshletData = g_MeshletDataBuffer[meshLODData.m_MeshletDataBufferIdx + meshletIdx];
         
         float3 sphereCenterWorldSpace = mul(float4(meshletData.m_BoundingSphere.xyz, 1.0f), instanceConsts.m_WorldMatrix).xyz;
-        float3 sphereCenterViewSpace = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_ViewMatrix).xyz;
+        float3 sphereCenterViewSpace = mul(float4(sphereCenterWorldSpace, 1.0f), g_BasePassConsts.m_WorldToView).xyz;
         sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
         
         float sphereRadius = meshletData.m_BoundingSphere.w * GetMaxScaleFromWorldMatrix(instanceConsts.m_WorldMatrix);
@@ -109,7 +109,7 @@ void AS_Main(
             coneAxisAndCutoff.xyz = coneAxisAndCutoff.xyz * 2.0f - 1.0f;
             
             coneAxisAndCutoff.xyz = normalize(mul(coneAxisAndCutoff.xyz, MakeAdjugateMatrix(instanceConsts.m_WorldMatrix)));
-            coneAxisAndCutoff.xyz = mul(coneAxisAndCutoff.xyz, ToFloat3x3(g_BasePassConsts.m_ViewMatrix));
+            coneAxisAndCutoff.xyz = mul(coneAxisAndCutoff.xyz, ToFloat3x3(g_BasePassConsts.m_WorldToView));
             coneAxisAndCutoff.z *= -1.0f; // TODO: fix inverted view-space Z coord
             
             bVisible = !ConeCull(sphereCenterViewSpace, sphereRadius, coneAxisAndCutoff.xyz, coneAxisAndCutoff.w);
@@ -176,7 +176,7 @@ void MS_Main(
         float3 UnpackedNormal = UnpackR10G10B10A2F(vertexInfo.m_PackedNormal).xyz;
         
         VertexOut vOut = (VertexOut)0;
-        vOut.m_Position = mul(worldPos, g_BasePassConsts.m_ViewProjMatrix);
+        vOut.m_Position = mul(worldPos, g_BasePassConsts.m_WorldToClip);
         vOut.m_Normal = normalize(mul(UnpackedNormal, adjugateWorldMatrix));
         vOut.m_WorldPosition = worldPos.xyz;
         vOut.m_InstanceConstsIdx = inPayload.m_InstanceConstIdx;

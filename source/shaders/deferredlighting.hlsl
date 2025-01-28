@@ -29,7 +29,7 @@ void PS_Main(
     
     // Convert screen UV coordinates and depth to world position
     float depth = g_DepthBuffer[inPosition.xy].x;
-    float3 worldPosition = ScreenUVToWorldPosition(inUV, depth, g_DeferredLightingConsts.m_InvViewProjMatrix);
+    float3 worldPosition = ScreenUVToWorldPosition(inUV, depth, g_DeferredLightingConsts.m_ClipToWorld);
     
     const float materialSpecular = 0.5f; // TODO?
     float3 diffuse = ComputeDiffuseColor(gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);

@@ -25,7 +25,7 @@ void RT_RayGen()
     }
     
     float2 screenUV = (rayIdx + float2(0.5f, 0.5f)) / g_HardwareRaytraceConsts.m_OutputResolution;
-    float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_HardwareRaytraceConsts.m_InvViewProjMatrix);
+    float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_HardwareRaytraceConsts.m_ClipToWorld);
     
     const uint kRayFlags =
         RAY_FLAG_FORCE_OPAQUE |

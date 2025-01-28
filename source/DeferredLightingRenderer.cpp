@@ -66,7 +66,7 @@ public:
 		passConstants.m_DirectionalLightColor = scene->m_DirLightColor;
 		passConstants.m_DirectionalLightStrength = scene->m_DirLightStrength;
 		passConstants.m_DirectionalLightVector = scene->m_DirLightVec;
-		passConstants.m_InvViewProjMatrix = view.m_InvViewProjectionMatrix;
+		passConstants.m_ClipToWorld = view.m_ClipToWorld;
 		passConstants.m_SSAOEnabled = AOControllables.m_bEnabled;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
 		passConstants.m_DebugMode = debugControllables.m_DebugMode;

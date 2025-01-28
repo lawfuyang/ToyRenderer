@@ -135,7 +135,7 @@ public:
         const bool bTAAEnabled = false;
         const uint32_t frameCounter = bTAAEnabled ? (g_Graphic.m_FrameCounter % 256) : 0;
 
-        XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, m_XeGTAOSettings, (const float*)&mainView.m_ProjectionMatrix.m, bRowMajor, frameCounter);
+        XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, m_XeGTAOSettings, (const float*)&mainView.m_ViewToClip.m, bRowMajor, frameCounter);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, GTAOconsts);
 
@@ -165,8 +165,8 @@ public:
         // main pass
         {
             XeGTAOMainPassConstantBuffer mainPassConsts{};
-            mainPassConsts.m_ViewMatrixNoTranslate = mainView.m_ViewMatrix;
-            mainPassConsts.m_ViewMatrixNoTranslate.Translation(Vector3::Zero);
+            mainPassConsts.m_WorldToViewNoTranslate = mainView.m_WorldToView;
+            mainPassConsts.m_WorldToViewNoTranslate.Translation(Vector3::Zero);
 
             mainPassConsts.m_Quality = m_XeGTAOSettings.QualityLevel;
 

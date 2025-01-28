@@ -90,25 +90,25 @@ void View::Update()
     PROFILE_FUNCTION();
 
     // update prev frame matrices
-    m_PrevFrameViewMatrix = m_ViewMatrix;
+    m_PrevWorldToView = m_WorldToView;
 
-    m_InvViewMatrix = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
-    m_ViewMatrix = m_InvViewMatrix.Invert();
+    m_ViewToWorld = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
+    m_WorldToView = m_ViewToWorld.Invert();
 
-    m_ProjectionMatrix = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, m_ZFarP);
-    ModifyPerspectiveMatrix(m_ProjectionMatrix, m_ZNearP, m_ZFarP, Graphic::kInversedDepthBuffer, Graphic::kInfiniteDepthBuffer);
+    m_ViewToClip = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, m_ZFarP);
+    ModifyPerspectiveMatrix(m_ViewToClip, m_ZNearP, m_ZFarP, Graphic::kInversedDepthBuffer, Graphic::kInfiniteDepthBuffer);
 
-    m_ViewProjectionMatrix = m_ViewMatrix * m_ProjectionMatrix;
-    m_InvViewProjectionMatrix = m_ViewProjectionMatrix.Invert();
+    m_WorldToClip = m_WorldToView * m_ViewToClip;
+    m_ClipToWorld = m_WorldToClip.Invert();
 
-    Frustum::CreateFromMatrix(m_Frustum, m_ProjectionMatrix);
-    m_Frustum.Transform(m_Frustum, m_InvViewMatrix);
+    Frustum::CreateFromMatrix(m_Frustum, m_ViewToClip);
+    m_Frustum.Transform(m_Frustum, m_ViewToWorld);
 
 	const bool bFreezeCullingCamera = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera;
     if (!bFreezeCullingCamera)
     {
-        m_CullingPrevFrameViewMatrix = m_PrevFrameViewMatrix;
-		m_CullingViewMatrix = m_ViewMatrix;
+        m_CullingPrevWorldToView = m_PrevWorldToView;
+		m_CullingWorldToView = m_WorldToView;
     }
 }
 

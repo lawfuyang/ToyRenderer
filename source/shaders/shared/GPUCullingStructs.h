@@ -9,8 +9,8 @@ struct GPUCullingPassConstants
 	uint32_t m_CullingFlags;
 	Vector2U m_HZBDimensions;
 	Vector4 m_Frustum;
-	Matrix m_ViewMatrix;
-	Matrix m_PrevViewMatrix;
+	Matrix m_WorldToView;
+	Matrix m_PrevWorldToView;
 	float m_NearPlane;
 	float m_P00;
     float m_P11;

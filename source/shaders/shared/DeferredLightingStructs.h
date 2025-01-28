@@ -5,7 +5,7 @@
 
 struct DeferredLightingConsts
 {
-	Matrix m_InvViewProjMatrix;
+	Matrix m_ClipToWorld;
 	Vector3 m_CameraOrigin;
 	uint32_t m_SSAOEnabled;
 	Vector3 m_DirectionalLightColor;

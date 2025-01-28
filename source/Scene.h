@@ -34,16 +34,16 @@ public:
     Vector3 m_Eye;
     Quaternion m_Orientation;
 
-    Matrix m_CullingViewMatrix;
-    Matrix m_CullingPrevFrameViewMatrix;
+    Matrix m_CullingWorldToView;
+    Matrix m_CullingPrevWorldToView;
 
-    Matrix m_ViewMatrix;
-    Matrix m_ProjectionMatrix;
-    Matrix m_ViewProjectionMatrix;
-    Matrix m_InvViewMatrix;
-    Matrix m_InvViewProjectionMatrix;
+    Matrix m_WorldToView;
+    Matrix m_ViewToClip;
+    Matrix m_WorldToClip;
+    Matrix m_ViewToWorld;
+    Matrix m_ClipToWorld;
 
-    Matrix m_PrevFrameViewMatrix;
+    Matrix m_PrevWorldToView;
 
     Frustum m_Frustum;
 

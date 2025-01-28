@@ -220,13 +220,13 @@ public:
         passParameters.m_CullingFlags = m_CullingFlags;
         passParameters.m_Frustum = m_CullingFrustum;
         passParameters.m_HZBDimensions = m_HZBDimensions;
-        passParameters.m_ViewMatrix = view.m_CullingViewMatrix;
-        passParameters.m_PrevViewMatrix = view.m_CullingPrevFrameViewMatrix;
+        passParameters.m_WorldToView = view.m_CullingWorldToView;
+        passParameters.m_PrevWorldToView = view.m_CullingPrevWorldToView;
         passParameters.m_NearPlane = view.m_ZNearP;
-        passParameters.m_P00 = view.m_ProjectionMatrix.m[0][0];
-        passParameters.m_P11 = view.m_ProjectionMatrix.m[1][1];
+        passParameters.m_P00 = view.m_ViewToClip.m[0][0];
+        passParameters.m_P11 = view.m_ViewToClip.m[1][1];
         passParameters.m_ForcedMeshLOD =  forcedMeshLOD;
-        passParameters.m_MeshLODTarget = (2.0f / view.m_ProjectionMatrix.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
+        passParameters.m_MeshLODTarget = (2.0f / view.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -315,13 +315,13 @@ public:
 
         // pass consts
         BasePassConstants basePassConstants;
-        basePassConstants.m_ViewProjMatrix = view.m_ViewProjectionMatrix;
-        basePassConstants.m_ViewMatrix = view.m_CullingViewMatrix;
+        basePassConstants.m_WorldToClip = view.m_WorldToClip;
+        basePassConstants.m_WorldToView = view.m_CullingWorldToView;
         basePassConstants.m_Frustum = m_CullingFrustum;
         basePassConstants.m_CullingFlags = finalCullingFlags;
         basePassConstants.m_HZBDimensions = m_HZBDimensions;
-        basePassConstants.m_P00 = view.m_ProjectionMatrix.m[0][0];
-        basePassConstants.m_P11 = view.m_ProjectionMatrix.m[1][1];
+        basePassConstants.m_P00 = view.m_ViewToClip.m[0][0];
+        basePassConstants.m_P11 = view.m_ViewToClip.m[1][1];
         basePassConstants.m_NearPlane = view.m_ZNearP;
         basePassConstants.m_DebugMode = g_GraphicPropertyGrid.m_DebugControllables.m_DebugMode;
 
@@ -435,7 +435,7 @@ public:
 
         m_HZBDimensions = m_bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
 
-        Matrix projectionT = view.m_ProjectionMatrix.Transpose();
+        Matrix projectionT = view.m_ViewToClip.Transpose();
         Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
         Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
         frustumX.Normalize();

@@ -164,7 +164,7 @@ public:
 
         // pass consts
         SkyPassParameters skyPassParameters{};
-        skyPassParameters.m_InvViewProjMatrix = mainView.m_InvViewProjectionMatrix;
+        skyPassParameters.m_ClipToWorld = mainView.m_ClipToWorld;
         skyPassParameters.m_SunLightDir = scene->m_DirLightVec;
         skyPassParameters.m_CameraPosition = mainView.m_Eye;
 
