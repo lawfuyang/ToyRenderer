@@ -8,6 +8,7 @@
 • Meshlet drawing pipeline
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/MeshletInstancing (?)
 	• triangle culling (?)
+	• use "simplify sloppy" when index reduction limit reached
 	• meshlet-level LOD
 • Anti-Aliasing
 	• TAA: https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/TemporalAntialiasing
