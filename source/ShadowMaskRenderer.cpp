@@ -75,45 +75,7 @@ public:
 			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
 		};
 
-		nvrhi::BindingSetHandle bindingSet;
-		nvrhi::BindingLayoutHandle bindingLayout;
-		g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-		nvrhi::rt::PipelineDesc pipelineDesc;
-		pipelineDesc.shaders = {
-			{ "", g_Graphic.GetShader("shadowmask_RT_RayGen"), nullptr },
-			{ "", g_Graphic.GetShader("shadowmask_RT_Miss"), nullptr }
-		};
-
-        pipelineDesc.hitGroups = {
-            {
-                "HitGroup",
-                g_Graphic.GetShader("shadowmask_RT_ClosestHit"),
-                nullptr, // anyHitShader
-                nullptr, // intersectionShader
-                nullptr, // bindingLayout
-                false // isProceduralPrimitive
-            },
-        };
-
-		pipelineDesc.globalBindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
-		pipelineDesc.maxPayloadSize = sizeof(Vector4);
-
-		nvrhi::rt::PipelineHandle pipeline = g_Graphic.GetOrCreatePSO(pipelineDesc);
-		nvrhi::rt::ShaderTableHandle shaderTable = pipeline->createShaderTable();
-		shaderTable->setRayGenerationShader("RT_RayGen");
-		shaderTable->addMissShader("RT_Miss");
-        shaderTable->addHitGroup("HitGroup");
-
-		nvrhi::rt::State state;
-		state.shaderTable = shaderTable;
-		state.bindings = { bindingSet };
-		commandList->setRayTracingState(state);
-
-		nvrhi::rt::DispatchRaysArguments args;
-		args.width = passConstants.m_OutputResolution.x;
-		args.height = passConstants.m_OutputResolution.y;
-		commandList->dispatchRays(args);
+        g_Graphic.AddComputePass(commandList, "shadowmask_CS_ShadowMask", bindingSetDesc, ComputeShaderUtils::GetGroupCount(passConstants.m_OutputResolution, 8));
 	}
 };
 

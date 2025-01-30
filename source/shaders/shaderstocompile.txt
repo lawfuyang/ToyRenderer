@@ -20,8 +20,6 @@ gpuculling.hlsl -T cs -E CS_BuildLateCullIndirectArgs
 minmaxdownsample.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T ps -E PS_Main
 deferredlighting.hlsl -T ps -E PS_Main_Debug
-shadowmask.hlsl -T lib -E RT_RayGen
-shadowmask.hlsl -T lib -E RT_Miss
-shadowmask.hlsl -T lib -E RT_ClosestHit
+shadowmask.hlsl -T cs -E CS_ShadowMask
 bloom.hlsl -T ps -E PS_Downsample
 bloom.hlsl -T ps -E PS_Upsample

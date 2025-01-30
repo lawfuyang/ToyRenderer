@@ -20,31 +20,28 @@ Texture2D g_Textures[] : register(t0, space1);
 RWTexture2D<float4> g_ShadowMaskOutput : register(u0);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 
-struct RayPayload
+[numthreads(8, 8, 1)]
+void CS_ShadowMask(
+    uint3 dispatchThreadID : SV_DispatchThreadID,
+    uint3 groupThreadID : SV_GroupThreadID,
+    uint3 groupId : SV_GroupID,
+    uint groupIndex : SV_GroupIndex)
 {
-    float m_HitT; // not used
-};
-
-struct IntersectionAttributes
-{
-    float2 uv;
-};
-
-[shader("raygeneration")]
-void RT_RayGen()
-{
-    uint2 rayIdx = DispatchRaysIndex().xy;
-    float depth = g_DepthBuffer[rayIdx.xy].x;
+    if (any(dispatchThreadID.xy >= g_ShadowMaskConsts.m_OutputResolution))
+    {
+        return;
+    }
     
+    float depth = g_DepthBuffer[dispatchThreadID.xy].x;
     if (depth == kFarDepth)
     {
         return;
     }
     
     GBufferParams gbufferParams;
-    UnpackGBuffer(g_GBufferA[rayIdx.xy], gbufferParams);
+    UnpackGBuffer(g_GBufferA[dispatchThreadID.xy], gbufferParams);
     
-    float2 screenUV = (rayIdx + float2(0.5f, 0.5f)) / g_ShadowMaskConsts.m_OutputResolution;
+    float2 screenUV = (dispatchThreadID.xy + float2(0.5f, 0.5f)) / g_ShadowMaskConsts.m_OutputResolution;
     float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_ShadowMaskConsts.m_ClipToWorld);
     
     // empirical offset to remove shadow acne
@@ -56,31 +53,27 @@ void RT_RayGen()
     rayDesc.TMin = 0.1f;
     rayDesc.TMax = kKindaBigNumber;
     
-    RayPayload payload;
+    const uint kFlags = RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
     
-    TraceRay(
-        g_SceneTLAS,
-        RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES,
-        0xFF,
-        0,
-        0,
-        0,
-        rayDesc,
-        payload);
+    RayQuery<kFlags> rayQuery;
+    rayQuery.TraceRayInline(g_SceneTLAS, kFlags, 0xFF, rayDesc);
+    
+    rayQuery.Proceed();
+
+    bool bPixelOccluded;
+    if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+    {
+        bPixelOccluded = true;
+    }
+    else
+    {
+        bPixelOccluded = false;
+    }
+    
+    g_ShadowMaskOutput[dispatchThreadID.xy] = bPixelOccluded ? 0.0f : 1.0f;
 }
 
-[shader("miss")]
-void RT_Miss(inout RayPayload payload : SV_RayPayload)
-{
-    g_ShadowMaskOutput[DispatchRaysIndex().xy] = 1.0f;
-}
-
-[shader("closesthit")]
-void RT_ClosestHit(inout RayPayload payload : SV_RayPayload, in IntersectionAttributes attributes : SV_IntersectionAttributes)
-{
-    g_ShadowMaskOutput[DispatchRaysIndex().xy] = 0.0f;
-}
-
+#if 0
 [shader("anyhit")]
 void RT_AnyHit(inout RayPayload payload : SV_RayPayload, in IntersectionAttributes attributes : SV_IntersectionAttributes)
 {
@@ -133,3 +126,4 @@ void RT_AnyHit(inout RayPayload payload : SV_RayPayload, in IntersectionAttribut
         }
     }
 }
+#endif
