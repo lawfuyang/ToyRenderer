@@ -238,7 +238,7 @@ GBufferParams GetGBufferParams(
     if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
     {
         uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex > 30;
+        uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex >> 30;
         
         float2 finalUV = inUV * materialData.m_AlbedoUVOffsetAndScale.zw + materialData.m_AlbedoUVOffsetAndScale.xy;
         
@@ -260,7 +260,7 @@ GBufferParams GetGBufferParams(
     if (materialData.m_MaterialFlags & MaterialFlag_UseNormalTexture)
     {
         uint texIdx = NonUniformResourceIndex(materialData.m_NormalTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_NormalTextureSamplerAndDescriptorIndex > 30;
+        uint samplerIdx = materialData.m_NormalTextureSamplerAndDescriptorIndex >> 30;
         
         float2 finalUV = inUV * materialData.m_NormalUVOffsetAndScale.zw + materialData.m_NormalUVOffsetAndScale.xy;
         
@@ -277,7 +277,7 @@ GBufferParams GetGBufferParams(
     if (materialData.m_MaterialFlags & MaterialFlag_UseMetallicRoughnessTexture)
     {
         uint texIdx = NonUniformResourceIndex(materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex > 30;
+        uint samplerIdx = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex >> 30;
         
         float2 finalUV = inUV * materialData.m_MetallicRoughnessUVOffsetAndScale.zw + materialData.m_MetallicRoughnessUVOffsetAndScale.xy;
         
@@ -292,7 +292,7 @@ GBufferParams GetGBufferParams(
     if (materialData.m_MaterialFlags & MaterialFlag_UseEmissiveTexture)
     {
         uint texIdx = NonUniformResourceIndex(materialData.m_EmissiveTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_EmissiveTextureSamplerAndDescriptorIndex > 30;
+        uint samplerIdx = materialData.m_EmissiveTextureSamplerAndDescriptorIndex >> 30;
         
         float2 finalUV = inUV * materialData.m_EmissiveUVOffsetAndScale.zw + materialData.m_EmissiveUVOffsetAndScale.xy;
         
