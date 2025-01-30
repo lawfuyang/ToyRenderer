@@ -63,7 +63,16 @@ public:
 			nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopy),
 			nvrhi::BindingSetItem::RayTracingAccelStruct(1, g_Scene->m_TLAS),
             nvrhi::BindingSetItem::Texture_SRV(2, GBufferATexture),
-			nvrhi::BindingSetItem::Texture_UAV(0, shadowMaskTexture)
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Scene->m_InstanceConstsBuffer),
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalVertexBuffer),
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMeshDataBuffer),
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMaterialDataBuffer),
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalIndexBuffer),
+			nvrhi::BindingSetItem::Texture_UAV(0, shadowMaskTexture),
+			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
+			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
+			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
+			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
 		};
 
 		nvrhi::BindingSetHandle bindingSet;
