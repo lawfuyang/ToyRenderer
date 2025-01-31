@@ -250,7 +250,13 @@ public:
 
         if (!bLateCull)
         {
-            g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave));
+            Graphic::ComputePassParams computePassParams;
+            computePassParams.m_CommandList = commandList;
+            computePassParams.m_ShaderName = shaderName;
+            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave);
+
+            g_Graphic.AddComputePass(computePassParams);
 
             if (m_bDoOcclusionCulling)
             {
@@ -259,14 +265,24 @@ public:
                     nvrhi::BindingSetItem::StructuredBuffer_UAV(0, lateCullDispatchIndirectArgsBuffer)
                 };
 
-                g_Graphic.AddComputePass(commandList, "gpuculling_CS_BuildLateCullIndirectArgs", bindingSetDesc, Vector3U{ 1, 1, 1 });
+                computePassParams.m_ShaderName = "gpuculling_CS_BuildLateCullIndirectArgs";
+                computePassParams.m_BindingSetDesc = bindingSetDesc;
+                computePassParams.m_DispatchGroupSize = Vector3U{ 1, 1, 1 };
+
+                g_Graphic.AddComputePass(computePassParams);
             }
         }
         else
         {
             if (m_bDoOcclusionCulling)
             {
-                g_Graphic.AddComputePass(commandList, shaderName, bindingSetDesc, lateCullDispatchIndirectArgsBuffer, 0);
+                Graphic::ComputePassParams computePassParams;
+                computePassParams.m_CommandList = commandList;
+                computePassParams.m_ShaderName = shaderName;
+                computePassParams.m_BindingSetDesc = bindingSetDesc;
+                computePassParams.m_IndirectArgsBuffer = lateCullDispatchIndirectArgsBuffer;
+
+                g_Graphic.AddComputePass(computePassParams);
             }
         }
     }
@@ -383,22 +399,29 @@ public:
 
         Scene* scene = g_Graphic.m_Scene.get();
 
-        MinMaxDownsampleConsts PassParameters;
-        PassParameters.m_OutputDimensions = m_HZBDimensions;
-        PassParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
+        MinMaxDownsampleConsts passParameters;
+        passParameters.m_OutputDimensions = m_HZBDimensions;
+        passParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
 
         nvrhi::TextureHandle depthStencilBuffer = params.m_FrameBufferDesc.depthAttachment.texture;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
-            nvrhi::BindingSetItem::PushConstants(0, sizeof(PassParameters)),
+            nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
             nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
             nvrhi::BindingSetItem::Texture_UAV(0, scene->m_HZB),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
-        const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_HZBDimensions, 8);
-        g_Graphic.AddComputePass(commandList, "minmaxdownsample_CS_Main", bindingSetDesc, dispatchGroupSize, &PassParameters, sizeof(PassParameters));
+        Graphic::ComputePassParams computePassParams;
+        computePassParams.m_CommandList = commandList;
+        computePassParams.m_ShaderName = "minmaxdownsample_CS_Main";
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_HZBDimensions, 8);
+        computePassParams.m_PushConstantsData = &passParameters;
+        computePassParams.m_PushConstantsBytes = sizeof(passParameters);
+
+        g_Graphic.AddComputePass(computePassParams);
 
         // generate HZB mip chain
         const nvrhi::SamplerReductionType reductionType = Graphic::kInversedDepthBuffer ? nvrhi::SamplerReductionType::Minimum : nvrhi::SamplerReductionType::Maximum;

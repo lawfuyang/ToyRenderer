@@ -103,10 +103,14 @@ namespace FFXHelpers
 				return kResults[(uint32_t)reductionType];
 			};
 
-		const char* kShaderName = StringFormat("ffx_spd_downsample_pass_CS FFX_SPD_OPTION_DOWNSAMPLE_FILTER=%d", GetSPDReductionTypeIdx(reductionType));
+		Graphic::ComputePassParams computePassParams;
+		computePassParams.m_CommandList = commandList;
+		computePassParams.m_ShaderName = StringFormat("ffx_spd_downsample_pass_CS FFX_SPD_OPTION_DOWNSAMPLE_FILTER=%d", GetSPDReductionTypeIdx(reductionType));
+		computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_DispatchGroupSize = Vector3U{ dispatchThreadGroupCountXY[0], dispatchThreadGroupCountXY[1], 1 };
+		computePassParams.m_PushConstantsData = &passParameters;
+		computePassParams.m_PushConstantsBytes = sizeof(passParameters);
 
-		const uint32_t dispatchX = dispatchThreadGroupCountXY[0];
-		const uint32_t dispatchY = dispatchThreadGroupCountXY[1];
-		g_Graphic.AddComputePass(commandList, kShaderName, bindingSetDesc, Vector3U{ dispatchX, dispatchY, 1 }, &passParameters, sizeof(passParameters));
+		g_Graphic.AddComputePass(computePassParams);
 	}
 }

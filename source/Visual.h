@@ -27,8 +27,6 @@ public:
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;
     nvrhi::SamplerAddressMode m_AddressMode = nvrhi::SamplerAddressMode::Wrap;
-    Vector2 m_UVOffset;
-    Vector2 m_UVScale = Vector2::One;
 };
 
 struct MeshLOD

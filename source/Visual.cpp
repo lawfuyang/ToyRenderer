@@ -333,7 +333,7 @@ void Mesh::BuildBLAS(nvrhi::CommandListHandle commandList)
     geometryTriangle.vertexCount = m_NumVertices;
     geometryTriangle.vertexStride = sizeof(RawVertexFormat);
 
-    geometryDesc.flags = nvrhi::rt::GeometryFlags::Opaque;
+    geometryDesc.flags = nvrhi::rt::GeometryFlags::None; // can't be opaque since we have alpha tested materials that be applied to this mesh
     geometryDesc.geometryType = nvrhi::rt::GeometryType::Triangles;
 
     nvrhi::rt::AccelStructDesc blasDesc;

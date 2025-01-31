@@ -65,9 +65,8 @@ public:
             nvrhi::BindingSetItem::Texture_SRV(2, GBufferATexture),
 			nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Scene->m_InstanceConstsBuffer),
 			nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalVertexBuffer),
-			nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMeshDataBuffer),
-			nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMaterialDataBuffer),
-			nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalIndexBuffer),
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMaterialDataBuffer),
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalIndexBuffer),
 			nvrhi::BindingSetItem::Texture_UAV(0, shadowMaskTexture),
 			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
 			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
@@ -75,7 +74,14 @@ public:
 			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
 		};
 
-        g_Graphic.AddComputePass(commandList, "shadowmask_CS_ShadowMask", bindingSetDesc, ComputeShaderUtils::GetGroupCount(passConstants.m_OutputResolution, 8));
+		Graphic::ComputePassParams computePassParams;
+		computePassParams.m_CommandList = commandList;
+        computePassParams.m_ShaderName = "shadowmask_CS_ShadowMask";
+		computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_OutputResolution, 8);
+		computePassParams.m_ShouldAddBindlessResources = true;
+
+        g_Graphic.AddComputePass(computePassParams);
 	}
 };
 

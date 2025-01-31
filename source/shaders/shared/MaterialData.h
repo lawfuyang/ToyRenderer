@@ -12,10 +12,6 @@ struct MaterialData
 	uint32_t m_NormalTextureSamplerAndDescriptorIndex;
 	uint32_t m_MetallicRoughnessTextureSamplerAndDescriptorIndex;
 	uint32_t m_EmissiveTextureSamplerAndDescriptorIndex;
-	Vector4 m_AlbedoUVOffsetAndScale;
-	Vector4 m_NormalUVOffsetAndScale;
-	Vector4 m_MetallicRoughnessUVOffsetAndScale;
-	Vector4 m_EmissiveUVOffsetAndScale;
 	uint32_t m_MaterialFlags;
 	float m_ConstRoughness;
 	float m_ConstMetallic;

@@ -1,0 +1,1 @@
+-cc -vtf -vpf -vnf -tr -v

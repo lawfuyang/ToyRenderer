@@ -89,8 +89,15 @@ public:
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, luminanceHistogramBuffer)
             };
 
-            const Vector3U dispatchGroupSize = ComputeShaderUtils::GetGroupCount(passParameters.m_SrcColorDims, Vector2U{ 16, 16 });
-            g_Graphic.AddComputePass(commandList, "adaptluminance_CS_GenerateLuminanceHistogram", bindingSetDesc, dispatchGroupSize, &passParameters, sizeof(passParameters));
+            Graphic::ComputePassParams computePassParams;
+            computePassParams.m_CommandList = commandList;
+            computePassParams.m_ShaderName = "adaptluminance_CS_GenerateLuminanceHistogram";
+            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passParameters.m_SrcColorDims, Vector2U{ 16, 16 });
+            computePassParams.m_PushConstantsData = &passParameters;
+            computePassParams.m_PushConstantsBytes = sizeof(passParameters);
+
+            g_Graphic.AddComputePass(computePassParams);
         }
 
         // AdaptExposure
@@ -108,8 +115,15 @@ public:
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, scene->m_LuminanceBuffer)
             };
 
-            const Vector3U dispatchGroupSize{1, 1, 1};
-            g_Graphic.AddComputePass(commandList, "adaptluminance_CS_AdaptExposure", bindingSetDesc, dispatchGroupSize, &passParameters, sizeof(passParameters));
+            Graphic::ComputePassParams computePassParams;
+            computePassParams.m_CommandList = commandList;
+            computePassParams.m_ShaderName = "adaptluminance_CS_AdaptExposure";
+            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_DispatchGroupSize = Vector3U{ 1,1,1 };
+            computePassParams.m_PushConstantsData = &passParameters;
+            computePassParams.m_PushConstantsBytes = sizeof(passParameters);
+
+            g_Graphic.AddComputePass(computePassParams);
         }
     }
 };

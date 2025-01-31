@@ -13,12 +13,56 @@ RaytracingAccelerationStructure g_SceneTLAS : register(t1);
 Texture2D<uint4> g_GBufferA : register(t2);
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t3);
 StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer : register(t4);
-StructuredBuffer<MeshData> g_MeshDataBuffer : register(t5);
-StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t6);
-StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t7);
+StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t5);
+StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t6);
 Texture2D g_Textures[] : register(t0, space1);
-RWTexture2D<float4> g_ShadowMaskOutput : register(u0);
+RWTexture2D<float> g_ShadowMaskOutput : register(u0);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
+
+bool IsPixelOccluded(uint instanceID, uint primitiveIndex, float2 attribBarycentrics)
+{
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceID];
+    MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
+        
+    if (materialData.m_AlphaCutoff == 0.0f)
+    {
+        // it's an opaque material with no alpha mask - accept the hit and end the search
+        return true;
+    }
+    
+    float alpha = materialData.m_ConstAlbedo.a;
+    if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
+    {
+        uint indices[3] =
+        {
+            g_GlobalIndexIDsBuffer[primitiveIndex * 3 + 0],
+            g_GlobalIndexIDsBuffer[primitiveIndex * 3 + 1],
+            g_GlobalIndexIDsBuffer[primitiveIndex * 3 + 2],
+        };
+        
+        float2 vertexUVs[3] =
+        {
+            g_GlobalVertexBuffer[indices[0]].m_TexCoord,
+            g_GlobalVertexBuffer[indices[1]].m_TexCoord,
+            g_GlobalVertexBuffer[indices[2]].m_TexCoord,
+        };
+        
+        float barycentrics[3] = { (1.0f - attribBarycentrics.x - attribBarycentrics.y), attribBarycentrics.x, attribBarycentrics.y };
+        float2 finalUV = vertexUVs[0] * barycentrics[0] + vertexUVs[1] * barycentrics[1] + vertexUVs[2] * barycentrics[2];
+        
+        uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
+        uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex >> 30;
+        
+        Texture2D albedoTexture = g_Textures[texIdx];
+        
+        // TODO: use 'SampleGrad'
+        float4 textureSample = albedoTexture.SampleLevel(g_Samplers[samplerIdx], finalUV, 0);
+        
+        alpha *= textureSample.a;
+    }
+    
+    return alpha >= materialData.m_AlphaCutoff;
+}
 
 [numthreads(8, 8, 1)]
 void CS_ShadowMask(
@@ -53,77 +97,19 @@ void CS_ShadowMask(
     rayDesc.TMin = 0.1f;
     rayDesc.TMax = kKindaBigNumber;
     
-    const uint kFlags = RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
+    const uint kFlags = RAY_FLAG_NONE;
     
     RayQuery<kFlags> rayQuery;
     rayQuery.TraceRayInline(g_SceneTLAS, kFlags, 0xFF, rayDesc);
     
-    rayQuery.Proceed();
-
-    bool bPixelOccluded;
-    if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+    while (rayQuery.Proceed())
     {
-        bPixelOccluded = true;
-    }
-    else
-    {
-        bPixelOccluded = false;
-    }
-    
-    g_ShadowMaskOutput[dispatchThreadID.xy] = bPixelOccluded ? 0.0f : 1.0f;
-}
-
-#if 0
-[shader("anyhit")]
-void RT_AnyHit(inout RayPayload payload : SV_RayPayload, in IntersectionAttributes attributes : SV_IntersectionAttributes)
-{
-    uint instanceID = InstanceID();
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceID];
-    MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
-    
-    if (materialData.m_AlphaCutoff == 0.0f)
-    {
-        // it's an opaque material with no alpha mask - accept the hit and end the search
-        AcceptHitAndEndSearch();
-    }
-    
-    if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
-    {
-        uint triangleID = PrimitiveIndex();
-        MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
-        
-        uint indices[3] =
+        if (IsPixelOccluded(rayQuery.CandidateInstanceID(), rayQuery.CandidatePrimitiveIndex(), rayQuery.CandidateTriangleBarycentrics()))
         {
-            g_GlobalIndexIDsBuffer[triangleID * 3 + 0],
-            g_GlobalIndexIDsBuffer[triangleID * 3 + 1],
-            g_GlobalIndexIDsBuffer[triangleID * 3 + 2],
-        };
-        
-        float2 vertexUVs[3] =
-        {
-            g_GlobalVertexBuffer[indices[0]].m_TexCoord,
-            g_GlobalVertexBuffer[indices[1]].m_TexCoord,
-            g_GlobalVertexBuffer[indices[2]].m_TexCoord,
-        };
-        
-        float barycentrics[3] = { (1.0f - attributes.uv.x - attributes.uv.y), attributes.uv.x, attributes.uv.y };
-        float2 finalUV = vertexUVs[0] * barycentrics[0] + vertexUVs[1] * barycentrics[1] + vertexUVs[2] * barycentrics[2];
-        
-        uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex >> 30;
-        
-        Texture2D albedoTexture = g_Textures[texIdx];
-        
-        // TODO: use 'SampleGrad'
-        float4 textureSample = albedoTexture.SampleLevel(g_Samplers[samplerIdx], finalUV, 0);
-        
-        float alpha = materialData.m_ConstAlbedo.a * textureSample.a;
-        
-        if (alpha > materialData.m_AlphaCutoff)
-        {
-            // alpha test passed - accept the hit and end the search
-            AcceptHitAndEndSearch();
+            rayQuery.CommitNonOpaqueTriangleHit();
         }
     }
+
+    bool bPixelOccluded = rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
+    g_ShadowMaskOutput[dispatchThreadID.xy] = bPixelOccluded ? 0.0f : 1.0f;
 }
-#endif

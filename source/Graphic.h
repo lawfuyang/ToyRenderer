@@ -99,55 +99,20 @@ public:
         const void* pushConstantsData = nullptr,
         size_t pushConstantsBytes = 0);
 
-    void AddComputePass(nvrhi::CommandListHandle commandList,
-        std::string_view shaderName,
-        const nvrhi::BindingSetDesc& bindingSetDesc,
-        const Vector3U& dispatchGroupSize,
-        nvrhi::BufferHandle indirectArgsBuffer,
-        uint32_t indirectArgsBufferOffsetBytes,
-        const void* pushConstantsData,
-        size_t pushConstantsBytes);
-
-    void AddComputePass(
-        nvrhi::CommandListHandle commandList,
-        std::string_view shaderName,
-        const nvrhi::BindingSetDesc& bindingSetDesc,
-        const Vector3U& dispatchGroupSize,
-        const void* pushConstantsData = nullptr,
-        size_t pushConstantsBytes = 0)
+    struct ComputePassParams
     {
-        AddComputePass(
-            commandList,
-            shaderName,
-            bindingSetDesc,
-            dispatchGroupSize,
-            nvrhi::BufferHandle{},
-            0,
-            pushConstantsData,
-            pushConstantsBytes);
-    }
+        nvrhi::CommandListHandle m_CommandList;
+        std::string_view m_ShaderName;
+        nvrhi::BindingSetDesc m_BindingSetDesc;
+        Vector3U m_DispatchGroupSize = Vector3U{ 0, 0, 0 };
+        nvrhi::BufferHandle m_IndirectArgsBuffer;
+        uint32_t m_IndirectArgsBufferOffsetBytes = 0;
+        const void* m_PushConstantsData = nullptr;
+        size_t m_PushConstantsBytes = 0;
+        bool m_ShouldAddBindlessResources = false;
+    };
 
-    void AddComputePass(
-        nvrhi::CommandListHandle commandList,
-        std::string_view shaderName,
-        const nvrhi::BindingSetDesc& bindingSetDesc,
-        nvrhi::BufferHandle indirectArgsBuffer,
-        uint32_t indirectArgsBufferOffsetBytes = 0,
-        nvrhi::BufferHandle indirectCountBuffer = {},
-        uint32_t indirectCountBufferOffsetBytes = 0,
-        const void* pushConstantsData = nullptr,
-        size_t pushConstantsBytes = 0)
-    {
-        AddComputePass(
-            commandList,
-            shaderName,
-            bindingSetDesc,
-            Vector3U{ 0, 0, 0 },
-            indirectArgsBuffer,
-            indirectArgsBufferOffsetBytes,
-            pushConstantsData,
-            pushConstantsBytes);
-    }
+    void AddComputePass(const ComputePassParams& computePassParams);
 
     nvrhi::DeviceHandle m_NVRHIDevice;
 

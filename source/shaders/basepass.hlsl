@@ -240,10 +240,8 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex >> 30;
         
-        float2 finalUV = inUV * materialData.m_AlbedoUVOffsetAndScale.zw + materialData.m_AlbedoUVOffsetAndScale.xy;
-        
         Texture2D albedoTexture = g_Textures[texIdx];
-        float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], finalUV);
+        float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], inUV);
         
         result.m_Albedo.rgb *= textureSample.rgb;
         result.m_Albedo.a *= textureSample.a;
@@ -262,13 +260,11 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_NormalTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_NormalTextureSamplerAndDescriptorIndex >> 30;
         
-        float2 finalUV = inUV * materialData.m_NormalUVOffsetAndScale.zw + materialData.m_NormalUVOffsetAndScale.xy;
-        
         Texture2D normalTexture = g_Textures[texIdx];
-        float3 sampledNormal = normalTexture.Sample(g_Samplers[samplerIdx], finalUV).rgb;
+        float3 sampledNormal = normalTexture.Sample(g_Samplers[samplerIdx], inUV).rgb;
         float3 unpackedNormal = TwoChannelNormalX2(sampledNormal.xy);
         
-        float3x3 TBN = CalculateTBNWithoutTangent(inWorldPosition, inNormal, finalUV);
+        float3x3 TBN = CalculateTBNWithoutTangent(inWorldPosition, inNormal, inUV);
         result.m_Normal = normalize(mul(unpackedNormal, TBN));
     }
     
@@ -278,11 +274,9 @@ GBufferParams GetGBufferParams(
     {
         uint texIdx = NonUniformResourceIndex(materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex >> 30;
-        
-        float2 finalUV = inUV * materialData.m_MetallicRoughnessUVOffsetAndScale.zw + materialData.m_MetallicRoughnessUVOffsetAndScale.xy;
-        
+                
         Texture2D mrtTexture = g_Textures[texIdx];
-        float4 textureSample = mrtTexture.Sample(g_Samplers[samplerIdx], finalUV);
+        float4 textureSample = mrtTexture.Sample(g_Samplers[samplerIdx], inUV);
         
         result.m_Roughness = textureSample.g;
         result.m_Metallic = textureSample.b;
@@ -294,10 +288,8 @@ GBufferParams GetGBufferParams(
         uint texIdx = NonUniformResourceIndex(materialData.m_EmissiveTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_EmissiveTextureSamplerAndDescriptorIndex >> 30;
         
-        float2 finalUV = inUV * materialData.m_EmissiveUVOffsetAndScale.zw + materialData.m_EmissiveUVOffsetAndScale.xy;
-        
         Texture2D emissiveTexture = g_Textures[texIdx];
-        float4 textureSample = emissiveTexture.Sample(g_Samplers[samplerIdx], finalUV);
+        float4 textureSample = emissiveTexture.Sample(g_Samplers[samplerIdx], inUV);
         
         result.m_Emissive *= textureSample.rgb;
     }

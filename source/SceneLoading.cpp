@@ -80,6 +80,12 @@ struct GLTFSceneLoader
                     assert(0);
                 }
 
+                // don't support texture transform
+                if (strcmp(m_GLTFData->extensions_used[i], "KHR_texture_transform") == 0)
+                {
+                    assert(0);
+                }
+
 				if (strcmp(m_GLTFData->extensions_used[i], "KHR_texture_basisu") == 0)
 				{
                     basist::basisu_transcoder_init();
@@ -311,18 +317,6 @@ struct GLTFSceneLoader
                 {
                     texture.m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, textureView.texture->sampler));
                 }
-
-                if (textureView.has_transform)
-                {
-                    // sanity check to see if 1 texture view per image
-                    assert(texture.m_UVOffset == Vector2::Zero);
-                    assert(texture.m_UVScale == Vector2::One);
-
-                    texture.m_UVOffset.x = textureView.transform.offset[0];
-                    texture.m_UVOffset.y = textureView.transform.offset[1];
-                    texture.m_UVScale.x = textureView.transform.scale[0];
-                    texture.m_UVScale.y = textureView.transform.scale[1];
-                }
             };
 
         m_SceneMaterials.resize(m_GLTFData->materials_count);
@@ -408,7 +402,7 @@ struct GLTFSceneLoader
                 assert(gltfMaterial.transmission.transmission_texture.texture == nullptr);
             }
 
-            if (gltfMaterial.double_sided)
+            if (gltfMaterial.double_sided && sceneMaterial.m_AlphaMode == AlphaMode::Opaque)
             {
                 // forcefully tag this as 'Mask', as double-sided rendering is enabled for this mode
                 sceneMaterial.m_AlphaMode = AlphaMode::Mask;
@@ -433,26 +427,6 @@ struct GLTFSceneLoader
             materialData.m_ConstRoughness = sceneMaterial.m_ConstRoughness;
             materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;
-
-            materialData.m_AlbedoUVOffsetAndScale.x = sceneMaterial.m_AlbedoTexture.m_UVOffset.x;
-			materialData.m_AlbedoUVOffsetAndScale.y = sceneMaterial.m_AlbedoTexture.m_UVOffset.y;
-			materialData.m_AlbedoUVOffsetAndScale.z = sceneMaterial.m_AlbedoTexture.m_UVScale.x;
-			materialData.m_AlbedoUVOffsetAndScale.w = sceneMaterial.m_AlbedoTexture.m_UVScale.y;
-
-			materialData.m_NormalUVOffsetAndScale.x = sceneMaterial.m_NormalTexture.m_UVOffset.x;
-			materialData.m_NormalUVOffsetAndScale.y = sceneMaterial.m_NormalTexture.m_UVOffset.y;
-			materialData.m_NormalUVOffsetAndScale.z = sceneMaterial.m_NormalTexture.m_UVScale.x;
-			materialData.m_NormalUVOffsetAndScale.w = sceneMaterial.m_NormalTexture.m_UVScale.y;
-
-			materialData.m_MetallicRoughnessUVOffsetAndScale.x = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset.x;
-			materialData.m_MetallicRoughnessUVOffsetAndScale.y = sceneMaterial.m_MetallicRoughnessTexture.m_UVOffset.y;
-			materialData.m_MetallicRoughnessUVOffsetAndScale.z = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale.x;
-			materialData.m_MetallicRoughnessUVOffsetAndScale.w = sceneMaterial.m_MetallicRoughnessTexture.m_UVScale.y;
-
-			materialData.m_EmissiveUVOffsetAndScale.x = sceneMaterial.m_EmissiveTexture.m_UVOffset.x;
-			materialData.m_EmissiveUVOffsetAndScale.y = sceneMaterial.m_EmissiveTexture.m_UVOffset.y;
-			materialData.m_EmissiveUVOffsetAndScale.z = sceneMaterial.m_EmissiveTexture.m_UVScale.x;
-			materialData.m_EmissiveUVOffsetAndScale.w = sceneMaterial.m_EmissiveTexture.m_UVScale.y;
 
 			LOG_DEBUG("New Material: [%s]", materialName);
         }

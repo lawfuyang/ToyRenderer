@@ -1165,50 +1165,60 @@ void Graphic::AddFullScreenPass(
     commandList->dispatchMesh(1, 1, 1);
 }
 
-void Graphic::AddComputePass(nvrhi::CommandListHandle commandList,
-    std::string_view shaderName,
-    const nvrhi::BindingSetDesc& bindingSetDesc,
-    const Vector3U& dispatchGroupSize,
-    nvrhi::BufferHandle indirectArgsBuffer,
-    uint32_t indirectArgsBufferOffsetBytes,
-    const void* pushConstantsData,
-    size_t pushConstantsBytes)
+void Graphic::AddComputePass(const ComputePassParams& computePassParams)
 {
+    assert(computePassParams.m_CommandList);
+    assert(!computePassParams.m_ShaderName.empty());
+    assert(!computePassParams.m_BindingSetDesc.bindings.empty());
+
     PROFILE_FUNCTION();
-    PROFILE_GPU_SCOPED(commandList, shaderName.data());
+    PROFILE_GPU_SCOPED(computePassParams.m_CommandList, computePassParams.m_ShaderName.data());
 
     nvrhi::BindingSetHandle bindingSet;
     nvrhi::BindingLayoutHandle bindingLayout;
-    CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+    CreateBindingSetAndLayout(computePassParams.m_BindingSetDesc, bindingSet, bindingLayout);
 
     nvrhi::ComputePipelineDesc pipelineDesc;
-    pipelineDesc.CS = GetShader(shaderName);
+    pipelineDesc.CS = GetShader(computePassParams.m_ShaderName);
     pipelineDesc.bindingLayouts = { bindingLayout };
 
+    if (computePassParams.m_ShouldAddBindlessResources)
+    {
+        pipelineDesc.bindingLayouts.push_back(m_BindlessLayout);
+    }
+
     nvrhi::ComputeState computeState;
-    computeState.bindings = { bindingSet };
     computeState.pipeline = GetOrCreatePSO(pipelineDesc);
+    computeState.bindings = { bindingSet };
 
-    if (indirectArgsBuffer)
+    if (computePassParams.m_ShouldAddBindlessResources)
     {
-        assert(dispatchGroupSize.x == 0 && dispatchGroupSize.y == 0 && dispatchGroupSize.z == 0); // indirect dispatch does not need group size
-        computeState.indirectParams = indirectArgsBuffer;
+        computeState.bindings.push_back(m_DescriptorTableManager->GetDescriptorTable());
     }
 
-    commandList->setComputeState(computeState);
-
-    if (pushConstantsData)
+    if (computePassParams.m_IndirectArgsBuffer)
     {
-        commandList->setPushConstants(pushConstantsData, pushConstantsBytes);
+        // indirect dispatch does not need group size
+        assert(computePassParams.m_DispatchGroupSize.x == 0 && computePassParams.m_DispatchGroupSize.y == 0 && computePassParams.m_DispatchGroupSize.z == 0);
+        computeState.indirectParams = computePassParams.m_IndirectArgsBuffer;
     }
 
-    if (indirectArgsBuffer)
+    computePassParams.m_CommandList->setComputeState(computeState);
+
+    if (computePassParams.m_PushConstantsData)
     {
-        commandList->dispatchIndirect(indirectArgsBufferOffsetBytes);
+        assert(computePassParams.m_PushConstantsBytes > 0);
+        computePassParams.m_CommandList->setPushConstants(computePassParams.m_PushConstantsData, computePassParams.m_PushConstantsBytes);
+    }
+
+    if (computePassParams.m_IndirectArgsBuffer)
+    {
+        computePassParams.m_CommandList->dispatchIndirect(computePassParams.m_IndirectArgsBufferOffsetBytes);
     }
     else
     {
-        commandList->dispatch(dispatchGroupSize.x, dispatchGroupSize.y, dispatchGroupSize.z);
+        assert(computePassParams.m_DispatchGroupSize.x != 0 && computePassParams.m_DispatchGroupSize.y != 0 && computePassParams.m_DispatchGroupSize.z != 0);
+        computePassParams.m_CommandList->dispatch(computePassParams.m_DispatchGroupSize.x, computePassParams.m_DispatchGroupSize.y, computePassParams.m_DispatchGroupSize.z);
     }
 }
 
