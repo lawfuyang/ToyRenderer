@@ -18,6 +18,8 @@ struct MeshData
 	Vector4 m_BoundingSphere;
     MeshLODData m_MeshLODDatas[kMaxNumMeshLODs];
 	uint32_t m_NumLODs;
+	uint32_t m_GlobalVertexBufferIdx;
+	uint32_t m_GlobalIndexBufferIdx;
 };
 
 struct MeshletData

@@ -4,6 +4,7 @@
 	• soft shadows (penumbra)
 	• Hybrid: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-shadows.md
 • fix all -Wconversion Shader warnings
+• fix rare frustum culling bug (large green door area in bistro)
 • fix inverted view-space Z coord
 • Meshlet drawing pipeline
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/MeshletInstancing (?)

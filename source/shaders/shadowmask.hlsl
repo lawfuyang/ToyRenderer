@@ -15,6 +15,7 @@ StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(
 StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer : register(t4);
 StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t5);
 StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t6);
+StructuredBuffer<MeshData> g_MeshDataBuffer : register(t7);
 Texture2D g_Textures[] : register(t0, space1);
 RWTexture2D<float> g_ShadowMaskOutput : register(u0);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
@@ -33,18 +34,21 @@ bool IsPixelOccluded(uint instanceID, uint primitiveIndex, float2 attribBarycent
     float alpha = materialData.m_ConstAlbedo.a;
     if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
     {
+        // TODO: pick appropriate mesh LOD?
+        MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
+        
         uint indices[3] =
         {
-            g_GlobalIndexIDsBuffer[primitiveIndex * 3 + 0],
-            g_GlobalIndexIDsBuffer[primitiveIndex * 3 + 1],
-            g_GlobalIndexIDsBuffer[primitiveIndex * 3 + 2],
+            g_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 0],
+            g_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 1],
+            g_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 2],
         };
         
         float2 vertexUVs[3] =
         {
-            g_GlobalVertexBuffer[indices[0]].m_TexCoord,
-            g_GlobalVertexBuffer[indices[1]].m_TexCoord,
-            g_GlobalVertexBuffer[indices[2]].m_TexCoord,
+            g_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[0]].m_TexCoord,
+            g_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[1]].m_TexCoord,
+            g_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[2]].m_TexCoord,
         };
         
         float barycentrics[3] = { (1.0f - attribBarycentrics.x - attribBarycentrics.y), attribBarycentrics.x, attribBarycentrics.y };
@@ -56,9 +60,9 @@ bool IsPixelOccluded(uint instanceID, uint primitiveIndex, float2 attribBarycent
         Texture2D albedoTexture = g_Textures[texIdx];
         
         // TODO: use 'SampleGrad'
-        float4 textureSample = albedoTexture.SampleLevel(g_Samplers[samplerIdx], finalUV, 0);
+        float textureAlpha = albedoTexture.SampleLevel(g_Samplers[samplerIdx], finalUV, 0).a;
         
-        alpha *= textureSample.a;
+        alpha *= textureAlpha;
     }
     
     return alpha >= materialData.m_AlphaCutoff;

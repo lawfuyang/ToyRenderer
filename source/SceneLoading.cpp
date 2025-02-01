@@ -577,6 +577,8 @@ struct GLTFSceneLoader
                         MeshData& meshData = m_GlobalMeshData[globalMeshDataIdx];
                         meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
                         meshData.m_NumLODs = newSceneMesh->m_NumLODs;
+                        meshData.m_GlobalVertexBufferIdx = globalVertexBufferIdxOffset;
+                        meshData.m_GlobalIndexBufferIdx = globalIndexBufferIdxOffset;
                         
                         for (uint32_t meshLODIdx = 0; meshLODIdx < kMaxNumMeshLODs; ++meshLODIdx)
                         {
@@ -772,9 +774,7 @@ struct GLTFSceneLoader
             desc.byteSize = m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t);
             desc.structStride = sizeof(uint32_t);
             desc.debugName = "Global Index Buffer";
-            desc.format = Graphic::kIndexBufferFormat;
-            desc.isIndexBuffer = true;
-            desc.initialState = nvrhi::ResourceStates::IndexBuffer;
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
             desc.isAccelStructBuildInput = true;
             g_Graphic.m_GlobalIndexBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         }
