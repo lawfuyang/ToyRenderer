@@ -48,10 +48,6 @@ class BasePassRenderer : public IRenderer
     Vector2U m_HZBDimensions = Vector2U{ 1,1 };
     Vector4 m_CullingFrustum = Vector4{ 0.0f, 0.0f, 0.0f, 0.0f };
 
-protected:
-    virtual bool DoOcclusionCullingForPass() const { return false; }
-    virtual uint32_t ForceMeshLODForPass() const { return kInvalidMeshLOD; }
-
 public:
     struct RenderBasePassParams
     {
@@ -82,7 +78,7 @@ public:
 
         const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
         m_DoFrustumCulling = instanceControllables.m_bEnableFrustumCulling;
-        m_bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling && DoOcclusionCullingForPass();
+        m_bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling;
         m_bDoMeshletConeCulling = instanceControllables.m_bEnableMeshletConeCulling;
 
 		{
@@ -213,7 +209,7 @@ public:
 
         const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
 
-        const uint32_t forcedMeshLOD = (controllables.m_ForceMeshLOD >= 0) && (ForceMeshLODForPass() == kInvalidMeshLOD) ? controllables.m_ForceMeshLOD : kInvalidMeshLOD;
+        const uint32_t forcedMeshLOD = (controllables.m_ForceMeshLOD >= 0) ? controllables.m_ForceMeshLOD : kInvalidMeshLOD;
 
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
@@ -497,8 +493,6 @@ public:
 
 class GBufferRenderer : public BasePassRenderer
 {
-    bool DoOcclusionCullingForPass() const override { return true; }
-
 public:
     GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
 
