@@ -115,13 +115,11 @@ float3x3 MakeAdjugateMatrix(float4x4 m)
 
 float GetMaxScaleFromWorldMatrix(float4x4 worldMatrix)
 {
-    float3 dx = dot(worldMatrix._11_11_11, worldMatrix._11_11_11).xxx;
-    float3 dy = dot(worldMatrix._22_22_22, worldMatrix._22_22_22).xxx;
-    float3 dz = dot(worldMatrix._33_33_33, worldMatrix._33_33_33).xxx;
+    float dx = dot(worldMatrix._11_12_13, worldMatrix._11_12_13);
+    float dy = dot(worldMatrix._21_22_23, worldMatrix._21_22_23);
+    float dz = dot(worldMatrix._31_32_33, worldMatrix._31_32_33);
     
-    float3 d = Max3(dx, dy, dz);
-    
-    return sqrt(d.x);
+    return sqrt(Max3(dx, dy, dz));
 }
 
 #endif // __COMMON_HLSL__
