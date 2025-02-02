@@ -22,7 +22,6 @@
 
 CommandLineOption<bool> g_EnableD3DDebug{ "d3ddebug", false };
 CommandLineOption<bool> g_EnableGPUValidation{ "enablegpuvalidation", false };
-CommandLineOption<bool> g_EnableGPUStablePowerState{ "enablegpustablepowerstate", false };
 
 PRAGMA_OPTIMIZE_OFF;
 void DeviceRemovedHandler()
@@ -178,26 +177,6 @@ void Graphic::InitDevice()
         }
         
         LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", maxSupportedFeatureLevel);
-
-        // disables 'dynamic frequency scaling' on GPU for reliable profiling
-        if (g_EnableGPUStablePowerState.Get())
-        {
-            // Look in the Windows Registry to determine if Developer Mode is enabled
-            HKEY hKey;
-            LSTATUS result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", 0, KEY_READ, &hKey);
-            if (result == ERROR_SUCCESS)
-            {
-                DWORD keyValue, keySize = sizeof(DWORD);
-                result = RegQueryValueEx(hKey, "AllowDevelopmentWithoutDevLicense", 0, NULL, (byte*)&keyValue, &keySize);
-
-                RegCloseKey(hKey);
-
-                // Set stable power state if requested (only works when Windows Developer Mode is enabled)
-                assert(result == ERROR_SUCCESS && keyValue == 1);
-            }
-
-            m_D3DDevice->SetStablePowerState(true);
-        }
     }
 
     auto CreateQueue = [this](nvrhi::CommandQueue queue)
@@ -1072,6 +1051,16 @@ void Graphic::Present()
         DeviceRemovedHandler();
         assert(0);
     }
+}
+
+void Graphic::SetGPUStablePowerState(bool bEnable)
+{
+    if (!g_Engine.m_bWindowsDeveloperMode)
+    {
+        return;
+    }
+
+    m_D3DDevice->SetStablePowerState(bEnable);
 }
 
 void Graphic::UpdateResourceDebugName(nvrhi::IResource* resource, std::string_view debugName)

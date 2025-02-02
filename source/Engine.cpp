@@ -49,6 +49,24 @@ const char* GetExecutableDirectory()
     return gs_ExecutableDirectory.c_str();
 }
 
+static bool IsWindowsDeveloperModeEnaable()
+{
+    // Look in the Windows Registry to determine if Developer Mode is enabled
+    HKEY hKey;
+    LSTATUS result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", 0, KEY_READ, &hKey);
+    if (result != ERROR_SUCCESS)
+    {
+        return false;
+    }
+
+    DWORD keyValue, keySize = sizeof(DWORD);
+    result = RegQueryValueEx(hKey, "AllowDevelopmentWithoutDevLicense", 0, NULL, (byte*)&keyValue, &keySize);
+
+    RegCloseKey(hKey);
+
+    return (result == ERROR_SUCCESS) && (keyValue == 1);
+}
+
 void Engine::Initialize(int argc, char** argv)
 {
     SCOPED_TIMER_FUNCTION();
@@ -61,6 +79,9 @@ void Engine::Initialize(int argc, char** argv)
     LOG_DEBUG("Application Directory: %s", GetApplicationDirectory());
 
     ParseCommandlineArguments(argc, argv);
+
+    m_bWindowsDeveloperMode = IsWindowsDeveloperModeEnaable();
+    LOG_DEBUG("Windows Developer Mode: %s", m_bWindowsDeveloperMode ? "Enabled" : "Disabled");
 
     SDL_CALL(SDL_Init(SDL_INIT_EVENTS));
     m_SDLWindow = SDL_CreateWindow("Toy Renderer", g_DisplayResolution.Get()[0], g_DisplayResolution.Get()[1], 0);

@@ -68,6 +68,11 @@ void GraphicPropertyGrid::UpdateIMGUI()
             params.m_DebugMode = debugModeIdx;
         }
 
+        if (ImGui::Checkbox("GPU Stable Power State", &params.m_GPUStablePowerState))
+        {
+            g_Graphic.SetGPUStablePowerState(params.m_GPUStablePowerState);
+        }
+
         ImGui::TreePop();
     }
 

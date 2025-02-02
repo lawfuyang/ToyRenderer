@@ -59,6 +59,7 @@ public:
     void InitShaders();
     void InitDescriptorTable();
     void Present();
+    void SetGPUStablePowerState(bool bEnable);
 
     static void UpdateResourceDebugName(nvrhi::IResource* resource, std::string_view debugName);
     

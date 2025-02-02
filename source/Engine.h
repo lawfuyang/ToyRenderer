@@ -22,6 +22,8 @@ public:
     template <typename Lambda> void AddCommand(Lambda&& lambda) { AUTO_LOCK(m_CommandsLock); m_PendingCommands.push_back(lambda); }
     template <typename Lambda> void AddCommand(Lambda& lambda) { static_assert(sizeof(Lambda) == 0); /* enforce use of rvalue and therefore move to avoid an extra copy of the Lambda */ }
 
+    bool m_bWindowsDeveloperMode = false;
+
     float m_CPUFrameTimeMs = 0.0f;
     float m_CPUCappedFrameTimeMs = 0.0f;
     float m_GPUTimeMs = 0.0f;

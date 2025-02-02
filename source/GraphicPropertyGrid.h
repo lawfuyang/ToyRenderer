@@ -13,6 +13,7 @@ public:
     {
         uint32_t m_FPSLimit = 200.0f;
         int m_DebugMode = 0;
+        bool m_GPUStablePowerState = false;
     };
     DebugControllables m_DebugControllables;
 
