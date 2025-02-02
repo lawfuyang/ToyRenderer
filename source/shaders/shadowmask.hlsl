@@ -101,7 +101,7 @@ void CS_ShadowMask(
     rayDesc.TMin = 0.1f;
     rayDesc.TMax = kKindaBigNumber;
     
-    const uint kFlags = RAY_FLAG_NONE;
+    const uint kFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
     
     RayQuery<kFlags> rayQuery;
     rayQuery.TraceRayInline(g_SceneTLAS, kFlags, 0xFF, rayDesc);
