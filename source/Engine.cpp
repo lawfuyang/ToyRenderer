@@ -16,7 +16,7 @@
 
 #define SDL_CALL(x) if (!(x)) { LOG_DEBUG("SDL Error: %s", SDL_GetError()); assert(false); }
 
-CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", {1600, 900} };
+CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", { 1600, 900 } };
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
 CommandLineOption<int> g_MaxWorkerThreads{ "maxworkerthreads", 12 };
 CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
@@ -47,6 +47,35 @@ static std::string gs_ExecutableDirectory;
 const char* GetExecutableDirectory()
 {
     return gs_ExecutableDirectory.c_str();
+}
+
+static Vector2U GetBestWindowSize()
+{
+    static const Vector2U kSizes[] =
+    {
+         { 3840, 2160 },
+         { 2560, 1440 },
+         { 1920, 1080 },
+         { 1600, 900 },
+         { 1280, 720 },
+    };
+
+    const SDL_DisplayID primaryDisplayID = SDL_GetPrimaryDisplay();
+    SDL_CALL(primaryDisplayID);
+
+    const SDL_DisplayMode* displayMode = SDL_GetCurrentDisplayMode(primaryDisplayID);
+    SDL_CALL(displayMode);
+
+    for (Vector2U size : kSizes)
+    {
+        if (size.x < displayMode->w && size.y < displayMode->h)
+        {
+            return size;
+        }
+    }
+
+    assert(0); // there's nothing smaller than 720p on Steam Hardware Survey
+    return kSizes[std::size(kSizes) - 1];
 }
 
 static bool IsWindowsDeveloperModeEnaable()
@@ -83,8 +112,12 @@ void Engine::Initialize(int argc, char** argv)
     m_bWindowsDeveloperMode = IsWindowsDeveloperModeEnaable();
     LOG_DEBUG("Windows Developer Mode: %s", m_bWindowsDeveloperMode ? "Enabled" : "Disabled");
 
-    SDL_CALL(SDL_Init(SDL_INIT_EVENTS));
-    m_SDLWindow = SDL_CreateWindow("Toy Renderer", g_DisplayResolution.Get()[0], g_DisplayResolution.Get()[1], 0);
+    SDL_CALL(SDL_Init(SDL_INIT_VIDEO));
+
+    const Vector2U bestWindowSize = GetBestWindowSize();
+    LOG_DEBUG("Window Size: %d x %d", bestWindowSize.x, bestWindowSize.y);
+
+    m_SDLWindow = SDL_CreateWindow("Toy Renderer", bestWindowSize.x, bestWindowSize.y, 0);
     SDL_CALL(m_SDLWindow);
 
     SDL_CALL(SDL_SetWindowPosition(m_SDLWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED));
