@@ -48,6 +48,7 @@ public:
     struct ShadowControllables
     {
         bool m_bEnabled = true;
+        bool m_bEnableSoftShadows = true;
         float m_SunSolidAngle = 4.157f; // empirical shit
     };
     ShadowControllables m_ShadowControllables;

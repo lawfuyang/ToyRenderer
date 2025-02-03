@@ -47,18 +47,20 @@ public:
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 		View& view = g_Scene->m_View;
 
+		const auto& controllables = g_GraphicPropertyGrid.m_ShadowControllables;
+
 		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
         nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
 
-		const float sunSize = tanf(0.5f * ConvertToRadians(g_GraphicPropertyGrid.m_ShadowControllables.m_SunSolidAngle));
+		const float sunSize = tanf(0.5f * ConvertToRadians(controllables.m_SunSolidAngle));
 
 		ShadowMaskConsts passConstants;
 		passConstants.m_ClipToWorld = view.m_ClipToWorld;
 		passConstants.m_DirectionalLightDirection = g_Scene->m_DirLightVec;
 		passConstants.m_OutputResolution = Vector2U{ shadowMaskTexture->getDesc().width , shadowMaskTexture->getDesc().height };
 		passConstants.m_NoisePhase = (g_Graphic.m_FrameCounter & 0xff) * kGoldenRatio;
-        passConstants.m_SunSize = sunSize;
+		passConstants.m_SunSize = controllables.m_bEnableSoftShadows ? sunSize : 0.0f;
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::BindingSetDesc bindingSetDesc;

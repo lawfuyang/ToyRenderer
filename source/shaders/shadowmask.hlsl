@@ -146,6 +146,9 @@ void CS_ShadowMask(
     rayDesc.TMin = 0.1f;
     rayDesc.TMax = kKindaBigNumber;
     
+    // according to Nvidia:
+    // ACCEPT_FIRST_HIT_AND_END_SEARCH ray flag can't be used to optimize tracing, because it can lead to wrong potentially very long hit distances from random distant occluders
+    // but i don't care for now... i can't see any difference in the output
     const uint kFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
     
     RayQuery<kFlags> rayQuery;
