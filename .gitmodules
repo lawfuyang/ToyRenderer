@@ -40,3 +40,6 @@
 [submodule "extern/taskflow"]
 	path = extern/taskflow
 	url = https://github.com/taskflow/taskflow
+[submodule "extern/nvidia/NRD"]
+	path = extern/nvidia/NRD
+	url = https://github.com/NVIDIAGameWorks/RayTracingDenoiser
