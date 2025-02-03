@@ -16,6 +16,7 @@ public:
     Texture DefaultNormalTexture;
     Texture DummyUAV2DTexture;
     Texture R8UIntMax2DTexture;
+    Texture BlueNoise;
 
     // Materials
     Material DefaultMaterial;

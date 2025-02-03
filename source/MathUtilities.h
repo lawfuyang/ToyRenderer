@@ -35,6 +35,8 @@ using Frustum     = DirectX::BoundingFrustum;
 constexpr float kKindaSmallNumber = 1e-4f;
 constexpr float kKindaBigNumber = 1e10f;
 
+constexpr float kGoldenRatio = 1.61803398875f;
+
 inline Half ConvertFloatToHalf(float f) { return DirectX::PackedVector::XMConvertFloatToHalf(f); }
 inline float ConvertHalfToFloat(Half h) { return DirectX::PackedVector::XMConvertHalfToFloat(h); }
 constexpr float ConvertToRadians(float fDegrees) { return DirectX::XMConvertToRadians(fDegrees); }

@@ -1,6 +1,7 @@
 #include "CommonResources.h"
 
 #include "extern/imgui/imgui.h"
+#include "extern/amd/FidelityFX/samples/thirdparty/samplercpp/samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_1spp.cpp"
 
 #include "Engine.h"
 #include "Graphic.h"
@@ -9,6 +10,7 @@
 static void CreateDefaultTextures()
 {
     auto CreateDefaultTexture = [](
+        Texture& outTex,
         std::string_view name,
         nvrhi::Format format,
         uint32_t data,
@@ -25,17 +27,48 @@ static void CreateDefaultTextures()
             textureDesc.isUAV = bUAV;
             textureDesc.initialState = bUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource;
 
-            Texture tex;
-            tex.LoadFromMemory(&data, textureDesc);
-            return tex;
+            outTex.LoadFromMemory(&data, textureDesc);
         };
 
-    g_CommonResources.BlackTexture                    = CreateDefaultTexture("Black 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
-    g_CommonResources.WhiteTexture                    = CreateDefaultTexture("White 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
-    g_CommonResources.DefaultRoughnessMetallicTexture = CreateDefaultTexture("Default Roughness Metallic Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 1.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
-    g_CommonResources.DefaultNormalTexture            = CreateDefaultTexture("Default Normal Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.5f, 0.5f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
-    g_CommonResources.DummyUAV2DTexture               = CreateDefaultTexture("Dummy UAV 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true /*bUAV*/);
-    g_CommonResources.R8UIntMax2DTexture              = CreateDefaultTexture("R8 UInt Max 2D Texture", nvrhi::Format::R8_UINT, UINT8_MAX, 1, false /*bUAV*/);
+    CreateDefaultTexture(g_CommonResources.BlackTexture                   , "Black 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture(g_CommonResources.WhiteTexture                   , "White 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture(g_CommonResources.DefaultRoughnessMetallicTexture, "Default Roughness Metallic Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 1.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture(g_CommonResources.DefaultNormalTexture           , "Default Normal Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.5f, 0.5f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture(g_CommonResources.DummyUAV2DTexture              , "Dummy UAV 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, true /*bUAV*/);
+    CreateDefaultTexture(g_CommonResources.R8UIntMax2DTexture             , "R8 UInt Max 2D Texture", nvrhi::Format::R8_UINT, UINT8_MAX, 1, false /*bUAV*/);
+
+    // blue noise
+    {
+        static const uint32_t kBlueNoiseDimensions = 128;
+
+        std::byte blueNoise[kBlueNoiseDimensions][kBlueNoiseDimensions][4];
+
+        for (int x = 0; x < kBlueNoiseDimensions; ++x)
+        {
+            for (int y = 0; y < kBlueNoiseDimensions; ++y)
+            {
+                const float f0 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_1spp(x, y, 0, 0);
+                const float f1 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_1spp(x, y, 0, 1);
+                const float f2 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_1spp(x, y, 0, 2);
+                const float f3 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_1spp(x, y, 0, 3);
+
+                blueNoise[x][y][0] = static_cast<std::byte>(f0 * UINT8_MAX);
+                blueNoise[x][y][1] = static_cast<std::byte>(f1 * UINT8_MAX);
+                blueNoise[x][y][2] = static_cast<std::byte>(f2 * UINT8_MAX);
+                blueNoise[x][y][3] = static_cast<std::byte>(f3 * UINT8_MAX);
+            }
+        }
+
+        nvrhi::TextureDesc desc;
+        desc.width = kBlueNoiseDimensions;
+        desc.height = kBlueNoiseDimensions;
+        desc.format = nvrhi::Format::RGBA8_UNORM;
+        desc.dimension = nvrhi::TextureDimension::Texture2D;
+        desc.debugName = "Blue Noise";
+        desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+        g_CommonResources.BlueNoise.LoadFromMemory(blueNoise, desc);
+    }
 }
 
 static void CreateDefaultBuffers()

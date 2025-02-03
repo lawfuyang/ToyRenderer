@@ -4,6 +4,7 @@ struct ShadowMaskConsts
 {
     Matrix m_ClipToWorld;
     Vector3 m_DirectionalLightDirection;
-    uint32_t PAD0;
+    float m_NoisePhase;
     Vector2U m_OutputResolution;
+    float m_SunSize;
 };

@@ -16,9 +16,51 @@ StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer : register(t4);
 StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t5);
 StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t6);
 StructuredBuffer<MeshData> g_MeshDataBuffer : register(t7);
+Texture2D g_BlueNoise : register(t8);
 Texture2D g_Textures[] : register(t0, space1);
 RWTexture2D<float> g_ShadowMaskOutput : register(u0);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
+
+float2x3 CreateTangentVectors(float3 normal)
+{
+    float3 up = abs(normal.z) < 0.99999f ? float3(0.0, 0.0, 1.0) : float3(1.0, 0.0, 0.0);
+
+    float2x3 tangents;
+
+    tangents[0] = normalize(cross(up, normal));
+    tangents[1] = cross(normal, tangents[0]);
+
+    return tangents;
+}
+
+float3 MapToCone(float2 s, float3 n, float radius)
+{
+    const float2 offset = 2.0f * s - float2(1.0f, 1.0f);
+
+    if (offset.x == 0.0f && offset.y == 0.0f)
+    {
+        return n;
+    }
+
+    float theta, r;
+
+    if (abs(offset.x) > abs(offset.y))
+    {
+        r = offset.x;
+        theta = M_PI / 4.0f * (offset.y / offset.x);
+    }
+    else
+    {
+        r = offset.y;
+        theta = (M_PI * 0.5f) * (1.0f - 0.5f * (offset.x / offset.y));
+    }
+
+    const float2 uv = float2(radius * r * cos(theta), radius * r * sin(theta));
+
+    const float2x3 tangents = CreateTangentVectors(n);
+
+    return n + uv.x * tangents[0] + uv.y * tangents[1];
+}
 
 bool IsPixelOccluded(uint instanceID, uint primitiveIndex, float2 attribBarycentrics)
 {
@@ -95,9 +137,12 @@ void CS_ShadowMask(
     // empirical offset to remove shadow acne
     float3 rayOriginOffset = gbufferParams.m_Normal * 0.01f;
     
+    const float2 noise = g_BlueNoise[dispatchThreadID.xy % 128].rg + g_ShadowMaskConsts.m_NoisePhase;
+    float3 rayDirection = normalize(MapToCone(fmod(noise, 1), g_ShadowMaskConsts.m_DirectionalLightDirection, g_ShadowMaskConsts.m_SunSize));
+    
     RayDesc rayDesc;
     rayDesc.Origin = worldPosition + rayOriginOffset;
-    rayDesc.Direction = g_ShadowMaskConsts.m_DirectionalLightDirection;
+    rayDesc.Direction = rayDirection;
     rayDesc.TMin = 0.1f;
     rayDesc.TMax = kKindaBigNumber;
     

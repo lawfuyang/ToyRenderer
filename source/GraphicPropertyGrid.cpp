@@ -112,6 +112,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
         ShadowControllables& params = m_ShadowControllables;
 
         ImGui::Checkbox("Enabled", &params.m_bEnabled);
+        ImGui::SliderFloat("Sun Solid Angle", &params.m_SunSolidAngle, 1.0f, 10.0f);
 
         ImGui::TreePop();
     }
