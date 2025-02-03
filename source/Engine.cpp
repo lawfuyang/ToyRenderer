@@ -16,7 +16,7 @@
 
 #define SDL_CALL(x) if (!(x)) { LOG_DEBUG("SDL Error: %s", SDL_GetError()); assert(false); }
 
-CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", { 1600, 900 } };
+CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", { 0, 0 } };
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
 CommandLineOption<int> g_MaxWorkerThreads{ "maxworkerthreads", 12 };
 CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
@@ -51,6 +51,11 @@ const char* GetExecutableDirectory()
 
 static Vector2U GetBestWindowSize()
 {
+    if (g_DisplayResolution.Get()[0] != 0 && g_DisplayResolution.Get()[1] != 0)
+    {
+        return { static_cast<uint32_t>(g_DisplayResolution.Get()[0]), static_cast<uint32_t>(g_DisplayResolution.Get()[1]) };
+    }
+
     static const Vector2U kSizes[] =
     {
          { 3840, 2160 },
@@ -114,10 +119,10 @@ void Engine::Initialize(int argc, char** argv)
 
     SDL_CALL(SDL_Init(SDL_INIT_VIDEO));
 
-    const Vector2U bestWindowSize = GetBestWindowSize();
-    LOG_DEBUG("Window Size: %d x %d", bestWindowSize.x, bestWindowSize.y);
+    m_WindowSize = GetBestWindowSize();
+    LOG_DEBUG("Window Size: %d x %d", m_WindowSize.x, m_WindowSize.y);
 
-    m_SDLWindow = SDL_CreateWindow("Toy Renderer", bestWindowSize.x, bestWindowSize.y, 0);
+    m_SDLWindow = SDL_CreateWindow("Toy Renderer", m_WindowSize.x, m_WindowSize.y, 0);
     SDL_CALL(m_SDLWindow);
 
     SDL_CALL(SDL_SetWindowPosition(m_SDLWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED));

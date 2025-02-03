@@ -865,9 +865,7 @@ void Graphic::Initialize()
 {
     PROFILE_FUNCTION();
 
-    extern CommandLineOption<std::vector<int>> g_DisplayResolution;
-    m_DisplayResolution.x = g_DisplayResolution.Get()[0];
-    m_DisplayResolution.y = g_DisplayResolution.Get()[1];
+    m_DisplayResolution = g_Engine.m_WindowSize;
 
     // TODO: upscaling stuff
     m_RenderResolution = m_DisplayResolution;

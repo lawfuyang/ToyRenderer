@@ -4,6 +4,7 @@
 #include "extern/taskflow/taskflow/taskflow.hpp"
 
 #include "CriticalSection.h"
+#include "MathUtilities.h"
 
 class Graphic;
 
@@ -29,6 +30,7 @@ public:
     float m_GPUTimeMs = 0.0f;
 
 	struct SDL_Window* m_SDLWindow = nullptr;
+    Vector2U m_WindowSize;
 
     std::shared_ptr<tf::Executor> m_Executor;
 
