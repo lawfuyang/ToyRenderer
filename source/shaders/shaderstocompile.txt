@@ -25,10 +25,10 @@ bloom.hlsl -T ps -E PS_Upsample
 
 ../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 
-../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_ClassifyTiles.cs.hlsl                      -T cs -E main
-../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_PostBlur.cs.hlsl                           -T cs -E main
-../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_SplitScreen.cs.hlsl                        -T cs -E main
-../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_TemporalStabilization.cs.hlsl              -T cs -E main
-../../extern/nvidia/NRD/Shaders/Source/SIGMA_SmoothTiles.cs.hlsl                               -T cs -E main
-../../extern/nvidia/NRD/Shaders/Source/SIGMA_Copy.cs.hlsl                                      -T cs -E main
-../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_Blur.cs.hlsl                               -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_ClassifyTiles.cs.hlsl -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_PostBlur.cs.hlsl -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_SplitScreen.cs.hlsl -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_TemporalStabilization.cs.hlsl -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_SmoothTiles.cs.hlsl -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Copy.cs.hlsl -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_Blur.cs.hlsl -T cs -E main

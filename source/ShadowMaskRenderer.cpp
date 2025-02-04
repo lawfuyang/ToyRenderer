@@ -21,6 +21,8 @@ extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 class ShadowMaskRenderer : public IRenderer
 {
 	nrd::Instance* m_NRDInstance = nullptr;
+	nvrhi::BufferHandle m_NRDConstantBuffer;
+    nvrhi::SamplerHandle m_Samplers[(uint32_t)nrd::Sampler::MAX_NUM];
 
 public:
 	ShadowMaskRenderer() : IRenderer("ShadowMaskRenderer") {}
@@ -36,6 +38,8 @@ public:
 
     void Initialize() override
     {
+		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
         const nrd::DenoiserDesc denoiserDescs[] = { 0, nrd::Denoiser::SIGMA_SHADOW };
 
         nrd::InstanceCreationDesc instanceCreationDesc{};
@@ -43,6 +47,30 @@ public:
 		instanceCreationDesc.denoisersNum = std::size(denoiserDescs);
 
 		NRD_CALL(nrd::CreateInstance(instanceCreationDesc, m_NRDInstance));
+
+		const nrd::InstanceDesc& instanceDesc = nrd::GetInstanceDesc(*m_NRDInstance);
+
+		const nvrhi::BufferDesc constantBufferDesc = nvrhi::utils::CreateVolatileConstantBufferDesc(instanceDesc.constantBufferMaxDataSize, "NrdConstantBuffer", 1);
+		m_NRDConstantBuffer = device->createBuffer(constantBufferDesc);
+
+		assert(instanceDesc.samplersNum == std::size(m_Samplers));
+		for (uint32_t i = 0; i < std::size(m_Samplers); ++i)
+		{
+			const nrd::Sampler& samplerMode = instanceDesc.samplers[i];
+
+			switch (samplerMode)
+			{
+			case nrd::Sampler::NEAREST_CLAMP:
+                m_Samplers[i] = g_CommonResources.PointClampSampler;
+				break;
+			case nrd::Sampler::LINEAR_CLAMP:
+                m_Samplers[i] = g_CommonResources.LinearClampSampler;
+				break;
+			default:
+				assert(!"Unknown NRD sampler mode");
+				break;
+			}
+		}
     }
 
 	bool Setup(RenderGraph& renderGraph) override
@@ -117,6 +145,11 @@ public:
 		computePassParams.m_ShouldAddBindlessResources = true;
 
         g_Graphic.AddComputePass(computePassParams);
+
+        nrd::SigmaSettings sigmaSettings{};
+        memcpy(sigmaSettings.lightDirection, &g_Scene->m_DirLightVec, sizeof(sigmaSettings.lightDirection));
+
+		nrd::SetDenoiserSettings(*m_NRDInstance, 0, &sigmaSettings);
 	}
 };
 

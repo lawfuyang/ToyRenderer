@@ -372,6 +372,11 @@ void Graphic::InitShaders()
     std::string shaderEntryLine;
     while (std::getline(stringStream, shaderEntryLine))
     {
+        if (shaderEntryLine.empty())
+        {
+            continue;
+        }
+
         PROFILE_SCOPED("Process Shader Line");
 
         // Tokenize for argparse to read
@@ -421,6 +426,14 @@ void Graphic::InitShaders()
         {
             PROFILE_SCOPED("Read Shader bin");
             ReadDataFromFile(binFullPath, shaderBlob);
+
+            // if the entry point is 'main', it won't be appended to the bin file name. Thanks ShaderMake. That's retarded.
+            if (shaderBlob.empty())
+            {
+                binFullPath = (std::filesystem::path{ GetExecutableDirectory() } / "shaders" / "").string();
+                binFullPath += std::filesystem::path{ shaderEntryLine }.stem().string() + ".bin";
+                ReadDataFromFile(binFullPath, shaderBlob);
+            }
         }
         assert(!shaderBlob.empty());
 
@@ -894,7 +907,7 @@ void Graphic::Initialize()
                     PROFILE_SCOPED(renderer->m_Name.c_str());
                     LOG_DEBUG("Init Renderer: %s", renderer->m_Name.c_str());
                     renderer->Initialize();
-                });
+                }).succeed(initCommonResources);
         }
 
         initCommonResources.succeed(initDescriptorTable);
