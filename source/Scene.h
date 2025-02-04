@@ -41,6 +41,7 @@ public:
     Matrix m_ClipToWorld;
 
     Matrix m_PrevWorldToView;
+    Matrix m_PrevViewToClip;
 
     Frustum m_Frustum;
 

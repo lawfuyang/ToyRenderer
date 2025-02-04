@@ -91,6 +91,7 @@ void View::Update()
 
     // update prev frame matrices
     m_PrevWorldToView = m_WorldToView;
+    m_PrevViewToClip = m_ViewToClip;
 
     m_ViewToWorld = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
     m_WorldToView = m_ViewToWorld.Invert();

@@ -115,6 +115,8 @@ public:
 
     void AddComputePass(const ComputePassParams& computePassParams);
 
+    Vector2 GetCurrentJitterOffset();
+
     nvrhi::DeviceHandle m_NVRHIDevice;
 
     std::shared_ptr<Scene> m_Scene;

@@ -1223,6 +1223,26 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     }
 }
 
+Vector2 Graphic::GetCurrentJitterOffset()
+{
+    auto VanDerCorput = [](size_t base, size_t index)
+        {
+            float ret = 0.0f;
+            float denominator = (float)base;
+            while (index > 0)
+            {
+                const size_t multiplier = index % base;
+                ret += (float)multiplier / denominator;
+                index /= base;
+                denominator *= base;
+            }
+            return ret;
+        };
+
+    const uint32_t index = (m_FrameCounter % 16) + 1;
+    return Vector2{ VanDerCorput(2, index), VanDerCorput(3, index) } - Vector2{ 0.5f, 0.5f };
+}
+
 #if NVRHI_WITH_AFTERMATH
 std::pair<const void*, size_t> Graphic::FindShaderFromHashForAftermath(uint64_t hash, std::function<uint64_t(std::pair<const void*, size_t>, nvrhi::GraphicsAPI)> hashGenerator)
 {

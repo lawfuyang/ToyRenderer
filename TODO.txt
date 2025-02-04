@@ -2,6 +2,7 @@
 	• half/quarter res trace (controllable)
 	• soft shadows (cone tracing)
 		• use https://github.com/NVIDIAGameWorks/RayTracingDenoiser
+			• improve with motion vector inputs
 		• improve with NRC https://github.com/NVIDIAGameWorks/NRC
 		• improve with https://github.com/NVIDIAGameWorks/SHARC
 		• improve with https://github.com/NVIDIAGameWorks/Opacity-MicroMap-SDK
