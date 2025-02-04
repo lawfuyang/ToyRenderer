@@ -16,10 +16,19 @@ ambientocclusion.hlsl -T cs -E CS_XeGTAO_MainPass -D DEBUG_OUTPUT_MODE={0,1,2,3}
 ambientocclusion.hlsl -T cs -E CS_XeGTAO_Denoise
 gpuculling.hlsl -T cs -E CS_GPUCulling -D LATE_CULL={0,1}
 gpuculling.hlsl -T cs -E CS_BuildLateCullIndirectArgs
-../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 minmaxdownsample.hlsl -T cs -E CS_Main
 deferredlighting.hlsl -T ps -E PS_Main
 deferredlighting.hlsl -T ps -E PS_Main_Debug
 shadowmask.hlsl -T cs -E CS_ShadowMask
 bloom.hlsl -T ps -E PS_Downsample
 bloom.hlsl -T ps -E PS_Upsample
+
+../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
+
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_ClassifyTiles.cs.hlsl                      -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_PostBlur.cs.hlsl                           -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_SplitScreen.cs.hlsl                        -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_TemporalStabilization.cs.hlsl              -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_SmoothTiles.cs.hlsl                               -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Copy.cs.hlsl                                      -T cs -E main
+../../extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_Blur.cs.hlsl                               -T cs -E main

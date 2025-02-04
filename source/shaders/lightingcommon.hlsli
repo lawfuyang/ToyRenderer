@@ -1,7 +1,7 @@
 #ifndef _LIGHTING_COMMON_H_
 #define _LIGHTING_COMMON_H_
 
-#include "common.hlsli"
+#include "toyrenderer_common.hlsli"
 #include "fastmath.hlsli"
 #include "packunpack.hlsli"
 

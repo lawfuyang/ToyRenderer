@@ -1,4 +1,4 @@
-#include "common.hlsli"
+#include "toyrenderer_common.hlsli"
 #include "culling.hlsli"
 
 #include "shared/MeshData.h"

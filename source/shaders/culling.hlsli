@@ -1,4 +1,4 @@
-#include "common.hlsli"
+#include "toyrenderer_common.hlsli"
 
 // Niagara's frustum culling
 bool FrustumCull(float3 sphereCenterViewSpace, float radius, float4 frustum)

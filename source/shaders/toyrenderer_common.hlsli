@@ -1,5 +1,5 @@
-#ifndef __COMMON_HLSL__
-#define __COMMON_HLSL__
+#ifndef __TOYRENDERER_COMMON_HLSL__
+#define __TOYRENDERER_COMMON_HLSL__
 
 #include "shared/CommonConsts.h"
 
@@ -122,4 +122,4 @@ float GetMaxScaleFromWorldMatrix(float4x4 worldMatrix)
     return sqrt(Max3(dx, dy, dz));
 }
 
-#endif // __COMMON_HLSL__
+#endif // __TOYRENDERER_COMMON_HLSL__

@@ -4,16 +4,30 @@ setlocal
 rem Change to the directory containing the batch file
 cd /d "%~dp0"
 
-@SET SHADER_MAKE_EXE="%cd%/bin/Release/ShaderMake.exe"
-@SET DXC_PATH="%cd%/extern/dxc/dxc.exe"
-@SET CONFIG_FILE="%cd%/source/shaders/shaderstocompile.txt"
-@SET OUT="%cd%/bin/shaders/"
-@SET INCLUDE_DIRS=--include="%cd%/" --include="%cd%/source/shaders/" --include="%cd%/extern/amd/FidelityFX/sdk/include/FidelityFX/gpu/"
-@SET RELAXED_INCLUDES=--relaxedInclude=MathUtilities.h --relaxedInclude=vaShared.hlsl --relaxedInclude=XeGTAO.h
-rem @SET COMPILER_OPTIONS="-Wconversion -Wdouble-promotion -Whlsl-legacy-literal"
-rem @SET COMPILER_OPTIONS="-HV 202x"
+SET SHADER_MAKE_EXE="%cd%/bin/Release/ShaderMake.exe"
+SET DXC_PATH="%cd%/extern/dxc/dxc.exe"
+SET CONFIG_FILE="%cd%/source/shaders/shaderstocompile.txt"
+SET OUT="%cd%/bin/shaders/"
 
-%SHADER_MAKE_EXE% --platform="DXIL" --config=%CONFIG_FILE% --out=%OUT% --binaryBlob --compiler=%DXC_PATH% --shaderModel="6_6" --WX --embedPDB --matrixRowMajor %INCLUDE_DIRS% --outputExt=".bin" --continue --colorize %RELAXED_INCLUDES% --flatten --compilerOptions=%COMPILER_OPTIONS% -D FFX_GPU -D FFX_HLSL
+SET RELAXED_INCLUDES=--relaxedInclude=MathUtilities.h
+SET RELAXED_INCLUDES=%RELAXED_INCLUDES% --relaxedInclude=vaShared.hlsl
+SET RELAXED_INCLUDES=%RELAXED_INCLUDES% --relaxedInclude=vaShared.hlsl --relaxedInclude=XeGTAO.h
+
+SET INCLUDE_DIRS=--include="%cd%/"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/source/shaders/"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/amd/FidelityFX/sdk/include/FidelityFX/gpu/"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/Shaders/Include"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/Shaders/Resources"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/External/MathLib"
+
+SET GLOBAL_DEFINES=-D FFX_GPU -D FFX_HLSL
+SET GLOBAL_DEFINES=%GLOBAL_DEFINES% -D NRD_NORMAL_ENCODING=2
+SET GLOBAL_DEFINES=%GLOBAL_DEFINES% -D NRD_ROUGHNESS_ENCODING=1
+
+rem SET COMPILER_OPTIONS="-Wconversion -Wdouble-promotion -Whlsl-legacy-literal"
+rem SET COMPILER_OPTIONS="-HV 202x"
+
+%SHADER_MAKE_EXE% --platform="DXIL" --config=%CONFIG_FILE% --out=%OUT% --binaryBlob --compiler=%DXC_PATH% --shaderModel="6_6" --WX --embedPDB --matrixRowMajor %INCLUDE_DIRS% --outputExt=".bin" --continue --colorize %RELAXED_INCLUDES% --flatten --compilerOptions=%COMPILER_OPTIONS% %GLOBAL_DEFINES%
 
 if not "%1" == "NO_PAUSE" (
 	pause

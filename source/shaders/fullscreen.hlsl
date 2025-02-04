@@ -1,4 +1,4 @@
-#include "common.hlsli"
+#include "toyrenderer_common.hlsli"
 
 struct VertexOut
 {
