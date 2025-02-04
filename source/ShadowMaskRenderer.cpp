@@ -20,10 +20,19 @@ extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 
 class ShadowMaskRenderer : public IRenderer
 {
+	nrd::Instance* m_NRDInstance = nullptr;
+
 public:
 	ShadowMaskRenderer() : IRenderer("ShadowMaskRenderer") {}
 
-    nrd::Instance* m_NRDInstance = nullptr;
+	~ShadowMaskRenderer()
+	{
+		if (m_NRDInstance)
+		{
+			nrd::DestroyInstance(*m_NRDInstance);
+			m_NRDInstance = nullptr;
+		}
+	}
 
     void Initialize() override
     {
