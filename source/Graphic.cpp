@@ -418,7 +418,16 @@ void Graphic::InitShaders()
         // reconstruct bin file name
         // NOTE: after tokenization the line string is the 1st token of the line, which is the file name
         std::string binFullPath = (std::filesystem::path{ GetExecutableDirectory() } / "shaders" / "").string();
-        binFullPath += std::filesystem::path{ shaderEntryLine }.stem().string() + "_" + entryPoint + ".bin";
+
+        // if the entry point is 'main', it won't be appended to the bin file name. Thanks ShaderMake. That's retarded.
+        if (entryPoint == "main")
+        {
+            binFullPath += std::filesystem::path{ shaderEntryLine }.stem().string() + ".bin";
+        }
+        else
+        {
+            binFullPath += std::filesystem::path{ shaderEntryLine }.stem().string() + "_" + entryPoint + ".bin";
+        }
 
         const std::string binFileName = std::filesystem::path{ binFullPath }.stem().string();
 
@@ -426,14 +435,6 @@ void Graphic::InitShaders()
         {
             PROFILE_SCOPED("Read Shader bin");
             ReadDataFromFile(binFullPath, shaderBlob);
-
-            // if the entry point is 'main', it won't be appended to the bin file name. Thanks ShaderMake. That's retarded.
-            if (shaderBlob.empty())
-            {
-                binFullPath = (std::filesystem::path{ GetExecutableDirectory() } / "shaders" / "").string();
-                binFullPath += std::filesystem::path{ shaderEntryLine }.stem().string() + ".bin";
-                ReadDataFromFile(binFullPath, shaderBlob);
-            }
         }
         assert(!shaderBlob.empty());
 
