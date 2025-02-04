@@ -101,6 +101,12 @@ static bool IsWindowsDeveloperModeEnaable()
     return (result == ERROR_SUCCESS) && (keyValue == 1);
 }
 
+std::string& Engine::GetDebugOutputStringForCurrentThread()
+{
+    thread_local std::string tl_DebugOutputString;
+    return tl_DebugOutputString;
+}
+
 void Engine::Initialize(int argc, char** argv)
 {
     SCOPED_TIMER_FUNCTION();

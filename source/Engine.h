@@ -23,6 +23,8 @@ public:
     template <typename Lambda> void AddCommand(Lambda&& lambda) { AUTO_LOCK(m_CommandsLock); m_PendingCommands.push_back(lambda); }
     template <typename Lambda> void AddCommand(Lambda& lambda) { static_assert(sizeof(Lambda) == 0); /* enforce use of rvalue and therefore move to avoid an extra copy of the Lambda */ }
 
+    static std::string& GetDebugOutputStringForCurrentThread();
+
     bool m_bWindowsDeveloperMode = false;
 
     float m_CPUFrameTimeMs = 0.0f;
@@ -60,7 +62,7 @@ inline thread_local HRESULT tl_HResult;
 
 #define PROFILE_FUNCTION() PROFILE_SCOPED(__FUNCTION__)
 
-#define LOG_DEBUG(FORMAT, ...) { thread_local std::string tl_Buffer; tl_Buffer = StringFormat(FORMAT, __VA_ARGS__); tl_Buffer += '\n'; OutputDebugStringA(tl_Buffer.c_str()); }
+#define LOG_DEBUG(FORMAT, ...) { std::string& s = Engine::GetDebugOutputStringForCurrentThread(); s = StringFormat(FORMAT, __VA_ARGS__); s += '\n'; OutputDebugStringA(s.c_str()); }
 
 template <typename T>
 class CommandLineOption
