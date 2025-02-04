@@ -1,6 +1,9 @@
 #include "Graphic.h"
 
+#include "extern/nvidia/NRD/Include/NRD.h"
+
 #include "CommonResources.h"
+#include "Engine.h"
 #include "FFXHelpers.h"
 #include "GraphicPropertyGrid.h"
 #include "Scene.h"
@@ -8,6 +11,8 @@
 
 #include "shaders/shared/ShadowMaskStructs.h"
 #include "shaders/shared/MinMaxDownsampleStructs.h"
+
+#define NRD_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { LOG_DEBUG("NRD call failed: %s", EnumUtils::ToString(result)); assert(0); }
 
 RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
@@ -17,6 +22,19 @@ class ShadowMaskRenderer : public IRenderer
 {
 public:
 	ShadowMaskRenderer() : IRenderer("ShadowMaskRenderer") {}
+
+    nrd::Instance* m_NRDInstance = nullptr;
+
+    void Initialize() override
+    {
+        const nrd::DenoiserDesc denoiserDescs[] = { 0, nrd::Denoiser::SIGMA_SHADOW };
+
+        nrd::InstanceCreationDesc instanceCreationDesc{};
+		instanceCreationDesc.denoisers = denoiserDescs;
+		instanceCreationDesc.denoisersNum = std::size(denoiserDescs);
+
+		NRD_CALL(nrd::CreateInstance(instanceCreationDesc, m_NRDInstance));
+    }
 
 	bool Setup(RenderGraph& renderGraph) override
     {

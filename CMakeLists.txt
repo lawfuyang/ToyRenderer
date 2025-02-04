@@ -67,6 +67,10 @@ set(NVRHI_WITH_RTXMU ON)
 set(AFTERMATH_SEARCH_PATHS "${EXTERN_DIR}/nvidia/aftermath")
 set(TF_BUILD_TESTS OFF)
 set(TF_BUILD_EXAMPLES OFF)
+set(NRD_DISABLE_SHADER_COMPILATION ON)
+set(NRD_EMBEDS_SPIRV_SHADERS OFF)
+set(NRD_EMBEDS_DXIL_SHADERS OFF)
+set(NRD_EMBEDS_DXBC_SHADERS OFF)
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/basis_universal)
@@ -75,6 +79,7 @@ add_subdirectory(extern/d3d12ma)
 add_subdirectory(extern/microprofile)
 add_subdirectory(extern/nvrhi)
 add_subdirectory(extern/taskflow)
+add_subdirectory(extern/nvidia/NRD)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
@@ -94,6 +99,7 @@ set(TOYRENDERER_LIBRARIES
 	nvrhi
 	nvrhi_d3d12
 	Taskflow
+	NRD
 	"${BIN_DIR}/SDL3.lib"
 )
 

@@ -4,6 +4,7 @@
 		• use https://github.com/NVIDIAGameWorks/RayTracingDenoiser
 		• improve with NRC https://github.com/NVIDIAGameWorks/NRC
 		• improve with https://github.com/NVIDIAGameWorks/SHARC
+		• improve with https://github.com/NVIDIAGameWorks/Opacity-MicroMap-SDK
 	• Hybrid: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-shadows.md
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
