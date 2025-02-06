@@ -13,8 +13,10 @@
 #include "shaders/shared/MinMaxDownsampleStructs.h"
 
 #define NRD_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { LOG_DEBUG("NRD call failed: %s", EnumUtils::ToString(result)); assert(0); }
+#define NRD_ID(x) nrd::Identifier(nrd::Denoiser::x)
 
 RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
+RenderGraph::ResourceHandle g_LinearViewDepthRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 
@@ -74,9 +76,10 @@ class ShadowMaskRenderer : public IRenderer
 {
 	nrd::Instance* m_NRDInstance = nullptr;
 	nvrhi::BufferHandle m_NRDConstantBuffer;
-    nvrhi::SamplerHandle m_Samplers[(uint32_t)nrd::Sampler::MAX_NUM];
+    nvrhi::SamplerHandle m_NRDSamplers[(uint32_t)nrd::Sampler::MAX_NUM];
 	std::vector<nvrhi::TextureDesc> m_NRDTemporaryTextureDescs;
 	std::vector<nvrhi::TextureHandle> m_NRDPermanentTextures;
+    std::vector<RenderGraph::ResourceHandle> m_NRDTemporaryTextureHandles;
 
 public:
 	ShadowMaskRenderer() : IRenderer("ShadowMaskRenderer") {}
@@ -94,8 +97,7 @@ public:
     {
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-        // just re-use the denoiser enum int value for the denoiser identifier
-        const nrd::DenoiserDesc denoiserDescs[] = { (uint32_t)nrd::Denoiser::SIGMA_SHADOW, nrd::Denoiser::SIGMA_SHADOW };
+        const nrd::DenoiserDesc denoiserDescs[] = { NRD_ID(SIGMA_SHADOW), nrd::Denoiser::SIGMA_SHADOW };
 
         nrd::InstanceCreationDesc instanceCreationDesc{};
 		instanceCreationDesc.denoisers = denoiserDescs;
@@ -108,24 +110,26 @@ public:
 		const nvrhi::BufferDesc constantBufferDesc = nvrhi::utils::CreateVolatileConstantBufferDesc(instanceDesc.constantBufferMaxDataSize, "NrdConstantBuffer", 1);
 		m_NRDConstantBuffer = device->createBuffer(constantBufferDesc);
 
-		assert(instanceDesc.samplersNum == std::size(m_Samplers));
-		for (uint32_t i = 0; i < std::size(m_Samplers); ++i)
+		assert(instanceDesc.samplersNum == std::size(m_NRDSamplers));
+		for (uint32_t i = 0; i < std::size(m_NRDSamplers); ++i)
 		{
 			const nrd::Sampler& samplerMode = instanceDesc.samplers[i];
 
 			switch (samplerMode)
 			{
 			case nrd::Sampler::NEAREST_CLAMP:
-                m_Samplers[i] = g_CommonResources.PointClampSampler;
+				m_NRDSamplers[i] = g_CommonResources.PointClampSampler;
 				break;
 			case nrd::Sampler::LINEAR_CLAMP:
-                m_Samplers[i] = g_CommonResources.LinearClampSampler;
+				m_NRDSamplers[i] = g_CommonResources.LinearClampSampler;
 				break;
 			default:
 				assert(!"Unknown NRD sampler mode");
 				break;
 			}
 		}
+
+        m_NRDTemporaryTextureHandles.resize(instanceDesc.transientPoolSize);
 
 		const uint32_t poolSize = instanceDesc.permanentPoolSize + instanceDesc.transientPoolSize;
 
@@ -167,16 +171,32 @@ public:
 			return false;
 		}
 
-		nvrhi::TextureDesc desc;
-		desc.width = g_Graphic.m_RenderResolution.x;
-		desc.height = g_Graphic.m_RenderResolution.y;
-		desc.format = nvrhi::Format::R8_UNORM;
-		desc.debugName = "Shadow Mask Texture";
-		desc.isRenderTarget = true;
-		desc.isUAV = true;
-		desc.setClearValue(nvrhi::Color{ 1.0f });
-		desc.initialState = nvrhi::ResourceStates::ShaderResource;
-		renderGraph.CreateTransientResource(g_ShadowMaskRDGTextureHandle, desc);
+		{
+			nvrhi::TextureDesc desc;
+			desc.width = g_Graphic.m_RenderResolution.x;
+			desc.height = g_Graphic.m_RenderResolution.y;
+			desc.format = nvrhi::Format::R16_FLOAT;
+			desc.debugName = "Shadow Mask Texture";
+			desc.isUAV = true;
+			desc.initialState = nvrhi::ResourceStates::ShaderResource;
+			renderGraph.CreateTransientResource(g_ShadowMaskRDGTextureHandle, desc);
+		}
+
+		{
+			nvrhi::TextureDesc desc;
+			desc.width = g_Graphic.m_RenderResolution.x;
+			desc.height = g_Graphic.m_RenderResolution.y;
+            desc.format = nvrhi::Format::R16_FLOAT;
+            desc.debugName = "Linear View Depth";
+			desc.isUAV = true;
+			desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            renderGraph.CreateTransientResource(g_LinearViewDepthRDGTextureHandle, desc);
+		}
+
+		for (uint32_t i = 0; i < m_NRDTemporaryTextureDescs.size(); ++i)
+		{
+			renderGraph.CreateTransientResource(m_NRDTemporaryTextureHandles[i], m_NRDTemporaryTextureDescs[i]);
+		}
 
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
         renderGraph.AddReadDependency(g_GBufferARDGTextureHandle);
@@ -194,17 +214,19 @@ public:
 		const auto& controllables = g_GraphicPropertyGrid.m_ShadowControllables;
 
 		nvrhi::TextureHandle shadowMaskTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
+        nvrhi::TextureHandle linearViewDepthTexture = renderGraph.GetTexture(g_LinearViewDepthRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
 
-		const float sunSize = tanf(0.5f * ConvertToRadians(controllables.m_SunSolidAngle));
+		const float tanSunAngularRadius = tanf(ConvertToRadians(controllables.m_SunAngularDiameter * 0.5f));
 
 		ShadowMaskConsts passConstants;
 		passConstants.m_ClipToWorld = view.m_ClipToWorld;
 		passConstants.m_DirectionalLightDirection = g_Scene->m_DirLightVec;
 		passConstants.m_OutputResolution = Vector2U{ shadowMaskTexture->getDesc().width , shadowMaskTexture->getDesc().height };
 		passConstants.m_NoisePhase = (g_Graphic.m_FrameCounter & 0xff) * kGoldenRatio;
-		passConstants.m_SunSize = controllables.m_bEnableSoftShadows ? sunSize : 0.0f;
+		passConstants.m_TanSunAngularRadius = controllables.m_bEnableSoftShadows ? tanSunAngularRadius : 0.0f;
+        passConstants.m_CameraPosition = g_Scene->m_View.m_Eye;
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::BindingSetDesc bindingSetDesc;
@@ -220,6 +242,7 @@ public:
 			nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMeshDataBuffer),
 			nvrhi::BindingSetItem::Texture_SRV(8, g_CommonResources.BlueNoise.m_NVRHITextureHandle),
 			nvrhi::BindingSetItem::Texture_UAV(0, shadowMaskTexture),
+            nvrhi::BindingSetItem::Texture_UAV(1, linearViewDepthTexture),
 			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
 			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
 			nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
@@ -276,10 +299,20 @@ public:
 
 		NRD_CALL(nrd::SetCommonSettings(*m_NRDInstance, commonSettings));
 
-        const nrd::Identifier denoiserIdentifiers[] = { (nrd::Identifier)nrd::Denoiser::SIGMA_SHADOW };
+        const nrd::Identifier denoiserIdentifiers[] = { NRD_ID(SIGMA_SHADOW) };
 		const nrd::DispatchDesc* dispatchDescs = nullptr;
 		uint32_t dispatchDescNum = 0;
 		nrd::GetComputeDispatches(*m_NRDInstance, denoiserIdentifiers, std::size(denoiserIdentifiers), dispatchDescs, dispatchDescNum);
+
+		std::vector<nvrhi::TextureHandle> transientTextures;
+        transientTextures.resize(m_NRDTemporaryTextureHandles.size());
+
+        for (uint32_t i = 0; i < m_NRDTemporaryTextureHandles.size(); ++i)
+        {
+            transientTextures[i] = renderGraph.GetTexture(m_NRDTemporaryTextureHandles[i]);
+        }
+
+		nvrhi::TextureHandle linearViewDepthTexture = renderGraph.GetTexture(g_LinearViewDepthRDGTextureHandle);
 
 		const nrd::InstanceDesc& instanceDesc = nrd::GetInstanceDesc(*m_NRDInstance);
 
@@ -288,13 +321,97 @@ public:
 			const nrd::DispatchDesc& dispatchDesc = dispatchDescs[dispatchIndex];
 
 			PROFILE_GPU_SCOPED(commandList, dispatchDesc.name ? dispatchDesc.name : "Dispatch");
+
+			const nrd::PipelineDesc& nrdPipelineDesc = instanceDesc.pipelines[dispatchDesc.pipelineIndex];
+
+			if (dispatchDesc.constantBufferDataSize)
+			{
+				commandList->writeBuffer(m_NRDConstantBuffer, dispatchDesc.constantBufferData, dispatchDesc.constantBufferDataSize);
+			}
+
+			nvrhi::BindingSetDesc bindingSetDesc;
+			bindingSetDesc.addItem(nvrhi::BindingSetItem::ConstantBuffer(instanceDesc.constantBufferRegisterIndex, m_NRDConstantBuffer));
+
+            assert(instanceDesc.samplersNum <= std::size(m_NRDSamplers));
+			for (uint32_t samplerIndex = 0; samplerIndex < instanceDesc.samplersNum; samplerIndex++)
+			{
+				bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Sampler(instanceDesc.samplersBaseRegisterIndex + samplerIndex, m_NRDSamplers[samplerIndex]));
+			}
+
+			uint32_t resourceIndex = 0;
+			for (uint32_t resourceRangeIndex = 0; resourceRangeIndex < nrdPipelineDesc.resourceRangesNum; resourceRangeIndex++)
+			{
+				const nrd::ResourceRangeDesc& nrdDescriptorRange = nrdPipelineDesc.resourceRanges[resourceRangeIndex];
+
+				for (uint32_t descriptorOffset = 0; descriptorOffset < nrdDescriptorRange.descriptorsNum; descriptorOffset++)
+				{
+					assert(resourceIndex < dispatchDesc.resourcesNum);
+					const nrd::ResourceDesc& resource = dispatchDesc.resources[resourceIndex];
+
+					nvrhi::TextureHandle texture;
+					switch (resource.type)
+					{
+					case nrd::ResourceType::IN_MV:
+						texture = g_CommonResources.BlackTexture.m_NVRHITextureHandle; // TODO: Motion Vectors input
+						break;
+					case nrd::ResourceType::IN_VIEWZ:
+						texture = linearViewDepthTexture;
+						break;
+					case nrd::ResourceType::IN_PENUMBRA:
+						//texture = 
+						break;
+					case nrd::ResourceType::IN_NORMAL_ROUGHNESS:
+						//texture=
+						break;
+					case nrd::ResourceType::OUT_SHADOW_TRANSLUCENCY:
+						//texture =
+						break;
+					case nrd::ResourceType::TRANSIENT_POOL:
+						texture = transientTextures[resource.indexInPool];
+						break;
+					case nrd::ResourceType::PERMANENT_POOL:
+						texture = m_NRDPermanentTextures[resource.indexInPool];
+						break;
+					default:
+						assert(!"Unhandled NRD resource type");
+						break;
+					}
+
+					assert(texture);
+
+					nvrhi::TextureSubresourceSet subresources = nvrhi::AllSubresources;
+					subresources.baseMipLevel = 0;
+					subresources.numMipLevels = 1;
+
+					nvrhi::BindingSetItem setItem = nvrhi::BindingSetItem::None();
+					setItem.resourceHandle = texture;
+					setItem.slot = nrdDescriptorRange.baseRegisterIndex + descriptorOffset;
+					setItem.subresources = subresources;
+					setItem.type = (nrdDescriptorRange.descriptorType == nrd::DescriptorType::TEXTURE)
+						? nvrhi::ResourceType::Texture_SRV
+						: nvrhi::ResourceType::Texture_UAV;
+
+					bindingSetDesc.bindings.push_back(setItem);
+
+					resourceIndex++;
+				}
+			}
+			assert(resourceIndex == dispatchDesc.resourcesNum);
+
+            Graphic::ComputePassParams computePassParams;
+            computePassParams.m_CommandList = commandList;
+            computePassParams.m_ShaderName = nrdPipelineDesc.shaderFileName;
+            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_DispatchGroupSize = { dispatchDesc.gridWidth, dispatchDesc.gridHeight, 1 };
+
+            g_Graphic.AddComputePass(computePassParams);
 		}
 	}
 
 	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
 	{
         TraceShadows(commandList, renderGraph);
-		DenoiseShadows(commandList, renderGraph);
+		//DenoiseShadows(commandList, renderGraph);
 	}
 };
 

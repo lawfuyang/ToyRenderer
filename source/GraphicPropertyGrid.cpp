@@ -113,7 +113,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
 
         ImGui::Checkbox("Enabled", &params.m_bEnabled);
         ImGui::Checkbox("Enable Soft Shadows", &params.m_bEnableSoftShadows);
-        ImGui::SliderFloat("Sun Solid Angle", &params.m_SunSolidAngle, 1.0f, 10.0f);
+        ImGui::SliderFloat("Sun Angular Diameter", &params.m_SunAngularDiameter, 0.0f, 3.0f);
         ImGui::SliderFloat("Denoise Split Screen Slider", &params.m_DenoiseSplitScreenSlider, 0.0f, 1.0f);
 
         ImGui::TreePop();

@@ -35,6 +35,7 @@
 	• support batching of meshes via binning
 • Transparent support
 	• OIT: https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
+	• improve with translucent Shadows
 • separate top mip streaming
     • integrate D3DX12Residency into nvrhi
     • utilize 'SDL_AsyncIOFromFile' for async mip reading
@@ -76,5 +77,5 @@
 • Hybrid Stochastic Reflections
 	• https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-reflections.md
 • Pathtracing
-	• https://github.com/NVIDIAGameWorks/RTX-Path-Tracing
+	• https://github.com/NVIDIA-RTX/RTXPT
 	

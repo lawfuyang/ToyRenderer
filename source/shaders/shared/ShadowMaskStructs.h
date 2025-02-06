@@ -5,6 +5,7 @@ struct ShadowMaskConsts
     Matrix m_ClipToWorld;
     Vector3 m_DirectionalLightDirection;
     float m_NoisePhase;
+    Vector3 m_CameraPosition;
+    float m_TanSunAngularRadius;
     Vector2U m_OutputResolution;
-    float m_SunSize;
 };

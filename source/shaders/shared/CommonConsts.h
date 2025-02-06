@@ -5,6 +5,7 @@
 
 static const uint32_t kNumThreadsPerWave = 32;
 static const uint32_t kMaxThreadGroupsPerDimension = 65535;
+static const float kFP16Max = 65504.0f;
 
 static const uint32_t MaterialFlag_UseDiffuseTexture           = (1 << 0);
 static const uint32_t MaterialFlag_UseNormalTexture            = (1 << 1);

@@ -1,3 +1,6 @@
+#include "extern/nvidia/NRD/External/MathLib/ml.hlsli"
+#include "extern/nvidia/NRD/Shaders/Include/NRD.hlsli"
+
 #include "toyrenderer_common.hlsli"
 #include "lightingcommon.hlsli"
 
@@ -19,6 +22,7 @@ StructuredBuffer<MeshData> g_MeshDataBuffer : register(t7);
 Texture2D g_BlueNoise : register(t8);
 Texture2D g_Textures[] : register(t0, space1);
 RWTexture2D<float> g_ShadowMaskOutput : register(u0);
+RWTexture2D<float> g_LinearViewDepthOutput : register(u1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 
 float2x3 CreateTangentVectors(float3 normal)
@@ -138,7 +142,7 @@ void CS_ShadowMask(
     float3 rayOriginOffset = gbufferParams.m_Normal * 0.01f;
     
     const float2 noise = g_BlueNoise[dispatchThreadID.xy % 128].rg + g_ShadowMaskConsts.m_NoisePhase;
-    float3 rayDirection = normalize(MapToCone(fmod(noise, 1), g_ShadowMaskConsts.m_DirectionalLightDirection, g_ShadowMaskConsts.m_SunSize));
+    float3 rayDirection = normalize(MapToCone(fmod(noise, 1), g_ShadowMaskConsts.m_DirectionalLightDirection, g_ShadowMaskConsts.m_TanSunAngularRadius));
     
     RayDesc rayDesc;
     rayDesc.Origin = worldPosition + rayOriginOffset;
@@ -164,4 +168,10 @@ void CS_ShadowMask(
 
     bool bPixelOccluded = rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
     g_ShadowMaskOutput[dispatchThreadID.xy] = bPixelOccluded ? 0.0f : 1.0f;
+    
+    // TODO: NRD SIGMA denoiser
+    //g_ShadowMaskOutput[dispatchThreadID.xy] = SIGMA_FrontEnd_PackPenumbra(bPixelOccluded ? rayQuery.CommittedRayT() : kFP16Max, g_ShadowMaskConsts.m_TanSunAngularRadius);
+    
+    g_LinearViewDepthOutput[dispatchThreadID.xy] = length(worldPosition - g_ShadowMaskConsts.m_CameraPosition);
 }
+;
