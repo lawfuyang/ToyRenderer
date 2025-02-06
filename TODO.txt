@@ -5,7 +5,7 @@
 			• improve with motion vector inputs
 		• improve with NRC https://github.com/NVIDIA-RTX/NRC
 		• improve with https://github.com/NVIDIA-RTX/SHARC
-		• improve with https://github.com/NVIDIAGameWorks/Opacity-MicroMap-SDK
+		• improve with https://github.com/NVIDIA-RTX/OMM
 	• Hybrid: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-shadows.md
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord

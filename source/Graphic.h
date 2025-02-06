@@ -243,22 +243,6 @@ struct ScopedCommandList
     const bool m_AutoQueue;
 };
 
-struct ScopedCommandListMarker
-{
-    ScopedCommandListMarker(nvrhi::CommandListHandle cmdList, std::string_view name)
-        : m_CommandList(cmdList)
-    {
-        m_CommandList->beginMarker(name.data());
-    }
-
-    ~ScopedCommandListMarker()
-    {
-        m_CommandList->endMarker();
-    }
-
-    nvrhi::CommandListHandle m_CommandList;
-};
-
 // Helpers for dispatch compute shader threads
 namespace ComputeShaderUtils
 {
@@ -275,7 +259,7 @@ constexpr uint32_t ComputeNbMips(uint32_t width, uint32_t height)
 }
 
 #define PROFILE_GPU_SCOPED(cmdList, NAME) \
-    const ScopedCommandListMarker GENERATE_UNIQUE_VARIABLE(ScopedCommandListMarker) { cmdList, NAME }; \
+    nvrhi::utils::ScopedMarker GENERATE_UNIQUE_VARIABLE(nvrhi_utils_ScopedMarker){ cmdList, NAME }; \
     MicroProfileToken MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__) = MicroProfileGetToken("GPU", NAME, (uint32_t)std::hash<std::string_view>{}(NAME), MicroProfileTokenTypeGpu, 0); \
     MicroProfileScopeGpuHandler GENERATE_UNIQUE_VARIABLE(MicroProfileScopeGpuHandler){ MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__), g_Graphic.m_GPUThreadLogs.at(std::this_thread::get_id()) };
 
