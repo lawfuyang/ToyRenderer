@@ -10,6 +10,7 @@
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
 • convert library downloading to use 'FetchContent_Declare' in CMake
+• Reload only dirty PSOs
 • Meshlet drawing pipeline
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/MeshletInstancing (?)
 	• triangle culling (?)
