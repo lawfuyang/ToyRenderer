@@ -1,8 +1,7 @@
 • RT Shadows
 	• half/quarter res trace (controllable)
 	• soft shadows (cone tracing)
-		• use https://github.com/NVIDIA-RTX/NRD
-			• improve with motion vector inputs
+		• improve with motion vector inputs
 		• improve with NRC https://github.com/NVIDIA-RTX/NRC
 		• improve with https://github.com/NVIDIA-RTX/SHARC
 		• improve with https://github.com/NVIDIA-RTX/OMM

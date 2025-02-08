@@ -8,4 +8,10 @@ struct ShadowMaskConsts
     Vector3 m_CameraPosition;
     float m_TanSunAngularRadius;
     Vector2U m_OutputResolution;
+    uint32_t m_bDoDenoising;
+};
+
+struct PackNormalAndRoughnessConsts
+{
+    Vector2U m_OutputResolution;
 };

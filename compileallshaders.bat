@@ -18,7 +18,7 @@ SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/source/shaders/"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/amd/FidelityFX/sdk/include/FidelityFX/gpu/"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/Shaders/Include"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/Shaders/Resources"
-SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/External/MathLib"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/projects/ToyRenderer/_deps/mathlib-src"
 
 SET GLOBAL_DEFINES=-D FFX_GPU -D FFX_HLSL
 SET GLOBAL_DEFINES=%GLOBAL_DEFINES% -D NRD_NORMAL_ENCODING=2

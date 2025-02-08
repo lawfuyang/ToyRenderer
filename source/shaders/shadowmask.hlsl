@@ -1,4 +1,3 @@
-#include "extern/nvidia/NRD/External/MathLib/ml.hlsli"
 #include "extern/nvidia/NRD/Shaders/Include/NRD.hlsli"
 
 #include "toyrenderer_common.hlsli"
@@ -21,7 +20,7 @@ StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t6);
 StructuredBuffer<MeshData> g_MeshDataBuffer : register(t7);
 Texture2D g_BlueNoise : register(t8);
 Texture2D g_Textures[] : register(t0, space1);
-RWTexture2D<float> g_ShadowMaskOutput : register(u0);
+RWTexture2D<float> g_ShadowDataOutput : register(u0);
 RWTexture2D<float> g_LinearViewDepthOutput : register(u1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 
@@ -167,11 +166,36 @@ void CS_ShadowMask(
     }
 
     bool bPixelOccluded = rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
-    g_ShadowMaskOutput[dispatchThreadID.xy] = bPixelOccluded ? 0.0f : 1.0f;
-    
-    // TODO: NRD SIGMA denoiser
-    //g_ShadowMaskOutput[dispatchThreadID.xy] = SIGMA_FrontEnd_PackPenumbra(bPixelOccluded ? rayQuery.CommittedRayT() : kFP16Max, g_ShadowMaskConsts.m_TanSunAngularRadius);
+    if (g_ShadowMaskConsts.m_bDoDenoising)
+    {
+        g_ShadowDataOutput[dispatchThreadID.xy] = SIGMA_FrontEnd_PackPenumbra(bPixelOccluded ? rayQuery.CommittedRayT() : kFP16Max, g_ShadowMaskConsts.m_TanSunAngularRadius);
+    }
+    else
+    {
+        g_ShadowDataOutput[dispatchThreadID.xy] = bPixelOccluded ? 0.0f : 1.0f;
+    }
     
     g_LinearViewDepthOutput[dispatchThreadID.xy] = length(worldPosition - g_ShadowMaskConsts.m_CameraPosition);
 }
-;
+
+cbuffer g_PackNormalAndRoughnessPassConstantsBuffer : register(b0) { PackNormalAndRoughnessConsts g_PackNormalAndRoughnessConsts; }
+RWTexture2D<float4> g_NormalRoughnessOutput : register(u0);
+
+[numthreads(8, 8, 1)]
+void CS_PackNormalAndRoughness(
+    uint3 dispatchThreadID : SV_DispatchThreadID,
+    uint3 groupThreadID : SV_GroupThreadID,
+    uint3 groupId : SV_GroupID,
+    uint groupIndex : SV_GroupIndex)
+{
+    if (any(dispatchThreadID.xy >= g_PackNormalAndRoughnessConsts.m_OutputResolution))
+    {
+        return;
+    }
+    
+    GBufferParams gbufferParams;
+    UnpackGBuffer(g_GBufferA[dispatchThreadID.xy], gbufferParams);
+    
+    float4 packed = NRD_FrontEnd_PackNormalAndRoughness(gbufferParams.m_Normal, gbufferParams.m_Roughness, 0);
+    g_NormalRoughnessOutput[dispatchThreadID.xy] = packed;
+}
