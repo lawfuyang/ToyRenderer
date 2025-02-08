@@ -39,7 +39,7 @@ float3 PBRNeutralToneMapping(float3 color)
     color *= newPeak / peak;
 
     float g = 1. - 1. / (desaturation * (peak - newPeak) + 1.);
-    return mix(color, newPeak * float3(1, 1, 1), g);
+    return lerp(color, newPeak * float3(1, 1, 1), g);
 }
 
 void PS_PostProcess(
