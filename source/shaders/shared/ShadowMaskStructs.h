@@ -1,3 +1,6 @@
+#ifndef _SHADOW_MASK_STRUCTS_
+#define _SHADOW_MASK_STRUCTS_
+
 #include "ShaderInterop.h"
 
 struct ShadowMaskConsts
@@ -15,3 +18,5 @@ struct PackNormalAndRoughnessConsts
 {
     Vector2U m_OutputResolution;
 };
+
+#endif // #define _SHADOW_MASK_STRUCTS_
