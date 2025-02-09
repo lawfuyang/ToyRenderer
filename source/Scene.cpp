@@ -17,6 +17,7 @@
 
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
+extern RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 
 class ClearBuffersRenderer : public IRenderer
@@ -27,6 +28,7 @@ public:
     bool Setup(RenderGraph& renderGraph) override
     {
         renderGraph.AddWriteDependency(g_GBufferARDGTextureHandle);
+        renderGraph.AddWriteDependency(g_GBufferMotionRDGTextureHandle);
         renderGraph.AddWriteDependency(g_LightingOutputRDGTextureHandle);
         renderGraph.AddWriteDependency(g_DepthStencilBufferRDGTextureHandle);
 
@@ -44,7 +46,9 @@ public:
         {
             PROFILE_GPU_SCOPED(commandList, "Clear Back Buffer");
 
-            commandList->clearTextureFloat(g_Graphic.GetCurrentBackBuffer(), nvrhi::AllSubresources, nvrhi::Color{ 0.4f, 0.4f, 0.4f, 1.0f });
+            nvrhi::TextureHandle backBuffer = g_Graphic.GetCurrentBackBuffer();
+
+            commandList->clearTextureFloat(backBuffer, nvrhi::AllSubresources, backBuffer->getDesc().clearValue);
         }
 
         static bool s_ClearGBuffersEveryFrame = true;
@@ -53,8 +57,10 @@ public:
             PROFILE_GPU_SCOPED(commandList, "Clear GBuffers");
 
             nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
+            nvrhi::TextureHandle GBufferMotionTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
 
             commandList->clearTextureUInt(GBufferATexture, nvrhi::AllSubresources, 0);
+            commandList->clearTextureFloat(GBufferMotionTexture, nvrhi::AllSubresources, GBufferMotionTexture->getDesc().clearValue);
         }
 
         if (s_ClearLightingOutputEveryFrame)
@@ -63,7 +69,7 @@ public:
 
             nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 
-            commandList->clearTextureFloat(lightingOutputTexture, nvrhi::AllSubresources, nvrhi::Color{ 0.0f });
+            commandList->clearTextureFloat(lightingOutputTexture, nvrhi::AllSubresources, lightingOutputTexture->getDesc().clearValue);
         }
 
         // clear depth buffer
@@ -92,6 +98,7 @@ void View::Update()
     // update prev frame matrices
     m_PrevWorldToView = m_WorldToView;
     m_PrevViewToClip = m_ViewToClip;
+    m_PrevWorldToClip = m_WorldToClip;
 
     m_ViewToWorld = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
     m_WorldToView = m_ViewToWorld.Invert();
@@ -294,6 +301,7 @@ void Scene::UpdateInstanceConstsBuffer()
         // instance consts
         BasePassInstanceConstants instanceConsts{};
         instanceConsts.m_WorldMatrix = worldMatrix;
+        instanceConsts.m_PrevWorldMatrix = worldMatrix; // TODO
         instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
         instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
         instanceConsts.m_BoundingSphere = Vector4{ instanceBS.Center.x, instanceBS.Center.y, instanceBS.Center.z, instanceBS.Radius };

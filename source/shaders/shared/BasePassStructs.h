@@ -6,6 +6,7 @@
 struct BasePassConstants
 {
     Matrix m_WorldToClip;
+    Matrix m_PrevWorldToClip;
 	Matrix m_WorldToView;
 	Vector4 m_Frustum;
 	Vector2U m_HZBDimensions;
@@ -14,11 +15,14 @@ struct BasePassConstants
 	float m_NearPlane;
 	uint32_t m_CullingFlags;
 	uint32_t m_DebugMode;
+	uint32_t PAD0;
+	Vector2U m_OutputResolution;
 };
 
 struct BasePassInstanceConstants
 {
 	Matrix m_WorldMatrix;
+	Matrix m_PrevWorldMatrix;
 	Vector4 m_BoundingSphere;
 	uint32_t m_MeshDataIdx;
 	uint32_t m_MaterialDataIdx;

@@ -13,9 +13,10 @@ SamplerState g_PointClampSampler : register(s0);
 
 cbuffer g_DeferredLightingPassConstantsBuffer : register(b0) { DeferredLightingConsts g_DeferredLightingConsts; }
 Texture2D<uint4> g_GBufferA : register(t0);
-Texture2D g_DepthBuffer : register(t1);
-Texture2D<uint> g_SSAOTexture : register(t2);
-Texture2D g_ShadowMaskTexture : register(t3);
+Texture2D g_GBufferMotion : register(t1);
+Texture2D g_DepthBuffer : register(t2);
+Texture2D<uint> g_SSAOTexture : register(t3);
+Texture2D g_ShadowMaskTexture : register(t4);
 StructuredBuffer<uint2> g_TileOffsets : register(t99);
 RWTexture2D<float3> g_LightingOutput : register(u0);
 
@@ -59,12 +60,12 @@ void PS_Main_Debug(
     out float4 outColor : SV_Target)
 {
     GBufferParams gbufferParams;
-    UnpackGBuffer(g_GBufferA[inPosition.xy], gbufferParams);
+    UnpackGBuffer(g_GBufferA[inPosition.xy], g_GBufferMotion[inPosition.xy], gbufferParams);
     
     float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, inUV, 0).r;
     shadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
     
-    float3 rgb = 0.0f;
+    float3 rgb = float3(0, 0, 0);
     
     if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_LightingOnly)
     {
@@ -126,6 +127,10 @@ void PS_Main_Debug(
             };
         
         rgb = kLODColors[gbufferParams.m_DebugValue * 255];
+    }
+    else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_MotionVectors)
+    {
+        rgb.xy = gbufferParams.m_Motion / g_DeferredLightingConsts.m_LightingOutputResolution;
     }
     
     outColor = float4(rgb, 1.0f);

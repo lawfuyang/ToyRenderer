@@ -36,12 +36,13 @@ SamplerComparisonState g_LinearComparisonLessSampler : register(s7);
 struct VertexOut
 {
     float4 m_Position : SV_POSITION;
-    float3 m_Normal : NORMAL;
-    float3 m_WorldPosition : POSITION_WS;
     nointerpolation uint m_InstanceConstsIdx : TEXCOORD0;
     nointerpolation uint m_MeshletIdx : TEXCOORD1;
     nointerpolation uint m_MeshLOD : TEXCOORD2;
-    float2 m_UV : TEXCOORD3;
+    float3 m_Normal : TEXCOORD3;
+    float2 m_UV : TEXCOORD4;
+    float3 m_WorldPosition : TEXCOORD5;
+    float3 m_PrevWorldPosition : TEXCOORD6;
 };
 
 groupshared MeshletPayload s_MeshletPayload;
@@ -167,6 +168,7 @@ void MS_Main(
     
         float4 vertexPosition = float4(vertexInfo.m_Position, 1.0f);
         float4 worldPos = mul(vertexPosition, instanceConsts.m_WorldMatrix);
+        float4 prevWorldPos = mul(vertexPosition, instanceConsts.m_PrevWorldMatrix);
     
         // Alien math to calculate the normal and tangent in world space, without inverse-transposing the world matrix
         // https://github.com/graphitemaster/normals_revisited
@@ -179,6 +181,7 @@ void MS_Main(
         vOut.m_Position = mul(worldPos, g_BasePassConsts.m_WorldToClip);
         vOut.m_Normal = normalize(mul(UnpackedNormal, adjugateWorldMatrix));
         vOut.m_WorldPosition = worldPos.xyz;
+        vOut.m_PrevWorldPosition = prevWorldPos.xyz;
         vOut.m_InstanceConstsIdx = inPayload.m_InstanceConstIdx;
         vOut.m_MeshletIdx = meshletIdx;
         vOut.m_MeshLOD = inPayload.m_MeshLOD;
@@ -223,15 +226,11 @@ float3 TwoChannelNormalX2(float2 normal)
     return float3(xy.x, xy.y, z);
 }
 
-GBufferParams GetGBufferParams(
-    uint inInstanceConstsIdx,
-    float3 inNormal,
-    float2 inUV,
-    float3 inWorldPosition)
+GBufferParams GetGBufferParams(VertexOut inVertex)
 {
     GBufferParams result;
     
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inInstanceConstsIdx];
+    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inVertex.m_InstanceConstsIdx];
     MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
         
     result.m_Albedo = materialData.m_ConstAlbedo;
@@ -241,7 +240,7 @@ GBufferParams GetGBufferParams(
         uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex >> 30;
         
         Texture2D albedoTexture = g_Textures[texIdx];
-        float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], inUV);
+        float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV);
         
         result.m_Albedo.rgb *= textureSample.rgb;
         result.m_Albedo.a *= textureSample.a;
@@ -254,17 +253,17 @@ GBufferParams GetGBufferParams(
     }
 #endif
     
-    result.m_Normal = inNormal;
+    result.m_Normal = inVertex.m_Normal;
     if (materialData.m_MaterialFlags & MaterialFlag_UseNormalTexture)
     {
         uint texIdx = NonUniformResourceIndex(materialData.m_NormalTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
         uint samplerIdx = materialData.m_NormalTextureSamplerAndDescriptorIndex >> 30;
         
         Texture2D normalTexture = g_Textures[texIdx];
-        float3 sampledNormal = normalTexture.Sample(g_Samplers[samplerIdx], inUV).rgb;
+        float3 sampledNormal = normalTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV).rgb;
         float3 unpackedNormal = TwoChannelNormalX2(sampledNormal.xy);
         
-        float3x3 TBN = CalculateTBNWithoutTangent(inWorldPosition, inNormal, inUV);
+        float3x3 TBN = CalculateTBNWithoutTangent(inVertex.m_WorldPosition, inVertex.m_Normal, inVertex.m_UV);
         result.m_Normal = normalize(mul(unpackedNormal, TBN));
     }
     
@@ -276,7 +275,7 @@ GBufferParams GetGBufferParams(
         uint samplerIdx = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex >> 30;
                 
         Texture2D mrtTexture = g_Textures[texIdx];
-        float4 textureSample = mrtTexture.Sample(g_Samplers[samplerIdx], inUV);
+        float4 textureSample = mrtTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV);
         
         result.m_Roughness = textureSample.g;
         result.m_Metallic = textureSample.b;
@@ -289,19 +288,25 @@ GBufferParams GetGBufferParams(
         uint samplerIdx = materialData.m_EmissiveTextureSamplerAndDescriptorIndex >> 30;
         
         Texture2D emissiveTexture = g_Textures[texIdx];
-        float4 textureSample = emissiveTexture.Sample(g_Samplers[samplerIdx], inUV);
+        float4 textureSample = emissiveTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV);
         
         result.m_Emissive *= textureSample.rgb;
     }
+    
+    float4 prevClipPosition = mul(float4(inVertex.m_PrevWorldPosition, 1), g_BasePassConsts.m_PrevWorldToClip);
+    prevClipPosition.xyz /= prevClipPosition.w;
+    float2 prevWindowPos = ClipXYToUV(prevClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
+    result.m_Motion = prevWindowPos - inVertex.m_Position.xy;
     
     return result;
 }
 
 void PS_Main_GBuffer(
     in VertexOut inVertex,
-    out uint4 outGBufferA : SV_Target0)
+    out uint4 outGBufferA : SV_Target0,
+    out float4 outGBufferMotion : SV_Target1)
 {
-    GBufferParams gbufferParams = GetGBufferParams(inVertex.m_InstanceConstsIdx, inVertex.m_Normal, inVertex.m_UV, inVertex.m_WorldPosition);
+    GBufferParams gbufferParams = GetGBufferParams(inVertex);
     
     switch (g_BasePassConsts.m_DebugMode)
     {
@@ -317,12 +322,13 @@ void PS_Main_GBuffer(
     }
     
     PackGBuffer(gbufferParams, outGBufferA);
+    outGBufferMotion = float4(gbufferParams.m_Motion, 0.0f, 0.0f);
 }
 
 void PS_Main_Forward(
     in VertexOut inVertex,
     out float4 outColor : SV_Target)
 {
-    GBufferParams gbufferParams = GetGBufferParams(inVertex.m_InstanceConstsIdx, inVertex.m_Normal, inVertex.m_UV, inVertex.m_WorldPosition);
+    GBufferParams gbufferParams = GetGBufferParams(inVertex);
     outColor = float4(gbufferParams.m_Albedo.rgb + gbufferParams.m_Emissive, gbufferParams.m_Albedo.a);
 }

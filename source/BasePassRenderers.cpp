@@ -23,6 +23,7 @@ static_assert(SamplerIdx_AnisotropicBorder == (int)nvrhi::SamplerAddressMode::Bo
 static_assert(SamplerIdx_AnisotropicMirror == (int)nvrhi::SamplerAddressMode::Mirror);
 
 RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
+RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
 RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
 
@@ -328,6 +329,7 @@ public:
         // pass consts
         BasePassConstants basePassConstants;
         basePassConstants.m_WorldToClip = view.m_WorldToClip;
+        basePassConstants.m_PrevWorldToClip = view.m_PrevWorldToClip;
         basePassConstants.m_WorldToView = view.m_CullingWorldToView;
         basePassConstants.m_Frustum = m_CullingFrustum;
         basePassConstants.m_CullingFlags = finalCullingFlags;
@@ -336,6 +338,7 @@ public:
         basePassConstants.m_P11 = view.m_ViewToClip.m[1][1];
         basePassConstants.m_NearPlane = view.m_ZNearP;
         basePassConstants.m_DebugMode = g_GraphicPropertyGrid.m_DebugControllables.m_DebugMode;
+        basePassConstants.m_OutputResolution = Vector2U{ viewportTexDesc.width, viewportTexDesc.height };
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
 
@@ -516,6 +519,18 @@ public:
             nvrhi::TextureDesc desc;
             desc.width = g_Graphic.m_RenderResolution.x;
             desc.height = g_Graphic.m_RenderResolution.y;
+            desc.isRenderTarget = true;
+            desc.setClearValue(nvrhi::Color{ 0.0f });
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+            desc.format = Graphic::kGBufferMotionFormat;
+            desc.debugName = "GBufferMotion";
+            renderGraph.CreateTransientResource(g_GBufferMotionRDGTextureHandle, desc);
+        }
+
+        {
+            nvrhi::TextureDesc desc;
+            desc.width = g_Graphic.m_RenderResolution.x;
+            desc.height = g_Graphic.m_RenderResolution.y;
             desc.format = Graphic::kDepthStencilFormat;
             desc.debugName = "Depth Buffer";
             desc.isRenderTarget = true;
@@ -544,10 +559,12 @@ public:
         View& view = scene->m_View;
 
         nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
+        nvrhi::TextureHandle GBufferMotionTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
         nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 
         nvrhi::FramebufferDesc frameBufferDesc;
         frameBufferDesc.addColorAttachment(GBufferATexture);
+        frameBufferDesc.addColorAttachment(GBufferMotionTexture);
         frameBufferDesc.setDepthAttachment(depthStencilBuffer);
 
         // write 'opaque' to stencil buffer

@@ -51,7 +51,6 @@ public:
         bool m_bEnableSoftShadows = true;
         bool m_bEnableShadowDenoising = true;
         float m_SunAngularDiameter = 0.533f; // empirical shit
-        float m_DenoiseSplitScreenSlider = 0.0f;
     };
     ShadowControllables m_ShadowControllables;
 

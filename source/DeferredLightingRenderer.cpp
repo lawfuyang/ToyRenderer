@@ -9,6 +9,7 @@
 
 RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
+extern RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_SSAORDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
@@ -33,6 +34,7 @@ public:
 		renderGraph.CreateTransientResource(g_LightingOutputRDGTextureHandle, desc);
 
 		renderGraph.AddReadDependency(g_GBufferARDGTextureHandle);
+        renderGraph.AddReadDependency(g_GBufferMotionRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
 
@@ -72,6 +74,7 @@ public:
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
+        nvrhi::TextureHandle GBufferMotionTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
 		nvrhi::TextureHandle ssaoTexture = AOControllables.m_bEnabled ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle shadowMaskTexture = g_Scene->IsShadowsEnabled() ? renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
@@ -82,9 +85,10 @@ public:
 		bindingSetDesc.bindings = {
 			nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
 			nvrhi::BindingSetItem::Texture_SRV(0, GBufferATexture),
-			nvrhi::BindingSetItem::Texture_SRV(1, depthBufferCopyTexture),
-			nvrhi::BindingSetItem::Texture_SRV(2, ssaoTexture),
-			nvrhi::BindingSetItem::Texture_SRV(3, shadowMaskTexture),
+            nvrhi::BindingSetItem::Texture_SRV(1, GBufferMotionTexture),
+			nvrhi::BindingSetItem::Texture_SRV(2, depthBufferCopyTexture),
+			nvrhi::BindingSetItem::Texture_SRV(3, ssaoTexture),
+			nvrhi::BindingSetItem::Texture_SRV(4, shadowMaskTexture),
 			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
 		};
 

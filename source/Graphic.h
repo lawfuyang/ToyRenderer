@@ -42,6 +42,7 @@ public:
     static constexpr float kDefaultCameraNearPlane = 0.1f;
 
     static constexpr nvrhi::Format kGBufferAFormat = nvrhi::Format::RGBA32_UINT;
+    static constexpr nvrhi::Format kGBufferMotionFormat = nvrhi::Format::RG16_FLOAT;
     static constexpr nvrhi::Format kDepthStencilFormat = nvrhi::Format::D24S8;
     static constexpr nvrhi::Format kDepthBufferCopyFormat = nvrhi::Format::R16_FLOAT;
     static constexpr nvrhi::Format kHZBFormat = nvrhi::Format::R16_FLOAT;

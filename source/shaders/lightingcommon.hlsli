@@ -12,6 +12,7 @@ struct GBufferParams
     float3 m_Normal;
     float m_Roughness;
     float m_Metallic;
+    float2 m_Motion;
     float m_DebugValue;
 };
 
@@ -37,6 +38,13 @@ void UnpackGBuffer(in uint4 packedGBufferA, out GBufferParams gbufferParams)
     gbufferParams.m_Emissive = unpackedGBufferA_Z;
     gbufferParams.m_Roughness = unpackedGBufferA_W.x;
     gbufferParams.m_Metallic = unpackedGBufferA_W.y;
+    gbufferParams.m_Motion = float2(0.0f, 0.0f);
+}
+
+void UnpackGBuffer(in uint4 packedGBufferA, float4 GBufferMotion, out GBufferParams gbufferParams)
+{
+    UnpackGBuffer(packedGBufferA, gbufferParams);
+    gbufferParams.m_Motion = GBufferMotion.xy;
 }
 
 // 0.08 is a max F0 we define for dielectrics which matches with Crystalware and gems (0.05 - 0.08)

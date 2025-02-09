@@ -1,14 +1,11 @@
 • RT Shadows
-	• half/quarter res trace (controllable)
-	• soft shadows (cone tracing)
-		• improve with motion vector inputs
-		• improve with NRC https://github.com/NVIDIA-RTX/NRC
-		• improve with https://github.com/NVIDIA-RTX/SHARC
-		• improve with https://github.com/NVIDIA-RTX/OMM
-	• Hybrid: https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-shadows.md
+	• improve with https://github.com/NVIDIA-RTX/SHARC
+	• improve with https://github.com/NVIDIA-RTX/OMM
+	• half/quarter res trace (?)
+	• improve with 3D motion vector inputs (?)
+	• improve with NRC https://github.com/NVIDIA-RTX/NRC (?)
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
-• convert library downloading to use 'FetchContent_Declare' in CMake
 • Reload only dirty PSOs
 • Meshlet drawing pipeline
 	• https://github.com/microsoft/Xbox-GDK-Samples/tree/main/Samples/Graphics/MeshletInstancing (?)

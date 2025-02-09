@@ -19,6 +19,7 @@ RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
 RenderGraph::ResourceHandle g_LinearViewDepthRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
+extern RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
 
 static nvrhi::Format GetNVRHIFormat(nrd::Format format)
 {
@@ -98,6 +99,9 @@ public:
     void Initialize() override
     {
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+		const nrd::LibraryDesc& libraryDesc = nrd::GetLibraryDesc();
+		// TODO: LOG
 
         const nrd::DenoiserDesc denoiserDescs[] = { NRD_ID(SIGMA_SHADOW), nrd::Denoiser::SIGMA_SHADOW };
 
@@ -229,6 +233,7 @@ public:
 
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
         renderGraph.AddReadDependency(g_GBufferARDGTextureHandle);
+        renderGraph.AddReadDependency(g_GBufferMotionRDGTextureHandle);
 
         return true;
     }
@@ -333,7 +338,7 @@ public:
 
 		nrd::SigmaSettings sigmaSettings;
 		memcpy(sigmaSettings.lightDirection, &g_Scene->m_DirLightVec, sizeof(sigmaSettings.lightDirection));
-		nrd::SetDenoiserSettings(*m_NRDInstance, 0, &sigmaSettings);
+		NRD_CALL(nrd::SetDenoiserSettings(*m_NRDInstance, NRD_ID(SIGMA_SHADOW), &sigmaSettings));
 
 		nrd::CommonSettings commonSettings;
         memcpy(commonSettings.viewToClipMatrix, &view.m_ViewToClip, sizeof(commonSettings.viewToClipMatrix));
@@ -355,10 +360,9 @@ public:
         commonSettings.rectSizePrev[0] = g_Graphic.m_DisplayResolution.x;
         commonSettings.rectSizePrev[1] = g_Graphic.m_DisplayResolution.y;
 		commonSettings.denoisingRange = g_Scene->m_BoundingSphere.Radius * 2;
-		commonSettings.splitScreen = controllables.m_DenoiseSplitScreenSlider;
 		commonSettings.frameIndex = g_Graphic.m_FrameCounter;
 		commonSettings.accumulationMode = nrd::AccumulationMode::CONTINUE; // TODO: change when camera resets or jumps
-		commonSettings.isMotionVectorInWorldSpace = false; // TODO: Motion Vectors input
+		commonSettings.isMotionVectorInWorldSpace = false;
 		commonSettings.enableValidation = false; // NOTE: not used for SIGMA denoising
 
 		NRD_CALL(nrd::SetCommonSettings(*m_NRDInstance, commonSettings));
@@ -366,7 +370,7 @@ public:
         const nrd::Identifier denoiserIdentifiers[] = { NRD_ID(SIGMA_SHADOW) };
 		const nrd::DispatchDesc* dispatchDescs = nullptr;
 		uint32_t dispatchDescNum = 0;
-		nrd::GetComputeDispatches(*m_NRDInstance, denoiserIdentifiers, std::size(denoiserIdentifiers), dispatchDescs, dispatchDescNum);
+		NRD_CALL(nrd::GetComputeDispatches(*m_NRDInstance, denoiserIdentifiers, std::size(denoiserIdentifiers), dispatchDescs, dispatchDescNum));
 
 		std::vector<nvrhi::TextureHandle> transientTextures;
         transientTextures.resize(m_NRDTemporaryTextureHandles.size());
@@ -377,6 +381,7 @@ public:
         }
 
 		nvrhi::TextureHandle linearViewDepthTexture = renderGraph.GetTexture(g_LinearViewDepthRDGTextureHandle);
+        nvrhi::TextureHandle GBufferMotionTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
 		nvrhi::TextureHandle shadowPenumbraTexture = renderGraph.GetTexture(m_ShadowPenumbraRDGTextureHandle);
 		nvrhi::TextureHandle normalRoughnessTexture = renderGraph.GetTexture(m_NormalRoughnessRDGTextureHandle);
 		nvrhi::TextureHandle shadowTranslucencyTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
@@ -424,7 +429,7 @@ public:
 					switch (resource.type)
 					{
 					case nrd::ResourceType::IN_MV:
-						texture = g_CommonResources.BlackTexture.m_NVRHITextureHandle; // TODO: Motion Vectors input
+						texture = GBufferMotionTexture;
 						break;
 					case nrd::ResourceType::IN_VIEWZ:
 						texture = linearViewDepthTexture;

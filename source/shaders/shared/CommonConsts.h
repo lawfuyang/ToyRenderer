@@ -47,5 +47,6 @@ static const uint32_t kDeferredLightingDebugMode_AmbientOcclusion  = 9;
 static const uint32_t kDeferredLightingDebugMode_Ambient           = 10;
 static const uint32_t kDeferredLightingDebugMode_ShadowMask        = 11;
 static const uint32_t kDeferredLightingDebugMode_MeshLOD           = 12;
+static const uint32_t kDeferredLightingDebugMode_MotionVectors     = 13;
 
 #endif // #define _COMMON_CONSTS_H_
