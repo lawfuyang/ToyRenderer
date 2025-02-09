@@ -128,6 +128,7 @@ void CS_ShadowMask(
     float depth = g_DepthBuffer[dispatchThreadID.xy].x;
     if (depth == kFarDepth)
     {
+        g_LinearViewDepthOutput[dispatchThreadID.xy] = kFP16Max;
         return;
     }
     
