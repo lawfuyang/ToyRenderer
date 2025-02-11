@@ -1,9 +1,6 @@
 • RT Shadows
-	• improve with https://github.com/NVIDIA-RTX/SHARC
-	• improve with https://github.com/NVIDIA-RTX/OMM
 	• half/quarter res trace (?)
 	• improve with 3D motion vector inputs (?)
-	• improve with NRC https://github.com/NVIDIA-RTX/NRC (?)
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
 • Reload only dirty PSOs
