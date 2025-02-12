@@ -12,39 +12,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-set "TMP_FOLDER=%cd%\tmp"
-
-set "MSVC_CACHE_FILE=%USERPROFILE%\ToyRenderer_MSVC_Version_Cache.txt"
-
-:: Check MSVC version
-for /f "tokens=3" %%A in ('reg query "HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64" /v Version 2^>nul') do set "MSVCVersion=%%A"
-if NOT defined MSVCVersion (
-    echo Visual Studio 2022 not installed???
-	exit /b 1
-)
-echo MSVC Version: !MSVCVersion!
-
-:: Check against cached MSVC version in txt file
-if exist "%MSVC_CACHE_FILE%" (
-    for /f "delims=" %%A in (%MSVC_CACHE_FILE%) do set "CachedMSVCVersion=%%A"
-    
-    rem trim white space
-    set "CachedMSVCVersion=!CachedMSVCVersion: =!"
-    
-    echo Cached MSVC Version: !CachedMSVCVersion!
-	
-	if NOT "!CachedMSVCVersion!"=="!MSVCVersion!" (
-        echo MSVC change detected.
-		del "%cd%\projects\ToyRenderer\CMakeCache.txt"
-    )
-) else (
-	echo No cached MSVC version found
-	del "%cd%\projects\ToyRenderer\CMakeCache.txt"
-)
-
-:: cache msvc version to txt file
-echo !MSVCVersion! > %MSVC_CACHE_FILE%
-
 :: DXC
 set "DXC_DEST_FOLDER=%cd%\extern\dxc"
 if not exist "%DXC_DEST_FOLDER%" (
