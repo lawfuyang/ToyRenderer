@@ -4,7 +4,14 @@ setlocal
 rem Change to the directory containing the batch file
 cd /d "%~dp0"
 
-SET SHADER_MAKE_EXE="%cd%/bin/ShaderMake.exe"
+SET SHADER_MAKE_EXE=""
+
+IF EXIST "%cd%/bin/Release/ShaderMake.exe" (
+    SET SHADER_MAKE_EXE="%cd%/bin/Release/ShaderMake.exe"
+) ELSE (
+    SET SHADER_MAKE_EXE="%cd%/bin/ShaderMake.exe"
+)
+
 SET DXC_PATH="%cd%/extern/dxc/dxc.exe"
 SET CONFIG_FILE="%cd%/source/shaders/shaderstocompile.txt"
 SET OUT="%cd%/bin/shaders/"
