@@ -12,6 +12,8 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+set TMP_FOLDER=%cd%\tmp
+
 :: DXC
 set "DXC_DEST_FOLDER=%cd%\extern\dxc"
 if not exist "%DXC_DEST_FOLDER%" (
