@@ -15,7 +15,7 @@ if %errorlevel% neq 0 (
 :: DXC
 set "DXC_DEST_FOLDER=%cd%\extern\dxc"
 if not exist "%DXC_DEST_FOLDER%" (
-	call :DownloadAndExtractPackage https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31_clang_cl.zip dxc
+	call :DownloadAndExtractPackage https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2502/dxc_2025_02_20.zip dxc
 	xcopy "%TMP_FOLDER%\dxc\bin\x64\*" "%DXC_DEST_FOLDER%\" /E /I /Y
 )
 
