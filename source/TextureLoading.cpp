@@ -1,7 +1,5 @@
 #include "TextureLoading.h"
 
-#include "extern/basis_universal/transcoder/basisu_transcoder.h"
-
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
@@ -92,94 +90,6 @@ nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle command
         assert(imageData);
 
         commandList->writeTexture(newTexture, 0, mip, imageData->m_mem, imageData->m_memPitch);
-    }
-
-    commandList->setPermanentTextureState(newTexture, nvrhi::ResourceStates::ShaderResource);
-    commandList->commitBarriers();
-
-    return newTexture;
-}
-
-bool IsKTX2Image(const void* data, uint32_t nbBytes)
-{
-    basist::ktx2_transcoder transcoder;
-    ON_EXIT_SCOPE_LAMBDA([&] { transcoder.clear(); });
-
-    return transcoder.init((const uint8_t*)data, nbBytes);
-}
-
-nvrhi::TextureHandle CreateKTXTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName)
-{
-    PROFILE_FUNCTION();
-
-    basist::ktx2_transcoder transcoder;
-    ON_EXIT_SCOPE_LAMBDA([&] { transcoder.clear(); });
-
-    if (!transcoder.init(data, nbBytes))
-    {
-        assert(0);
-    }
-
-    // TODO: support cubemaps. For now we use KTX1 for cubemaps because basisu does not support HDR.
-    if (transcoder.get_faces() == 6)
-    {
-        assert(0);
-    }
-
-    // TODO: support texture arrays.
-    if (transcoder.get_layers() > 1)
-    {
-        assert(0);
-    }
-
-    const uint32_t nbMips = transcoder.get_levels();
-    assert(nbMips < basist::KTX2_MAX_SUPPORTED_LEVEL_COUNT);
-
-    // TODO: no ETC support. this ain't mobile :)
-    assert(transcoder.is_uastc());
-
-    // TODO: alpha support
-    const bool bHasAlpha = transcoder.get_has_alpha();
-
-    nvrhi::TextureDesc textureDesc;
-    textureDesc.format = transcoder.get_dfd_transfer_func() == basist::KTX2_KHR_DF_TRANSFER_LINEAR ? nvrhi::Format::BC7_UNORM : nvrhi::Format::BC7_UNORM_SRGB;
-    textureDesc.width = transcoder.get_width();
-    textureDesc.height = transcoder.get_height();
-    textureDesc.mipLevels = nbMips;
-    textureDesc.debugName = debugName;
-    textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-    nvrhi::TextureHandle newTexture = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-
-    for (uint32_t mip = 0; mip < nbMips; ++mip)
-    {
-        PROFILE_SCOPED("Process Mip");
-
-        // just whack BC7 for everything according to: https://github.com/KhronosGroup/3D-Formats-Guidelines/blob/main/KTXDeveloperGuide.md#primary-transcode-targets
-        const basist::transcoder_texture_format kRequestedFormat = basist::transcoder_texture_format::cTFBC7_RGBA;
-
-        basist::ktx2_image_level_info levelInfo;
-        transcoder.get_image_level_info(levelInfo, mip, 0 /*layerIndex*/, 0 /*faceIndex*/);
-
-        const uint32_t qwordsPerBlock = basisu::get_qwords_per_block(basist::basis_get_basisu_texture_format(kRequestedFormat));
-        const size_t byteCount = sizeof(uint64_t) * qwordsPerBlock * levelInfo.m_total_blocks;
-
-        std::vector<std::byte> outputBlocksBytes;
-        outputBlocksBytes.resize(byteCount);
-
-        if (!transcoder.transcode_image_level(
-            mip,
-            0, // layerIndex,
-            0, // faceIndex,
-            outputBlocksBytes.data(),
-            levelInfo.m_total_blocks,
-            kRequestedFormat))
-        {
-            assert(0);
-        }
-
-        const uint32_t rowPitch = levelInfo.m_num_blocks_x * sizeof(uint64_t) * qwordsPerBlock;
-        commandList->writeTexture(newTexture, 0, mip, outputBlocksBytes.data(), rowPitch);
     }
 
     commandList->setPermanentTextureState(newTexture, nvrhi::ResourceStates::ShaderResource);

@@ -13,9 +13,6 @@
 [submodule "extern/cxxopts"]
 	path = extern/cxxopts
 	url = https://github.com/jarro2783/cxxopts
-[submodule "extern/basis_universal"]
-	path = extern/basis_universal
-	url = https://github.com/BinomialLLC/basis_universal
 [submodule "extern/nvrhi"]
 	path = extern/nvrhi
 	url = https://github.com/lawfuyang/nvrhi

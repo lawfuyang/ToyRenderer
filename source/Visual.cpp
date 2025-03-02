@@ -41,10 +41,6 @@ void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_
     {
         m_NVRHITextureHandle = CreateDDSTextureFromMemory(commandList, rawData, nbBytes, debugName.data());
     }
-    else if (IsKTX2Image(rawData, nbBytes))
-    {
-        m_NVRHITextureHandle = CreateKTXTextureFromMemory(commandList, rawData, nbBytes, debugName.data());
-    }
     else
     {
         assert(0);

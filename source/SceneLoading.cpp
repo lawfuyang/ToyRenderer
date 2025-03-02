@@ -2,7 +2,6 @@
 #define CGLTF_IMPLEMENTATION
 #include "extern/cgltf/cgltf.h"
 
-#include "extern/basis_universal/transcoder/basisu_transcoder.h"
 #include "extern/meshoptimizer/src/meshoptimizer.h"
 
 #include "CommonResources.h"
@@ -74,22 +73,17 @@ struct GLTFSceneLoader
             {
 				LOG_DEBUG("\t %s", m_GLTFData->extensions_used[i]);
 
-                // NOTE: don't support mesh_gpu_instancing. it merely reduces the nb of nodes to read, but breaks scene hierarchy and i'm lazy to investigate & fix
-                if (strcmp(m_GLTFData->extensions_used[i], "EXT_mesh_gpu_instancing") == 0)
+                static const char* kUnsupportedExtensions[]
                 {
-                    assert(0);
-                }
+                    "EXT_mesh_gpu_instancing", // mesh_gpu_instancing merely reduces the nb of nodes to read, but breaks scene hierarchy and i'm lazy to investigate & fix
+                    "KHR_texture_transform", // don't bother with texture transform
+                    "KHR_texture_basisu" // No KTX textures just
+                };
 
-                // don't support texture transform
-                if (strcmp(m_GLTFData->extensions_used[i], "KHR_texture_transform") == 0)
+                for (const char* ext : kUnsupportedExtensions)
                 {
-                    assert(0);
+                    assert(strcmp(ext, m_GLTFData->extensions_used[i]));
                 }
-
-				if (strcmp(m_GLTFData->extensions_used[i], "KHR_texture_basisu") == 0)
-				{
-                    basist::basisu_transcoder_init();
-				}
             }
         }
 

@@ -73,7 +73,6 @@ set(NRD_EMBEDS_DXIL_SHADERS OFF)
 set(NRD_EMBEDS_DXBC_SHADERS OFF)
 
 add_subdirectory(extern/shadermake)
-add_subdirectory(extern/basis_universal)
 add_subdirectory(extern/meshoptimizer)
 add_subdirectory(extern/d3d12ma)
 add_subdirectory(extern/microprofile)
@@ -92,7 +91,6 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT T
 set(TOYRENDERER_LIBRARIES
 	d3d12 dxgi dxguid Ws2_32
 	ShaderMakeBlob
-	basisu_encoder
 	meshoptimizer
 	D3D12MemoryAllocator
 	microprofile
@@ -129,20 +127,6 @@ target_compile_definitions(ToyRenderer PUBLIC IMGUI_DEFINE_MATH_OPERATORS IMGUI_
 target_compile_definitions(microprofile PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
 
 target_compile_definitions(nvrhi_d3d12 PUBLIC NVRHI_D3D12_WITH_D3D12MA D3D12MA_INCLUDE_DIR="${EXTERN_DIR}/d3d12ma/include/D3D12MemAlloc.h")
-
-# disable as many transcoder formats as possible to save code size
-target_compile_definitions(basisu_encoder PUBLIC BASISU_FORCE_DEVEL_MESSAGES=1)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_ASTC=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_ATC=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_BC7_MODE5=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_DXT1=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_DXT5A=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_ETC2_EAC_A8=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_ETC2_EAC_RG11=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_FXT1=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_PVRTC1=0)
-target_compile_definitions(basisu_encoder PUBLIC BASISD_SUPPORT_PVRTC2=0)
-target_compile_definitions(basisu_encoder PRIVATE "/W0")
 
 if (ENABLE_UNITY_BUILD)
 	set_target_properties(ToyRenderer PROPERTIES UNITY_BUILD ON)
