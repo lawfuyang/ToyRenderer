@@ -77,7 +77,7 @@ struct GLTFSceneLoader
                 {
                     "EXT_mesh_gpu_instancing", // mesh_gpu_instancing merely reduces the nb of nodes to read, but breaks scene hierarchy and i'm lazy to investigate & fix
                     "KHR_texture_transform", // don't bother with texture transform
-                    "KHR_texture_basisu" // No KTX textures just
+                    "KHR_texture_basisu" // No KTX textures. Just support DDS only for now
                 };
 
                 for (const char* ext : kUnsupportedExtensions)
@@ -247,7 +247,7 @@ struct GLTFSceneLoader
             taskflow.emplace([&, i]()
                 {
                     const cgltf_texture& texture = m_GLTFData->textures[i];
-                    const cgltf_image* image = texture.has_basisu ? texture.basisu_image : texture.image;
+                    const cgltf_image* image = texture.image;
                     assert(image);
 
                     const char* debugName = image->name ? image->name : "Un-Named Image";
@@ -296,7 +296,7 @@ struct GLTFSceneLoader
 
         auto HandleTextureView = [&](Texture& texture, const cgltf_texture_view& textureView, const Texture& defaultTexture)
             {
-                const cgltf_image* image = textureView.texture->has_basisu ? textureView.texture->basisu_image : textureView.texture->image;
+                const cgltf_image* image = textureView.texture->image;
                 assert(image);
 
                 if (g_SkipLoadingSceneTextures.Get())
