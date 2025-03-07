@@ -1,3 +1,8 @@
+• Static Animations
+    • https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/InterpolationTest, then bistrox by zeux
+    • update of nodes' transforms & instance data on GPU every frame (with hierarchy)
+• GI
+	• https://github.com/NVIDIA-RTX/RTXGI
 • RT Shadows
 	• half/quarter res trace (?)
 	• improve with 3D motion vector inputs (?)
@@ -39,7 +44,6 @@
 	• https://wickedengine.net/2024/06/texture-streaming/
 	• accelerate with https://github.com/microsoft/DirectStorage
 • volumetric clouds
-• Static Animations
 • Skinning:
 	• https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
     • https://wickedengine.net/2017/09/skinning-in-compute-shader/
@@ -68,8 +72,6 @@
 	• https://github.com/NVIDIA-RTX/Donut-Samples/tree/main/examples/work_graphs
     • convert occlusion culling chain dispatches
 	• extend deferred lighting with different shading models (copy-paste brdfs from UE5 lol)
-• GI
-	• https://github.com/NVIDIA-RTX/RTXGI
 • Hybrid Stochastic Reflections
 	• https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-reflections.md
 • Pathtracing
