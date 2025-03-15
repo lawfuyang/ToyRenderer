@@ -608,10 +608,13 @@ void Scene::OnSceneLoad()
             const Matrix worldMatrixTransposed = node.MakeLocalToWorldMatrix().Transpose();
             memcpy(instanceDesc.transform, &worldMatrixTransposed, sizeof(instanceDesc.transform));
 
+            nvrhi::rt::InstanceFlags instanceFlags = Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise : nvrhi::rt::InstanceFlags::None;
+            instanceFlags = instanceFlags | ((primitive.m_Material.m_AlphaMode == AlphaMode::Opaque) ? nvrhi::rt::InstanceFlags::ForceOpaque : nvrhi::rt::InstanceFlags::ForceNonOpaque);
+
             instanceDesc.instanceID = instanceID;
             instanceDesc.instanceMask = 1;
             instanceDesc.instanceContributionToHitGroupIndex = 0;
-            instanceDesc.flags = Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise : nvrhi::rt::InstanceFlags::None;
+            instanceDesc.flags = instanceFlags;
             instanceDesc.bottomLevelAS = mesh.m_BLAS;
         }
 

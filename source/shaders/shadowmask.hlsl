@@ -69,12 +69,6 @@ bool IsPixelOccluded(uint instanceID, uint primitiveIndex, float2 attribBarycent
 {
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceID];
     MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
-        
-    if (materialData.m_AlphaCutoff == 0.0f)
-    {
-        // it's an opaque material with no alpha mask - accept the hit and end the search
-        return true;
-    }
     
     float alpha = materialData.m_ConstAlbedo.a;
     if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
@@ -160,9 +154,12 @@ void CS_ShadowMask(
     
     while (rayQuery.Proceed())
     {
-        if (IsPixelOccluded(rayQuery.CandidateInstanceID(), rayQuery.CandidatePrimitiveIndex(), rayQuery.CandidateTriangleBarycentrics()))
+        if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
         {
-            rayQuery.CommitNonOpaqueTriangleHit();
+            if (IsPixelOccluded(rayQuery.CandidateInstanceID(), rayQuery.CandidatePrimitiveIndex(), rayQuery.CandidateTriangleBarycentrics()))
+            {
+                rayQuery.CommitNonOpaqueTriangleHit();
+            }
         }
     }
 

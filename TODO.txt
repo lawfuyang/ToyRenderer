@@ -4,7 +4,6 @@
 • GI
 	• https://github.com/NVIDIA-RTX/RTXGI
 • RT Shadows
-    • tag shadow mask materials as "non-opaque" in TLAS, to skip "opaque-ness" check in ray query
 	• half/quarter res trace (?)
 	• improve with 3D motion vector inputs (?)
 	• improve with https://github.com/NVIDIA-RTX/STBN (?)

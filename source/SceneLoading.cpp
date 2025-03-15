@@ -324,7 +324,7 @@ struct GLTFSceneLoader
             const char* materialName = gltfMaterial.name ? gltfMaterial.name : "Un-Named Material";
 
             sceneMaterial.m_AlphaMode = (AlphaMode)gltfMaterial.alpha_mode;
-            sceneMaterial.m_AlphaCutoff = (sceneMaterial.m_AlphaMode == AlphaMode::Opaque) ? 0.0f : gltfMaterial.alpha_cutoff;
+            sceneMaterial.m_AlphaCutoff = gltfMaterial.alpha_cutoff;
 
             if (Vector3{ gltfMaterial.emissive_factor }.LengthSquared() > kKindaSmallNumber)
             {
