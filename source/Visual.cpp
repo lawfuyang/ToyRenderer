@@ -6,7 +6,6 @@
 #include "Engine.h"
 #include "Graphic.h"
 #include "Scene.h"
-#include "TextureLoading.h"
 #include "Utilities.h"
 
 #include "shaders/shared/CommonConsts.h"
@@ -18,6 +17,11 @@ static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletTriangles);
 static_assert(std::is_same_v<uint32_t, Graphic::IndexBufferFormat_t>);
 static_assert(_countof(Mesh::m_LODs) == Graphic::kMaxNumMeshLODs);
 static_assert(Graphic::kMaxNumMeshLODs == kMaxNumMeshLODs);
+
+extern bool IsSTBImage(const void* data, uint32_t nbBytes);
+extern bool IsDDSImage(const void* data);
+extern nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false);
+extern nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName);
 
 static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
 {

@@ -31,9 +31,6 @@
 [submodule "extern/meshoptimizer"]
 	path = extern/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer
-[submodule "extern/tinyddsloader"]
-	path = extern/tinyddsloader
-	url = https://github.com/benikabocha/tinyddsloader
 [submodule "extern/taskflow"]
 	path = extern/taskflow
 	url = https://github.com/taskflow/taskflow
