@@ -9,6 +9,26 @@
 class Primitive;
 class RenderGraph;
 
+struct Animation
+{
+    struct Channel
+    {
+        enum class PathType { Translation, Rotation, Scale };
+
+        uint32_t m_TargetNodeIdx;
+        std::vector<float> m_KeyFrames; // in seconds
+        std::vector<Vector4> m_Data;
+        PathType m_PathType;
+    };
+
+
+    float m_TimeStart;
+    float m_TimeEnd;
+
+    std::string m_Name;
+    std::vector<Channel> m_Channels;
+};
+
 struct GPUCullingCounters
 {
     uint32_t m_EarlyInstances;
@@ -101,6 +121,8 @@ public:
     nvrhi::TextureHandle m_HZB;
 
     std::vector<Camera> m_Cameras;
+
+    std::vector<Animation> m_Animations;
 
 private:
     void UpdateMainViewCameraControls();

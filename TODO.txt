@@ -1,5 +1,7 @@
 • Static Animations
-    • https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/InterpolationTest, then bistrox by zeux
+    • https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/BoxAnimated
+	• then https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/BrainStem
+	• then bistrox
     • update of nodes' transforms & instance data on GPU every frame (with hierarchy)
 • GI
 	• https://github.com/NVIDIA-RTX/RTXGI

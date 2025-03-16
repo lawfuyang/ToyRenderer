@@ -122,6 +122,7 @@ struct GLTFSceneLoader
         LoadImages();
         LoadMaterials();
         LoadMeshes();
+        LoadAnimations();
         LoadNodes();
         UploadGlobalBuffers();
     }
@@ -626,12 +627,14 @@ struct GLTFSceneLoader
             }
         }
 
+        scene->m_Nodes.resize(m_GLTFData->nodes_count);
+
         for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
         {
             cgltf_node& node = m_GLTFData->nodes[i];
 
-            const uint32_t newNodeID = scene->m_Nodes.size();
-            Node& newNode = scene->m_Nodes.emplace_back();
+            const uint32_t newNodeID = i;
+            Node& newNode = scene->m_Nodes[newNodeID];
 
             Matrix outLocalMatrix;
             cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
@@ -716,6 +719,74 @@ struct GLTFSceneLoader
             }
 
 			//LOG_DEBUG("New Node: [%s]", node.name ? node.name : "Un-named Node");
+        }
+    }
+    
+    void LoadAnimations()
+    {
+        SCENE_LOAD_PROFILE("Load Animations");
+
+        Scene* scene = g_Graphic.m_Scene.get();
+
+        scene->m_Animations.resize(m_GLTFData->animations_count);
+
+        for (uint32_t animationIdx = 0; animationIdx < m_GLTFData->animations_count; ++animationIdx)
+        {
+            const cgltf_animation& gltfAnimation = m_GLTFData->animations[animationIdx];
+
+            Animation& newAnimation = scene->m_Animations[animationIdx];
+            newAnimation.m_Name = gltfAnimation.name ? gltfAnimation.name : "Un-named Animation";
+            newAnimation.m_Channels.resize(gltfAnimation.channels_count);
+
+            for (uint32_t channelIdx = 0; channelIdx < gltfAnimation.channels_count; ++channelIdx)
+            {
+                const cgltf_animation_channel& gltfAnimationChannel = gltfAnimation.channels[channelIdx];
+                const cgltf_animation_sampler& gltfSampler = *gltfAnimationChannel.sampler;
+
+                assert(gltfSampler.interpolation == cgltf_interpolation_type_linear); // TODO: support other interpolation types
+
+                if (gltfSampler.input->count < 2)
+                {
+                    LOG_DEBUG("GLTF - Animation for node '%s' has less than 2 keyframes. Skipping", gltfAnimationChannel.target_node->name);
+                    continue;
+                }
+
+                Animation::Channel& newChannel = newAnimation.m_Channels[channelIdx];
+
+                assert(gltfAnimationChannel.target_node);
+                newChannel.m_TargetNodeIdx = cgltf_node_index(m_GLTFData, gltfAnimationChannel.target_node);
+
+                switch (gltfAnimationChannel.target_path)
+                {
+                case cgltf_animation_path_type_rotation:
+                    newChannel.m_PathType = Animation::Channel::PathType::Rotation;
+                    break;
+                case cgltf_animation_path_type_translation:
+                    newChannel.m_PathType = Animation::Channel::PathType::Translation;
+                    break;
+                case cgltf_animation_path_type_scale:
+                    newChannel.m_PathType = Animation::Channel::PathType::Scale;
+                    break;
+                default:
+                    // TODO: support other target paths
+                    assert(0);
+                }
+
+                newChannel.m_KeyFrames.resize(gltfSampler.input->count);
+                assert(cgltf_num_components(gltfSampler.input->type) == 1);
+                verify(cgltf_accessor_unpack_floats(gltfSampler.input, newChannel.m_KeyFrames.data(), gltfSampler.input->count));
+
+                newChannel.m_Data.resize(gltfSampler.output->count);
+                const uint32_t nbComponents = cgltf_num_components(gltfSampler.output->type);
+                assert(nbComponents <= 4);
+                for (uint32_t i = 0; i < gltfSampler.output->count; ++i)
+                {
+                    verify(cgltf_accessor_read_float(gltfSampler.output, i, (cgltf_float*)&newChannel.m_Data[i], nbComponents) == 1);
+                }
+
+                newAnimation.m_TimeStart = std::min(newAnimation.m_TimeStart, newChannel.m_KeyFrames.front());
+                newAnimation.m_TimeEnd = std::max(newAnimation.m_TimeEnd, newChannel.m_KeyFrames.back());
+            }
         }
     }
 
