@@ -1,0 +1,1 @@
+cmake --build ./projects/toyrenderer -t toyrenderer
