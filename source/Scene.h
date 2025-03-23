@@ -19,8 +19,9 @@ struct Animation
         std::vector<float> m_KeyFrames; // in seconds
         std::vector<Vector4> m_Data;
         PathType m_PathType;
-    };
 
+        Vector4 Evaluate(float time) const;
+    };
 
     float m_TimeStart;
     float m_TimeEnd;
@@ -123,12 +124,14 @@ public:
     std::vector<Camera> m_Cameras;
 
     std::vector<Animation> m_Animations;
+    double m_AnimationTimeSeconds = 0.0;
 
 private:
     void UpdateMainViewCameraControls();
-    void UpdateInstanceConstsBuffer();
+    void UpdateInstanceConsts();
     void UpdateInstanceIDsBuffers();
     void UpdateDirectionalLightVector();
+    void UpdateAnimations();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;

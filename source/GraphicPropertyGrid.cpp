@@ -74,6 +74,8 @@ void GraphicPropertyGrid::UpdateIMGUI()
             g_Graphic.SetGPUStablePowerState(params.m_GPUStablePowerState);
         }
 
+        ImGui::Checkbox("Enable Animations", &params.m_EnableAnimations);
+
         ImGui::TreePop();
     }
 

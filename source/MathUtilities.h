@@ -42,6 +42,7 @@ inline float ConvertHalfToFloat(Half h) { return DirectX::PackedVector::XMConver
 constexpr float ConvertToRadians(float fDegrees) { return DirectX::XMConvertToRadians(fDegrees); }
 constexpr float ConvertToDegrees(float fRadians) { return DirectX::XMConvertToDegrees(fRadians); }
 inline void ScalarSinCos(float& sinResult, float& cosResult, float value) { return DirectX::XMScalarSinCos(&sinResult, &cosResult, value); }
+constexpr float Normalize(float value, float rangeMin, float rangeMax) { return (value - rangeMin) / (rangeMax - rangeMin); }
 
 constexpr uint32_t GetNextPow2(uint32_t x)
 {

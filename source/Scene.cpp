@@ -87,6 +87,26 @@ public:
 static ClearBuffersRenderer gs_ClearBuffersRenderer;
 IRenderer* g_ClearBuffersRenderer = &gs_ClearBuffersRenderer;
 
+Vector4 Animation::Channel::Evaluate(float time) const
+{
+    const auto it = std::lower_bound(m_KeyFrames.begin(), m_KeyFrames.end(), time);
+    if (it == m_KeyFrames.begin())
+        return m_Data.front();
+    if (it == m_KeyFrames.end())
+        return m_Data.back();
+
+    const uint32_t i = it - m_KeyFrames.begin();
+
+    const float t = Normalize(time, m_KeyFrames.at(i - 1), m_KeyFrames.at(i));
+
+    if (m_PathType == PathType::Rotation)
+    {
+        return Quaternion::Slerp(m_Data.at(i - 1), m_Data.at(i), t);
+    }
+
+    return Vector4::Lerp(m_Data.at(i - 1), m_Data.at(i), t);
+}
+
 void View::Initialize()
 {
 }
@@ -270,7 +290,7 @@ void Scene::UpdateMainViewCameraControls()
     }
 }
 
-void Scene::UpdateInstanceConstsBuffer()
+void Scene::UpdateInstanceConsts()
 {
     const uint32_t nbPrimitives = m_Primitives.size();
     if (nbPrimitives == 0)
@@ -280,7 +300,7 @@ void Scene::UpdateInstanceConstsBuffer()
 
     PROFILE_FUNCTION();
 
-    // TODO: upload only dirty primitives
+    // TODO: throw all of this shit to the GPU
 
     std::vector<BasePassInstanceConstants> instanceConstsBytes;
 
@@ -312,6 +332,7 @@ void Scene::UpdateInstanceConstsBuffer()
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload BasePassInstanceConstants");
 
+    if (!m_InstanceConstsBuffer)
     {
         nvrhi::BufferDesc desc;
         desc.byteSize = instanceConstsBytes.size() * sizeof(BasePassInstanceConstants);
@@ -320,8 +341,9 @@ void Scene::UpdateInstanceConstsBuffer()
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
         m_InstanceConstsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-        commandList->writeBuffer(m_InstanceConstsBuffer, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
     }
+
+    commandList->writeBuffer(m_InstanceConstsBuffer, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
 }
 
 void Scene::UpdateInstanceIDsBuffers()
@@ -416,6 +438,39 @@ void Scene::UpdateDirectionalLightVector()
     assert(m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
 }
 
+void Scene::UpdateAnimations()
+{
+    PROFILE_FUNCTION();
+
+    m_AnimationTimeSeconds += g_Engine.m_CPUCappedFrameTimeMs * 0.001f;
+
+    for (const Animation& animation : m_Animations)
+    {
+        const float t = fmod(m_AnimationTimeSeconds, animation.m_TimeEnd - animation.m_TimeStart);
+        const float time = t + animation.m_TimeStart;
+
+        for (const Animation::Channel& channel : animation.m_Channels)
+        {
+            Node& node = m_Nodes.at(channel.m_TargetNodeIdx);
+
+             const Vector4 evaluatedVal = channel.Evaluate(time);
+
+            switch (channel.m_PathType)
+            {
+            case Animation::Channel::PathType::Translation:
+                node.m_Position = Vector3{ evaluatedVal };
+                break;
+            case Animation::Channel::PathType::Rotation:
+                node.m_Rotation = Quaternion{ evaluatedVal };
+                break;
+            case Animation::Channel::PathType::Scale:
+                node.m_Scale = Vector3{ evaluatedVal };
+                break;
+            }
+        }
+    }
+}
+
 void Scene::Update()
 {
     PROFILE_FUNCTION();
@@ -423,6 +478,12 @@ void Scene::Update()
     UpdateMainViewCameraControls();
 
     m_View.Update();
+
+    if (g_GraphicPropertyGrid.m_DebugControllables.m_EnableAnimations)
+    {
+        UpdateAnimations();
+        UpdateInstanceConsts();
+    }
 
     tf::Taskflow tf;
 
@@ -553,7 +614,7 @@ void Scene::OnSceneLoad()
         SetCamera(0);
     }
 
-    UpdateInstanceConstsBuffer();
+    UpdateInstanceConsts();
 	UpdateInstanceIDsBuffers();
 
     {
