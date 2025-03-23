@@ -736,7 +736,6 @@ struct GLTFSceneLoader
 
             Animation& newAnimation = scene->m_Animations[animationIdx];
             newAnimation.m_Name = gltfAnimation.name ? gltfAnimation.name : "Un-named Animation";
-            newAnimation.m_Channels.resize(gltfAnimation.channels_count);
 
             for (uint32_t channelIdx = 0; channelIdx < gltfAnimation.channels_count; ++channelIdx)
             {
@@ -751,7 +750,7 @@ struct GLTFSceneLoader
                     continue;
                 }
 
-                Animation::Channel& newChannel = newAnimation.m_Channels[channelIdx];
+                Animation::Channel& newChannel = newAnimation.m_Channels.emplace_back();
 
                 assert(gltfAnimationChannel.target_node);
                 newChannel.m_TargetNodeIdx = cgltf_node_index(m_GLTFData, gltfAnimationChannel.target_node);
