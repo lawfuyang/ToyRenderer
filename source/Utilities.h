@@ -66,8 +66,8 @@ public:
     static constexpr float DurationSecondRatio = std::chrono::seconds(1) * 1.0f / std::chrono::microseconds(1);
     static constexpr float DurationMsRatio = std::chrono::milliseconds(1) * 1.0f / std::chrono::microseconds(1);
 
-    static float SecondsToMicroSeconds(float seconds) { return (float)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(seconds)).count(); }
-    static float SecondsToMilliSeconds(float seconds) { return SecondsToMicroSeconds(seconds) / DurationMsRatio; }
+    static constexpr float SecondsToMicroSeconds(float seconds) { return (float)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(seconds)).count(); }
+    static constexpr float SecondsToMilliSeconds(float seconds) { return SecondsToMicroSeconds(seconds) / DurationMsRatio; }
 
     std::chrono::microseconds::rep GetElapsedMicroSeconds() const { return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count(); }
     float GetElapsedSeconds() const { return GetElapsedMicroSeconds() / DurationSecondRatio; }
