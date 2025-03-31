@@ -26,6 +26,8 @@
     #define Vector4 float4
     #define Vector4U uint4
     #define Matrix float4x4
+
+    #define Quaternion float4
 #endif // #if defined(__cplusplus)
 
 #endif // #define _SHADER_INTEROP_H_

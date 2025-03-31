@@ -1,5 +1,6 @@
 • Static Animations
-    • update TLAS
+    • update TLAS on GPU
+	• merge all ShaderInterop shit into a single file because im lazy
 • GI
 	• https://github.com/NVIDIA-RTX/RTXGI
 • RT Shadows

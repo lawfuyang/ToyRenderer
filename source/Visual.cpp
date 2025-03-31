@@ -389,7 +389,6 @@ bool Material::IsValid() const
 Matrix Node::MakeLocalToWorldMatrix() const
 {
     const Matrix translateMat = Matrix::CreateTranslation(m_Position);
-    //const Matrix rotationMat = Matrix::CreateFromYawPitchRoll(m_Rotation.x, m_Rotation.y, m_Rotation.z);
     const Matrix rotationMat = Matrix::CreateFromQuaternion(m_Rotation);
     const Matrix scaleMat = Matrix::CreateScale(m_Scale);
 

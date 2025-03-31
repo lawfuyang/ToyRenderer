@@ -115,11 +115,93 @@ float3x3 MakeAdjugateMatrix(float4x4 m)
 
 float GetMaxScaleFromWorldMatrix(float4x4 worldMatrix)
 {
-    float dx = dot(worldMatrix._11_12_13, worldMatrix._11_12_13);
-    float dy = dot(worldMatrix._21_22_23, worldMatrix._21_22_23);
-    float dz = dot(worldMatrix._31_32_33, worldMatrix._31_32_33);
-    
+    float dx = dot(worldMatrix._11_12_13, worldMatrix._11_12_13); // Length of the X-axis vector
+    float dy = dot(worldMatrix._21_22_23, worldMatrix._21_22_23); // Length of the Y-axis vector
+    float dz = dot(worldMatrix._31_32_33, worldMatrix._31_32_33); // Length of the Z-axis vector
     return sqrt(Max3(dx, dy, dz));
+}
+
+float4x4 MakeTranslationMatrix(float3 translation)
+{
+    return float4x4(1.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f, 1.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 1.0f, 0.0f,
+                    translation.x, translation.y, translation.z, 1.0f);
+}
+
+// referred from DirectXMath's XMMatrixRotationQuaternion
+float4x4 MatrixFromQuaternion(float4 quaternion)
+{
+    float qx = quaternion.x;
+    float qxx = qx * qx;
+
+    float qy = quaternion.y;
+    float qyy = qy * qy;
+
+    float qz = quaternion.z;
+    float qzz = qz * qz;
+
+    float qw = quaternion.w;
+    
+    float4x4 M;
+    M[0][0] = 1.f - 2.f * qyy - 2.f * qzz;
+    M[0][1] = 2.f * qx * qy + 2.f * qz * qw;
+    M[0][2] = 2.f * qx * qz - 2.f * qy * qw;
+    M[0][3] = 0.f;
+
+    M[1][0] = 2.f * qx * qy - 2.f * qz * qw;
+    M[1][1] = 1.f - 2.f * qxx - 2.f * qzz;
+    M[1][2] = 2.f * qy * qz + 2.f * qx * qw;
+    M[1][3] = 0.f;
+
+    M[2][0] = 2.f * qx * qz + 2.f * qy * qw;
+    M[2][1] = 2.f * qy * qz - 2.f * qx * qw;
+    M[2][2] = 1.f - 2.f * qxx - 2.f * qyy;
+    M[2][3] = 0.f;
+    
+    M[3][0] = 0.f;
+    M[3][1] = 0.f;
+    M[3][2] = 0.f;
+    M[3][3] = 1.f;
+    
+    return M;
+}
+
+float4x4 MakeScaleMatrix(float3 scale)
+{
+    return float4x4(scale.x, 0.0f, 0.0f, 0.0f,
+                    0.0f, scale.y, 0.0f, 0.0f,
+                    0.0f, 0.0f, scale.z, 0.0f,
+                    0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+float4x4 MakeWorldMatrix(float3 position, float4 rotation, float3 scale)
+{
+    float4x4 translationMatrix = MakeTranslationMatrix(position);
+    float4x4 rotationMatrix = MatrixFromQuaternion(rotation);
+    float4x4 scaleMatrix = MakeScaleMatrix(scale);
+    
+    return mul(mul(rotationMatrix, scaleMatrix), translationMatrix);
+}
+
+float4 TransformBoundingSphereToWorld(float4x4 worldMatrix, float4 localSphere)
+{
+    // Extract the local center (xyz) and radius (w)
+    float3 localCenter = localSphere.xyz;
+    float localRadius = localSphere.w;
+
+    // Transform the center to world space (position, so w = 1.0)
+    float4 worldCenterHomogeneous = mul(float4(localCenter, 1.0), worldMatrix);
+    float3 worldCenter = worldCenterHomogeneous.xyz;
+
+    // Calculate the scaling factor from the world matrix
+    float maxScale = GetMaxScaleFromWorldMatrix(worldMatrix);
+
+    // Scale the radius by the maximum scaling factor
+    float worldRadius = localRadius * maxScale;
+
+    // Return the transformed sphere (center in world space, scaled radius)
+    return float4(worldCenter, worldRadius);
 }
 
 #endif // __TOYRENDERER_COMMON_HLSL__

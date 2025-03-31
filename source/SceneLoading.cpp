@@ -660,21 +660,16 @@ struct GLTFSceneLoader
 
                     Mesh& primitiveMesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
-                    AABB::CreateMerged(newNode.m_AABB, newNode.m_AABB, primitiveMesh.m_AABB);
-                    Sphere::CreateMerged(newNode.m_BoundingSphere, newNode.m_BoundingSphere, primitiveMesh.m_BoundingSphere);
+                    AABB worldAABB;
+                    primitiveMesh.m_AABB.Transform(worldAABB, outWorldMatrix);
 
-                    newNode.m_PrimitivesIDs.push_back(primitiveID);
+                    Sphere worldBoundingSphere;
+                    primitiveMesh.m_BoundingSphere.Transform(worldBoundingSphere, outWorldMatrix);
+
+                    AABB::CreateMerged(scene->m_AABB, scene->m_AABB, worldAABB);
+                    Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, worldBoundingSphere);
                 }
             }
-
-            AABB nodeWorldAABB;
-            newNode.m_AABB.Transform(nodeWorldAABB, outWorldMatrix);
-
-            Sphere nodeWorldBoundingSphere;
-            newNode.m_BoundingSphere.Transform(nodeWorldBoundingSphere, outWorldMatrix);
-
-            AABB::CreateMerged(scene->m_AABB, scene->m_AABB, nodeWorldAABB);
-            Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, nodeWorldBoundingSphere);
 
             if (node.camera)
             {

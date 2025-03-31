@@ -126,10 +126,12 @@ void CS_GPUCulling(
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceConstsIdx];
     
-    float3 sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_WorldToView).xyz;
+    float4 instanceBoundingSphere = TransformBoundingSphereToWorld(instanceConsts.m_WorldMatrix, g_MeshData[instanceConsts.m_MeshDataIdx].m_BoundingSphere);
+    
+    float3 sphereCenterViewSpace = mul(float4(instanceBoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_WorldToView).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
-    float sphereRadius = instanceConsts.m_BoundingSphere.w;
+    float sphereRadius = instanceBoundingSphere.w;
     
     // Frustum test instance against the current view
     #if LATE_CULL
@@ -152,7 +154,7 @@ void CS_GPUCulling(
     
     // test against prev frame HZB for early cull
 #if !LATE_CULL
-    sphereCenterViewSpace = mul(float4(instanceConsts.m_BoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevWorldToView).xyz;
+    sphereCenterViewSpace = mul(float4(instanceBoundingSphere.xyz, 1.0f), g_GPUCullingPassConstants.m_PrevWorldToView).xyz;
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
 #endif
     

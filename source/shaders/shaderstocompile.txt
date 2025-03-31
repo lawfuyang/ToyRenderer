@@ -23,6 +23,7 @@ shadowmask.hlsl -T cs -E CS_ShadowMask
 shadowmask.hlsl -T cs -E CS_PackNormalAndRoughness
 bloom.hlsl -T ps -E PS_Downsample
 bloom.hlsl -T ps -E PS_Upsample
+updateinstanceconsts.hlsl -T cs -E CS_UpdateInstanceConsts
 
 ../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 

@@ -110,11 +110,6 @@ public:
     Vector3 m_Scale = Vector3::One;
     Quaternion m_Rotation;
 
-    AABB m_AABB = { Vector3::Zero, Vector3::Zero };
-    Sphere m_BoundingSphere = { Vector3::Zero, 0.0f };
-    
-    std::vector<uint32_t> m_PrimitivesIDs;
-
 	uint32_t m_ParentNodeID = UINT_MAX;
     std::vector<uint32_t> m_ChildrenNodeIDs;
 };

@@ -6,6 +6,8 @@
 #include "Utilities.h"
 #include "Visual.h"
 
+#include "shaders/shared/UpdateNodeTransformsStructs.h"
+
 class Primitive;
 class RenderGraph;
 
@@ -41,7 +43,6 @@ struct GPUCullingCounters
 class View
 {
 public:
-    void Initialize();
     void Update();
     void UpdateVectors(float yaw, float pitch);
 
@@ -126,13 +127,20 @@ public:
     std::vector<Animation> m_Animations;
     double m_AnimationTimeSeconds = 0.0;
 
+    std::vector<NodeLocalTransform> m_NodeLocalTransforms;
+    nvrhi::BufferHandle m_NodeLocalTransformsBuffer;
+    nvrhi::BufferHandle m_PrimitiveIDToNodeIDBuffer;
+
 private:
     void UpdateMainViewCameraControls();
-    void UpdateInstanceConsts();
+    void CreateInstanceConstsBuffer();
     void UpdateInstanceIDsBuffers();
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
+    void CreateAccelerationStructures();
     void UpdateTLAS(bool bCreate = false);
+    void CreateNodeTransformsBuffer();
+    void UploadNodeTransforms();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;

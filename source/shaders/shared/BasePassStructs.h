@@ -23,7 +23,6 @@ struct BasePassInstanceConstants
 {
 	Matrix m_WorldMatrix;
 	Matrix m_PrevWorldMatrix;
-	Vector4 m_BoundingSphere;
 	uint32_t m_MeshDataIdx;
 	uint32_t m_MaterialDataIdx;
 	Vector2 PAD0;
