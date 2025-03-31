@@ -304,9 +304,8 @@ void Scene::UpdateInstanceConsts()
 
     std::vector<BasePassInstanceConstants> instanceConstsBytes;
 
-    for (uint32_t i = 0; i < nbPrimitives; ++i)
+    for (const Primitive& primitive : m_Primitives)
     {
-        const Primitive& primitive = m_Primitives.at(i);
         assert(primitive.IsValid());
 
         const Node& node = m_Nodes.at(primitive.m_NodeID);
@@ -453,7 +452,7 @@ void Scene::UpdateAnimations()
         {
             Node& node = m_Nodes.at(channel.m_TargetNodeIdx);
 
-             const Vector4 evaluatedVal = channel.Evaluate(time);
+            const Vector4 evaluatedVal = channel.Evaluate(time);
 
             switch (channel.m_PathType)
             {

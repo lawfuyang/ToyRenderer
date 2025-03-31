@@ -632,9 +632,7 @@ struct GLTFSceneLoader
         for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
         {
             cgltf_node& node = m_GLTFData->nodes[i];
-
-            const uint32_t newNodeID = i;
-            Node& newNode = scene->m_Nodes[newNodeID];
+            Node& newNode = scene->m_Nodes[i];
 
             Matrix outLocalMatrix;
             cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
@@ -656,7 +654,7 @@ struct GLTFSceneLoader
                     const uint32_t primitiveID = scene->m_Primitives.size();
 
                     Primitive& newPrimitive = scene->m_Primitives.emplace_back();
-                    newPrimitive.m_NodeID = newNodeID;
+                    newPrimitive.m_NodeID = i;
                     newPrimitive.m_MeshIdx = primitive.m_MeshIdx;
                     newPrimitive.m_Material = primitive.m_Material;
 
@@ -749,6 +747,7 @@ struct GLTFSceneLoader
                     LOG_DEBUG("GLTF - Animation for node '%s' has less than 2 keyframes. Skipping", gltfAnimationChannel.target_node->name);
                     continue;
                 }
+                assert(gltfSampler.input->count == gltfSampler.output->count);
 
                 Animation::Channel& newChannel = newAnimation.m_Channels.emplace_back();
 
@@ -757,15 +756,9 @@ struct GLTFSceneLoader
 
                 switch (gltfAnimationChannel.target_path)
                 {
-                case cgltf_animation_path_type_rotation:
-                    newChannel.m_PathType = Animation::Channel::PathType::Rotation;
-                    break;
-                case cgltf_animation_path_type_translation:
-                    newChannel.m_PathType = Animation::Channel::PathType::Translation;
-                    break;
-                case cgltf_animation_path_type_scale:
-                    newChannel.m_PathType = Animation::Channel::PathType::Scale;
-                    break;
+                case cgltf_animation_path_type_rotation:    newChannel.m_PathType = Animation::Channel::PathType::Rotation;    break;
+                case cgltf_animation_path_type_translation: newChannel.m_PathType = Animation::Channel::PathType::Translation; break;
+                case cgltf_animation_path_type_scale:       newChannel.m_PathType = Animation::Channel::PathType::Scale;       break;
                 default:
                     // TODO: support other target paths
                     assert(0);

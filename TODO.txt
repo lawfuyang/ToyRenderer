@@ -1,8 +1,5 @@
 • Static Animations
-    • https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/BoxAnimated
-	• then https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/BrainStem
-	• then bistrox
-    • update of nodes' transforms & instance data on GPU every frame (with hierarchy)
+    • update TLAS
 • GI
 	• https://github.com/NVIDIA-RTX/RTXGI
 • RT Shadows
