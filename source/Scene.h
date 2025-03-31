@@ -132,6 +132,7 @@ private:
     void UpdateInstanceIDsBuffers();
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
+    void UpdateTLAS(bool bCreate = false);
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;

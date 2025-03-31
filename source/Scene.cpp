@@ -470,6 +470,43 @@ void Scene::UpdateAnimations()
     }
 }
 
+void Scene::UpdateTLAS(bool bCreate)
+{
+    assert(m_TLAS);
+
+    PROFILE_FUNCTION();
+
+    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Update TLAS");
+
+    std::vector<nvrhi::rt::InstanceDesc> instances;
+
+    for (uint32_t instanceID = 0; instanceID < m_Primitives.size(); ++instanceID)
+    {
+        const Primitive& primitive = m_Primitives.at(instanceID);
+
+        const Node& node = m_Nodes.at(primitive.m_NodeID);
+        const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
+
+        nvrhi::rt::InstanceDesc& instanceDesc = instances.emplace_back();
+
+        const Matrix worldMatrixTransposed = node.MakeLocalToWorldMatrix().Transpose();
+        memcpy(instanceDesc.transform, &worldMatrixTransposed, sizeof(instanceDesc.transform));
+
+        nvrhi::rt::InstanceFlags instanceFlags = Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise : nvrhi::rt::InstanceFlags::None;
+        instanceFlags = instanceFlags | ((primitive.m_Material.m_AlphaMode == AlphaMode::Opaque) ? nvrhi::rt::InstanceFlags::ForceOpaque : nvrhi::rt::InstanceFlags::ForceNonOpaque);
+
+        instanceDesc.instanceID = instanceID;
+        instanceDesc.instanceMask = 1;
+        instanceDesc.instanceContributionToHitGroupIndex = 0;
+        instanceDesc.flags = instanceFlags;
+        instanceDesc.bottomLevelAS = mesh.m_BLAS;
+    }
+
+    const nvrhi::rt::AccelStructBuildFlags buildFlags = bCreate ? nvrhi::rt::AccelStructBuildFlags::None : nvrhi::rt::AccelStructBuildFlags::PerformUpdate;
+    commandList->buildTopLevelAccelStruct(m_TLAS, instances.data(), instances.size(), buildFlags);
+}
+
 void Scene::Update()
 {
     PROFILE_FUNCTION();
@@ -482,6 +519,7 @@ void Scene::Update()
     {
         UpdateAnimations();
         UpdateInstanceConsts();
+        UpdateTLAS();
     }
 
     tf::Taskflow tf;
@@ -620,12 +658,24 @@ void Scene::OnSceneLoad()
         PROFILE_SCOPED("Build all Mesh BLAS(es)");
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Build BLAS CommandList");
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Build BLAS");
 
         for (Mesh& mesh : g_Graphic.m_Meshes)
         {
             mesh.BuildBLAS(commandList);
         }
+    }
+
+    {
+        nvrhi::rt::AccelStructDesc tlasDesc;
+        tlasDesc.topLevelMaxInstances = m_Primitives.size();
+        tlasDesc.debugName = "Scene TLAS";
+        tlasDesc.isTopLevel = true;
+        tlasDesc.buildFlags = nvrhi::rt::AccelStructBuildFlags::AllowUpdate;
+        m_TLAS = g_Graphic.m_NVRHIDevice->createAccelStruct(tlasDesc);
+
+        const bool bCreate = true;
+        UpdateTLAS(bCreate);
     }
 
     g_Graphic.ExecuteAllCommandLists();
@@ -636,49 +686,10 @@ void Scene::OnSceneLoad()
         PROFILE_SCOPED("CompactBottomLevelAccelStructs");
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Compact BLAS CommandList");
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Compact BLAS");
 
         commandList->compactBottomLevelAccelStructs();
     }
-    g_Graphic.ExecuteAllCommandLists();
 
-    {
-        PROFILE_SCOPED("Build TLAS");
-
-        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Build TLAS");
-
-        nvrhi::rt::AccelStructDesc tlasDesc;
-        tlasDesc.topLevelMaxInstances = m_Primitives.size();
-        tlasDesc.debugName = "Scene TLAS";
-        tlasDesc.isTopLevel = true;
-        m_TLAS = g_Graphic.m_NVRHIDevice->createAccelStruct(tlasDesc);
-
-        std::vector<nvrhi::rt::InstanceDesc> instances;
-
-        for (uint32_t instanceID = 0; instanceID < m_Primitives.size(); ++instanceID)
-        {
-            const Primitive& primitive = m_Primitives.at(instanceID);
-
-            const Node& node = m_Nodes.at(primitive.m_NodeID);
-            const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
-
-            nvrhi::rt::InstanceDesc& instanceDesc = instances.emplace_back();
-
-            const Matrix worldMatrixTransposed = node.MakeLocalToWorldMatrix().Transpose();
-            memcpy(instanceDesc.transform, &worldMatrixTransposed, sizeof(instanceDesc.transform));
-
-            nvrhi::rt::InstanceFlags instanceFlags = Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise : nvrhi::rt::InstanceFlags::None;
-            instanceFlags = instanceFlags | ((primitive.m_Material.m_AlphaMode == AlphaMode::Opaque) ? nvrhi::rt::InstanceFlags::ForceOpaque : nvrhi::rt::InstanceFlags::ForceNonOpaque);
-
-            instanceDesc.instanceID = instanceID;
-            instanceDesc.instanceMask = 1;
-            instanceDesc.instanceContributionToHitGroupIndex = 0;
-            instanceDesc.flags = instanceFlags;
-            instanceDesc.bottomLevelAS = mesh.m_BLAS;
-        }
-
-        commandList->buildTopLevelAccelStruct(m_TLAS, instances.data(), instances.size());
-    }
     g_Graphic.ExecuteAllCommandLists();
 }
