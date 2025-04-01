@@ -28,7 +28,7 @@ function(CheckAndDownloadPackage NAME VERSION LOCAL_PATH URL)
     endif()
 endfunction()
 
-CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${CMAKE_CURRENT_SOURCE_DIR}/extern/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${${DXC_VERSION}}/dxc_2025_02_20.zip)
+CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${CMAKE_CURRENT_SOURCE_DIR}/extern/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_2025_02_20.zip)
 CheckAndDownloadPackage("SDL" ${SDL3_VERSION} ${CMAKE_CURRENT_SOURCE_DIR}/extern/sdl https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-VC.zip)
 
 # i need to do this because shadermake manually & retardedly sets 'CMAKE_MSVC_RUNTIME_LIBRARY'
