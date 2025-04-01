@@ -109,10 +109,15 @@ public:
     {
         Scene* scene = g_Graphic.m_Scene.get();
 
-        commandList->writeBuffer(scene->m_NodeLocalTransformsBuffer, scene->m_NodeLocalTransforms.data(), scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
+        {
+            PROFILE_GPU_SCOPED(commandList, "Upload Node Transforms");
+            commandList->writeBuffer(scene->m_NodeLocalTransformsBuffer, scene->m_NodeLocalTransforms.data(), scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
+        }
+
+        const uint32_t numPrimitives = scene->m_Primitives.size();
 
         UpdateInstanceConstsPassConstants passConstants;
-        passConstants.m_NumInstances = scene->m_Primitives.size();
+        passConstants.m_NumInstances = numPrimitives;
 
         nvrhi::BufferHandle passConstantsBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
@@ -123,17 +128,24 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_NodeLocalTransformsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, scene->m_PrimitiveIDToNodeIDBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, scene->m_TLASInstanceDescsBuffer),
         };
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
-        computePassParams.m_ShaderName = "updateinstanceconsts_CS_UpdateInstanceConsts";
+        computePassParams.m_ShaderName = "updateinstanceconsts_CS_UpdateInstanceConstsAndBuildTLAS";
         computePassParams.m_BindingSetDesc = bindingSetDesc;
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_NumInstances, kNumThreadsPerWave);
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);
 
         g_Graphic.AddComputePass(computePassParams);
+
+        // TODO: async compute this
+        {
+            PROFILE_GPU_SCOPED(commandList, "Build TLAS");
+            commandList->buildTopLevelAccelStructFromBuffer(scene->m_TLAS, scene->m_TLASInstanceDescsBuffer, 0, numPrimitives);
+        }
     }
 };
 static UpdateInstanceConstsRenderer gs_UpdateInstanceConstsRenderer;
@@ -514,50 +526,31 @@ void Scene::CreateAccelerationStructures()
 {
     PROFILE_FUNCTION();
 
+    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Build BLAS & TLAS");
+
+    for (Mesh& mesh : g_Graphic.m_Meshes)
     {
-        PROFILE_SCOPED("Build all Mesh BLAS(es)");
-
-        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Build BLAS");
-
-        for (Mesh& mesh : g_Graphic.m_Meshes)
-        {
-            mesh.BuildBLAS(commandList);
-        }
+        mesh.BuildBLAS(commandList);
     }
+
+    static_assert(sizeof(TLASInstanceDesc) == sizeof(nvrhi::rt::InstanceDesc));
 
     nvrhi::rt::AccelStructDesc tlasDesc;
     tlasDesc.topLevelMaxInstances = m_Primitives.size();
     tlasDesc.debugName = "Scene TLAS";
     tlasDesc.isTopLevel = true;
-    tlasDesc.buildFlags = nvrhi::rt::AccelStructBuildFlags::AllowUpdate;
     m_TLAS = g_Graphic.m_NVRHIDevice->createAccelStruct(tlasDesc);
 
-    const bool bCreate = true;
-    UpdateTLAS(bCreate);
+    nvrhi::BufferDesc instanceDescsBufferDesc;
+    instanceDescsBufferDesc.byteSize = m_Primitives.size() * sizeof(nvrhi::rt::InstanceDesc);
+    instanceDescsBufferDesc.structStride = sizeof(nvrhi::rt::InstanceDesc);
+    instanceDescsBufferDesc.debugName = "TLAS Instance Descs Buffer";
+    instanceDescsBufferDesc.canHaveUAVs = true;
+    instanceDescsBufferDesc.isAccelStructBuildInput = true;
+    instanceDescsBufferDesc.initialState = nvrhi::ResourceStates::AccelStructBuildInput;
 
-    g_Graphic.ExecuteAllCommandLists();
-    g_Graphic.m_NVRHIDevice->waitForIdle();
-    g_Graphic.m_NVRHIDevice->runGarbageCollection();
-
-    {
-        PROFILE_SCOPED("CompactBottomLevelAccelStructs");
-
-        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Compact BLAS");
-
-        commandList->compactBottomLevelAccelStructs();
-    }
-}
-
-void Scene::UpdateTLAS(bool bCreate)
-{
-    assert(m_TLAS);
-
-    PROFILE_FUNCTION();
-
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Update TLAS");
+    m_TLASInstanceDescsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(instanceDescsBufferDesc);
 
     std::vector<nvrhi::rt::InstanceDesc> instances;
 
@@ -580,11 +573,12 @@ void Scene::UpdateTLAS(bool bCreate)
         instanceDesc.instanceMask = 1;
         instanceDesc.instanceContributionToHitGroupIndex = 0;
         instanceDesc.flags = instanceFlags;
-        instanceDesc.bottomLevelAS = mesh.m_BLAS;
+        instanceDesc.blasDeviceAddress = mesh.m_BLAS->getDeviceAddress();
     }
 
-    const nvrhi::rt::AccelStructBuildFlags buildFlags = bCreate ? nvrhi::rt::AccelStructBuildFlags::None : nvrhi::rt::AccelStructBuildFlags::PerformUpdate;
-    commandList->buildTopLevelAccelStruct(m_TLAS, instances.data(), instances.size(), buildFlags);
+    commandList->writeBuffer(m_TLASInstanceDescsBuffer, instances.data(), instances.size() * sizeof(nvrhi::rt::InstanceDesc));
+
+    commandList->buildTopLevelAccelStructFromBuffer(m_TLAS, m_TLASInstanceDescsBuffer, 0, instances.size());
 }
 
 void Scene::CreateNodeTransformsBuffer()
@@ -647,7 +641,6 @@ void Scene::Update()
     if (g_GraphicPropertyGrid.m_DebugControllables.m_EnableAnimations)
     {
         UpdateAnimations();
-        UpdateTLAS();
     }
 
     tf::Taskflow tf;

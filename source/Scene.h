@@ -131,6 +131,8 @@ public:
     nvrhi::BufferHandle m_NodeLocalTransformsBuffer;
     nvrhi::BufferHandle m_PrimitiveIDToNodeIDBuffer;
 
+    nvrhi::BufferHandle m_TLASInstanceDescsBuffer;
+
 private:
     void UpdateMainViewCameraControls();
     void CreateInstanceConstsBuffer();
@@ -138,7 +140,6 @@ private:
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
     void CreateAccelerationStructures();
-    void UpdateTLAS(bool bCreate = false);
     void CreateNodeTransformsBuffer();
 
     // TODO: move this shit to some sort of camera class

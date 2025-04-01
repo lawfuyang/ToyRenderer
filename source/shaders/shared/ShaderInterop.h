@@ -16,9 +16,6 @@
     #define Half2 half2
     #define Half4 half4
 
-    #define int32_t int
-    #define uint32_t uint
-
     #define Vector2 float2
     #define Vector2U uint2
     #define Vector3 float3

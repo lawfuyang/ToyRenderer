@@ -1,6 +1,4 @@
-• Static Animations
-    • update TLAS on GPU
-	• merge all ShaderInterop shit into a single file because im lazy
+• Merge all ShaderInterop shit into a single file because im lazy
 • GI
     • https://github.com/NVIDIAGameWorks/RTXGI-DDGI
 	• https://github.com/NVIDIA-RTX/RTXGI (?)
@@ -53,6 +51,7 @@
     • async XeGTAO
     • async GPU Culling
 	• async buffer clears (?)
+	• async build TLAS
 • Area Lights: https://learnopengl.com/Guest-Articles/2022/Area-Lights
 • Lens Flare
 • Volumetric Lighting

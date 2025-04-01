@@ -12,6 +12,16 @@ struct NodeLocalTransform
     uint32_t PAD0;
 };
 
+struct TLASInstanceDesc
+{
+    float m_Transform[12]; // 3x4 matrix flattened
+    uint32_t m_InstanceID : 24;
+    uint32_t m_InstanceMask : 8;
+    uint32_t m_InstanceContributionToHitGroupIndex : 24;
+    uint32_t m_Flags : 8;
+    uint64_t m_AccelerationStructure;
+};
+
 struct UpdateInstanceConstsPassConstants
 {
     uint32_t m_NumInstances;
