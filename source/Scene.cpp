@@ -109,6 +109,9 @@ public:
     {
         Scene* scene = g_Graphic.m_Scene.get();
 
+        commandList->writeBuffer(scene->m_NodeLocalTransformsBuffer, scene->m_NodeLocalTransforms.data(), scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
+        scene->m_NodeLocalTransforms.clear();
+
         UpdateInstanceConstsPassConstants passConstants;
         passConstants.m_NumInstances = scene->m_Primitives.size();
 
@@ -634,16 +637,6 @@ void Scene::CreateNodeTransformsBuffer()
     commandList->writeBuffer(m_PrimitiveIDToNodeIDBuffer, primitiveIDToNodeIDBytes.data(), primitiveIDToNodeIDBytes.size() * sizeof(uint32_t));
 }
 
-void Scene::UploadNodeTransforms()
-{
-    PROFILE_FUNCTION();
-
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "UploadNodeTransforms");
-
-    commandList->writeBuffer(m_NodeLocalTransformsBuffer, m_NodeLocalTransforms.data(), m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
-}
-
 void Scene::Update()
 {
     PROFILE_FUNCTION();
@@ -655,7 +648,6 @@ void Scene::Update()
     if (g_GraphicPropertyGrid.m_DebugControllables.m_EnableAnimations)
     {
         UpdateAnimations();
-        UploadNodeTransforms();
         UpdateTLAS();
     }
 

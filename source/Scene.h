@@ -140,7 +140,6 @@ private:
     void CreateAccelerationStructures();
     void UpdateTLAS(bool bCreate = false);
     void CreateNodeTransformsBuffer();
-    void UploadNodeTransforms();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;
