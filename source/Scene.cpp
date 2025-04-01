@@ -110,7 +110,6 @@ public:
         Scene* scene = g_Graphic.m_Scene.get();
 
         commandList->writeBuffer(scene->m_NodeLocalTransformsBuffer, scene->m_NodeLocalTransforms.data(), scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
-        scene->m_NodeLocalTransforms.clear();
 
         UpdateInstanceConstsPassConstants passConstants;
         passConstants.m_NumInstances = scene->m_Primitives.size();
