@@ -2,7 +2,8 @@
     • update TLAS on GPU
 	• merge all ShaderInterop shit into a single file because im lazy
 • GI
-	• https://github.com/NVIDIA-RTX/RTXGI
+    • https://github.com/NVIDIAGameWorks/RTXGI-DDGI
+	• https://github.com/NVIDIA-RTX/RTXGI (?)
 • RT Shadows
 	• half/quarter res trace (?)
 	• improve with 3D motion vector inputs (?)
