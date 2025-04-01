@@ -7,6 +7,11 @@ option(ENABLE_ADDRESS_SANITIZER "" OFF)
 set(DXC_VERSION "1.8.2502")
 set(SDL3_VERSION "3.2.10")
 
+set(ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}")
+set(BIN_DIR "${ROOT_DIR}/bin")
+set(SRC_DIR "${ROOT_DIR}/source")
+set(EXTERN_DIR "${ROOT_DIR}/extern")
+
 # Helper to download and unzip a package from a URL
 # Uses a zero-length file to identify the version of the package
 # copied from https://github.com/NVIDIAGameWorks/RTXGI-DDGI/blob/main/CMakeLists.txt
@@ -28,14 +33,20 @@ function(CheckAndDownloadPackage NAME VERSION LOCAL_PATH URL)
     endif()
 endfunction()
 
-CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${CMAKE_CURRENT_SOURCE_DIR}/extern/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_2025_02_20.zip)
-CheckAndDownloadPackage("SDL" ${SDL3_VERSION} ${CMAKE_CURRENT_SOURCE_DIR}/extern/sdl https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-VC.zip)
+CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${EXTERN_DIR}/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_2025_02_20.zip)
+CheckAndDownloadPackage("SDL" ${SDL3_VERSION} ${EXTERN_DIR}/sdl https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-VC.zip)
+
+execute_process(
+COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.dll
+        ${BIN_DIR}/SDL3.dll
+)
 
 # i need to do this because shadermake manually & retardedly sets 'CMAKE_MSVC_RUNTIME_LIBRARY'
 set(CMAKE_MSVC_RUNTIME_LIBRARY 
     "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" 
     CACHE STRING "MSVC runtime library" FORCE)
-
+	
 project(ToyRenderer)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -58,11 +69,6 @@ endif()
 if (ENABLE_IPO)
 	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
-
-set(ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}")
-set(BIN_DIR "${ROOT_DIR}/bin")
-set(SRC_DIR "${ROOT_DIR}/source")
-set(EXTERN_DIR "${ROOT_DIR}/extern")
 
 # disable warnings for extern. we dont care about them
 set_directory_properties(PROPERTIES COMPILE_OPTIONS "/W0" DIRECTORY ${EXTERN_DIR})
