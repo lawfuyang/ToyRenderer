@@ -12,7 +12,7 @@ IF EXIST "%cd%/bin/Release/ShaderMake.exe" (
     SET SHADER_MAKE_EXE="%cd%/bin/ShaderMake.exe"
 )
 
-SET DXC_PATH="%cd%/extern/dxc/dxc.exe"
+SET DXC_PATH="%cd%/extern/dxc/bin/x64/dxc.exe"
 SET CONFIG_FILE="%cd%/source/shaders/shaderstocompile.txt"
 SET OUT="%cd%/bin/shaders/"
 

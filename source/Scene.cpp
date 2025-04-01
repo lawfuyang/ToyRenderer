@@ -1,8 +1,8 @@
 #include "Scene.h"
 
 #include "extern/imgui/imgui.h"
-#include "extern/SDL/SDL3/SDL_keyboard.h"
-#include "extern/SDL/SDL3/SDL_mouse.h"
+#include "SDL3/SDL_keyboard.h"
+#include "SDL3/SDL_mouse.h"
 
 #include "CommonResources.h"
 #include "Engine.h"

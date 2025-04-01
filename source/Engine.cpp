@@ -3,11 +3,12 @@
 #include <dxgidebug.h>
 
 #include "extern/cxxopts/include/cxxopts.hpp"
-#include "extern/SDL/SDL3/SDL.h"
-#include "extern/SDL/SDL3/SDL_main.h"
-#include "extern/SDL/SDL3/SDL_keyboard.h"
 #include "extern/imgui/imgui.h"
 #include "extern/imgui/backends/imgui_impl_sdl3.h"
+
+#include "SDL3/SDL.h"
+#include "SDL3/SDL_main.h"
+#include "SDL3/SDL_keyboard.h"
 
 #include "Graphic.h"
 #include "GraphicPropertyGrid.h"

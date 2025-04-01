@@ -4,6 +4,33 @@ option(ENABLE_UNITY_BUILD "" OFF)
 option(ENABLE_IPO "" OFF)
 option(ENABLE_ADDRESS_SANITIZER "" OFF)
 
+set(DXC_VERSION "1.8.2502")
+set(SDL3_VERSION "3.2.10")
+
+# Helper to download and unzip a package from a URL
+# Uses a zero-length file to identify the version of the package
+# copied from https://github.com/NVIDIAGameWorks/RTXGI-DDGI/blob/main/CMakeLists.txt
+function(CheckAndDownloadPackage NAME VERSION LOCAL_PATH URL)
+    # Do we already have the correct version?
+    if(NOT EXISTS ${LOCAL_PATH}/${VERSION}.ver)
+        # Was there a previous version that we need to delete?
+        if(EXISTS ${LOCAL_PATH})
+            message(STATUS "Deleting old " ${NAME})
+            file(REMOVE_RECURSE ${LOCAL_PATH})
+        endif()
+        message(STATUS "Obtaining " ${NAME} " " ${VERSION})
+        file(DOWNLOAD ${URL} ${LOCAL_PATH}.zip)
+        message(STATUS "Extracting " ${NAME})
+        file(ARCHIVE_EXTRACT INPUT ${LOCAL_PATH}.zip DESTINATION ${LOCAL_PATH})
+        file(REMOVE ${LOCAL_PATH}.zip)
+        # Create an empty file so we know which version we have
+        file(WRITE ${LOCAL_PATH}/${VERSION}.ver)
+    endif()
+endfunction()
+
+CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${CMAKE_CURRENT_SOURCE_DIR}/extern/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${${DXC_VERSION}}/dxc_2025_02_20.zip)
+CheckAndDownloadPackage("SDL" ${SDL3_VERSION} ${CMAKE_CURRENT_SOURCE_DIR}/extern/sdl https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-VC.zip)
+
 # i need to do this because shadermake manually & retardedly sets 'CMAKE_MSVC_RUNTIME_LIBRARY'
 set(CMAKE_MSVC_RUNTIME_LIBRARY 
     "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" 
@@ -98,7 +125,7 @@ set(TOYRENDERER_LIBRARIES
 	nvrhi_d3d12
 	Taskflow
 	NRD
-	"${BIN_DIR}/SDL3.lib"
+	"${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.lib"
 )
 
 # libs
@@ -116,7 +143,7 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/ShaderMa
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/FidelityFX/sdk/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/imgui")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/magic_enum/include")
-set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/SDL")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 # global preprocessor macros

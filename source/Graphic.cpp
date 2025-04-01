@@ -5,8 +5,8 @@
 #include "extern/nvrhi/include/nvrhi/validation.h"
 #include "extern/shadermake/include/ShaderMake/ShaderBlob.h"
 
-#include "extern/SDL/SDL3/SDL.h"
-#include "extern/SDL/SDL3/SDL_properties.h"
+#include "SDL3/SDL.h"
+#include "SDL3/SDL_properties.h"
 
 #if NVRHI_WITH_AFTERMATH
 #include "nvrhi/common/aftermath.h"
