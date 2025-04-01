@@ -24,9 +24,9 @@ if not exist "%DXC_DEST_FOLDER%" (
 :: SDL3
 set "SDL3_DEST_FOLDER=%cd%\extern\SDL"
 if not exist "%SDL3_DEST_FOLDER%" (
-	call :DownloadAndExtractPackage https://github.com/libsdl-org/SDL/releases/download/release-3.2.8/SDL3-devel-3.2.8-VC.zip SDL
-	xcopy "%TMP_FOLDER%\SDL\SDL3-3.2.8\include\*" "%SDL3_DEST_FOLDER%\" /E /I /Y
-	xcopy "%TMP_FOLDER%\SDL\SDL3-3.2.8\lib\x64\*" "%cd%\bin\"
+	call :DownloadAndExtractPackage https://github.com/libsdl-org/SDL/releases/download/release-3.2.10/SDL3-devel-3.2.10-VC.zip SDL
+	xcopy "%TMP_FOLDER%\SDL\SDL3-3.2.10\include\*" "%SDL3_DEST_FOLDER%\" /E /I /Y
+	xcopy "%TMP_FOLDER%\SDL\SDL3-3.2.10\lib\x64\*" "%cd%\bin\"
 )
 
 goto :AfterDownloadPackages
