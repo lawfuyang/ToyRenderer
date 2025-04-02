@@ -20,6 +20,9 @@
 #include "SmallVector.h"
 #include "Utilities.h"
 
+#include "shaders/DDGIShaderConfig.h"
+#include "shaders/ShaderInterop.h"
+
 CommandLineOption<bool> g_EnableD3DDebug{ "d3ddebug", false };
 CommandLineOption<bool> g_EnableGPUValidation{ "enablegpuvalidation", false };
 
@@ -177,6 +180,15 @@ void Graphic::InitDevice()
         }
         
         LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", maxSupportedFeatureLevel);
+
+        // ensure threads per wave == 32
+        D3D12_FEATURE_DATA_D3D12_OPTIONS1 waveFeatures{};
+        HRESULT_CALL(m_D3DDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &waveFeatures, sizeof(waveFeatures)));
+        assert(waveFeatures.WaveLaneCountMin == waveFeatures.WaveLaneCountMax); // NOTE: wtf does it mean if this is not true?
+        assert(RTXGI_DDGI_WAVE_LANE_COUNT == waveFeatures.WaveLaneCountMin);
+        assert(kNumThreadsPerWave == waveFeatures.WaveLaneCountMin);
+
+        LOG_DEBUG("Wave Lane Count: %d", waveFeatures.WaveLaneCountMin);
     }
 
     auto CreateQueue = [this](nvrhi::CommandQueue queue)
