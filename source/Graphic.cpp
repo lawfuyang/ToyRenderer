@@ -884,38 +884,29 @@ void Graphic::Initialize()
     // TODO: upscaling stuff
     m_RenderResolution = m_DisplayResolution;
 
-    // 1st phase Graphic init
-    {
-        tf::Taskflow tf;
-        tf.emplace([this] { InitDevice(); });
+    InitDevice();
 
-        g_Engine.m_Executor->corun(tf);
+    tf::Taskflow tf;
+    tf.emplace([this] { InitSwapChain(); });
+    tf.emplace([this] { InitShaders(); });
+    tf::Task initDescriptorTable = tf.emplace([this] { InitDescriptorTable(); });
+    tf::Task initCommonResources = tf.emplace([this] { m_CommonResources = std::make_shared<CommonResources>(); g_CommonResources.Initialize(); });
+    tf.emplace([this] { m_Scene = std::make_shared<Scene>(); m_Scene->Initialize(); });
+
+    for (IRenderer* renderer : IRenderer::ms_AllRenderers)
+    {
+        tf.emplace([this, renderer]
+                   {
+                       PROFILE_SCOPED(renderer->m_Name.c_str());
+                       LOG_DEBUG("Init Renderer: %s", renderer->m_Name.c_str());
+                       renderer->Initialize();
+                   }).succeed(initCommonResources);
     }
 
-    // 2nd phase Graphic init
-    {
-        tf::Taskflow tf;
-        tf.emplace([this] { InitSwapChain(); });
-        tf.emplace([this] { InitShaders(); });
-        tf::Task initDescriptorTable = tf.emplace([this] { InitDescriptorTable(); });
-        tf::Task initCommonResources = tf.emplace([this] { m_CommonResources = std::make_shared<CommonResources>(); g_CommonResources.Initialize(); });
-        tf.emplace([this] { m_Scene = std::make_shared<Scene>(); m_Scene->Initialize(); });
+    initCommonResources.succeed(initDescriptorTable);
 
-        for (IRenderer* renderer : IRenderer::ms_AllRenderers)
-        {
-            tf.emplace([this, renderer]
-                {
-                    PROFILE_SCOPED(renderer->m_Name.c_str());
-                    LOG_DEBUG("Init Renderer: %s", renderer->m_Name.c_str());
-                    renderer->Initialize();
-                }).succeed(initCommonResources);
-        }
-
-        initCommonResources.succeed(initDescriptorTable);
-
-        // MT init & wait
-        g_Engine.m_Executor->corun(tf);
-    }
+    // MT init & wait
+    g_Engine.m_Executor->corun(tf);
 
     // execute all cmd lists that was created & populated during init phase
     ExecuteAllCommandLists();
