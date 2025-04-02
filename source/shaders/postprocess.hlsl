@@ -1,6 +1,6 @@
 #include "toyrenderer_common.hlsli"
 
-#include "shared/PostProcessStructs.h"
+#include "ShaderInterop.h"
 
 cbuffer PostProcessParametersConstantBuffer : register(b0){ PostProcessParameters g_PostProcessParameters; }
 Texture2D g_ColorInput : register(t0);

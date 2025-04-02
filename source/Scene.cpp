@@ -11,10 +11,9 @@
 #include "RenderGraph.h"
 #include "Visual.h"
 
-#include "shaders/shared/BasePassStructs.h"
-#include "shaders/shared/DeferredLightingStructs.h"
-#include "shaders/shared/IndirectArguments.h"
-#include "shaders/shared/UpdateNodeTransformsStructs.h"
+#include "shaders/ShaderInterop.h"
+
+static_assert(sizeof(Scene::NodeLocalTransformBytes) == sizeof(NodeLocalTransform));
 
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
@@ -502,7 +501,7 @@ void Scene::UpdateAnimations()
         for (const Animation::Channel& channel : animation.m_Channels)
         {
             Node& node = m_Nodes.at(channel.m_TargetNodeIdx);
-            NodeLocalTransform& nodeLocalTransform = m_NodeLocalTransforms.at(channel.m_TargetNodeIdx);
+            NodeLocalTransform& nodeLocalTransform = *(NodeLocalTransform*)&m_NodeLocalTransforms.at(channel.m_TargetNodeIdx);
 
             const Vector4 evaluatedVal = channel.Evaluate(time);
 
@@ -563,8 +562,7 @@ void Scene::CreateAccelerationStructures()
 
         nvrhi::rt::InstanceDesc& instanceDesc = instances.emplace_back();
 
-        const Matrix worldMatrixTransposed = node.MakeLocalToWorldMatrix().Transpose();
-        memcpy(instanceDesc.transform, &worldMatrixTransposed, sizeof(instanceDesc.transform));
+		// transform will be updated in CS_UpdateInstanceConstsAndBuildTLAS
 
         nvrhi::rt::InstanceFlags instanceFlags = Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise : nvrhi::rt::InstanceFlags::None;
         instanceFlags = instanceFlags | ((primitive.m_Material.m_AlphaMode == AlphaMode::Opaque) ? nvrhi::rt::InstanceFlags::ForceOpaque : nvrhi::rt::InstanceFlags::ForceNonOpaque);
@@ -589,7 +587,7 @@ void Scene::CreateNodeTransformsBuffer()
 
     for (const Node& node : m_Nodes)
     {
-        NodeLocalTransform& data = m_NodeLocalTransforms.emplace_back();
+        NodeLocalTransform& data = *(NodeLocalTransform*)&m_NodeLocalTransforms.emplace_back();
         data.m_ParentNodeIdx = node.m_ParentNodeID;
         data.m_Position = node.m_Position;
         data.m_Rotation = node.m_Rotation;

@@ -1,4 +1,3 @@
-• Merge all ShaderInterop shit into a single file because im lazy
 • GI
     • https://github.com/NVIDIAGameWorks/RTXGI-DDGI
 	• https://github.com/NVIDIA-RTX/RTXGI (?)

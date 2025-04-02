@@ -1,7 +1,7 @@
 #include "toyrenderer_common.hlsli"
 #include "lightingcommon.hlsli"
 
-#include "shared/AmbientOcclusionStructs.h"
+#include "ShaderInterop.h"
 
 #define XE_GTAO_USE_HALF_FLOAT_PRECISION 1
 //#define XE_GTAO_FP32_DEPTHS

@@ -5,7 +5,7 @@
 #include "CommonResources.h"
 #include "RenderGraph.h"
 
-#include "shaders/shared/BloomStructs.h"
+#include "shaders/ShaderInterop.h"
 
 RenderGraph::ResourceHandle g_BloomRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;

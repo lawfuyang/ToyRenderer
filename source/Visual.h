@@ -4,9 +4,6 @@
 
 #include "MathUtilities.h"
 
-#include "shaders/shared/RawVertexFormat.h"
-#include "shaders/shared/MeshData.h"
-
 // NOTE: keep the values in sync with cgltf_alpha_mode
 enum class AlphaMode
 {
@@ -41,13 +38,13 @@ class Mesh
 {
 public:
     void Initialize(
-        const std::vector<RawVertexFormat>& rawVertices,
+        const std::vector<struct RawVertexFormat>& rawVertices,
         const std::vector<uint32_t>& indices,
         uint32_t globalVertexBufferIdx,
         uint32_t globalIndexBufferIdxOffset,
         std::vector<uint32_t>& meshletVertexIdxOffsetsOut,
         std::vector<uint32_t>& meshletIndicesOut,
-		std::vector<MeshletData>& meshletsOut,
+		std::vector<struct MeshletData>& meshletsOut,
         std::string_view meshName);
 
     void BuildBLAS(nvrhi::CommandListHandle commandList);

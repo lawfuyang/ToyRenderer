@@ -8,8 +8,7 @@
 #include "Scene.h"
 #include "Utilities.h"
 
-#include "shaders/shared/CommonConsts.h"
-#include "shaders/shared/MeshData.h"
+#include "shaders/ShaderInterop.h"
 
 static_assert(Graphic::kMaxThreadGroupsPerDimension == kMaxThreadGroupsPerDimension);
 static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletVertices);

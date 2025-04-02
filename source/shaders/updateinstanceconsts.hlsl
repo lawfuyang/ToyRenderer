@@ -1,8 +1,6 @@
 #include "toyrenderer_common.hlsli"
 
-#include "shared/UpdateNodeTransformsStructs.h"
-#include "shared/BasePassStructs.h"
-#include "shared/MeshData.h"
+#include "ShaderInterop.h"
 
 cbuffer g_UpdateInstanceConstsPassConstantsBuffer : register(b0) { UpdateInstanceConstsPassConstants g_UpdateInstanceConstsPassConstants; }
 StructuredBuffer<NodeLocalTransform> g_NodeLocalTransforms : register(t0);

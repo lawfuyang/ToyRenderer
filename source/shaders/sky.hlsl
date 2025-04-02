@@ -1,6 +1,6 @@
 #include "toyrenderer_common.hlsli"
 
-#include "shared/SkyStructs.h"
+#include "ShaderInterop.h"
 
 cbuffer SkyPassParametersCBuffer : register(b0)
 {

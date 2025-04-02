@@ -5,7 +5,7 @@
 #include "Scene.h"
 #include "RenderGraph.h"
 
-#include "shaders/shared/PostProcessStructs.h"
+#include "shaders/ShaderInterop.h"
 
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_BloomRDGTextureHandle;

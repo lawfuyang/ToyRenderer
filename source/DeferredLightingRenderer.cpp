@@ -5,7 +5,7 @@
 #include "RenderGraph.h"
 #include "Scene.h"
 
-#include "shaders/shared/DeferredLightingStructs.h"
+#include "shaders/ShaderInterop.h"
 
 RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;

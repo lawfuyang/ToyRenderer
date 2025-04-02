@@ -9,7 +9,7 @@
 #include "Scene.h"
 #include "RenderGraph.h"
 
-#include "shaders/shared/AmbientOcclusionStructs.h"
+#include "shaders/ShaderInterop.h"
 
 RenderGraph::ResourceHandle g_SSAORDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;

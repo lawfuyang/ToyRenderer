@@ -8,11 +8,7 @@
 #include "RenderGraph.h"
 #include "Scene.h"
 
-#include "shaders/shared/BasePassStructs.h"
-#include "shaders/shared/CommonConsts.h"
-#include "shaders/shared/GPUCullingStructs.h"
-#include "shaders/shared/IndirectArguments.h"
-#include "shaders/shared/MinMaxDownsampleStructs.h"
+#include "shaders/ShaderInterop.h"
 
 static_assert(sizeof(DrawIndirectArguments) == sizeof(nvrhi::DrawIndirectArguments));
 static_assert(sizeof(DrawIndexedIndirectArguments) == sizeof(nvrhi::DrawIndexedIndirectArguments));

@@ -5,11 +5,7 @@
 #include "random.hlsli"
 #include "packunpack.hlsli"
 
-#include "shared/MeshData.h"
-#include "shared/BasePassStructs.h"
-#include "shared/RawVertexFormat.h"
-#include "shared/MaterialData.h"
-#include "shared/IndirectArguments.h"
+#include "ShaderInterop.h"
 
 cbuffer g_PassConstantsBuffer : register(b0) { BasePassConstants g_BasePassConsts; }
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);

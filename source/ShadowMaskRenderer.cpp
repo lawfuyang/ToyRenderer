@@ -9,8 +9,7 @@
 #include "Scene.h"
 #include "RenderGraph.h"
 
-#include "shaders/shared/ShadowMaskStructs.h"
-#include "shaders/shared/MinMaxDownsampleStructs.h"
+#include "shaders/ShaderInterop.h"
 
 #define NRD_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { LOG_DEBUG("NRD call failed: %s", EnumUtils::ToString(result)); assert(0); }
 #define NRD_ID(x) nrd::Identifier(nrd::Denoiser::x)

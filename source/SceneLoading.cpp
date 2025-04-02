@@ -12,10 +12,7 @@
 #include "Utilities.h"
 #include "Visual.h"
 
-#include "shaders/shared/CommonConsts.h"
-#include "shaders/shared/RawVertexFormat.h"
-#include "shaders/shared/MaterialData.h"
-#include "shaders/shared/MeshData.h"
+#include "shaders/ShaderInterop.h"
 
 CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
 CommandLineOption<bool> g_SkipLoadingSceneTextures{ "skiploadingscenetextures", false };

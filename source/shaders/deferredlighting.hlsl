@@ -5,8 +5,7 @@
 #include "random.hlsli"
 #include "packunpack.hlsli"
 
-#include "shared/DeferredLightingStructs.h"
-#include "shared/IndirectArguments.h"
+#include "ShaderInterop.h"
 
 // NOTE: this is being used in multiple Shaders in this file
 SamplerState g_PointClampSampler : register(s0);

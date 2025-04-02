@@ -1,6 +1,6 @@
 #include "toyrenderer_common.hlsli"
 
-#include "shared/BloomStructs.h"
+#include "ShaderInterop.h"
 
 cbuffer g_BloomDownsampleConstsBuffer : register(b0) { BloomDownsampleConsts g_BloomDownsampleConsts; }
 Texture2D g_DownsampleSourceTexture : register(t0);

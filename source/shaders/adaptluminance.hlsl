@@ -1,6 +1,6 @@
 #include "toyrenderer_common.hlsli"
 
-#include "shared/AdaptLuminanceStructs.h"
+#include "ShaderInterop.h"
 
 cbuffer GenerateLuminanceHistogramParametersConstantBuffer : register(b0)
 {

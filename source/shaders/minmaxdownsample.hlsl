@@ -1,6 +1,6 @@
 #include "toyrenderer_common.hlsli"
 
-#include "shared/MinMaxDownsampleStructs.h"
+#include "ShaderInterop.h"
 
 cbuffer g_MinMaxDownsampleConstsBuffer : register(b0) { MinMaxDownsampleConsts g_MinMaxDownsampleConsts; }
 Texture2D<float> g_Input : register(t0);

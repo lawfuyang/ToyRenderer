@@ -1,10 +1,7 @@
 #include "toyrenderer_common.hlsli"
 #include "culling.hlsli"
 
-#include "shared/MeshData.h"
-#include "shared/BasePassStructs.h"
-#include "shared/GPUCullingStructs.h"
-#include "shared/IndirectArguments.h"
+#include "ShaderInterop.h"
 
 /*
 	-- 2 Phase Occlusion Culling --

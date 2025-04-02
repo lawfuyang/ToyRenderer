@@ -6,8 +6,6 @@
 #include "Utilities.h"
 #include "Visual.h"
 
-#include "shaders/shared/UpdateNodeTransformsStructs.h"
-
 class Primitive;
 class RenderGraph;
 
@@ -127,7 +125,10 @@ public:
     std::vector<Animation> m_Animations;
     double m_AnimationTimeSeconds = 0.0;
 
-    std::vector<NodeLocalTransform> m_NodeLocalTransforms;
+    // because I really dont want to include ShaderInterop.h in a header file...
+    struct NodeLocalTransformBytes { std::byte m_Bytes[48]; };
+    std::vector<NodeLocalTransformBytes> m_NodeLocalTransforms;
+
     nvrhi::BufferHandle m_NodeLocalTransformsBuffer;
     nvrhi::BufferHandle m_PrimitiveIDToNodeIDBuffer;
 

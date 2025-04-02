@@ -3,11 +3,7 @@
 #include "toyrenderer_common.hlsli"
 #include "lightingcommon.hlsli"
 
-#include "shared/ShadowMaskStructs.h"
-#include "shared/BasePassStructs.h"
-#include "shared/MaterialData.h"
-#include "shared/MeshData.h"
-#include "shared/RawVertexFormat.h"
+#include "ShaderInterop.h"
 
 cbuffer g_PassConstantsBuffer : register(b0) { ShadowMaskConsts g_ShadowMaskConsts; }
 Texture2D g_DepthBuffer : register(t0);
