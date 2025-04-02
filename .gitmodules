@@ -37,3 +37,6 @@
 [submodule "extern/nvidia/NRD"]
 	path = extern/nvidia/NRD
 	url = https://github.com/NVIDIAGameWorks/RayTracingDenoiser
+[submodule "extern/nvidia/RTXGI-DDGI"]
+	path = extern/nvidia/RTXGI-DDGI
+	url = https://github.com/NVIDIAGameWorks/RTXGI-DDGI
