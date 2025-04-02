@@ -6,10 +6,16 @@ cd /d "%~dp0"
 
 SET SHADER_MAKE_EXE=""
 
-IF EXIST "%cd%/bin/Release/ShaderMake.exe" (
-    SET SHADER_MAKE_EXE="%cd%/bin/Release/ShaderMake.exe"
-) ELSE (
+IF EXIST "%cd%/bin/ShaderMake.exe" (
     SET SHADER_MAKE_EXE="%cd%/bin/ShaderMake.exe"
+) ELSE IF EXIST "%cd%/bin/Release/ShaderMake.exe" (
+    SET SHADER_MAKE_EXE="%cd%/bin/Release/ShaderMake.exe"
+) ELSE IF EXIST "%cd%/bin/Debug/ShaderMake.exe" (
+    SET SHADER_MAKE_EXE="%cd%/bin/Debug/ShaderMake.exe"
+) ELSE (
+    echo ShaderMake.exe not found!
+    pause
+    exit
 )
 
 SET DXC_PATH="%cd%/extern/dxc/bin/x64/dxc.exe"
