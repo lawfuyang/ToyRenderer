@@ -47,7 +47,7 @@ void PS_Main(
     lighting += gbufferParams.m_Emissive;
     
     // NOTE: supposed to be viewspace normal, but i dont care
-    float3 ambientTerm = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? inPosition.xy : uint2(0, 0), gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal);
+    float3 ambientTerm = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? inPosition.xy : uint2(0, 0), gbufferParams.m_Albedo.rgb);
     lighting += ambientTerm;
     
     outColor = float4(lighting, 1.0f);
@@ -105,7 +105,7 @@ void PS_Main_Debug(
     }
     else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_Ambient)
     {
-        rgb = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? inPosition.xy : uint2(0, 0), gbufferParams.m_Albedo.rgb, gbufferParams.m_Normal);
+        rgb = AmbientTerm(g_SSAOTexture, g_DeferredLightingConsts.m_SSAOEnabled ? inPosition.xy : uint2(0, 0), gbufferParams.m_Albedo.rgb);
     }
     else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ShadowMask)
     {

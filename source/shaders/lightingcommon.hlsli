@@ -170,63 +170,13 @@ float3 DefaultLitBxDF(float3 specularColor, float roughness, float3 albedo, floa
 	float Vis = Vis_SmithJointApprox(a2, NdotV, NdotL);
 	float3 F = F_Schlick(specularColor, VdotH);
     specular = (D * Vis) * F;
-    
-    // TODO: AMD Brixelizer GI
-    float3 envSpecularColor = EnvBRDFApprox(specularColor, a, NdotV);
-    specular += envSpecularColor;
 
     return (diffuse + specular) * NdotL;
 }
 
-float3 BasilicaSHIrradiance(float3 nrm)
+float3 AmbientTerm(Texture2D<uint> SSAOTexture, uint2 texel, float3 diffuseColor)
 {
-    struct SHCoefficients
-    {
-        float3 l00, l1m1, l10, l11, l2m2, l2m1, l20, l21, l22;
-    };
-
-    // St. Peter's Basilica SH
-    // https://www.shadertoy.com/view/lt2GRD
-    const SHCoefficients SH_STPETER =
-    {
-        float3(0.3623915, 0.2624130, 0.2326261),
-		float3(0.1759131, 0.1436266, 0.1260569),
-		float3(-0.0247311, -0.0101254, -0.0010745),
-		float3(0.0346500, 0.0223184, 0.0101350),
-		float3(0.0198140, 0.0144073, 0.0043987),
-		float3(-0.0469596, -0.0254485, -0.0117786),
-		float3(-0.0898667, -0.0760911, -0.0740964),
-		float3(0.0050194, 0.0038841, 0.0001374),
-		float3(-0.0818750, -0.0321501, 0.0033399)
-    };
-    const SHCoefficients c = SH_STPETER;
-    const float c1 = 0.429043;
-    const float c2 = 0.511664;
-    const float c3 = 0.743125;
-    const float c4 = 0.886227;
-    const float c5 = 0.247708;
-    return(
-		c1 * c.l22 * (nrm.x * nrm.x - nrm.y * nrm.y) +
-		c3 * c.l20 * nrm.z * nrm.z +
-		c4 * c.l00 -
-		c5 * c.l20 +
-		2.0 * c1 * c.l2m2 * nrm.x * nrm.y +
-		2.0 * c1 * c.l21 * nrm.x * nrm.z +
-		2.0 * c1 * c.l2m1 * nrm.y * nrm.z +
-		2.0 * c2 * c.l11 * nrm.x +
-		2.0 * c2 * c.l1m1 * nrm.y +
-		2.0 * c2 * c.l10 * nrm.z
-		);
-}
-
-float3 AmbientTerm(Texture2D<uint> SSAOTexture, uint2 texel, float3 diffuseColor, float3 normal)
-{
-    float3 result = 0.0f;
-
-    // TODO: AMD Brixelizer GI 
-    result += BasilicaSHIrradiance(normal);
-
-    result *= Diffuse_Lambert(diffuseColor);
+    float3 result = Diffuse_Lambert(diffuseColor);
     
     float SSAOVisibility = SSAOTexture[texel] / 255.0f;
     result *= SSAOVisibility;
