@@ -34,6 +34,9 @@ public:
 
     void Initialize() override
     {
+        m_XeGTAOSettings.QualityLevel = 3;
+        m_XeGTAOSettings.DenoisePasses = 3;
+
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
@@ -130,11 +133,7 @@ public:
 
         XeGTAO::GTAOConstants GTAOconsts{};
         const bool bRowMajor = true;
-
-        // TODO
-        const bool bTAAEnabled = false;
-        const uint32_t frameCounter = bTAAEnabled ? (g_Graphic.m_FrameCounter % 256) : 0;
-
+        const uint32_t frameCounter = g_Graphic.m_FrameCounter % 256;
         XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, m_XeGTAOSettings, (const float*)&mainView.m_ViewToClip.m, bRowMajor, frameCounter);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, GTAOconsts);
