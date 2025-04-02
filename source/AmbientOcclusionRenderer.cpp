@@ -34,7 +34,7 @@ public:
 
     void Initialize() override
     {
-        m_XeGTAOSettings.QualityLevel = 3;
+        m_XeGTAOSettings.QualityLevel = 2;
         m_XeGTAOSettings.DenoisePasses = 3;
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
