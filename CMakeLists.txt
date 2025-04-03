@@ -103,10 +103,13 @@ set(NVRHI_WITH_RTXMU OFF)
 set(AFTERMATH_SEARCH_PATHS "${EXTERN_DIR}/nvidia/aftermath")
 set(TF_BUILD_TESTS OFF)
 set(TF_BUILD_EXAMPLES OFF)
+set(NRD_STATIC_LIBRARY ON)
 set(NRD_DISABLE_SHADER_COMPILATION ON)
 set(NRD_EMBEDS_SPIRV_SHADERS OFF)
 set(NRD_EMBEDS_DXIL_SHADERS OFF)
 set(NRD_EMBEDS_DXBC_SHADERS OFF)
+set(RTXGI_BUILD_SAMPLES OFF)
+set(RTXGI_STATIC_LIB ON)
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/meshoptimizer)
@@ -115,6 +118,7 @@ add_subdirectory(extern/microprofile)
 add_subdirectory(extern/nvrhi)
 add_subdirectory(extern/taskflow)
 add_subdirectory(extern/nvidia/NRD)
+add_subdirectory(extern/nvidia/RTXGI-DDGI)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
@@ -134,8 +138,12 @@ set(TOYRENDERER_LIBRARIES
 	nvrhi_d3d12
 	Taskflow
 	NRD
+	RTXGI-D3D12
 	"${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.lib"
 )
+
+# wtf??? why does RTXGI explicit need this to compile???
+add_dependencies(ToyRenderer RTXGI-D3D12)
 
 # libs
 target_link_libraries(ToyRenderer PUBLIC ${TOYRENDERER_LIBRARIES})
@@ -153,6 +161,7 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/Fide
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/imgui")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/magic_enum/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/include")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/RTXGI-DDGI/rtxgi-sdk/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 # global preprocessor macros
@@ -177,6 +186,9 @@ endif()
 file(GLOB_RECURSE SHADER_SRC "${SRC_DIR}/*.hlsl" "${SRC_DIR}/*.hlsli")
 set(SHADER_SRC_FILES ${SHADER_SRC})
 add_custom_target(ShaderSourceFiles SOURCES ${SHADER_SRC_FILES})
+
+# Shaders do not participate in the build
+set_source_files_properties(${SHADER_SRC} PROPERTIES VS_TOOL_OVERRIDE "None")
 
 ################################################################################
 

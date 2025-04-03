@@ -116,6 +116,7 @@ public:
     std::vector<NodeLocalTransformBytes> m_NodeLocalTransforms;
 
     nvrhi::TextureHandle m_HZB;
+    nvrhi::TextureHandle m_DDGIOutput;
     nvrhi::BufferHandle m_LuminanceBuffer;
     nvrhi::BufferHandle m_InstanceConstsBuffer;
     nvrhi::BufferHandle m_OpaqueInstanceIDsBuffer;

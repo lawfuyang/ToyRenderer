@@ -63,7 +63,7 @@ public:
 
     struct LightingControllables
     {
-
+        bool m_EnableDDGI = true;
     };
     LightingControllables m_LightingControllables;
     

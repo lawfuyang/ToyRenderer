@@ -94,6 +94,9 @@ void GraphicPropertyGrid::UpdateIMGUI()
 
     if (ImGui::TreeNode("Lighting"))
     {
+        extern IRenderer* g_GIRenderer;
+        g_GIRenderer->UpdateImgui();
+
         ImGui::TreePop();
     }
 
