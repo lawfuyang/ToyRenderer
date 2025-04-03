@@ -170,18 +170,10 @@ float3 DefaultLitBxDF(float3 specularColor, float roughness, float3 albedo, floa
 	float Vis = Vis_SmithJointApprox(a2, NdotV, NdotL);
 	float3 F = F_Schlick(specularColor, VdotH);
     specular = (D * Vis) * F;
+    
+    specular += EnvBRDFApprox(specularColor, roughness, NdotV);
 
     return (diffuse + specular) * NdotL;
-}
-
-float3 AmbientTerm(Texture2D<uint> SSAOTexture, uint2 texel, float3 diffuseColor)
-{
-    float3 result = Diffuse_Lambert(diffuseColor);
-    
-    float SSAOVisibility = SSAOTexture[texel] / 255.0f;
-    result *= SSAOVisibility;
-
-    return result;
 }
 
 #endif // _LIGHTING_COMMON_H_
