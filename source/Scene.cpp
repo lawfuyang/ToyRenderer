@@ -213,42 +213,6 @@ void View::UpdateVectors(float yaw, float pitch)
 
 void Scene::Initialize()
 {
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Scene Initialize CommandList");
-
-    {
-        PROFILE_SCOPED("Init Luminance Buffer");
-
-        nvrhi::BufferDesc desc;
-        desc.byteSize = sizeof(float);
-        desc.structStride = sizeof(float);
-        desc.debugName = "Exposure Buffer";
-        desc.canHaveTypedViews = true;
-        desc.canHaveUAVs = true;
-        desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-        m_LuminanceBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-
-        const float kInitialExposure = 1.0f;
-        commandList->writeBuffer(m_LuminanceBuffer, &kInitialExposure, sizeof(float));
-    }
-
-    {
-        nvrhi::TextureDesc desc;
-        desc.width = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
-        desc.height = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
-        desc.format = Graphic::kHZBFormat;
-        desc.isUAV = true;
-        desc.debugName = "HZB";
-        desc.mipLevels = ComputeNbMips(desc.width, desc.height);
-        desc.useClearValue = false;
-        desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-        m_HZB = g_Graphic.m_NVRHIDevice->createTexture(desc);
-
-        commandList->clearTextureFloat(m_HZB, nvrhi::AllSubresources, nvrhi::Color{ Graphic::kFarDepth });
-    }
-
     m_View.m_ZNearP = Graphic::kDefaultCameraNearPlane;
     m_View.m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
     m_View.m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };

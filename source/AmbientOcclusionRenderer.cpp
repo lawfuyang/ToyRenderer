@@ -38,6 +38,7 @@ public:
         m_XeGTAOSettings.DenoisePasses = 3;
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+        Scene* scene = g_Graphic.m_Scene.get();
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "AmbientOcclusionRenderer Init");
@@ -69,6 +70,21 @@ public:
 		commandList->writeTexture(m_HilbertLUT, 0, 0, data.data(), kTexDim * nvrhi::getFormatInfo(desc.format).bytesPerBlock);
 		commandList->setPermanentTextureState(m_HilbertLUT, nvrhi::ResourceStates::ShaderResource);
 		commandList->commitBarriers();
+
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(float);
+            desc.structStride = sizeof(float);
+            desc.debugName = "Exposure Buffer";
+            desc.canHaveTypedViews = true;
+            desc.canHaveUAVs = true;
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+            scene->m_LuminanceBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+
+            const float kInitialExposure = 1.0f;
+            commandList->writeBuffer(scene->m_LuminanceBuffer, &kInitialExposure, sizeof(float));
+        }
 	}
 
 	void UpdateImgui() override

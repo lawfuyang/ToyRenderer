@@ -499,6 +499,27 @@ public:
     {
 		BasePassRenderer::Setup(renderGraph);
 
+        Scene* scene = g_Graphic.m_Scene.get();
+
+        {
+            nvrhi::TextureDesc desc;
+            desc.width = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
+            desc.height = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
+            desc.format = Graphic::kHZBFormat;
+            desc.isUAV = true;
+            desc.debugName = "HZB";
+            desc.mipLevels = ComputeNbMips(desc.width, desc.height);
+            desc.useClearValue = false;
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+            scene->m_HZB = g_Graphic.m_NVRHIDevice->createTexture(desc);
+
+            nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+            SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "GBufferRenderer::Setup");
+
+            commandList->clearTextureFloat(scene->m_HZB, nvrhi::AllSubresources, nvrhi::Color{ Graphic::kFarDepth });
+        }
+
         {
             nvrhi::TextureDesc desc;
             desc.width = g_Graphic.m_RenderResolution.x;
