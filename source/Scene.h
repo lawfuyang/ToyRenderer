@@ -92,12 +92,12 @@ public:
 
     View m_View;
 
+    double m_AnimationTimeSeconds = 0.0;
     float m_SunOrientation = 270.0f;
     float m_SunInclination = 30.0f;
     Vector3 m_DirLightVec = Vector3{ 0.5773502691896258f, 0.5773502691896258f, -0.5773502691896258f };
     Vector3 m_DirLightColor = Vector3::One;
     float m_DirLightStrength = 1.0f;
-
     float m_LastFrameExposure = 1.0f;
 
     AABB m_AABB = { Vector3::Zero, Vector3::Zero };
@@ -108,31 +108,23 @@ public:
     std::vector<uint32_t> m_OpaquePrimitiveIDs;
     std::vector<uint32_t> m_AlphaMaskPrimitiveIDs;
     std::vector<uint32_t> m_TransparentPrimitiveIDs;
-
-    nvrhi::BufferHandle m_LuminanceBuffer;
-
-    nvrhi::BufferHandle m_InstanceConstsBuffer;
-    nvrhi::BufferHandle m_OpaqueInstanceIDsBuffer;
-    nvrhi::BufferHandle m_AlphaMaskInstanceIDsBuffer;
-    nvrhi::BufferHandle m_TransparentInstanceIDsBuffer;
-
-    nvrhi::rt::AccelStructHandle m_TLAS;
-
-    nvrhi::TextureHandle m_HZB;
-
     std::vector<Camera> m_Cameras;
-
     std::vector<Animation> m_Animations;
-    double m_AnimationTimeSeconds = 0.0;
 
     // because I really dont want to include ShaderInterop.h in a header file...
     struct NodeLocalTransformBytes { std::byte m_Bytes[48]; };
     std::vector<NodeLocalTransformBytes> m_NodeLocalTransforms;
 
+    nvrhi::TextureHandle m_HZB;
+    nvrhi::BufferHandle m_LuminanceBuffer;
+    nvrhi::BufferHandle m_InstanceConstsBuffer;
+    nvrhi::BufferHandle m_OpaqueInstanceIDsBuffer;
+    nvrhi::BufferHandle m_AlphaMaskInstanceIDsBuffer;
+    nvrhi::BufferHandle m_TransparentInstanceIDsBuffer;
     nvrhi::BufferHandle m_NodeLocalTransformsBuffer;
     nvrhi::BufferHandle m_PrimitiveIDToNodeIDBuffer;
-
     nvrhi::BufferHandle m_TLASInstanceDescsBuffer;
+    nvrhi::rt::AccelStructHandle m_TLAS;
 
 private:
     void UpdateMainViewCameraControls();
