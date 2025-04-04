@@ -568,6 +568,7 @@ void Scene::PostSceneLoad()
 
     LOG_DEBUG("Scene AABB: c:[%f, %f, %f] e:[%f, %f, %f]", m_AABB.Center.x, m_AABB.Center.y, m_AABB.Center.z, m_AABB.Extents.x, m_AABB.Extents.y, m_AABB.Extents.z);
     LOG_DEBUG("Scene Bounding Sphere: [%f, %f, %f][r: %f]", m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius);
+    LOG_DEBUG("Scene OBB : c:[%f, %f, %f] e:[%f, %f, %f] o:[%f, %f, %f, %f]", m_OBB.Center.x, m_OBB.Center.y, m_OBB.Center.z, m_OBB.Extents.x, m_OBB.Extents.y, m_OBB.Extents.z, m_OBB.Orientation.x, m_OBB.Orientation.y, m_OBB.Orientation.z, m_OBB.Orientation.w);
     LOG_DEBUG("Camera Near Plane: %f", m_View.m_ZNearP);
 
     // set to first camera if any
