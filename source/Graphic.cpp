@@ -922,6 +922,21 @@ void Graphic::Initialize()
     ExecuteAllCommandLists();
 }
 
+void Graphic::PostSceneLoad()
+{
+    PROFILE_FUNCTION();
+    SCOPED_TIMER_FUNCTION();
+
+    m_Scene->PostSceneLoad();
+
+    for (IRenderer* renderer : IRenderer::ms_AllRenderers)
+    {
+        PROFILE_SCOPED(renderer->m_Name.c_str());
+        LOG_DEBUG("Post Scene Load for Renderer: %s", renderer->m_Name.c_str());
+        renderer->PostSceneLoad();
+    }
+}
+
 void Graphic::Shutdown()
 {
     // wait for latest swap chain present to be done

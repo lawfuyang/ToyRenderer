@@ -159,7 +159,7 @@ void Engine::Initialize(int argc, char** argv)
         extern void LoadScene(std::string_view filePath);
         LoadScene(sceneToLoad);
 
-        m_Graphic->m_Scene->OnSceneLoad();
+        m_Graphic->PostSceneLoad();
     }
 
     if (g_ProfileStartup.Get())

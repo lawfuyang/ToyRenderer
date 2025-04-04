@@ -53,6 +53,7 @@ public:
     using IndexBufferFormat_t = uint32_t;
 
     void Initialize();
+    void PostSceneLoad();
     void Shutdown();
     void Update();
     void InitDevice();
@@ -213,7 +214,7 @@ public:
 
     virtual ~IRenderer() = default;
     virtual void Initialize() {};
-
+    virtual void PostSceneLoad() {};
     virtual void UpdateImgui() {};
 
     // return false if the renderer is not going to be used

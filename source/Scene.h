@@ -83,7 +83,7 @@ public:
     void Update();
     void Shutdown();
     void UpdateIMGUIPropertyGrid();
-    void OnSceneLoad();
+    void PostSceneLoad();
     void SetCamera(uint32_t idx);
 
     bool IsShadowsEnabled() const;
@@ -116,7 +116,6 @@ public:
     std::vector<NodeLocalTransformBytes> m_NodeLocalTransforms;
 
     nvrhi::TextureHandle m_HZB;
-    nvrhi::TextureHandle m_DDGIOutput;
     nvrhi::BufferHandle m_LuminanceBuffer;
     nvrhi::BufferHandle m_InstanceConstsBuffer;
     nvrhi::BufferHandle m_OpaqueInstanceIDsBuffer;
@@ -129,12 +128,10 @@ public:
 
 private:
     void UpdateMainViewCameraControls();
-    void CreateInstanceConstsBuffer();
     void UpdateInstanceIDsBuffers();
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
     void CreateAccelerationStructures();
-    void CreateNodeTransformsBuffer();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;

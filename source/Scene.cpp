@@ -87,69 +87,6 @@ public:
 static ClearBuffersRenderer gs_ClearBuffersRenderer;
 IRenderer* g_ClearBuffersRenderer = &gs_ClearBuffersRenderer;
 
-class UpdateInstanceConstsRenderer : public IRenderer
-{
-public:
-    UpdateInstanceConstsRenderer() : IRenderer{ "UpdateInstanceConstsRenderer" } {}
-
-    bool Setup(RenderGraph& renderGraph) override
-    {
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        if (scene->m_Primitives.empty())
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
-    {
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        {
-            PROFILE_GPU_SCOPED(commandList, "Upload Node Transforms");
-            commandList->writeBuffer(scene->m_NodeLocalTransformsBuffer, scene->m_NodeLocalTransforms.data(), scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
-        }
-
-        const uint32_t numPrimitives = scene->m_Primitives.size();
-
-        UpdateInstanceConstsPassConstants passConstants;
-        passConstants.m_NumInstances = numPrimitives;
-
-        nvrhi::BufferHandle passConstantsBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
-
-        nvrhi::BindingSetDesc bindingSetDesc;
-        bindingSetDesc.bindings =
-        {
-            nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_NodeLocalTransformsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, scene->m_PrimitiveIDToNodeIDBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, scene->m_TLASInstanceDescsBuffer),
-        };
-
-        Graphic::ComputePassParams computePassParams;
-        computePassParams.m_CommandList = commandList;
-        computePassParams.m_ShaderName = "updateinstanceconsts_CS_UpdateInstanceConstsAndBuildTLAS";
-        computePassParams.m_BindingSetDesc = bindingSetDesc;
-        computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_NumInstances, kNumThreadsPerWave);
-        computePassParams.m_PushConstantsData = &passConstants;
-        computePassParams.m_PushConstantsBytes = sizeof(passConstants);
-
-        g_Graphic.AddComputePass(computePassParams);
-
-        // TODO: async compute this
-        {
-            PROFILE_GPU_SCOPED(commandList, "Build TLAS");
-            commandList->buildTopLevelAccelStructFromBuffer(scene->m_TLAS, scene->m_TLASInstanceDescsBuffer, 0, numPrimitives);
-        }
-    }
-};
-static UpdateInstanceConstsRenderer gs_UpdateInstanceConstsRenderer;
-IRenderer* g_UpdateInstanceConstsRenderer = &gs_UpdateInstanceConstsRenderer;
-
 Vector4 Animation::Channel::Evaluate(float time) const
 {
     const auto it = std::lower_bound(m_KeyFrames.begin(), m_KeyFrames.end(), time);
@@ -310,53 +247,6 @@ void Scene::UpdateMainViewCameraControls()
 
         m_View.UpdateVectors(m_Yaw, m_Pitch);
     }
-}
-
-void Scene::CreateInstanceConstsBuffer()
-{
-    const uint32_t nbPrimitives = m_Primitives.size();
-    if (nbPrimitives == 0)
-    {
-        return;
-    }
-
-    PROFILE_FUNCTION();
-
-    std::vector<BasePassInstanceConstants> instanceConstsBytes;
-    instanceConstsBytes.reserve(nbPrimitives);
-
-    for (const Primitive& primitive : m_Primitives)
-    {
-        assert(primitive.IsValid());
-
-        const Node& node = m_Nodes.at(primitive.m_NodeID);
-        const Material& material = primitive.m_Material;
-        const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
-
-        // instance consts
-        BasePassInstanceConstants instanceConsts{};
-        instanceConsts.m_MeshDataIdx = mesh.m_MeshDataBufferIdx;
-        instanceConsts.m_MaterialDataIdx = material.m_MaterialDataBufferIdx;
-
-        // world matrices updated on GPU. see: CS_UpdateInstanceConsts
-
-        instanceConstsBytes.push_back(instanceConsts);
-    }
-
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload initial BasePassInstanceConstants");
-
-    nvrhi::BufferDesc desc;
-    desc.byteSize = nbPrimitives * sizeof(BasePassInstanceConstants);
-    desc.structStride = sizeof(BasePassInstanceConstants);
-    desc.debugName = "Instance Consts Buffer";
-    desc.canHaveUAVs = true;
-    desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-    assert(!m_InstanceConstsBuffer);
-    m_InstanceConstsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-
-    commandList->writeBuffer(m_InstanceConstsBuffer, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
 }
 
 void Scene::UpdateInstanceIDsBuffers()
@@ -543,55 +433,6 @@ void Scene::CreateAccelerationStructures()
     commandList->buildTopLevelAccelStructFromBuffer(m_TLAS, m_TLASInstanceDescsBuffer, 0, instances.size());
 }
 
-void Scene::CreateNodeTransformsBuffer()
-{
-    PROFILE_FUNCTION();
-
-    assert(m_NodeLocalTransforms.empty());
-
-    for (const Node& node : m_Nodes)
-    {
-        NodeLocalTransform& data = *(NodeLocalTransform*)&m_NodeLocalTransforms.emplace_back();
-        data.m_ParentNodeIdx = node.m_ParentNodeID;
-        data.m_Position = node.m_Position;
-        data.m_Rotation = node.m_Rotation;
-        data.m_Scale = node.m_Scale;
-    }
-
-    {
-        nvrhi::BufferDesc desc;
-        desc.byteSize = m_Nodes.size() * sizeof(NodeLocalTransform);
-        desc.structStride = sizeof(NodeLocalTransform);
-        desc.debugName = "Node Transforms Buffer";
-        desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-        m_NodeLocalTransformsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-    }
-
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "CreateNodeTransformsBuffer Commandlist");
-
-    commandList->writeBuffer(m_NodeLocalTransformsBuffer, m_NodeLocalTransforms.data(), m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
-
-    {
-        nvrhi::BufferDesc desc;
-        desc.byteSize = m_Primitives.size() * sizeof(uint32_t);
-        desc.structStride = sizeof(uint32_t);
-        desc.debugName = "PrimitiveIDToNodeID Buffer";
-        desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-        m_PrimitiveIDToNodeIDBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-    }
-
-    std::vector<uint32_t> primitiveIDToNodeIDBytes;
-    for (const Primitive& primitive : m_Primitives)
-    {
-        primitiveIDToNodeIDBytes.push_back(primitive.m_NodeID);
-    }
-
-    commandList->writeBuffer(m_PrimitiveIDToNodeIDBuffer, primitiveIDToNodeIDBytes.data(), primitiveIDToNodeIDBytes.size() * sizeof(uint32_t));
-}
-
 void Scene::Update()
 {
     PROFILE_FUNCTION();
@@ -718,12 +559,11 @@ void Scene::UpdateIMGUIPropertyGrid()
     }
 }
 
-void Scene::OnSceneLoad()
+void Scene::PostSceneLoad()
 {
     PROFILE_FUNCTION();
-    SCOPED_TIMER_FUNCTION();
-    // empirically set camera near plane based on scene BS radius
 
+    // empirically set camera near plane based on scene BS radius
     m_View.m_ZNearP = std::max(0.1f, std::min(m_BoundingSphere.Radius * 0.01f, 0.1f));
 
     LOG_DEBUG("Scene AABB: c:[%f, %f, %f] e:[%f, %f, %f]", m_AABB.Center.x, m_AABB.Center.y, m_AABB.Center.z, m_AABB.Extents.x, m_AABB.Extents.y, m_AABB.Extents.z);
@@ -736,8 +576,6 @@ void Scene::OnSceneLoad()
         SetCamera(0);
     }
 
-    CreateInstanceConstsBuffer();
-    CreateNodeTransformsBuffer();
 	UpdateInstanceIDsBuffers();
     CreateAccelerationStructures();
 }
