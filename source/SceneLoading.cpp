@@ -516,26 +516,7 @@ struct GLTFSceneLoader
                                 verify(cgltf_accessor_unpack_floats(attribute.data, scratchBuffer.data(), attribute.data->count * nbFloats));
 								for (size_t j = 0; j < nbVertices; ++j)
 								{
-									Vector3 v{ &scratchBuffer[j * nbFloats] };
-
-									assert(v.x >= (-1.0f - kKindaSmallNumber) && v.x <= (1.0f + kKindaBigNumber));
-									assert(v.y >= (-1.0f - kKindaSmallNumber) && v.y <= (1.0f + kKindaBigNumber));
-									assert(v.z >= (-1.0f - kKindaSmallNumber) && v.z <= (1.0f + kKindaBigNumber));
-
-									v.x = std::clamp(v.x, -1.0f, 1.0f);
-									v.y = std::clamp(v.y, -1.0f, 1.0f);
-									v.z = std::clamp(v.z, -1.0f, 1.0f);
-
-									// Normalize x, y, z from [-1, 1] to [0, 1]
-									v = (v + Vector3::One) * 0.5f;
-
-									// Scale to 10-bit integers (0-1023)
-									const uint32_t xInt = (uint32_t)(v.x * 1023.0f);
-									const uint32_t yInt = (uint32_t)(v.y * 1023.0f);
-									const uint32_t zInt = (uint32_t)(v.z * 1023.0f);
-
-									// Pack components into a uint32_t (10 bits each for x, y, z)
-									vertices[j].m_PackedNormal = (xInt << 20) | (yInt << 10) | (zInt);
+                                    vertices[j].m_PackedNormal = Mesh::PackNormal(Vector3{ &scratchBuffer[j * nbFloats] });
                                 }
                             }
                             else if (attribute.type == cgltf_attribute_type_texcoord && attribute.index == 0) // only read the first UV set

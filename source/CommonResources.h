@@ -9,6 +9,11 @@ class CommonResources
 public:
     SingletonFunctionsSimple(CommonResources);
 
+    nvrhi::InputLayoutHandle m_UncompressedRawVertexFormatInputLayoutHandle;
+
+    nvrhi::BufferHandle UnitSphereVertexBuffer;
+    nvrhi::BufferHandle UnitSphereIndexBuffer;
+
     // Textures
     Texture BlackTexture;
     Texture WhiteTexture;

@@ -263,6 +263,19 @@ struct PostProcessParameters
 	float m_BloomStrength;
 };
 
+struct GIProbeVisualizationConsts
+{
+
+};
+
+// VS-friendly Vertex Layout
+struct UncompressedRawVertexFormat
+{
+	Vector3 m_Position;
+	Vector3 m_Normal;
+	Vector2 m_TexCoord;
+};
+
 struct RawVertexFormat
 {
     Vector3 m_Position;

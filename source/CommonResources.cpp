@@ -7,8 +7,123 @@
 #include "Graphic.h"
 #include "MathUtilities.h"
 
+#include "shaders/ShaderInterop.h"
+
+static void CreateUncompressedRawVertexFormatInputLayoutHandle()
+{
+    static const nvrhi::VertexAttributeDesc s_Layout[] =
+    {
+        { "POSITION" , nvrhi::Format::RGB32_FLOAT, 1, 0, offsetof(UncompressedRawVertexFormat, m_Position) , sizeof(UncompressedRawVertexFormat), false },
+        { "NORMAL" , nvrhi::Format::RGB32_FLOAT, 1, 0, offsetof(UncompressedRawVertexFormat, m_Normal) , sizeof(UncompressedRawVertexFormat), false },
+        { "TEXCOORD" , nvrhi::Format::RG32_FLOAT, 1, 0, offsetof(UncompressedRawVertexFormat, m_TexCoord) , sizeof(UncompressedRawVertexFormat), false }
+    };
+
+    // VS is not needed in 'createInputLayout', there are no separate IL objects in DX12
+    nvrhi::IShader* dummyVS = nullptr;
+    g_CommonResources.m_UncompressedRawVertexFormatInputLayoutHandle = g_Graphic.m_NVRHIDevice->createInputLayout(s_Layout, std::size(s_Layout), dummyVS);
+}
+
+static void ReverseWinding(std::vector<Graphic::IndexBufferFormat_t>& indices, std::vector<UncompressedRawVertexFormat>& vertices)
+{
+    assert((indices.size() % 3) == 0);
+    for (auto it = indices.begin(); it != indices.end(); it += 3)
+    {
+        std::swap(*it, *(it + 2));
+    }
+
+    for (UncompressedRawVertexFormat& v : vertices)
+    {
+        v.m_TexCoord.x = (1.0f - v.m_TexCoord.x);
+    }
+}
+
+static void CreateUnitSphereMesh()
+{
+    PROFILE_FUNCTION();
+
+    const float kRadius = 0.5f;
+    const uint32_t kTessellation = 12;
+    const uint32_t kVerticalSegments = kTessellation;
+    const uint32_t kHorizontalSegments = kTessellation * 2;
+
+    std::vector<UncompressedRawVertexFormat> vertices;
+    std::vector<Graphic::IndexBufferFormat_t> indices;
+
+    // Create rings of vertices at progressively higher latitudes.
+    for (uint32_t i = 0; i <= kVerticalSegments; i++)
+    {
+        const float v = 1 - float(i) / float(kVerticalSegments);
+
+        float dy, dxz;
+        const float latitude = (float(i) * std::numbers::pi / float(kVerticalSegments)) - (std::numbers::pi * 0.5f);
+        ScalarSinCos(dy, dxz, latitude);
+
+        // Create a single ring of vertices at this latitude.
+        for (uint32_t j = 0; j <= kHorizontalSegments; j++)
+        {
+            const float u = float(j) / float(kHorizontalSegments);
+
+            float dx, dz;
+            const float longitude = float(j) * (std::numbers::pi * 2) / float(kHorizontalSegments);
+            ScalarSinCos(dx, dz, longitude);
+
+            dx *= dxz;
+            dz *= dxz;
+
+            const Vector3 normal{ dx, dy, dz };
+            const Vector4 tangent{ -dz, 0, dx, 1 };
+            const Vector2 textureCoordinate{ u, v };
+
+            vertices.push_back(UncompressedRawVertexFormat{ { normal * kRadius }, normal, textureCoordinate });
+        }
+    }
+
+    // Fill the index buffer with triangles joining each pair of latitude rings.
+    const uint32_t stride = kHorizontalSegments + 1;
+
+    for (uint32_t i = 0; i < kVerticalSegments; i++)
+    {
+        for (uint32_t j = 0; j <= kHorizontalSegments; j++)
+        {
+            const uint32_t nextI = i + 1;
+            const uint32_t nextJ = (j + 1) % stride;
+
+            indices.push_back(i * stride + j);
+            indices.push_back(nextI * stride + j);
+            indices.push_back(i * stride + nextJ);
+
+            indices.push_back(i * stride + nextJ);
+            indices.push_back(nextI * stride + j);
+            indices.push_back(nextI * stride + nextJ);
+        }
+    }
+
+    // Build RH above
+    ReverseWinding(indices, vertices);
+
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+    nvrhi::BufferDesc vbDesc;
+    vbDesc.byteSize = vertices.size() * sizeof(UncompressedRawVertexFormat);
+    vbDesc.debugName = "Unit Sphere Vertex Buffer";
+    vbDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+    vbDesc.format = nvrhi::Format::RG32_FLOAT;
+    vbDesc.isVertexBuffer = true;
+    g_CommonResources.UnitSphereVertexBuffer = device->createBuffer(vbDesc);
+
+    nvrhi::BufferDesc ibDesc;
+    ibDesc.byteSize = indices.size() * sizeof(Graphic::IndexBufferFormat_t);
+    ibDesc.debugName = "Unit Sphere Index Buffer";
+    ibDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+    ibDesc.format = nvrhi::Format::R32_UINT;
+    ibDesc.isIndexBuffer = true;
+    g_CommonResources.UnitSphereIndexBuffer = device->createBuffer(ibDesc);
+}
+
 static void CreateDefaultTextures()
 {
+    PROFILE_FUNCTION();
+
     auto CreateDefaultTexture = [](
         Texture& outTex,
         std::string_view name,
@@ -38,10 +153,16 @@ static void CreateDefaultTextures()
     CreateDefaultTexture(g_CommonResources.R8UIntMax2DTexture             , "R8 UInt Max 2D Texture", nvrhi::Format::R8_UINT, UINT8_MAX, 1, false /*bUAV*/);
 
     // blue noise
+    // TODO: Nvidia STBN
     {
         static const uint32_t kBlueNoiseDimensions = 128;
 
-        std::byte blueNoise[kBlueNoiseDimensions][kBlueNoiseDimensions][4];
+        // jank solution to prevent blowing up the stack
+        struct BlueNoiseData
+        {
+            std::byte m_Data[kBlueNoiseDimensions][kBlueNoiseDimensions][4];
+        };
+        std::unique_ptr<BlueNoiseData> blueNoiseData = std::make_unique<BlueNoiseData>();
 
         for (int x = 0; x < kBlueNoiseDimensions; ++x)
         {
@@ -52,10 +173,10 @@ static void CreateDefaultTextures()
                 const float f2 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_1spp(x, y, 0, 2);
                 const float f3 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_1spp(x, y, 0, 3);
 
-                blueNoise[x][y][0] = static_cast<std::byte>(f0 * UINT8_MAX);
-                blueNoise[x][y][1] = static_cast<std::byte>(f1 * UINT8_MAX);
-                blueNoise[x][y][2] = static_cast<std::byte>(f2 * UINT8_MAX);
-                blueNoise[x][y][3] = static_cast<std::byte>(f3 * UINT8_MAX);
+                blueNoiseData->m_Data[x][y][0] = static_cast<std::byte>(f0 * UINT8_MAX);
+                blueNoiseData->m_Data[x][y][1] = static_cast<std::byte>(f1 * UINT8_MAX);
+                blueNoiseData->m_Data[x][y][2] = static_cast<std::byte>(f2 * UINT8_MAX);
+                blueNoiseData->m_Data[x][y][3] = static_cast<std::byte>(f3 * UINT8_MAX);
             }
         }
 
@@ -67,12 +188,14 @@ static void CreateDefaultTextures()
         desc.debugName = "Blue Noise";
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-        g_CommonResources.BlueNoise.LoadFromMemory(blueNoise, desc);
+        g_CommonResources.BlueNoise.LoadFromMemory(blueNoiseData->m_Data, desc);
     }
 }
 
 static void CreateDefaultBuffers()
 {
+    PROFILE_FUNCTION();
+
     auto CreateDefaultBuffer = [](
         std::string_view name,
         uint32_t byteSize,
@@ -112,8 +235,6 @@ static void CreateDefaultBuffers()
 
 static void CreateDefaultSamplers()
 {
-    PROFILE_FUNCTION();
-
     auto CreateSampler = [](bool bMinFilter, bool bMagFilter, bool bMipFilter, nvrhi::SamplerAddressMode addressMode, nvrhi::SamplerReductionType reductionType, uint32_t maxAnisotropy)
         {
 			nvrhi::SamplerDesc samplerDesc;
@@ -141,8 +262,6 @@ static void CreateDefaultSamplers()
 
 static void CreateDefaultDepthStencilStates()
 {
-    PROFILE_FUNCTION();
-
     auto CreateDepthStencilstate = [](bool bDepthTestEnable, bool bDepthWrite, nvrhi::ComparisonFunc depthFunc, bool bStencilEnable, uint8_t stencilReadMask, uint8_t stencilWriteMask)
         {
 			nvrhi::DepthStencilState desc;
@@ -168,8 +287,6 @@ static void CreateDefaultDepthStencilStates()
 
 static void CreateDefaultBlendModes()
 {
-    PROFILE_FUNCTION();
-
     auto CreateBlendState = [](bool bBlendEnable, nvrhi::BlendFactor srcBlend, nvrhi::BlendFactor destBlend, nvrhi::BlendOp blendOp, nvrhi::BlendFactor srcBlendAlpha, nvrhi::BlendFactor destBlendAlpha, nvrhi::BlendOp blendOpAlpha)
         {
             nvrhi::BlendState::RenderTarget desc;
@@ -195,8 +312,6 @@ static void CreateDefaultBlendModes()
 
 static void CreateDefaultRasterStates()
 {
-	PROFILE_FUNCTION();
-
 	auto CreateRasterState = [](nvrhi::RasterCullMode cullMode)
 		{
 			nvrhi::RasterState desc;
@@ -215,6 +330,8 @@ void CommonResources::Initialize()
 {
     PROFILE_FUNCTION();
 
+    CreateUncompressedRawVertexFormatInputLayoutHandle();
+    CreateUnitSphereMesh();
     CreateDefaultTextures();
     CreateDefaultBuffers();
     CreateDefaultSamplers();

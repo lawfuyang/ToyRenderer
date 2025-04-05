@@ -111,6 +111,30 @@ bool Primitive::IsValid() const
         && m_Material.IsValid();
 }
 
+uint32_t Mesh::PackNormal(const Vector3& normal)
+{
+    Vector3 v = normal;
+
+    assert(v.x >= (-1.0f - kKindaSmallNumber) && v.x <= (1.0f + kKindaBigNumber));
+    assert(v.y >= (-1.0f - kKindaSmallNumber) && v.y <= (1.0f + kKindaBigNumber));
+    assert(v.z >= (-1.0f - kKindaSmallNumber) && v.z <= (1.0f + kKindaBigNumber));
+
+    v.x = std::clamp(v.x, -1.0f, 1.0f);
+    v.y = std::clamp(v.y, -1.0f, 1.0f);
+    v.z = std::clamp(v.z, -1.0f, 1.0f);
+
+    // Normalize x, y, z from [-1, 1] to [0, 1]
+    v = (v + Vector3::One) * 0.5f;
+
+    // Scale to 10-bit integers (0-1023)
+    const uint32_t xInt = (uint32_t)(v.x * 1023.0f);
+    const uint32_t yInt = (uint32_t)(v.y * 1023.0f);
+    const uint32_t zInt = (uint32_t)(v.z * 1023.0f);
+
+    // Pack components into a uint32_t (10 bits each for x, y, z)
+    return (xInt << 20) | (yInt << 10) | (zInt);
+}
+
 void Mesh::Initialize(
     const std::vector<RawVertexFormat>& vertices,
     const std::vector<uint32_t>& indices,

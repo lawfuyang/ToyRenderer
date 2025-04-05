@@ -37,6 +37,8 @@ struct MeshLOD
 class Mesh
 {
 public:
+    static uint32_t PackNormal(const Vector3& normal);
+
     void Initialize(
         const std::vector<struct RawVertexFormat>& rawVertices,
         const std::vector<uint32_t>& indices,
