@@ -20,7 +20,7 @@ public:
     void Initialize() override
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        m_ExposureReadbackBuffer.Initialize(device, sizeof(float));
+        m_ExposureReadbackBuffer.Initialize(sizeof(float));
     }
 
     bool Setup(RenderGraph& renderGraph) override
@@ -51,14 +51,14 @@ public:
         Scene* scene = g_Graphic.m_Scene.get();
 
         // read back previous frame's scene exposure
-        m_ExposureReadbackBuffer.Read(device, (void*)&scene->m_LastFrameExposure);
+        m_ExposureReadbackBuffer.Read((void*)&scene->m_LastFrameExposure);
 
         const GraphicPropertyGrid::AdaptLuminanceControllables& controllables = g_GraphicPropertyGrid.m_AdaptLuminanceControllables;
 
         ON_EXIT_SCOPE_LAMBDA([&]
             {
                 // copy to staging texture to be read back by CPU next frame, regardless whether manual exposure mode is enabled or not
-                m_ExposureReadbackBuffer.CopyTo(device, commandList, scene->m_LuminanceBuffer);
+                m_ExposureReadbackBuffer.CopyTo(commandList, scene->m_LuminanceBuffer);
             });
 
         if (controllables.m_ManualExposureOverride > 0.0f)

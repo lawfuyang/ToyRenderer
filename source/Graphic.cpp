@@ -1283,8 +1283,10 @@ std::pair<const void*, size_t> Graphic::FindShaderFromHashForAftermath(uint64_t 
 uint32_t FencedReadbackBuffer::GetWriteIndex() { return g_Graphic.m_FrameCounter % kNbBuffers; }
 uint32_t FencedReadbackBuffer::GetReadIndex() { return (g_Graphic.m_FrameCounter + 1) % kNbBuffers; }
 
-void FencedReadbackBuffer::Initialize(nvrhi::DeviceHandle device, uint32_t bufferSize)
+void FencedReadbackBuffer::Initialize(uint32_t bufferSize)
 {
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
     m_BufferSize = bufferSize;
 
     nvrhi::BufferDesc desc;
@@ -1302,12 +1304,10 @@ void FencedReadbackBuffer::Initialize(nvrhi::DeviceHandle device, uint32_t buffe
     }
 }
 
-void FencedReadbackBuffer::CopyTo(
-    nvrhi::DeviceHandle device,
-    nvrhi::CommandListHandle commandList,
-    nvrhi::BufferHandle bufferSource,
-    nvrhi::CommandQueue queue)
+void FencedReadbackBuffer::CopyTo(nvrhi::CommandListHandle commandList, nvrhi::BufferHandle bufferSource, nvrhi::CommandQueue queue)
 {
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
     assert(m_BufferSize > 0);
 
     const uint32_t writeIndex = GetWriteIndex();
@@ -1318,8 +1318,10 @@ void FencedReadbackBuffer::CopyTo(
     device->setEventQuery(m_EventQueries[writeIndex], queue);
 }
 
-void FencedReadbackBuffer::Read(nvrhi::DeviceHandle device, void* outPtr)
+void FencedReadbackBuffer::Read(void* outPtr)
 {
+
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
     assert(m_BufferSize > 0);
 
     const uint32_t readIndex = GetReadIndex();

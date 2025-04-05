@@ -194,9 +194,9 @@ public:
     static uint32_t GetWriteIndex();
     static uint32_t GetReadIndex();
 
-    void Initialize(nvrhi::DeviceHandle device, uint32_t bufferSize);
-    void CopyTo(nvrhi::DeviceHandle device, nvrhi::CommandListHandle commandList, nvrhi::BufferHandle bufferSource, nvrhi::CommandQueue queue = nvrhi::CommandQueue::Graphics);
-    void Read(nvrhi::DeviceHandle device, void* outPtr);
+    void Initialize(uint32_t bufferSize);
+    void CopyTo(nvrhi::CommandListHandle commandList, nvrhi::BufferHandle bufferSource, nvrhi::CommandQueue queue = nvrhi::CommandQueue::Graphics);
+    void Read(void* outPtr);
 
     uint32_t m_BufferSize = 0;
     nvrhi::BufferHandle m_Buffers[kNbBuffers];
