@@ -263,6 +263,11 @@ struct PostProcessParameters
 	float m_BloomStrength;
 };
 
+struct GIProbeVisualizationUpdateConsts
+{
+	float m_ProbeRadius;
+};
+
 struct GIProbeVisualizationConsts
 {
 

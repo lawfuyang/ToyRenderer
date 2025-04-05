@@ -22,15 +22,10 @@
 // 1: yes
 #define RTXGI_DDGI_SHADER_REFLECTION 0
 
-// Bindless Resource implementation type
-// 0: RTXGI_BINDLESS_TYPE_RESOURCE_ARRAYS
-// 1: RTXGI_BINDLESS_TYPE_DESCRIPTOR_HEAP
-#define RTXGI_BINDLESS_TYPE 1
-
 // Should DDGI use bindless resources?
 // 0: no
 // 1: yes
-#define RTXGI_DDGI_BINDLESS_RESOURCES 1
+#define RTXGI_DDGI_BINDLESS_RESOURCES 0
 
 //-------------------------------------------------------------------------------------------------
 // Optional Defines (including in this file since we compile with warnings as errors)
@@ -38,6 +33,8 @@
 #define RTXGI_DDGI_DEBUG_PROBE_INDEXING 0
 #define RTXGI_DDGI_DEBUG_OCTAHEDRAL_INDEXING 0
 #define RTXGI_DDGI_DEBUG_BORDER_COPY_INDEXING 0
+
+// NOTE: everything below copied from RTXGI-DDGI sample's DDGIShaderConfig.h
 
 #if RTXGI_DDGI_RESOURCE_MANAGEMENT && RTXGI_DDGI_BINDLESS_RESOURCES
 #error RTXGI SDK DDGI Managed Mode is not compatible with bindless resources!
@@ -82,30 +79,30 @@
 #endif
 #else
 #define CONSTS_REGISTER b0
-#define CONSTS_SPACE space1
+#define CONSTS_SPACE space0
 #if RTXGI_DDGI_BINDLESS_RESOURCES && (RTXGI_BINDLESS_TYPE == RTXGI_BINDLESS_TYPE_RESOURCE_ARRAYS)
     // Using the application's root signature (bindless resource arrays)
 #define VOLUME_CONSTS_REGISTER t5
 #define VOLUME_CONSTS_SPACE space0
 #define RWTEX2DARRAY_REGISTER u6
-#define RWTEX2DARRAY_SPACE space1
+#define RWTEX2DARRAY_SPACE space0
 #else
     // Using the RTXGI SDK's root signature (not bindless)
 #define VOLUME_CONSTS_REGISTER t0
-#define VOLUME_CONSTS_SPACE space1
+#define VOLUME_CONSTS_SPACE space0
 #define RAY_DATA_REGISTER u0
-#define RAY_DATA_SPACE space1
+#define RAY_DATA_SPACE space0
 #if RTXGI_DDGI_BLEND_RADIANCE
 #define OUTPUT_REGISTER u1
 #else
 #define OUTPUT_REGISTER u2
 #endif
-#define OUTPUT_SPACE space1
+#define OUTPUT_SPACE space0
 #define PROBE_DATA_REGISTER u3
-#define PROBE_DATA_SPACE space1
+#define PROBE_DATA_SPACE space0
 #define PROBE_VARIABILITY_REGISTER u4
 #define PROBE_VARIABILITY_AVERAGE_REGISTER u5
-#define PROBE_VARIABILITY_SPACE space1
+#define PROBE_VARIABILITY_SPACE space0
 #endif
 #endif
 #endif

@@ -1,6 +1,7 @@
 • GI
     • https://github.com/NVIDIAGameWorks/RTXGI-DDGI
 	• https://github.com/NVIDIA-RTX/RTXGI (?)
+• move a whole of shit out of GraphicPropertyGrid into Renderers
 • RT Shadows
 	• half/quarter res trace (?)
 	• improve with 3D motion vector inputs (?)

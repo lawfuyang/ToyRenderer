@@ -117,7 +117,11 @@ private:
 class GIRenderer : public IRenderer
 {
     GIVolume m_GIVolume;
+
+    bool m_bShowProbes = false;
     bool m_bResetProbes = true;
+    Vector3 m_ProbeSpacing{ 1.0f, 1.0f, 1.0f };
+    uint32_t m_ProbeNumRays = 256;
 
 public:
     GIRenderer() : IRenderer("GIRenderer") {}
@@ -131,24 +135,24 @@ public:
         auto& controllables = g_GraphicPropertyGrid.m_GIControllables;
 
         // enforce minimum of 10x10x10 probes
-        controllables.m_ProbeSpacing.x = std::min(controllables.m_ProbeSpacing.x, scene->m_AABB.Extents.x * 0.1f);
-        controllables.m_ProbeSpacing.y = std::min(controllables.m_ProbeSpacing.y, scene->m_AABB.Extents.z * 0.1f);
-        controllables.m_ProbeSpacing.z = std::min(controllables.m_ProbeSpacing.z, scene->m_AABB.Extents.y * 0.1f);
+        m_ProbeSpacing.x = std::min(m_ProbeSpacing.x, scene->m_AABB.Extents.x * 0.1f);
+        m_ProbeSpacing.y = std::min(m_ProbeSpacing.y, scene->m_AABB.Extents.z * 0.1f);
+        m_ProbeSpacing.z = std::min(m_ProbeSpacing.z, scene->m_AABB.Extents.y * 0.1f);
 
         // XY = horizontal plane, Z = vertical plane
         const rtxgi::int3 volumeProbeCounts =
         {
-            (int)std::ceil(scene->m_AABB.Extents.x / controllables.m_ProbeSpacing.x),
-            (int)std::ceil(scene->m_AABB.Extents.z / controllables.m_ProbeSpacing.y),
-            (int)std::ceil(scene->m_AABB.Extents.y / controllables.m_ProbeSpacing.z)
+            (int)std::ceil(scene->m_AABB.Extents.x / m_ProbeSpacing.x),
+            (int)std::ceil(scene->m_AABB.Extents.z / m_ProbeSpacing.y),
+            (int)std::ceil(scene->m_AABB.Extents.y / m_ProbeSpacing.z)
         };
 
         rtxgi::DDGIVolumeDesc volumeDesc;
         volumeDesc.origin = rtxgi::float3{ scene->m_AABB.Center.x, scene->m_AABB.Center.y, scene->m_AABB.Center.z };
         volumeDesc.eulerAngles = rtxgi::float3{ 0.0f, 0.0f, 0.0f }; // TODO: OBB?
-        volumeDesc.probeSpacing = rtxgi::float3{ controllables.m_ProbeSpacing.x, controllables.m_ProbeSpacing.y, controllables.m_ProbeSpacing.z };
+        volumeDesc.probeSpacing = rtxgi::float3{ m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z };
         volumeDesc.probeCounts = volumeProbeCounts;
-        volumeDesc.probeNumRays = controllables.m_ProbeNumRays;
+        volumeDesc.probeNumRays = m_ProbeNumRays;
         volumeDesc.probeNumIrradianceTexels = kProbeNumIrradianceTexels;
         volumeDesc.probeNumIrradianceInteriorTexels = kProbeNumIrradianceTexels - 2;
         volumeDesc.probeNumDistanceTexels = kProbeNumDistanceTexels;
@@ -186,9 +190,10 @@ public:
             return;
         }
 
+        ImGui::Checkbox("Show Probes", &m_bShowProbes);
         ImGui::Checkbox("Reset Probes", &m_bResetProbes);
-        ImGui::InputFloat3("Probe Spacing", (float*)&controllables.m_ProbeSpacing, "%.2f");
-        ImGui::DragInt("Probe Num Rays", (int*)&controllables.m_ProbeNumRays, 1.0f, 32, 512);
+        ImGui::InputFloat3("Probe Spacing", (float*)&m_ProbeSpacing, "%.2f");
+        ImGui::DragInt("Probe Num Rays", (int*)&m_ProbeNumRays, 1.0f, 128, 512);
     }
 
     bool Setup(RenderGraph& renderGraph) override
@@ -211,6 +216,11 @@ public:
         renderGraph.CreateTransientResource(g_DDGIOutputRDGTextureHandle, desc);
 
         return true;
+    }
+
+    void ShowProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
+    {
+
     }
 
     void ResetProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
@@ -239,6 +249,11 @@ public:
         }
 
         m_GIVolume.Update();
+
+        if (m_bShowProbes)
+        {
+            ShowProbes(commandList, renderGraph);
+        }
 
         ReadbackDDGIVolumeVariability(commandList, renderGraph);
         RayTraceVolumes(commandList, renderGraph);

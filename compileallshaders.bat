@@ -35,6 +35,7 @@ SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/amd/FidelityFX/sdk/includ
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/Shaders/Include"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/Shaders/Resources"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/projects/ToyRenderer/_deps/mathlib-src"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/RTXGI-DDGI/rtxgi-sdk/include"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/include"
 
 :: SET COMPILER_OPTIONS="-Wconversion -Wdouble-promotion -Whlsl-legacy-literal"
