@@ -63,9 +63,17 @@ public:
 
     struct LightingControllables
     {
-        bool m_EnableDDGI = true;
+
     };
     LightingControllables m_LightingControllables;
+
+    struct GIControllables
+    {
+        bool m_bEnabled = true;
+        Vector3 m_ProbeSpacing{ 1.0f, 1.0f, 1.0f };
+        uint32_t m_ProbeNumRays = 256;
+    };
+    GIControllables m_GIControllables;
     
     struct BloomControllables
     {
