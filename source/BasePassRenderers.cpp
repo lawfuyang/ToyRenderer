@@ -220,8 +220,7 @@ public:
 
 	void Initialize() override
 	{
-		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-		m_CounterStatsReadbackBuffer.Initialize(device, sizeof(uint32_t) * kNbGPUCullingBufferCounters);
+		m_CounterStatsReadbackBuffer.Initialize(sizeof(uint32_t) * kNbGPUCullingBufferCounters);
 	}
 
 	bool Setup(RenderGraph& renderGraph) override
@@ -596,7 +595,7 @@ public:
         // read back nb visible instances from counter
         {
             uint32_t readbackResults[kNbGPUCullingBufferCounters]{};
-            m_CounterStatsReadbackBuffer.Read(device, readbackResults);
+            m_CounterStatsReadbackBuffer.Read(readbackResults);
 
             // TODO: support transparent
             GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
@@ -645,7 +644,7 @@ public:
         }
 
 		// copy counter buffer, so that it can be read on CPU next frame
-        m_CounterStatsReadbackBuffer.CopyTo(device, commandList, counterStatsBuffer);
+        m_CounterStatsReadbackBuffer.CopyTo(commandList, counterStatsBuffer);
     }
 };
 
