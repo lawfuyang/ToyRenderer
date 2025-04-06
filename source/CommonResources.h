@@ -62,6 +62,7 @@ public:
     nvrhi::RasterState CullNone;
     nvrhi::RasterState CullClockwise;
     nvrhi::RasterState CullCounterClockwise;
+    nvrhi::RasterState CullBackFace;
 
     // Depth Stencil States
     nvrhi::DepthStencilState DepthNoneStencilNone;

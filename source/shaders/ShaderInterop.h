@@ -265,12 +265,15 @@ struct PostProcessParameters
 
 struct GIProbeVisualizationUpdateConsts
 {
-	float m_ProbeRadius;
+	uint32_t m_NumProbes;
+	Vector3 m_CameraOrigin;
+	float m_MaxDebugProbeDistance;
 };
 
 struct GIProbeVisualizationConsts
 {
-
+	Matrix m_WorldToClip;
+	float m_ProbeRadius;
 };
 
 // VS-friendly Vertex Layout

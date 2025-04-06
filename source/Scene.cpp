@@ -454,6 +454,7 @@ void Scene::Update()
 
         extern IRenderer* g_ClearBuffersRenderer;
         extern IRenderer* g_UpdateInstanceConstsRenderer;
+        extern IRenderer* g_GIRenderer;
         extern IRenderer* g_GBufferRenderer;
         extern IRenderer* g_ShadowMaskRenderer;
         extern IRenderer* g_DeferredLightingRenderer;
@@ -464,9 +465,11 @@ void Scene::Update()
         extern IRenderer* g_AdaptLuminanceRenderer;
         extern IRenderer* g_AmbientOcclusionRenderer;
         extern IRenderer* g_BloomRenderer;
+        extern IRenderer* g_GIDebugRenderer;
 
         m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
         m_RenderGraph->AddRenderer(g_UpdateInstanceConstsRenderer);
+        m_RenderGraph->AddRenderer(g_GIRenderer);
         m_RenderGraph->AddRenderer(g_GBufferRenderer);
         m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
         m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
@@ -478,6 +481,7 @@ void Scene::Update()
         m_RenderGraph->AddRenderer(g_PostProcessRenderer);
 
         // DisplayResolution Debug Passes
+        m_RenderGraph->AddRenderer(g_GIDebugRenderer);
         m_RenderGraph->AddRenderer(g_IMGUIRenderer);
     }
     m_RenderGraph->Compile();

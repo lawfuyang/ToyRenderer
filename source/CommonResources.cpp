@@ -42,7 +42,7 @@ static void CreateUnitSphereMesh()
     PROFILE_FUNCTION();
 
     const float kRadius = 0.5f;
-    const uint32_t kTessellation = 12;
+    const uint32_t kTessellation = 6;
     const uint32_t kVerticalSegments = kTessellation;
     const uint32_t kHorizontalSegments = kTessellation * 2;
 
@@ -333,6 +333,8 @@ static void CreateDefaultRasterStates()
 	g_CommonResources.CullNone             = CreateRasterState(nvrhi::RasterCullMode::None);
 	g_CommonResources.CullClockwise        = CreateRasterState(nvrhi::RasterCullMode::Back);
 	g_CommonResources.CullCounterClockwise = CreateRasterState(nvrhi::RasterCullMode::Front);
+
+    g_CommonResources.CullBackFace = Graphic::kFrontCCW ? g_CommonResources.CullClockwise : g_CommonResources.CullCounterClockwise;
 }
 
 void CommonResources::Initialize()

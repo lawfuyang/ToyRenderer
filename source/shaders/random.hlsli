@@ -1,6 +1,8 @@
 #ifndef _RANDOM_H_
 #define _RANDOM_H_
 
+#include "toyrenderer_common.hlsli"
+
 // Takes our seed, updates it, and returns a pseudorandom float in [0..1]
 float QuickRandomFloat(inout uint seed)
 {
@@ -67,6 +69,43 @@ float InterleavedGradientNoise(float2 uv, float offset)
 // https://blog.demofox.org/2022/01/01/interleaved-gradient-noise-a-different-kind-of-low-discrepancy-sequence/
 float InterleavedGradientNoise(int x, int y) {
     return fmod(52.9829189f * fmod(0.06711056f * x + 0.00583715f * y, 1.0f), 1.0f);
+}
+
+/**
+* Compute a uniformly distributed random direction on the hemisphere about the given (normal) direction.
+*/
+float3 GetRandomDirectionOnHemisphere(float3 direction, inout uint seed)
+{
+    float3 p;
+    do
+    {
+        p.x = GetRandomFloat(seed) * 2.f - 1.f;
+        p.y = GetRandomFloat(seed) * 2.f - 1.f;
+        p.z = GetRandomFloat(seed) * 2.f - 1.f;
+
+        // Only accept unit length directions to stay inside
+        // the unit sphere and be uniformly distributed
+    } while (length(p) > 1.f);
+
+    // Direction is on the opposite hemisphere, flip and use it
+    if (dot(direction, p) < 0.f)
+        p *= -1.f;
+    return normalize(p);
+}
+
+/**
+* Compute a cosine distributed random direction on the hemisphere about the given (normal) direction.
+*/
+float3 GetRandomCosineDirectionOnHemisphere(float3 direction, inout uint seed)
+{
+    // Choose random points on the unit sphere offset along the surface normal
+    // to produce a cosine distribution of random directions.
+    float a = GetRandomFloat(seed) * M_PI * 2.0f;
+    float z = GetRandomFloat(seed) * 2.f - 1.f;
+    float r = sqrt(1.f - z * z);
+
+    float3 p = float3(r * cos(a), r * sin(a), z) + direction;
+    return normalize(p);
 }
 
 #endif // _RANDOM_H_

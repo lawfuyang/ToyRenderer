@@ -75,5 +75,6 @@
 • Hybrid Stochastic Reflections
 	• https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/main/docs/samples/hybrid-reflections.md
 • Pathtracing
+	• Reference Pathtracer (RTXGI-DDGI\samples\test-harness\src\graphics\PathTracing_D3D12.cpp)
 	• https://github.com/NVIDIA-RTX/RTXPT
 	
