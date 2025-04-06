@@ -61,12 +61,6 @@ public:
     };
     AmbientOcclusionControllables m_AmbientOcclusionControllables;
 
-    struct LightingControllables
-    {
-
-    };
-    LightingControllables m_LightingControllables;
-
     struct GIControllables
     {
         bool m_bEnabled = true;
