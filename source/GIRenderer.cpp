@@ -1,6 +1,7 @@
 #include "Graphic.h"
 
 #include "extern/imgui/imgui.h"
+#include "rtxgi/ddgi/DDGIRootConstants.h"
 #include "rtxgi/ddgi/DDGIVolume.h"
 #include "shaders/DDGIShaderConfig.h"
 
@@ -17,7 +18,6 @@ static_assert(RTXGI_DDGI_WAVE_LANE_COUNT == kNumThreadsPerWave);
 
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
-RenderGraph::ResourceHandle g_DDGIOutputRDGTextureHandle;
 
 static bool gs_bShowDebugProbes = false;
 static float gs_MaxDebugProbeDistance = 10.0f;
@@ -51,12 +51,6 @@ public:
         m_probeScrollAnchor = m_desc.origin;
 
         SeedRNG(std::random_device{}());
-    }
-
-    void ClearProbes(nvrhi::CommandListHandle commandList)
-    {
-        commandList->clearTextureFloat(m_ProbeIrradiance, nvrhi::AllSubresources, m_ProbeIrradiance->getDesc().clearValue);
-        commandList->clearTextureFloat(m_ProbeDistance, nvrhi::AllSubresources, m_ProbeDistance->getDesc().clearValue);
     }
 
     void Destroy() override {}
@@ -221,7 +215,7 @@ public:
         }
 
         ImGui::Checkbox("Show Debug Probes", &gs_bShowDebugProbes);
-        ImGui::Checkbox("Reset Probes", &m_bResetProbes);
+        if (ImGui::Button("Reset Probes")) { m_bResetProbes = true; }
         ImGui::DragFloat3("Probe Spacing", (float*)&m_ProbeSpacing, 1.0f, 0.1f, 2.0f);
         ImGui::DragInt("Probe Num Rays", (int*)&m_ProbeNumRays, 1.0f, 128, 512);
         ImGui::DragFloat("Max Debug Probe Distance", &gs_MaxDebugProbeDistance, 1.0f, 10.0f, 1000.0f);
@@ -236,24 +230,37 @@ public:
             return false;
         }
 
-        nvrhi::TextureDesc desc;
-        desc.width = g_Graphic.m_RenderResolution.x;
-        desc.height = g_Graphic.m_RenderResolution.y;
-        desc.format = nvrhi::Format::R11G11B10_FLOAT;
-        desc.isUAV = true;
-        desc.debugName = "DDGI Output";
-        desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-        renderGraph.CreateTransientResource(g_DDGIOutputRDGTextureHandle, desc);
-
         return true;
     }
 
     void ResetProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
-        m_GIVolume.ClearProbes(commandList);
-        //DDGIProbeRelocationResetCS
-        //DDGIProbeClassificationResetCS
+        commandList->clearTextureFloat(m_GIVolume.m_ProbeIrradiance, nvrhi::AllSubresources, m_GIVolume.m_ProbeIrradiance->getDesc().clearValue);
+        commandList->clearTextureFloat(m_GIVolume.m_ProbeDistance, nvrhi::AllSubresources, m_GIVolume.m_ProbeDistance->getDesc().clearValue);
+
+        // TODO: multiple volumes
+        DDGIRootConstants rootConsts{ m_GIVolume.GetDesc().index, 0, 0 };
+
+        nvrhi::BindingSetDesc bindingSetDesc;
+        bindingSetDesc.bindings =
+        {
+            nvrhi::BindingSetItem::PushConstants(kDDGIRootConstsRegister, sizeof(rootConsts)),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(kDDGIVolumeDescGPUPackedRegister, m_VolumeDescGPUBuffer),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeDataRegister, m_GIVolume.m_ProbeRayData),
+        };
+
+        Graphic::ComputePassParams computePassParams;
+        computePassParams.m_CommandList = commandList;
+        computePassParams.m_ShaderName = "ProbeRelocationCS_DDGIProbeRelocationResetCS";
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_GIVolume.GetNumProbes(), 32);
+        computePassParams.m_PushConstantsData = &rootConsts;
+        computePassParams.m_PushConstantsBytes = sizeof(rootConsts);
+        g_Graphic.AddComputePass(computePassParams);
+
+        computePassParams.m_ShaderName = "ProbeClassificationCS_DDGIProbeClassificationResetCS";
+        g_Graphic.AddComputePass(computePassParams);
+
     }
 
     void ReadbackDDGIVolumeVariability(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
@@ -293,8 +300,6 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        nvrhi::TextureHandle ddgiOutputTexture = renderGraph.GetTexture(g_DDGIOutputRDGTextureHandle);
-
         if (m_bResetProbes)
         {
             ResetProbes(commandList, renderGraph);
