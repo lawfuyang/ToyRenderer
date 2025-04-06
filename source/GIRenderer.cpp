@@ -398,7 +398,7 @@ public:
 
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
-            computePassParams.m_ShaderName = "giprobevisualization_CS_UpdateProbePositions";
+            computePassParams.m_ShaderName = "giprobevisualization_CS_GenerateIndirectArgs";
             computePassParams.m_BindingSetDesc = bindingSetDesc;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(numProbes, kNumThreadsPerWave);
             computePassParams.m_PushConstantsData = &updateConsts;

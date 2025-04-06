@@ -26,7 +26,7 @@ bloom.hlsl -T ps -E PS_Upsample
 updateinstanceconsts.hlsl -T cs -E CS_UpdateInstanceConstsAndBuildTLAS
 giprobevisualization.hlsl -T vs -E VS_GIProbes
 giprobevisualization.hlsl -T ps -E PS_GIProbes
-giprobevisualization.hlsl -T cs -E CS_UpdateProbePositions
+giprobevisualization.hlsl -T cs -E CS_GenerateIndirectArgs
 
 ../../extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 

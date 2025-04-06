@@ -13,7 +13,7 @@ StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t0);
 Texture2DArray<float4> g_ProbeData : register(t1);
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
-void CS_UpdateProbePositions(uint3 dispatchThreadID : SV_DispatchThreadID)
+void CS_GenerateIndirectArgs(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
     // Early out: processed all probes, a probe doesn't exist for this thread
     if (dispatchThreadID.x >= g_GIProbeVisualizationUpdateConsts.m_NumProbes)
