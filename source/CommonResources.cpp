@@ -109,7 +109,7 @@ static void CreateUnitSphereMesh()
     vbDesc.initialState = nvrhi::ResourceStates::ShaderResource;
     vbDesc.format = nvrhi::Format::RG32_FLOAT;
     vbDesc.isVertexBuffer = true;
-    g_CommonResources.UnitSphereVertexBuffer = device->createBuffer(vbDesc);
+    g_CommonResources.UnitSphere.m_VertexBuffer = device->createBuffer(vbDesc);
 
     nvrhi::BufferDesc ibDesc;
     ibDesc.byteSize = indices.size() * sizeof(Graphic::IndexBufferFormat_t);
@@ -117,7 +117,16 @@ static void CreateUnitSphereMesh()
     ibDesc.initialState = nvrhi::ResourceStates::ShaderResource;
     ibDesc.format = nvrhi::Format::R32_UINT;
     ibDesc.isIndexBuffer = true;
-    g_CommonResources.UnitSphereIndexBuffer = device->createBuffer(ibDesc);
+    g_CommonResources.UnitSphere.m_IndexBuffer = device->createBuffer(ibDesc);
+
+    g_CommonResources.UnitSphere.m_NumVertices = vertices.size();
+    g_CommonResources.UnitSphere.m_NumIndices = indices.size();
+
+    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Create Unit Sphere Mesh");
+
+    commandList->writeBuffer(g_CommonResources.UnitSphere.m_VertexBuffer, vertices.data(), vbDesc.byteSize);
+    commandList->writeBuffer(g_CommonResources.UnitSphere.m_IndexBuffer, indices.data(), ibDesc.byteSize);
 }
 
 static void CreateDefaultTextures()

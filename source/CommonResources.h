@@ -4,6 +4,14 @@
 
 #include "Visual.h"
 
+struct DefaultGeometry
+{
+    uint32_t m_NumVertices;
+    uint32_t m_NumIndices;
+    nvrhi::BufferHandle m_VertexBuffer;
+    nvrhi::BufferHandle m_IndexBuffer;
+};
+
 class CommonResources
 {
 public:
@@ -11,8 +19,7 @@ public:
 
     nvrhi::InputLayoutHandle m_UncompressedRawVertexFormatInputLayoutHandle;
 
-    nvrhi::BufferHandle UnitSphereVertexBuffer;
-    nvrhi::BufferHandle UnitSphereIndexBuffer;
+    DefaultGeometry UnitSphere;
 
     // Textures
     Texture BlackTexture;
