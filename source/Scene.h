@@ -100,9 +100,9 @@ public:
     float m_DirLightStrength = 1.0f;
     float m_LastFrameExposure = 1.0f;
 
-    AABB m_AABB;
+    ::AABB m_AABB;
     Sphere m_BoundingSphere;
-    OBB m_OBB;
+    ::OBB m_OBB;
 
     std::vector<Node> m_Nodes;
     std::vector<Primitive> m_Primitives;
