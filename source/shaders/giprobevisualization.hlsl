@@ -47,7 +47,7 @@ void CS_UpdateProbePositions(uint3 dispatchThreadID : SV_DispatchThreadID)
 cbuffer GIProbeVisualizationConstsBuffer : register(b0) { GIProbeVisualizationConsts g_GIProbeVisualizationConsts; }
 StructuredBuffer<float3> g_InProbePositions : register(t0);
 
-void VS_Main
+void VS_GIProbes
 (
     in float3 inPosition : POSITION,
     in float3 inNormal : NORMAL,
@@ -62,7 +62,7 @@ void VS_Main
     outTexCoord = inTexCoord;
 }
 
-void PS_Main
+void PS_GIProbes
 (
     in float4 inPosition : SV_POSITION,
     in float3 inNormal : TEXCOORD0,
