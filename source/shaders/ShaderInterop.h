@@ -267,7 +267,14 @@ struct GIProbeVisualizationUpdateConsts
 {
 	uint32_t m_NumProbes;
 	Vector3 m_CameraOrigin;
+	Vector4 m_Frustum;
+	Matrix m_WorldToView;
+	Vector2U m_HZBDimensions;
+	float m_P00;
+	float m_P11;
+	float m_NearPlane;
 	float m_MaxDebugProbeDistance;
+	float m_ProbeRadius;
 };
 
 struct GIProbeVisualizationConsts

@@ -378,22 +378,38 @@ public:
         commandList->writeBuffer(probeDrawIndirectArgsBuffer, &indirectArgs, sizeof(indirectArgs));
 
         const uint32_t numProbes = gs_GIRenderer.m_GIVolume.GetNumProbes();
+        const float probeRadius = gs_GIRenderer.m_GIVolume.GetDebugProbeRadius();
 
         // get probe positions from the volume
         {
-            GIProbeVisualizationUpdateConsts updateConsts;
-            updateConsts.m_NumProbes = numProbes;
-            updateConsts.m_CameraOrigin = g_Scene->m_View.m_Eye;
-            updateConsts.m_MaxDebugProbeDistance = gs_MaxDebugProbeDistance;
+            Matrix projectionT = g_Scene->m_View.m_ViewToClip.Transpose();
+            Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
+            Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
+            frustumX.Normalize();
+            frustumY.Normalize();
+
+            GIProbeVisualizationUpdateConsts passParameters;
+			passParameters.m_NumProbes = numProbes;
+			passParameters.m_CameraOrigin = g_Scene->m_View.m_Eye;
+            passParameters.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
+			passParameters.m_WorldToView = g_Scene->m_View.m_WorldToView;
+			passParameters.m_HZBDimensions = Vector2U{ g_Scene->m_HZB->getDesc().width, g_Scene->m_HZB->getDesc().height };
+            passParameters.m_P00 = g_Scene->m_View.m_ViewToClip.m[0][0];
+            passParameters.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
+            passParameters.m_NearPlane = g_Scene->m_View.m_ZNearP;
+			passParameters.m_MaxDebugProbeDistance = gs_MaxDebugProbeDistance;
+			passParameters.m_ProbeRadius = probeRadius;
 
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =
             {
-                nvrhi::BindingSetItem::PushConstants(0, sizeof(updateConsts)),
+                nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, probePositionsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(1, probeDrawIndirectArgsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(0, gs_GIRenderer.m_VolumeDescGPUBuffer),
                 nvrhi::BindingSetItem::Texture_SRV(1, gs_GIRenderer.m_GIVolume.m_ProbeData),
+                nvrhi::BindingSetItem::Texture_SRV(2, g_Scene->m_HZB),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
             };
 
             Graphic::ComputePassParams computePassParams;
@@ -401,8 +417,8 @@ public:
             computePassParams.m_ShaderName = "giprobevisualization_CS_GenerateIndirectArgs";
             computePassParams.m_BindingSetDesc = bindingSetDesc;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(numProbes, kNumThreadsPerWave);
-            computePassParams.m_PushConstantsData = &updateConsts;
-            computePassParams.m_PushConstantsBytes = sizeof(updateConsts);
+            computePassParams.m_PushConstantsData = &passParameters;
+            computePassParams.m_PushConstantsBytes = sizeof(passParameters);
 
             g_Graphic.AddComputePass(computePassParams);
         }
@@ -421,7 +437,7 @@ public:
 
             GIProbeVisualizationConsts passConstants;
             passConstants.m_WorldToClip = g_Scene->m_View.m_WorldToClip;
-            passConstants.m_ProbeRadius = gs_GIRenderer.m_GIVolume.GetDebugProbeRadius();
+            passConstants.m_ProbeRadius = probeRadius;
 
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =

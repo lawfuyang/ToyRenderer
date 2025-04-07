@@ -1,16 +1,20 @@
 #include "toyrenderer_common.hlsli"
-#include "ShaderInterop.h"
 
 #include "DDGIShaderConfig.h"
 #include "ProbeCommon.hlsl"
 #include "DDGIRootConstants.hlsl"
 #include "rtxgi/ddgi/DDGIVolumeDescGPU.h"
 
+#include "culling.hlsli"
+#include "ShaderInterop.h"
+
 cbuffer GIProbeVisualizationUpdateConstsBuffer : register(b0) { GIProbeVisualizationUpdateConsts g_GIProbeVisualizationUpdateConsts; }
 RWStructuredBuffer<float3> g_OutProbePositions : register(u0);
 RWStructuredBuffer<DrawIndexedIndirectArguments> g_OutProbeIndirectArgs : register(u1);
 StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t0);
 Texture2DArray<float4> g_ProbeData : register(t1);
+Texture2D g_HZB : register(t2);
+SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
 void CS_GenerateIndirectArgs(uint3 dispatchThreadID : SV_DispatchThreadID)
@@ -34,9 +38,28 @@ void CS_GenerateIndirectArgs(uint3 dispatchThreadID : SV_DispatchThreadID)
     // Get the probe's world position from the probe index
     float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_ProbeData);
     
-    // NOTE: important to limit the distance to the camera to avoid rendering too many probes, else the performance will tank if its > 100k probes
-    // also, debug probes that are too far can't be seen properly anyway
-    if (length(probeWorldPosition - g_GIProbeVisualizationUpdateConsts.m_CameraOrigin) > g_GIProbeVisualizationUpdateConsts.m_MaxDebugProbeDistance)
+    float3 probeViewSpacePosition = mul(float4(probeWorldPosition, 1.0f), g_GIProbeVisualizationUpdateConsts.m_WorldToView).xyz;
+    probeViewSpacePosition.z *= -1.0f; // TODO: fix inverted view-space Z coord
+    
+    if (!FrustumCull(probeViewSpacePosition, g_GIProbeVisualizationUpdateConsts.m_ProbeRadius, g_GIProbeVisualizationUpdateConsts.m_Frustum))
+    {
+        return;
+    }
+    
+    if (!OcclusionCull(probeViewSpacePosition,
+                       g_GIProbeVisualizationUpdateConsts.m_ProbeRadius,
+                       g_GIProbeVisualizationUpdateConsts.m_NearPlane,
+                       g_GIProbeVisualizationUpdateConsts.m_P00,
+                       g_GIProbeVisualizationUpdateConsts.m_P11,
+                       g_HZB,
+                       g_GIProbeVisualizationUpdateConsts.m_HZBDimensions,
+                       g_LinearClampMinReductionSampler))
+    {
+        return;
+    }
+    
+    // debug probes that are too far can't be seen properly anyway
+    if (length(probeViewSpacePosition) > g_GIProbeVisualizationUpdateConsts.m_MaxDebugProbeDistance)
     {
         return;
     }
