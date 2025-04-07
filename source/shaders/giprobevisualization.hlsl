@@ -11,35 +11,37 @@
 cbuffer GIProbeVisualizationUpdateConstsBuffer : register(b0) { GIProbeVisualizationUpdateConsts g_GIProbeVisualizationUpdateConsts; }
 RWStructuredBuffer<float3> g_OutProbePositions : register(u0);
 RWStructuredBuffer<DrawIndexedIndirectArguments> g_OutProbeIndirectArgs : register(u1);
-StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t0);
-Texture2DArray<float4> g_ProbeData : register(t1);
-Texture2D g_HZB : register(t2);
+RWStructuredBuffer<uint> g_OutInstanceIndexToProbeIndex : register(u2);
+StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t10);
+RWTexture2DArray<float4> g_ProbeData : register(u10);
+Texture2D g_HZB : register(t0);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
-void CS_GenerateIndirectArgs(uint3 dispatchThreadID : SV_DispatchThreadID)
+void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
-    // Early out: processed all probes, a probe doesn't exist for this thread
-    if (dispatchThreadID.x >= g_GIProbeVisualizationUpdateConsts.m_NumProbes)
+    uint probeIndex = dispatchThreadID.x;
+    
+    if (probeIndex >= g_GIProbeVisualizationUpdateConsts.m_NumProbes)
     {
         return;
     }
     
-    // Get the DDGIVolume index from root/push constants
     // TODO: multiple volumes
     uint volumeIndex = 0;
-
-    // Load and unpack the DDGIVolume's constants
+    
     DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
-
-    // Get the probe's grid coordinates
-    float3 probeCoords = DDGIGetProbeCoords(dispatchThreadID.x, volume);
-
-    // Get the probe's world position from the probe index
+    float3 probeCoords = DDGIGetProbeCoords(probeIndex, volume);
     float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_ProbeData);
     
     float3 probeViewSpacePosition = mul(float4(probeWorldPosition, 1.0f), g_GIProbeVisualizationUpdateConsts.m_WorldToView).xyz;
     probeViewSpacePosition.z *= -1.0f; // TODO: fix inverted view-space Z coord
+    
+    // debug probes that are too far can't be seen properly anyway
+    if (length(probeViewSpacePosition) > g_GIProbeVisualizationUpdateConsts.m_MaxDebugProbeDistance)
+    {
+        return;
+    }
     
     if (!FrustumCull(probeViewSpacePosition, g_GIProbeVisualizationUpdateConsts.m_ProbeRadius, g_GIProbeVisualizationUpdateConsts.m_Frustum))
     {
@@ -58,23 +60,20 @@ void CS_GenerateIndirectArgs(uint3 dispatchThreadID : SV_DispatchThreadID)
         return;
     }
     
-    // debug probes that are too far can't be seen properly anyway
-    if (length(probeViewSpacePosition) > g_GIProbeVisualizationUpdateConsts.m_MaxDebugProbeDistance)
-    {
-        return;
-    }
-    
     uint outInstanceIndex;
     InterlockedAdd(g_OutProbeIndirectArgs[0].m_InstanceCount, 1, outInstanceIndex);
 
     // Set the probe's transform
     g_OutProbePositions[outInstanceIndex] = probeWorldPosition;
+    g_OutInstanceIndexToProbeIndex[outInstanceIndex] = probeIndex;
 }
 
 cbuffer GIProbeVisualizationConstsBuffer : register(b0) { GIProbeVisualizationConsts g_GIProbeVisualizationConsts; }
 StructuredBuffer<float3> g_InProbePositions : register(t0);
+StructuredBuffer<uint> g_InInstanceIndexToProbeIndex : register(t1);
+RWTexture2DArray<float4> g_RayData : register(u0);
 
-void VS_GIProbes
+void VS_VisualizeGIProbes
 (
     in uint inInstanceID : SV_InstanceID,
     in float3 inPosition : POSITION,
@@ -82,23 +81,34 @@ void VS_GIProbes
     in float2 inTexCoord : TEXCOORD,
     out float4 outPosition : SV_POSITION,
     out float3 outNormal : TEXCOORD0,
-    out float2 outTexCoord : TEXCOORD1
-)
+    out float2 outTexCoord : TEXCOORD1,
+    out float3 outWorldPosition : TEXCOORD2,
+    nointerpolation out uint outInstanceID : TEXCOORD3)
 {
     float3 worldPosition = g_InProbePositions[inInstanceID] + (g_GIProbeVisualizationConsts.m_ProbeRadius * inNormal);
     
     outPosition = mul(float4(worldPosition, 1.0f), g_GIProbeVisualizationConsts.m_WorldToClip);
     outNormal = inNormal;
     outTexCoord = inTexCoord;
+    outWorldPosition = worldPosition;
+    outInstanceID = inInstanceID;
 }
 
-void PS_GIProbes
+void PS_VisualizeGIProbes
 (
     in float4 inPosition : SV_POSITION,
     in float3 inNormal : TEXCOORD0,
     in float2 inTexCoord : TEXCOORD1,
-    out float4 outColor : SV_Target0
-)
+    in float3 worldPosition : TEXCOORD2,
+    in uint inInstanceID : TEXCOORD3,
+    out float4 outColor : SV_Target0)
 {
+    // TODO: multiple volumes
+    uint volumeIndex = 0;
+    
+    DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
+    uint probeIndex = g_InInstanceIndexToProbeIndex[inInstanceID];
+    float3 probeCoords = DDGIGetProbeCoords(probeIndex, volume);
+    
     outColor = float4(1, 1, 1, 1);
 }
