@@ -2,21 +2,25 @@
 
 This is a personal toy renderer meant as a playground for experimenting with ideas and rendering techniques.
 
+## Features
+- **TBD...**
+
 ## Building
 
-Please don't. But if you wish to: 
-
-- Run `generateprojects.bat` to generate VS project files & download required binaries.
-- Open `ShaderMake.sln` and Compile. ShaderMake.exe is used to compile Shaders.
-- Open `ToyRenderer.sln` and Compile/Run
+- cmake -S . -B ./projects/ToyRenderer
+- cmake --build ./projects/ToyRenderer -t ShaderMake
+- cmake --build ./projects/ToyRenderer -t ToyRenderer
 
 ## Running
 
-Use "**--scene**" commandline arguments to load a scene
+Use "**--scene**" commandline argument to load a scene. Example:
 
-Example:
+    --scene "C:\Workspace\Sponza.gltf"
 
-    --scene "C:\Workspace\Sponza.glb"
-
-- Only gltf & glb supported.
-- Only opaque material for now. Nothing fancy.
+- Only gltf & glb. The following extensions will assert:
+    - EXT_mesh_gpu_instancing
+    - KHR_texture_transform
+    - KHR_texture_basisu
+- No alpha blending, only opaque materials with Alpha Mask
+- Only textures supported by [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h), or DDS
+- 
