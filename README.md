@@ -29,6 +29,8 @@ This is a personal toy renderer meant as a playground for experimenting with ide
     - Automatic camera exposure using luminance histogram
 - **[Ground Truth Ambient Occlusion (XeGTAO)](https://github.com/GameTechDev/XeGTAO)**
 - **[Physically-Based bloom](https://advances.realtimerendering.com/s2014/index.html#_NEXT_GENERATION_POST)**
+- **Static Animations**
+    - Linear Translation & Rotation only. No bones & skinning support yet.
 - **GPU Ray-Traced Global Illumination with [Nvidia RTXGI-DDI](https://github.com/NVIDIAGameWorks/RTXGI-DDGI)** (WIP)
 
 ## Building
