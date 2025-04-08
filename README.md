@@ -15,9 +15,11 @@ This is a personal toy renderer meant as a playground for experimenting with ide
     - Renderer scheduling
     - Resource dependency tracking & validation
     - Transient resource creation via Pooled Heaps
+- **Mesh LODs generated with [meshoptimizer](https://github.com/zeux/meshoptimizer)**
 - **GPU-Driven Rendering**
-    - **[2 Phase Occlusion Culling](https://advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf)**
-    - **Meshlet rendering pipeline**
+    - [2 Phase Occlusion Culling](https://advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf)
+    - Meshlet rendering pipeline
+    - Automatic mesh LOD selection based on quadric error metric
 - **Deferred Shading**
     - Lambert Diffuse & Smith/Schlick Specular BRDF
     - [Densely packed GBuffer](https://docs.google.com/presentation/d/1kaeg2qMi3_8nQqoR3Y2Ax9fJKUYLigPLPfdjfuEGowY/edit?slide=id.g27be1a2457b_0_128#slide=id.g27be1a2457b_0_128)
