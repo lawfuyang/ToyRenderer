@@ -263,6 +263,11 @@ struct PostProcessParameters
 	float m_BloomStrength;
 };
 
+struct GIProbeTraceConsts
+{
+	Vector3 m_DirectionalLightVector;
+};
+
 struct GIProbeVisualizationUpdateConsts
 {
 	uint32_t m_NumProbes;

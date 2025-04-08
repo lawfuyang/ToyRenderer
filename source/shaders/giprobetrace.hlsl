@@ -5,12 +5,22 @@
 #include "DDGIRootConstants.hlsl"
 #include "rtxgi/ddgi/DDGIVolumeDescGPU.h"
 
+#include "lightingcommon.hlsli"
+#include "raytracingcommon.hlsli"
 #include "ShaderInterop.h"
 
+cbuffer GIProbeTraceConstsBuffer : register(b0) { GIProbeTraceConsts g_GIProbeTraceConsts; }
 StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t0);
 Texture2DArray<float4> g_ProbeData : register(t1);
 RaytracingAccelerationStructure g_SceneTLAS : register(t2);
+StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t3);
+StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer : register(t4);
+StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t5);
+StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t6);
+StructuredBuffer<MeshData> g_MeshDataBuffer : register(t7);
 RWTexture2DArray<float4> g_OutRayData : register(u0);
+Texture2D g_Textures[] : register(t0, space1);
+sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 
 [numthreads(1, 1, 1)]
 void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
@@ -41,6 +51,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     
     const uint kFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
     
+    // TODO: take into account alpha mask & transparency
     RayQuery<kFlags> rayQuery;
     rayQuery.TraceRayInline(g_SceneTLAS, kFlags, 0xFF, rayDesc);
     rayQuery.Proceed();
@@ -69,6 +80,22 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
         DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, rayQuery.CommittedRayT());
         return;
     }
+    
+    // TODO: take into account alpha mask & transparency
+    
+    float3 rayHitWorldPosition;
+    GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(
+                                    rayQuery,
+                                    g_BasePassInstanceConsts,
+                                    g_MaterialDataBuffer,
+                                    g_MeshDataBuffer,
+                                    g_GlobalIndexIDsBuffer,
+                                    g_GlobalVertexBuffer,
+                                    g_Textures,
+                                    g_Samplers,
+                                    rayHitWorldPosition);
+    
+    float3 lighting = EvaluateDirectionalLight(gbufferParams, probeWorldPosition, rayHitWorldPosition, g_GIProbeTraceConsts.m_DirectionalLightVector);
     
     // Store the final ray radiance and hit distance
     float3 radiance = float3(0, 1, 0);

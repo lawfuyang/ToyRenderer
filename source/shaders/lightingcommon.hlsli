@@ -14,6 +14,7 @@ struct GBufferParams
     float m_Metallic;
     float2 m_Motion;
     float m_DebugValue;
+    float m_AlphaCutoff;
 };
 
 void PackGBuffer(in GBufferParams gbufferParams, out uint4 packedGBufferA)
@@ -174,6 +175,22 @@ float3 DefaultLitBxDF(float3 specularColor, float roughness, float3 albedo, floa
     specular += EnvBRDFApprox(specularColor, roughness, NdotV);
 
     return (diffuse + specular) * NdotL;
+}
+
+float3 EvaluateDirectionalLight(
+    GBufferParams gbufferParams,
+    float3 origin,
+    float3 worldPosition,
+    float3 lightDirection)
+{
+    const float materialSpecular = 0.5f; // TODO?
+    float3 diffuse = ComputeDiffuseColor(gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);
+    float3 specular = ComputeF0(materialSpecular, gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);
+    
+    float3 V = normalize(origin - worldPosition);
+    float3 L = lightDirection;
+    
+    return DefaultLitBxDF(specular, gbufferParams.m_Roughness, diffuse, gbufferParams.m_Normal, V, L);
 }
 
 #endif // _LIGHTING_COMMON_H_

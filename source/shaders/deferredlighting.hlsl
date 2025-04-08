@@ -31,14 +31,7 @@ void PS_Main(
     float depth = g_DepthBuffer[inPosition.xy].x;
     float3 worldPosition = ScreenUVToWorldPosition(inUV, depth, g_DeferredLightingConsts.m_ClipToWorld);
     
-    const float materialSpecular = 0.5f; // TODO?
-    float3 diffuse = ComputeDiffuseColor(gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);
-    float3 specular = ComputeF0(materialSpecular, gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);
-    
-    float3 V = normalize(g_DeferredLightingConsts.m_CameraOrigin - worldPosition);
-    float3 L = g_DeferredLightingConsts.m_DirectionalLightVector;
-    
-    float3 lighting = DefaultLitBxDF(specular, gbufferParams.m_Roughness, diffuse, gbufferParams.m_Normal, V, L);
+    float3 lighting = EvaluateDirectionalLight(gbufferParams, g_DeferredLightingConsts.m_CameraOrigin, worldPosition, g_DeferredLightingConsts.m_DirectionalLightVector);
     
     // Retrieve the shadow factor from the shadow mask texture
     float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, inUV, 0).r;

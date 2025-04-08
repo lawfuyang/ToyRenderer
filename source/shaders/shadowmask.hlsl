@@ -2,6 +2,7 @@
 
 #include "toyrenderer_common.hlsli"
 #include "lightingcommon.hlsli"
+#include "raytracingcommon.hlsli"
 
 #include "ShaderInterop.h"
 
@@ -61,48 +62,6 @@ float3 MapToCone(float2 s, float3 n, float radius)
     return n + uv.x * tangents[0] + uv.y * tangents[1];
 }
 
-bool IsPixelOccluded(uint instanceID, uint primitiveIndex, float2 attribBarycentrics)
-{
-    BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[instanceID];
-    MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
-    
-    float alpha = materialData.m_ConstAlbedo.a;
-    if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
-    {
-        // TODO: pick appropriate mesh LOD?
-        MeshData meshData = g_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
-        
-        uint indices[3] =
-        {
-            g_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 0],
-            g_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 1],
-            g_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 2],
-        };
-        
-        float2 vertexUVs[3] =
-        {
-            g_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[0]].m_TexCoord,
-            g_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[1]].m_TexCoord,
-            g_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[2]].m_TexCoord,
-        };
-        
-        float barycentrics[3] = { (1.0f - attribBarycentrics.x - attribBarycentrics.y), attribBarycentrics.x, attribBarycentrics.y };
-        float2 finalUV = vertexUVs[0] * barycentrics[0] + vertexUVs[1] * barycentrics[1] + vertexUVs[2] * barycentrics[2];
-        
-        uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex >> 30;
-        
-        Texture2D albedoTexture = g_Textures[texIdx];
-        
-        // TODO: use 'SampleGrad'
-        float textureAlpha = albedoTexture.SampleLevel(g_Samplers[samplerIdx], finalUV, 0).a;
-        
-        alpha *= textureAlpha;
-    }
-    
-    return alpha >= materialData.m_AlphaCutoff;
-}
-
 [numthreads(8, 8, 1)]
 void CS_ShadowMask(
     uint3 dispatchThreadID : SV_DispatchThreadID,
@@ -152,7 +111,19 @@ void CS_ShadowMask(
     {
         if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
         {
-            if (IsPixelOccluded(rayQuery.CandidateInstanceID(), rayQuery.CandidatePrimitiveIndex(), rayQuery.CandidateTriangleBarycentrics()))
+            float3 rayHitWorldPosition;
+            GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(
+                rayQuery,
+                g_BasePassInstanceConsts,
+                g_MaterialDataBuffer,
+                g_MeshDataBuffer,
+                g_GlobalIndexIDsBuffer,
+                g_GlobalVertexBuffer,
+                g_Textures,
+                g_Samplers,
+                rayHitWorldPosition);
+            
+            if (gbufferParams.m_Albedo.a >= gbufferParams.m_AlphaCutoff)
             {
                 rayQuery.CommitNonOpaqueTriangleHit();
             }

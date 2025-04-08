@@ -198,36 +198,15 @@ void MS_Main(
     }
 }
 
-// Christian Schuler, "Normal Mapping without Precomputed Tangents", ShaderX 5, Chapter 2.6, pp. 131-140
-// See also follow-up blog post: http://www.thetenthplanet.de/archives/1180
-float3x3 CalculateTBNWithoutTangent(float3 p, float3 n, float2 tex)
-{
-    float3 dp1 = ddx(p);
-    float3 dp2 = ddy(p);
-    float2 duv1 = ddx(tex);
-    float2 duv2 = ddy(tex);
-
-    float3x3 M = float3x3(dp1, dp2, cross(dp1, dp2));
-    float2x3 inverseM = float2x3(cross(M[1], M[2]), cross(M[2], M[0]));
-    float3 t = normalize(mul(float2(duv1.x, duv2.x), inverseM));
-    float3 b = normalize(mul(float2(duv1.y, duv2.y), inverseM));
-    return float3x3(t, b, n);
-}
-
-// Unpacks a 2 channel normal to xyz
-float3 TwoChannelNormalX2(float2 normal)
-{
-    float2 xy = 2.0f * normal - 1.0f;
-    float z = sqrt(1 - dot(xy, xy));
-    return float3(xy.x, xy.y, z);
-}
-
+// TODO: re-use code from GetRayHitInstanceGBufferParams & SampleMaterialValue
 GBufferParams GetGBufferParams(VertexOut inVertex)
 {
     GBufferParams result;
     
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inVertex.m_InstanceConstsIdx];
     MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
+    
+    result.m_AlphaCutoff = materialData.m_AlphaCutoff;
         
     result.m_Albedo = materialData.m_ConstAlbedo;
     if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
@@ -238,8 +217,7 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
         Texture2D albedoTexture = g_Textures[texIdx];
         float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV);
         
-        result.m_Albedo.rgb *= textureSample.rgb;
-        result.m_Albedo.a *= textureSample.a;
+        result.m_Albedo *= textureSample;
     }
     
 #if ALPHA_MASK_MODE

@@ -296,13 +296,26 @@ public:
     {
         PROFILE_GPU_SCOPED(commandList, __FUNCTION__);
 
+        GIProbeTraceConsts passConstants;
+        passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
+
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
         {
+            nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, m_VolumeDescGPUBuffer),
             nvrhi::BindingSetItem::Texture_SRV(1, m_GIVolume.m_ProbeData),
             nvrhi::BindingSetItem::RayTracingAccelStruct(2, g_Scene->m_TLAS),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalVertexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMaterialDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalIndexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::Texture_UAV(0, m_GIVolume.m_ProbeRayData),
+            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
+            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
+            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
+            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
         };
 
         uint32_t dispatchX, dispatchY, dispatchZ;
@@ -312,7 +325,10 @@ public:
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "giprobetrace_CS_ProbeTrace";
         computePassParams.m_BindingSetDesc = bindingSetDesc;
-        computePassParams.m_DispatchGroupSize = Vector3U{ dispatchX, dispatchY, dispatchZ };
+        computePassParams.m_DispatchGroupSize = Vector3U{ dispatchX, dispatchY, dispatchZ }; // ComputeShaderUtils::GetGroupCount(Vector3U{ dispatchX, dispatchY, dispatchZ }, Vector3U{ 4, 4, 4 });
+        computePassParams.m_PushConstantsData = &passConstants;
+        computePassParams.m_PushConstantsBytes = sizeof(passConstants);
+        computePassParams.m_ShouldAddBindlessResources = true;
         g_Graphic.AddComputePass(computePassParams);
     }
 
