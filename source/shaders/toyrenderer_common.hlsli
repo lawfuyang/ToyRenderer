@@ -1,5 +1,4 @@
-#ifndef __TOYRENDERER_COMMON_HLSL__
-#define __TOYRENDERER_COMMON_HLSL__
+#pragma once
 
 static const float M_PI = 3.14159265358979323846f;
 static const float kNearDepth = 1.0f;
@@ -225,5 +224,3 @@ float3x3 CalculateTBNWithoutTangent(float3 p, float3 n, float2 tex)
     float3 b = normalize(mul(float2(duv1.y, duv2.y), inverseM));
     return float3x3(t, b, n);
 }
-
-#endif // __TOYRENDERER_COMMON_HLSL__

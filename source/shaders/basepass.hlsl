@@ -201,74 +201,26 @@ void MS_Main(
     }
 }
 
-// TODO: re-use code from GetRayHitInstanceGBufferParams & SampleMaterialValue
 GBufferParams GetGBufferParams(VertexOut inVertex)
-{
-    GBufferParams result;
-    
+{    
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inVertex.m_InstanceConstsIdx];
     MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
     
-    result.m_AlphaCutoff = materialData.m_AlphaCutoff;
-        
-    result.m_Albedo = materialData.m_ConstAlbedo;
-    if (materialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
-    {
-        uint texIdx = NonUniformResourceIndex(materialData.m_AlbedoTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_AlbedoTextureSamplerAndDescriptorIndex >> 30;
-        
-        Texture2D albedoTexture = g_Textures[texIdx];
-        float4 textureSample = albedoTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV);
-        
-        result.m_Albedo *= textureSample;
-    }
+    GetCommonGBufferParamsArguments getCommonGBufferParamsArguments;
+    getCommonGBufferParamsArguments.m_TexCoord = inVertex.m_UV;
+    getCommonGBufferParamsArguments.m_WorldPosition = inVertex.m_WorldPosition;
+    getCommonGBufferParamsArguments.m_Normal = inVertex.m_Normal;
+    getCommonGBufferParamsArguments.m_MaterialData = materialData;
+    getCommonGBufferParamsArguments.m_Samplers = g_Samplers;
+    
+    GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments, g_Textures);
     
 #if ALPHA_MASK_MODE
     if (result.m_Albedo.a < materialData.m_AlphaCutoff)
     {
         discard;
     }
-#endif
-    
-    result.m_Normal = inVertex.m_Normal;
-    if (materialData.m_MaterialFlags & MaterialFlag_UseNormalTexture)
-    {
-        uint texIdx = NonUniformResourceIndex(materialData.m_NormalTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_NormalTextureSamplerAndDescriptorIndex >> 30;
-        
-        Texture2D normalTexture = g_Textures[texIdx];
-        float3 sampledNormal = normalTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV).rgb;
-        float3 unpackedNormal = TwoChannelNormalX2(sampledNormal.xy);
-        
-        float3x3 TBN = CalculateTBNWithoutTangent(inVertex.m_WorldPosition, inVertex.m_Normal, inVertex.m_UV);
-        result.m_Normal = normalize(mul(unpackedNormal, TBN));
-    }
-    
-    result.m_Roughness = 1.0f;
-    result.m_Metallic = 0.0f;
-    if (materialData.m_MaterialFlags & MaterialFlag_UseMetallicRoughnessTexture)
-    {
-        uint texIdx = NonUniformResourceIndex(materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex >> 30;
-                
-        Texture2D mrtTexture = g_Textures[texIdx];
-        float4 textureSample = mrtTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV);
-        
-        result.m_Roughness = textureSample.g;
-        result.m_Metallic = textureSample.b;
-    }
-    
-    result.m_Emissive = materialData.m_ConstEmissive;
-    if (materialData.m_MaterialFlags & MaterialFlag_UseEmissiveTexture)
-    {
-        uint texIdx = NonUniformResourceIndex(materialData.m_EmissiveTextureSamplerAndDescriptorIndex & 0x3FFFFFFF);
-        uint samplerIdx = materialData.m_EmissiveTextureSamplerAndDescriptorIndex >> 30;
-        
-        Texture2D emissiveTexture = g_Textures[texIdx];
-        float4 textureSample = emissiveTexture.Sample(g_Samplers[samplerIdx], inVertex.m_UV);
-        
-        result.m_Emissive *= textureSample.rgb;
-    }
+#endif // ALPHA_MASK_MODE
     
     float4 prevClipPosition = mul(float4(inVertex.m_PrevWorldPosition, 1), g_BasePassConsts.m_PrevWorldToClip);
     prevClipPosition.xyz /= prevClipPosition.w;

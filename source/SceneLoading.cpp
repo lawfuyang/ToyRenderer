@@ -336,7 +336,7 @@ struct GLTFSceneLoader
             if (gltfMaterial.emissive_texture.texture)
             {
 				sceneMaterial.m_MaterialFlags |= MaterialFlag_UseEmissiveTexture;
-				HandleTextureView(sceneMaterial.m_EmissiveTexture, gltfMaterial.emissive_texture, g_CommonResources.BlackTexture);
+				HandleTextureView(sceneMaterial.m_EmissiveTexture, gltfMaterial.emissive_texture, g_CommonResources.WhiteTexture);
 			}
 
             if (gltfMaterial.has_pbr_specular_glossiness)

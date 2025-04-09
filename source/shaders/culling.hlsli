@@ -1,3 +1,5 @@
+#pragma once
+
 #include "toyrenderer_common.hlsli"
 
 // Niagara's frustum culling
