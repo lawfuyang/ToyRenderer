@@ -242,7 +242,11 @@ public:
         ImGui::Checkbox("Show Debug Probes", &gs_bShowDebugProbes);
         if (ImGui::Button("Reset Probes")) { m_bResetProbes = true; }
         ImGui::DragFloat3("Probe Spacing", (float*)&m_ProbeSpacing, 1.0f, 0.1f, 2.0f);
-        ImGui::DragInt("Probe Num Rays", (int*)&m_ProbeNumRays, 1.0f, 128, 512);
+        if (ImGui::DragInt("Probe Num Rays", (int*)&m_ProbeNumRays, 1.0f, 64, 512))
+        {
+            // force multiple of kNumThreadsPerWave
+            m_ProbeNumRays = (m_ProbeNumRays + (kNumThreadsPerWave - 1)) & ~(kNumThreadsPerWave - 1);
+        }
         ImGui::DragFloat("Max Debug Probe Distance", &gs_MaxDebugProbeDistance, 1.0f, 10.0f, 1000.0f);
     }
 
@@ -305,27 +309,34 @@ public:
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, m_VolumeDescGPUBuffer),
             nvrhi::BindingSetItem::Texture_SRV(1, m_GIVolume.m_ProbeData),
-            nvrhi::BindingSetItem::RayTracingAccelStruct(2, g_Scene->m_TLAS),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalVertexBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMaterialDataBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalIndexBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMeshDataBuffer),
+            nvrhi::BindingSetItem::Texture_SRV(2, m_GIVolume.m_ProbeIrradiance),
+            nvrhi::BindingSetItem::Texture_SRV(3, m_GIVolume.m_ProbeDistance),
+            nvrhi::BindingSetItem::RayTracingAccelStruct(4, g_Scene->m_TLAS),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalVertexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMaterialDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(8, g_Graphic.m_GlobalIndexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(9, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::Texture_UAV(0, m_GIVolume.m_ProbeRayData),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
+            nvrhi::BindingSetItem::Sampler(4, g_CommonResources.LinearWrapSampler),
         };
 
         uint32_t dispatchX, dispatchY, dispatchZ;
         m_GIVolume.GetRayDispatchDimensions(dispatchX, dispatchY, dispatchZ);
 
+        // DXC complains: "Function uses derivatives in compute-model shader with NumThreads (1, 1, 1); derivatives require NumThreads to be 1D and a multiple of 4, or 2D/3D with X and Y both being a multiple of 2."
+        // we're not doing any hardware derivatives, so silence that error, enforce dispatchX to be multiple of kNumThreadsPerWave
+        assert(dispatchX % kNumThreadsPerWave == 0);
+
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "giprobetrace_CS_ProbeTrace";
         computePassParams.m_BindingSetDesc = bindingSetDesc;
-        computePassParams.m_DispatchGroupSize = Vector3U{ dispatchX, dispatchY, dispatchZ }; // ComputeShaderUtils::GetGroupCount(Vector3U{ dispatchX, dispatchY, dispatchZ }, Vector3U{ 4, 4, 4 });
+        computePassParams.m_DispatchGroupSize = Vector3U{ DivideAndRoundUp(dispatchX, kNumThreadsPerWave), dispatchY, dispatchZ };
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);
         computePassParams.m_ShouldAddBindlessResources = true;

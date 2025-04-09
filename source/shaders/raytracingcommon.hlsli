@@ -50,18 +50,19 @@ GBufferParams GetRayHitInstanceGBufferParams(RayQuery<kRayQueryFlags> rayQuery, 
     };
     
     float barycentrics[3] = { (1.0f - attribBarycentrics.x - attribBarycentrics.y), attribBarycentrics.x, attribBarycentrics.y };
-    float2 rayHitUV = vertices[0].m_TexCoord * barycentrics[0] + vertices[1].m_TexCoord * barycentrics[1] + vertices[2].m_TexCoord * barycentrics[2];
     
-    rayHitWorldPosition =
-        vertices[0].m_Position * barycentrics[0] +
-        vertices[1].m_Position * barycentrics[1] +
-        vertices[2].m_Position * barycentrics[2];
+    rayHitWorldPosition = float3(0.0f, 0.0f, 0.0f);
+    float3 rayHitNormal = float3(0.0f, 0.0f, 0.0f);
+    float2 rayHitUV = float2(0.0f, 0.0f);
+    
+    for (uint i = 0; i < 3; i++)
+    {
+        rayHitWorldPosition += vertices[i].m_Position * barycentrics[i];
+        rayHitNormal += UnpackR10G10B10A2F(vertices[i].m_PackedNormal).xyz * barycentrics[i];
+        rayHitUV += vertices[i].m_TexCoord * barycentrics[i];
+    }
+    
     rayHitWorldPosition = mul(rayQuery.CommittedObjectToWorld3x4(), float4(rayHitWorldPosition, 1.0f)).xyz;
-    
-    float3 rayHitNormal =
-        UnpackR10G10B10A2F(vertices[0].m_PackedNormal).xyz * barycentrics[0] +
-        UnpackR10G10B10A2F(vertices[1].m_PackedNormal).xyz * barycentrics[1] +
-        UnpackR10G10B10A2F(vertices[2].m_PackedNormal).xyz * barycentrics[2];
     
     GetCommonGBufferParamsArguments getCommonGBufferParamsArguments;
     getCommonGBufferParamsArguments.m_TexCoord = rayHitUV;
