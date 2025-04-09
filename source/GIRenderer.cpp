@@ -346,6 +346,36 @@ public:
     void UpdateDDGIVolumeProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
         PROFILE_GPU_SCOPED(commandList, __FUNCTION__);
+
+        // TODO: multiple volumes
+        DDGIRootConstants rootConsts{ m_GIVolume.GetDesc().index, 0, 0 };
+
+        nvrhi::BindingSetDesc bindingSetDesc;
+        bindingSetDesc.bindings =
+        {
+            nvrhi::BindingSetItem::PushConstants(kDDGIRootConstsRegister, sizeof(rootConsts)),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(kDDGIVolumeDescGPUPackedRegister, m_VolumeDescGPUBuffer),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIRayDataRegister, m_GIVolume.m_ProbeRayData),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendRadianceOutputRegister, m_GIVolume.m_ProbeIrradiance),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendDistanceOutputRegister, m_GIVolume.m_ProbeDistance),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeDataRegister, m_GIVolume.m_ProbeData),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeVariabilityRegister, m_GIVolume.m_ProbeVariability),
+        };
+
+        UINT probeCountX, probeCountY, probeCountZ;
+        rtxgi::GetDDGIVolumeProbeCounts(m_GIVolume.GetDesc(), probeCountX, probeCountY, probeCountZ);
+
+        Graphic::ComputePassParams computePassParams;
+        computePassParams.m_CommandList = commandList;
+        computePassParams.m_ShaderName = "ProbeBlendingCS_DDGIProbeBlendingCS RTXGI_DDGI_BLEND_RADIANCE=1";
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_DispatchGroupSize = Vector3U{ probeCountX, probeCountY, probeCountZ };
+        computePassParams.m_PushConstantsData = &rootConsts;
+        computePassParams.m_PushConstantsBytes = sizeof(rootConsts);
+        g_Graphic.AddComputePass(computePassParams);
+
+        computePassParams.m_ShaderName = "ProbeBlendingCS_DDGIProbeBlendingCS RTXGI_DDGI_BLEND_RADIANCE=0";
+        g_Graphic.AddComputePass(computePassParams);
     }
 
     void RelocateDDGIVolumeProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)

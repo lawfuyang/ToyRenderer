@@ -57,8 +57,8 @@
 static const uint32_t kDDGIRootConstsRegister = 0; // CONSTS_REGISTER
 static const uint32_t kDDGIVolumeDescGPUPackedRegister = 0; // VOLUME_CONSTS_REGISTER
 static const uint32_t kDDGIRayDataRegister = 0; // RAY_DATA_REGISTER
-static const uint32_t kDDGIBlendRadianceOutputRegister = 1; // OUTPUT_REGISTER
-static const uint32_t kDDGIBlendDistanceOutputRegisterSpace = 2; // OUTPUT_SPACE
+static const uint32_t kDDGIBlendRadianceOutputRegister = 1; // OUTPUT_REGISTER (for Radiance Blend)
+static const uint32_t kDDGIBlendDistanceOutputRegister = 2; // OUTPUT_REGISTER (for Distance Blend)
 static const uint32_t kDDGIProbeDataRegister = 3; // PROBE_DATA_REGISTER
 static const uint32_t kDDGIProbeVariabilityRegister = 4; // PROBE_VARIABILITY_REGISTER
 static const uint32_t kDDGIProbeVariabilityAverageRegister = 5; // PROBE_VARIABILITY_AVERAGE_REGISTER
