@@ -82,18 +82,17 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     }
     
     // TODO: take into account alpha mask & transparency
+
+    GetRayHitInstanceGBufferParamsArguments args;
+    args.m_BasePassInstanceConstantsBuffer = g_BasePassInstanceConsts;
+    args.m_MaterialDataBuffer = g_MaterialDataBuffer;
+    args.m_MeshDataBuffer = g_MeshDataBuffer;
+    args.m_GlobalIndexIDsBuffer = g_GlobalIndexIDsBuffer;
+    args.m_GlobalVertexBuffer = g_GlobalVertexBuffer;
+    args.m_Samplers = g_Samplers;
     
     float3 rayHitWorldPosition;
-    GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(
-                                    rayQuery,
-                                    g_BasePassInstanceConsts,
-                                    g_MaterialDataBuffer,
-                                    g_MeshDataBuffer,
-                                    g_GlobalIndexIDsBuffer,
-                                    g_GlobalVertexBuffer,
-                                    g_Textures,
-                                    g_Samplers,
-                                    rayHitWorldPosition);
+    GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(rayQuery, g_Textures, rayHitWorldPosition, args);
     
     float3 lighting = EvaluateDirectionalLight(gbufferParams, probeWorldPosition, rayHitWorldPosition, g_GIProbeTraceConsts.m_DirectionalLightVector);
     

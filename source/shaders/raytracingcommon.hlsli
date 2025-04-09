@@ -5,14 +5,23 @@
 
 #include "ShaderInterop.h"
 
-float4 SampleMaterialValue(
-    float2 texCoord,
-    uint materialFlag,
-    MaterialData materialData,
-    Texture2D bindlessTextures[],
-    sampler samplers[],
-    float4 defaultValue)
+struct SampleMaterialValueArgs
 {
+    float2 m_TexCoord;
+    uint m_MaterialFlag; // preferably compile-time const
+    MaterialData m_MaterialData;
+    sampler m_Samplers[SamplerIdx_Count];
+    float4 m_DefaultValue; // preferably compile-time const
+};
+
+float4 SampleMaterialValue(SampleMaterialValueArgs args, Texture2D bindlessTextures[])
+{
+    float2 texCoord = args.m_TexCoord;
+    uint materialFlag = args.m_MaterialFlag;
+    MaterialData materialData = args.m_MaterialData;
+    sampler samplers[SamplerIdx_Count] = args.m_Samplers;
+    float4 defaultValue = args.m_DefaultValue;
+    
     if (!(materialData.m_MaterialFlags & materialFlag))
     {
         return defaultValue;
@@ -42,18 +51,30 @@ float4 SampleMaterialValue(
     return bindlessTextures[texIdx].SampleLevel(samplers[samplerIdx], texCoord, 0);
 }
 
+struct GetRayHitInstanceGBufferParamsArguments
+{
+    StructuredBuffer<BasePassInstanceConstants> m_BasePassInstanceConstantsBuffer;
+    StructuredBuffer<MaterialData> m_MaterialDataBuffer;
+    StructuredBuffer<MeshData> m_MeshDataBuffer;
+    StructuredBuffer<uint> m_GlobalIndexIDsBuffer;
+    StructuredBuffer<RawVertexFormat> m_GlobalVertexBuffer;
+    sampler m_Samplers[SamplerIdx_Count];
+};
+
 template<uint kRayQueryFlags>
 GBufferParams GetRayHitInstanceGBufferParams(
     RayQuery<kRayQueryFlags> rayQuery,
-    StructuredBuffer<BasePassInstanceConstants> basePassInstanceConstantsBuffer,
-    StructuredBuffer<MaterialData> materialDataBuffer,
-    StructuredBuffer<MeshData> meshDataBuffer,
-    StructuredBuffer<uint> globalIndexIDsBuffer,
-    StructuredBuffer<RawVertexFormat> globalVertexBuffer,
     Texture2D bindlessTextures[],
-    sampler samplers[],
-    out float3 rayHitWorldPosition)
+    out float3 rayHitWorldPosition,
+    GetRayHitInstanceGBufferParamsArguments inArgs)
 {
+    StructuredBuffer<BasePassInstanceConstants> basePassInstanceConstantsBuffer = inArgs.m_BasePassInstanceConstantsBuffer;
+    StructuredBuffer<MaterialData> materialDataBuffer = inArgs.m_MaterialDataBuffer;
+    StructuredBuffer<MeshData> meshDataBuffer = inArgs.m_MeshDataBuffer;
+    StructuredBuffer<uint> globalIndexIDsBuffer = inArgs.m_GlobalIndexIDsBuffer;
+    StructuredBuffer<RawVertexFormat> globalVertexBuffer = inArgs.m_GlobalVertexBuffer;
+    sampler samplers[SamplerIdx_Count] = inArgs.m_Samplers;
+    
     GBufferParams result = (GBufferParams)0;
     
     uint instanceID = rayQuery.CandidateInstanceID();
@@ -85,10 +106,26 @@ GBufferParams GetRayHitInstanceGBufferParams(
     float barycentrics[3] = { (1.0f - attribBarycentrics.x - attribBarycentrics.y), attribBarycentrics.x, attribBarycentrics.y };
     float2 finalUV = vertices[0].m_TexCoord * barycentrics[0] + vertices[1].m_TexCoord * barycentrics[1] + vertices[2].m_TexCoord * barycentrics[2];
     
-    float4 albedoSample = SampleMaterialValue(finalUV, MaterialFlag_UseDiffuseTexture, materialData, bindlessTextures, samplers, float4(1, 1, 1, 1));
-    float4 normalSample = SampleMaterialValue(finalUV, MaterialFlag_UseNormalTexture, materialData, bindlessTextures, samplers, float4(0.5f, 0.5f, 1.0f, 0));
-    float4 metalRoughnessSample = SampleMaterialValue(finalUV, MaterialFlag_UseMetallicRoughnessTexture, materialData, bindlessTextures, samplers, float4(0.0f, 1.0f, 0.0f, 0));
-    float4 emissiveSample = SampleMaterialValue(finalUV, MaterialFlag_UseEmissiveTexture, materialData, bindlessTextures, samplers, float4(1, 1, 1, 0));
+    SampleMaterialValueArgs sampleArgs;
+    sampleArgs.m_TexCoord = finalUV;
+    sampleArgs.m_MaterialData = materialData;
+    sampleArgs.m_Samplers = samplers;
+    
+    sampleArgs.m_MaterialFlag = MaterialFlag_UseDiffuseTexture;
+    sampleArgs.m_DefaultValue = float4(1, 1, 1, 1);
+    float4 albedoSample = SampleMaterialValue(sampleArgs, bindlessTextures);
+    
+    sampleArgs.m_MaterialFlag = MaterialFlag_UseNormalTexture;
+    sampleArgs.m_DefaultValue = float4(0.5f, 0.5f, 1.0f, 0.0f);
+    float4 normalSample = SampleMaterialValue(sampleArgs, bindlessTextures);
+    
+    sampleArgs.m_MaterialFlag = MaterialFlag_UseMetallicRoughnessTexture;
+    sampleArgs.m_DefaultValue = float4(0.0f, 1.0f, 0.0f, 0.0f);
+    float4 metalRoughnessSample = SampleMaterialValue(sampleArgs, bindlessTextures);
+    
+    sampleArgs.m_MaterialFlag = MaterialFlag_UseEmissiveTexture;
+    sampleArgs.m_DefaultValue = float4(1, 1, 1, 0);
+    float4 emissiveSample = SampleMaterialValue(sampleArgs, bindlessTextures);
    
     result.m_Albedo = materialData.m_ConstAlbedo * albedoSample;
     result.m_Roughness = metalRoughnessSample.g;
