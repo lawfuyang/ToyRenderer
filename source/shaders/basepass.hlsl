@@ -81,14 +81,17 @@ void AS_Main(
     #if LATE_CULL
         if (bVisible && bDoOcclusionCulling)
         {
-            bVisible = OcclusionCull(sphereCenterViewSpace,
-                sphereRadius,
-                g_BasePassConsts.m_NearPlane,
-                g_BasePassConsts.m_P00,
-                g_BasePassConsts.m_P11,
-                g_HZB,
-                g_BasePassConsts.m_HZBDimensions,
-                g_LinearClampMinReductionSampler);
+            OcclusionCullParams occlusionCullParams;
+            occlusionCullParams.m_SphereCenterViewSpace = sphereCenterViewSpace;
+            occlusionCullParams.m_Radius = sphereRadius;
+            occlusionCullParams.m_NearPlane = g_BasePassConsts.m_NearPlane;
+            occlusionCullParams.m_P00 = g_BasePassConsts.m_P00;
+            occlusionCullParams.m_P11 = g_BasePassConsts.m_P11;
+            occlusionCullParams.m_HZB = g_HZB;
+            occlusionCullParams.m_HZBDimensions = g_BasePassConsts.m_HZBDimensions;
+            occlusionCullParams.m_LinearClampMinReductionSampler = g_LinearClampMinReductionSampler;
+        
+            bVisible = OcclusionCull(occlusionCullParams);
         }
     #endif // LATE_CULL
         

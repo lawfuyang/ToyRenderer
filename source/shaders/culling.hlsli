@@ -18,18 +18,29 @@ bool FrustumCull(float3 sphereCenterViewSpace, float radius, float4 frustum)
     return visible;
 }
 
-// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
-bool OcclusionCull(
-    float3 sphereCenterViewSpace,
-    float radius,
-    float nearPlane,
-    float P00,
-    float P11,
-    Texture2D HZB,
-    uint2 HZBDimensions,
-    SamplerState linearClampMinReductionSampler)
+struct OcclusionCullParams
 {
-    float3 c = sphereCenterViewSpace;
+    float3 m_SphereCenterViewSpace;
+    float m_Radius;
+    float m_NearPlane;
+    float m_P00;
+    float m_P11;
+    Texture2D m_HZB;
+    uint2 m_HZBDimensions;
+    SamplerState m_LinearClampMinReductionSampler;
+};
+
+// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
+bool OcclusionCull(OcclusionCullParams params)
+{
+    float3 c = params.m_SphereCenterViewSpace;
+    float radius = params.m_Radius;
+    float nearPlane = params.m_NearPlane;
+    float P00 = params.m_P00;
+    float P11 = params.m_P11;
+    Texture2D HZB = params.m_HZB;
+    uint2 HZBDimensions = params.m_HZBDimensions;
+    SamplerState linearClampMinReductionSampler = params.m_LinearClampMinReductionSampler;
     
     // trivially accept if sphere intersects camera near plane
     if ((c.z - nearPlane) < radius)

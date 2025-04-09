@@ -48,14 +48,17 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
         return;
     }
     
-    if (!OcclusionCull(probeViewSpacePosition,
-                       g_GIProbeVisualizationUpdateConsts.m_ProbeRadius,
-                       g_GIProbeVisualizationUpdateConsts.m_NearPlane,
-                       g_GIProbeVisualizationUpdateConsts.m_P00,
-                       g_GIProbeVisualizationUpdateConsts.m_P11,
-                       g_HZB,
-                       g_GIProbeVisualizationUpdateConsts.m_HZBDimensions,
-                       g_LinearClampMinReductionSampler))
+    OcclusionCullParams occlusionCullParams;
+    occlusionCullParams.m_SphereCenterViewSpace = probeViewSpacePosition;
+    occlusionCullParams.m_Radius = g_GIProbeVisualizationUpdateConsts.m_ProbeRadius;
+    occlusionCullParams.m_NearPlane = g_GIProbeVisualizationUpdateConsts.m_NearPlane;
+    occlusionCullParams.m_P00 = g_GIProbeVisualizationUpdateConsts.m_P00;
+    occlusionCullParams.m_P11 = g_GIProbeVisualizationUpdateConsts.m_P11;
+    occlusionCullParams.m_HZB = g_HZB;
+    occlusionCullParams.m_HZBDimensions = g_GIProbeVisualizationUpdateConsts.m_HZBDimensions;
+    occlusionCullParams.m_LinearClampMinReductionSampler = g_LinearClampMinReductionSampler;
+    
+    if (!OcclusionCull(occlusionCullParams))
     {
         return;
     }

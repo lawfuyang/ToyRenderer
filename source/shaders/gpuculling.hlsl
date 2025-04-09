@@ -155,14 +155,17 @@ void CS_GPUCulling(
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
 #endif
     
-    bool bOcclusionCullResult = OcclusionCull(sphereCenterViewSpace,
-                                    sphereRadius,
-                                    g_GPUCullingPassConstants.m_NearPlane,
-                                    g_GPUCullingPassConstants.m_P00,
-                                    g_GPUCullingPassConstants.m_P11,
-                                    g_HZB,
-                                    g_GPUCullingPassConstants.m_HZBDimensions,
-                                    g_LinearClampMinReductionSampler);
+    OcclusionCullParams occlusionCullParams;
+    occlusionCullParams.m_SphereCenterViewSpace = sphereCenterViewSpace;
+    occlusionCullParams.m_Radius = sphereRadius;
+    occlusionCullParams.m_NearPlane = g_GPUCullingPassConstants.m_NearPlane;
+    occlusionCullParams.m_P00 = g_GPUCullingPassConstants.m_P00;
+    occlusionCullParams.m_P11 = g_GPUCullingPassConstants.m_P11;
+    occlusionCullParams.m_HZB = g_HZB;
+    occlusionCullParams.m_HZBDimensions = g_GPUCullingPassConstants.m_HZBDimensions;
+    occlusionCullParams.m_LinearClampMinReductionSampler = g_LinearClampMinReductionSampler;
+    
+    bool bOcclusionCullResult = OcclusionCull(occlusionCullParams);
     
 #if !LATE_CULL
     // Occlusion test instance against *previous* HZB. If the instance was occluded the previous frame, re-test in the second phase.
