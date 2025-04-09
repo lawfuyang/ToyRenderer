@@ -81,17 +81,17 @@ void AS_Main(
     #if LATE_CULL
         if (bVisible && bDoOcclusionCulling)
         {
-            OcclusionCullParams occlusionCullParams;
-            occlusionCullParams.m_SphereCenterViewSpace = sphereCenterViewSpace;
-            occlusionCullParams.m_Radius = sphereRadius;
-            occlusionCullParams.m_NearPlane = g_BasePassConsts.m_NearPlane;
-            occlusionCullParams.m_P00 = g_BasePassConsts.m_P00;
-            occlusionCullParams.m_P11 = g_BasePassConsts.m_P11;
-            occlusionCullParams.m_HZB = g_HZB;
-            occlusionCullParams.m_HZBDimensions = g_BasePassConsts.m_HZBDimensions;
-            occlusionCullParams.m_LinearClampMinReductionSampler = g_LinearClampMinReductionSampler;
+            OcclusionCullArguments occlusionCullArguments;
+            occlusionCullArguments.m_SphereCenterViewSpace = sphereCenterViewSpace;
+            occlusionCullArguments.m_Radius = sphereRadius;
+            occlusionCullArguments.m_NearPlane = g_BasePassConsts.m_NearPlane;
+            occlusionCullArguments.m_P00 = g_BasePassConsts.m_P00;
+            occlusionCullArguments.m_P11 = g_BasePassConsts.m_P11;
+            occlusionCullArguments.m_HZB = g_HZB;
+            occlusionCullArguments.m_HZBDimensions = g_BasePassConsts.m_HZBDimensions;
+            occlusionCullArguments.m_LinearClampMinReductionSampler = g_LinearClampMinReductionSampler;
         
-            bVisible = OcclusionCull(occlusionCullParams);
+            bVisible = OcclusionCull(occlusionCullArguments);
         }
     #endif // LATE_CULL
         

@@ -155,17 +155,17 @@ void CS_GPUCulling(
     sphereCenterViewSpace.z *= -1.0f; // TODO: fix inverted view-space Z coord
 #endif
     
-    OcclusionCullParams occlusionCullParams;
-    occlusionCullParams.m_SphereCenterViewSpace = sphereCenterViewSpace;
-    occlusionCullParams.m_Radius = sphereRadius;
-    occlusionCullParams.m_NearPlane = g_GPUCullingPassConstants.m_NearPlane;
-    occlusionCullParams.m_P00 = g_GPUCullingPassConstants.m_P00;
-    occlusionCullParams.m_P11 = g_GPUCullingPassConstants.m_P11;
-    occlusionCullParams.m_HZB = g_HZB;
-    occlusionCullParams.m_HZBDimensions = g_GPUCullingPassConstants.m_HZBDimensions;
-    occlusionCullParams.m_LinearClampMinReductionSampler = g_LinearClampMinReductionSampler;
+    OcclusionCullArguments occlusionCullArguments;
+    occlusionCullArguments.m_SphereCenterViewSpace = sphereCenterViewSpace;
+    occlusionCullArguments.m_Radius = sphereRadius;
+    occlusionCullArguments.m_NearPlane = g_GPUCullingPassConstants.m_NearPlane;
+    occlusionCullArguments.m_P00 = g_GPUCullingPassConstants.m_P00;
+    occlusionCullArguments.m_P11 = g_GPUCullingPassConstants.m_P11;
+    occlusionCullArguments.m_HZB = g_HZB;
+    occlusionCullArguments.m_HZBDimensions = g_GPUCullingPassConstants.m_HZBDimensions;
+    occlusionCullArguments.m_LinearClampMinReductionSampler = g_LinearClampMinReductionSampler;
     
-    bool bOcclusionCullResult = OcclusionCull(occlusionCullParams);
+    bool bOcclusionCullResult = OcclusionCull(occlusionCullArguments);
     
 #if !LATE_CULL
     // Occlusion test instance against *previous* HZB. If the instance was occluded the previous frame, re-test in the second phase.
