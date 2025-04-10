@@ -1,5 +1,8 @@
 #include "toyrenderer_common.hlsli"
 
+#include "DDGIShaderConfig.h"
+#include "../Irradiance.hlsl"
+
 #include "shadowfiltering.hlsl"
 #include "lightingcommon.hlsli"
 #include "random.hlsli"
@@ -7,17 +10,19 @@
 
 #include "ShaderInterop.h"
 
-// NOTE: this is being used in multiple Shaders in this file
-SamplerState g_PointClampSampler : register(s0);
-
 cbuffer g_DeferredLightingPassConstantsBuffer : register(b0) { DeferredLightingConsts g_DeferredLightingConsts; }
 Texture2D<uint4> g_GBufferA : register(t0);
 Texture2D g_GBufferMotion : register(t1);
 Texture2D g_DepthBuffer : register(t2);
 Texture2D<uint> g_SSAOTexture : register(t3);
 Texture2D g_ShadowMaskTexture : register(t4);
-StructuredBuffer<uint2> g_TileOffsets : register(t99);
+StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t5);
+Texture2DArray<float4> g_ProbeData : register(t6);
+Texture2DArray<float4> g_ProbeIrradiance : register(t7);
+Texture2DArray<float4> g_ProbeDistance : register(t8);
 RWTexture2D<float3> g_LightingOutput : register(u0);
+SamplerState g_PointClampSampler : register(s0);
+SamplerState g_LinearWrapSampler : register(s1);
 
 void PS_Main(
     in float4 inPosition : SV_POSITION,
@@ -39,16 +44,36 @@ void PS_Main(
     
     lighting += gbufferParams.m_Emissive;
     
-    // TODO: DDGI
-    float3 ambientTerm = Diffuse_Lambert(gbufferParams.m_Albedo.rgb);
+    // TODO: multiple volumes
+    uint volumeIndex = 0;
+    DDGIVolumeDescGPU DDGIVolumeDesc = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
+    
+    float3 irradiance = float3(0, 0, 0);
+    
+    float volumeBlendWeight = DDGIGetVolumeBlendWeight(worldPosition, DDGIVolumeDesc);
+    if (volumeBlendWeight > 0.0f)
+    {
+        float3 cameraDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
+        float3 surfaceBias = DDGIGetSurfaceBias(gbufferParams.m_Normal, cameraDirection, DDGIVolumeDesc);
+    
+        DDGIVolumeResources volumeResources;
+        volumeResources.probeIrradiance = g_ProbeIrradiance;
+        volumeResources.probeDistance = g_ProbeDistance;
+        volumeResources.probeData = g_ProbeData;
+        volumeResources.bilinearSampler = g_LinearWrapSampler;
+    
+        // Indirect Lighting (recursive)
+        irradiance = Diffuse_Lambert(gbufferParams.m_Albedo.rgb) * DDGIGetVolumeIrradiance(worldPosition, surfaceBias, gbufferParams.m_Normal, DDGIVolumeDesc, volumeResources);
+        irradiance *= volumeBlendWeight;
+    }
     
     if (g_DeferredLightingConsts.m_SSAOEnabled)
     {
-        ambientTerm *= g_SSAOTexture[inPosition.xy] / 255.0f;
+        irradiance *= g_SSAOTexture[inPosition.xy] / 255.0f;
     }
     
-    lighting += ambientTerm;
-    
+    lighting += irradiance;
+   
     outColor = float4(lighting, 1.0f);
 }
 

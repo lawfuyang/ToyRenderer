@@ -44,9 +44,26 @@ static const nvrhi::Format kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeText
 };
 
 // dont bother with using rtxgi::d3d12::DDGIVolume. We handle all resources internally. Just re-use their logic.
-class GIVolume : public rtxgi::DDGIVolumeBase
+class GIVolume
+    : public rtxgi::DDGIVolumeBase
+    , public GIVolumeBase
 {
 public:
+    nvrhi::TextureHandle GetProbeDataTexture() const override
+    {
+        return m_ProbeData;
+    }
+
+    nvrhi::TextureHandle GetProbeIrradianceTexture() const override
+    {
+        return m_ProbeIrradiance;
+    }
+
+    nvrhi::TextureHandle GetProbeDistanceTexture() const override
+    {
+        return m_ProbeDistance;
+    }
+
     void Create()
     {
         assert(GetNumProbes() > 0);
@@ -150,8 +167,6 @@ public:
     Vector3 m_ProbeSpacing{ 1.0f, 1.0f, 1.0f };
     uint32_t m_ProbeNumRays = 256;
 
-    nvrhi::BufferHandle m_VolumeDescGPUBuffer;
-
     GIVolume m_GIVolume;
 
     GIRenderer() : IRenderer("GIRenderer") {}
@@ -164,11 +179,13 @@ public:
         desc.debugName = "DDGI Volume Desc GPU Packed";
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-        m_VolumeDescGPUBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        g_Scene->m_GIVolumeDescsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
     }
 
     void PostSceneLoad() override
     {
+        g_Scene->m_GIVolume = &m_GIVolume;
+
         static const int kProbeNumIrradianceTexels = 8;
         static const int kProbeNumDistanceTexels = 16;
 
@@ -313,7 +330,7 @@ public:
         bindingSetDesc.bindings =
         {
             nvrhi::BindingSetItem::PushConstants(kDDGIRootConstsRegister, sizeof(rootConsts)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(kDDGIVolumeDescGPUPackedRegister, m_VolumeDescGPUBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(kDDGIVolumeDescGPUPackedRegister, g_Scene->m_GIVolumeDescsBuffer),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeDataRegister, m_GIVolume.m_ProbeRayData),
         };
 
@@ -349,7 +366,7 @@ public:
         bindingSetDesc.bindings =
         {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, m_VolumeDescGPUBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_GIVolumeDescsBuffer),
             nvrhi::BindingSetItem::Texture_SRV(1, m_GIVolume.m_ProbeData),
             nvrhi::BindingSetItem::Texture_SRV(2, m_GIVolume.m_ProbeIrradiance),
             nvrhi::BindingSetItem::Texture_SRV(3, m_GIVolume.m_ProbeDistance),
@@ -410,7 +427,7 @@ public:
         }
 
         const rtxgi::DDGIVolumeDescGPUPacked volumeDescGPU = m_GIVolume.GetDescGPUPacked();
-        commandList->writeBuffer(m_VolumeDescGPUBuffer, &volumeDescGPU, sizeof(rtxgi::DDGIVolumeDescGPUPacked));
+        commandList->writeBuffer(g_Scene->m_GIVolumeDescsBuffer, &volumeDescGPU, sizeof(rtxgi::DDGIVolumeDescGPUPacked));
 
         TraceProbes(commandList, renderGraph);
 
@@ -421,7 +438,7 @@ public:
         bindingSetDesc.bindings =
         {
             nvrhi::BindingSetItem::PushConstants(kDDGIRootConstsRegister, sizeof(rootConsts)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(kDDGIVolumeDescGPUPackedRegister, m_VolumeDescGPUBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(kDDGIVolumeDescGPUPackedRegister, g_Scene->m_GIVolumeDescsBuffer),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIRayDataRegister, m_GIVolume.m_ProbeRayData),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendRadianceOutputRegister, m_GIVolume.m_ProbeIrradiance),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendDistanceOutputRegister, m_GIVolume.m_ProbeDistance),
@@ -572,7 +589,7 @@ public:
             {
                 nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
                 nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(10, gs_GIRenderer.m_VolumeDescGPUBuffer),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(10, g_Scene->m_GIVolumeDescsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, probePositionsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(1, probeDrawIndirectArgsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceIDToProbeIndexBuffer),
@@ -618,7 +635,7 @@ public:
                 nvrhi::BindingSetItem::Texture_SRV(1, gs_GIRenderer.m_GIVolume.m_ProbeData),
                 nvrhi::BindingSetItem::Texture_SRV(2, gs_GIRenderer.m_GIVolume.m_ProbeIrradiance),
                 nvrhi::BindingSetItem::Texture_SRV(3, gs_GIRenderer.m_GIVolume.m_ProbeDistance),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, gs_GIRenderer.m_VolumeDescGPUBuffer),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Scene->m_GIVolumeDescsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(5, instanceIDToProbeIndexBuffer),
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearWrapSampler),
             };

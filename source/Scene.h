@@ -38,6 +38,14 @@ struct GPUCullingCounters
     uint32_t m_LateMeshlets;
 };
 
+class GIVolumeBase
+{
+public:
+    virtual nvrhi::TextureHandle GetProbeDataTexture() const = 0;
+    virtual nvrhi::TextureHandle GetProbeIrradianceTexture() const = 0;
+    virtual nvrhi::TextureHandle GetProbeDistanceTexture() const = 0;
+};
+
 class View
 {
 public:
@@ -97,7 +105,6 @@ public:
     float m_SunInclination = 30.0f;
     Vector3 m_DirLightVec = Vector3{ 0.5773502691896258f, 0.5773502691896258f, -0.5773502691896258f };
     Vector3 m_DirLightColor = Vector3::One;
-    float m_DirLightStrength = 1.0f;
     float m_LastFrameExposure = 1.0f;
 
     ::AABB m_AABB;
@@ -125,7 +132,10 @@ public:
     nvrhi::BufferHandle m_NodeLocalTransformsBuffer;
     nvrhi::BufferHandle m_PrimitiveIDToNodeIDBuffer;
     nvrhi::BufferHandle m_TLASInstanceDescsBuffer;
+    nvrhi::BufferHandle m_GIVolumeDescsBuffer;
     nvrhi::rt::AccelStructHandle m_TLAS;
+
+    GIVolumeBase* m_GIVolume = nullptr;
 
 private:
     void UpdateMainViewCameraControls();

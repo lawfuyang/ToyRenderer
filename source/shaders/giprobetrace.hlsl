@@ -142,7 +142,6 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
         // Indirect Lighting (recursive)
         irradiance = DDGIGetVolumeIrradiance(rayHitWorldPosition, surfaceBias, rayHitGBufferParams.m_Normal, volume, volumeResources);
         irradiance *= volumeBlendWeight;
-
     }
     
     // Perfectly diffuse reflectors don't exist in the real world.

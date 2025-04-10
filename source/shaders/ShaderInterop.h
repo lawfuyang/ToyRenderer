@@ -123,9 +123,9 @@ struct DeferredLightingConsts
 	Vector3 m_CameraOrigin;
 	uint32_t m_SSAOEnabled;
 	Vector3 m_DirectionalLightColor;
-	float m_DirectionalLightStrength;
-	Vector3 m_DirectionalLightVector;
 	uint32_t m_DebugMode;
+	Vector3 m_DirectionalLightVector;
+	uint32_t PAD0;
 	Vector2U m_LightingOutputResolution;
 };
 

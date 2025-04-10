@@ -55,8 +55,7 @@ public:
 	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
 	{
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-		Scene* scene = g_Graphic.m_Scene.get();
-		View& view = scene->m_View;
+		View& view = g_Scene->m_View;
 
 		const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
 		const auto& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
@@ -64,9 +63,8 @@ public:
 		// pass constants
 		DeferredLightingConsts passConstants;
 		passConstants.m_CameraOrigin = view.m_Eye;
-		passConstants.m_DirectionalLightColor = scene->m_DirLightColor;
-		passConstants.m_DirectionalLightStrength = scene->m_DirLightStrength;
-		passConstants.m_DirectionalLightVector = scene->m_DirLightVec;
+		passConstants.m_DirectionalLightColor = g_Scene->m_DirLightColor;
+		passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
 		passConstants.m_ClipToWorld = view.m_ClipToWorld;
 		passConstants.m_SSAOEnabled = AOControllables.m_bEnabled;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
@@ -89,7 +87,12 @@ public:
 			nvrhi::BindingSetItem::Texture_SRV(2, depthBufferCopyTexture),
 			nvrhi::BindingSetItem::Texture_SRV(3, ssaoTexture),
 			nvrhi::BindingSetItem::Texture_SRV(4, shadowMaskTexture),
-			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Scene->m_GIVolumeDescsBuffer),
+			nvrhi::BindingSetItem::Texture_SRV(6, g_Scene->m_GIVolume->GetProbeDataTexture()),
+			nvrhi::BindingSetItem::Texture_SRV(7, g_Scene->m_GIVolume->GetProbeIrradianceTexture()),
+			nvrhi::BindingSetItem::Texture_SRV(8, g_Scene->m_GIVolume->GetProbeDistanceTexture()),
+			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler),
+			nvrhi::BindingSetItem::Sampler(1, g_CommonResources.LinearWrapSampler),
 		};
 
 		nvrhi::FramebufferDesc frameBufferDesc;
