@@ -280,6 +280,7 @@ struct GIProbeVisualizationUpdateConsts
 	float m_NearPlane;
 	float m_MaxDebugProbeDistance;
 	float m_ProbeRadius;
+	uint32_t m_bHideInactiveProbes;
 };
 
 struct GIProbeVisualizationConsts

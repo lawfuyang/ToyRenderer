@@ -418,7 +418,8 @@ void Scene::CreateAccelerationStructures()
 
 		// transform will be updated in CS_UpdateInstanceConstsAndBuildTLAS
 
-        nvrhi::rt::InstanceFlags instanceFlags = Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise : nvrhi::rt::InstanceFlags::None;
+        // TODO: investigate why is the CCW flag wrong
+        nvrhi::rt::InstanceFlags instanceFlags = /*Graphic::kFrontCCW ? nvrhi::rt::InstanceFlags::TriangleFrontCounterclockwise :*/ nvrhi::rt::InstanceFlags::None;
         instanceFlags = instanceFlags | ((primitive.m_Material.m_AlphaMode == AlphaMode::Opaque) ? nvrhi::rt::InstanceFlags::ForceOpaque : nvrhi::rt::InstanceFlags::ForceNonOpaque);
 
         instanceDesc.instanceID = instanceID;

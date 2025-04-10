@@ -25,9 +25,9 @@ GBufferParams GetRayHitInstanceGBufferParams(RayQuery<kRayQueryFlags> rayQuery, 
     StructuredBuffer<RawVertexFormat> globalVertexBuffer = inArgs.m_GlobalVertexBuffer;
     sampler samplers[SamplerIdx_Count] = inArgs.m_Samplers;
     
-    uint instanceID = rayQuery.CandidateInstanceID();
-    uint primitiveIndex = rayQuery.CandidatePrimitiveIndex();
-    float2 attribBarycentrics = rayQuery.CandidateTriangleBarycentrics();
+    uint instanceID = rayQuery.CommittedInstanceID();
+    uint primitiveIndex = rayQuery.CommittedPrimitiveIndex();
+    float2 attribBarycentrics = rayQuery.CommittedTriangleBarycentrics();
     
     BasePassInstanceConstants instanceConsts = basePassInstanceConstantsBuffer[instanceID];
     MaterialData materialData = materialDataBuffer[instanceConsts.m_MaterialDataIdx];

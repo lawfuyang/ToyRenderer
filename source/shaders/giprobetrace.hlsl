@@ -31,16 +31,14 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
     // TODO: multiple volumes
     uint volumeIndex = 0;
+    
+    DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
 
     uint rayIndex = dispatchThreadID.x; // index of the ray to trace for this probe
     uint probePlaneIndex = dispatchThreadID.y; // index of this probe within the plane of probes
     uint planeIndex = dispatchThreadID.z; // index of the plane this probe is part of
-
-    DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
     int probesPerPlane = DDGIGetProbesPerPlane(volume.probeCounts);
-    
     int probeIndex = (planeIndex * probesPerPlane) + probePlaneIndex;
-    
     float probeState = DDGILoadProbeState(probeIndex, g_ProbeData, volume);
 
     // Early out: do not shoot rays when the probe is inactive *unless* it is one of the "fixed" rays used by probe classification
@@ -52,14 +50,12 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     float3 probeCoords = DDGIGetProbeCoords(probeIndex, volume);
     float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_ProbeData);
     float3 probeRayDirection = DDGIGetProbeRayDirection(rayIndex, volume);
-    
-    uint3 outputCoords = DDGIGetRayDataTexelCoords(rayIndex, probeIndex, volume);
 
     // Setup the probe ray
     RayDesc rayDesc;
     rayDesc.Origin = probeWorldPosition;
     rayDesc.Direction = probeRayDirection;
-    rayDesc.TMin = 0.f;
+    rayDesc.TMin = 0.0f;
     rayDesc.TMax = volume.probeMaxRayDistance;
     
     const uint kFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
@@ -68,6 +64,8 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     RayQuery<kFlags> rayQuery;
     rayQuery.TraceRayInline(g_SceneTLAS, kFlags, 0xFF, rayDesc);
     rayQuery.Proceed();
+    
+    uint3 outputCoords = DDGIGetRayDataTexelCoords(rayIndex, probeIndex, volume);
     
     // The ray missed. Store the miss radiance, set the hit distance to a large value, and exit early.
     if (rayQuery.CommittedStatus() == COMMITTED_NOTHING)

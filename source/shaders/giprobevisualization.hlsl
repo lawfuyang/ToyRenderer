@@ -31,6 +31,13 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
     uint volumeIndex = 0;
     
     DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
+    float probeState = DDGILoadProbeState(probeIndex, g_ProbeData, volume);
+    
+    if (g_GIProbeVisualizationUpdateConsts.m_bHideInactiveProbes && probeState == RTXGI_DDGI_PROBE_STATE_INACTIVE)
+    {
+        return;
+    }
+    
     float3 probeCoords = DDGIGetProbeCoords(probeIndex, volume);
     float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_ProbeData);
     
