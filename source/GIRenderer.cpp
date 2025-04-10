@@ -202,6 +202,7 @@ public:
         volumeDesc.probeNumIrradianceInteriorTexels = kProbeNumIrradianceTexels - 2;
         volumeDesc.probeNumDistanceTexels = kProbeNumDistanceTexels;
         volumeDesc.probeNumDistanceInteriorTexels = kProbeNumDistanceTexels - 2;
+        volumeDesc.probeMaxRayDistance = g_Scene->m_BoundingSphere.Radius; // empirical shit. Just use scene BS radius
         volumeDesc.probeRelocationEnabled = true;
         volumeDesc.probeRelocationNeedsReset = true;
         volumeDesc.probeClassificationEnabled = true;
