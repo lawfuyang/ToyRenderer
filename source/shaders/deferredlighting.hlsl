@@ -62,7 +62,6 @@ void PS_Main(
         volumeResources.probeData = g_ProbeData;
         volumeResources.bilinearSampler = g_LinearWrapSampler;
     
-        // Indirect Lighting (recursive)
         irradiance = Diffuse_Lambert(gbufferParams.m_Albedo.rgb) * DDGIGetVolumeIrradiance(worldPosition, surfaceBias, gbufferParams.m_Normal, DDGIVolumeDesc, volumeResources);
         irradiance *= volumeBlendWeight;
     }
