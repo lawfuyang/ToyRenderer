@@ -214,18 +214,27 @@ public:
         volumeDesc.probeVariabilityFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Variability]; // not used in RTXGI Shaders, but init anyway
         volumeDesc.movementType = rtxgi::EDDGIVolumeMovementType::Default;
         volumeDesc.probeVisType = rtxgi::EDDGIVolumeProbeVisType::Default;
-        
-        // sample's cornell settings:
-        volumeDesc.probeViewBias = 0.1f;
-        volumeDesc.probeNormalBias = 0.02f;
-        volumeDesc.probeMinFrontfaceDistance = 0.1f;
-        m_GIVolume.m_ProbeVariabilityThreshold = 0.03f;
 
-        // sample's sponza settings:
-        volumeDesc.probeViewBias = 0.3f;
-        volumeDesc.probeNormalBias = 0.1f;
-        volumeDesc.probeMinFrontfaceDistance = 0.3f;
-        m_GIVolume.m_ProbeVariabilityThreshold = 0.4f;
+        const bool bIsSmallScene = g_Scene->m_BoundingSphere.Radius < 3.0f;
+        
+        if (bIsSmallScene)
+        {
+            // sample's cornell settings:
+            volumeDesc.probeViewBias = 0.1f;
+            volumeDesc.probeNormalBias = 0.02f;
+            volumeDesc.probeMinFrontfaceDistance = 0.1f;
+            m_GIVolume.m_ProbeVariabilityThreshold = 0.03f;
+            m_GIVolume.m_DebugProbeRadius = 0.05f;
+        }
+        else
+        {
+            // sample's sponza settings:
+            volumeDesc.probeViewBias = 0.3f;
+            volumeDesc.probeNormalBias = 0.1f;
+            volumeDesc.probeMinFrontfaceDistance = 0.3f;
+            m_GIVolume.m_ProbeVariabilityThreshold = 0.4f;
+            m_GIVolume.m_DebugProbeRadius = 0.1f;
+        }
 
         // leave these values as defaults?
         volumeDesc.probeHysteresis = 0.97f;
@@ -561,15 +570,14 @@ public:
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =
             {
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(10, gs_GIRenderer.m_VolumeDescGPUBuffer),
-                nvrhi::BindingSetItem::Texture_UAV(10, gs_GIRenderer.m_GIVolume.m_ProbeData),
-                // 
                 nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
+                nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(10, gs_GIRenderer.m_VolumeDescGPUBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, probePositionsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(1, probeDrawIndirectArgsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceIDToProbeIndexBuffer),
-                nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB),
-                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
+                nvrhi::BindingSetItem::Texture_UAV(10, gs_GIRenderer.m_GIVolume.m_ProbeData),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler),
             };
 
             Graphic::ComputePassParams computePassParams;
@@ -591,24 +599,28 @@ public:
 
             nvrhi::FramebufferDesc frameBufferDesc;
             frameBufferDesc.addColorAttachment(g_Graphic.GetCurrentBackBuffer());
-            frameBufferDesc.setDepthAttachment(depthBuffer)
-                .depthAttachment.isReadOnly = true;
+            frameBufferDesc.setDepthAttachment(depthBuffer);
             nvrhi::FramebufferHandle frameBuffer = device->createFramebuffer(frameBufferDesc);
 
-            GIProbeVisualizationConsts passConstants;
-            passConstants.m_WorldToClip = g_Scene->m_View.m_WorldToClip;
-            passConstants.m_ProbeRadius = gs_GIRenderer.m_GIVolume.m_DebugProbeRadius;
+            const Matrix matrix = Matrix::CreateFromQuaternion(g_Scene->m_View.m_Orientation);
+            const Vector3 forwardVector = matrix.Forward();
+
+            GIProbeVisualizationConsts passParameters;
+            passParameters.m_WorldToClip = g_Scene->m_View.m_WorldToClip;
+            passParameters.m_CameraDirection = forwardVector;
+            passParameters.m_ProbeRadius = gs_GIRenderer.m_GIVolume.m_DebugProbeRadius;
 
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =
             {
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(10, gs_GIRenderer.m_VolumeDescGPUBuffer),
-                nvrhi::BindingSetItem::Texture_UAV(10, gs_GIRenderer.m_GIVolume.m_ProbeData),
-                //
-                nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
+                nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(0, probePositionsBuffer),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(1, instanceIDToProbeIndexBuffer),
-                nvrhi::BindingSetItem::Texture_UAV(0, gs_GIRenderer.m_GIVolume.m_ProbeRayData),
+                nvrhi::BindingSetItem::Texture_SRV(1, gs_GIRenderer.m_GIVolume.m_ProbeData),
+                nvrhi::BindingSetItem::Texture_SRV(2, gs_GIRenderer.m_GIVolume.m_ProbeIrradiance),
+                nvrhi::BindingSetItem::Texture_SRV(3, gs_GIRenderer.m_GIVolume.m_ProbeDistance),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, gs_GIRenderer.m_VolumeDescGPUBuffer),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(5, instanceIDToProbeIndexBuffer),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearWrapSampler),
             };
 
             nvrhi::BindingSetHandle bindingSet;
@@ -619,7 +631,7 @@ public:
             pipelineDesc.inputLayout = g_CommonResources.m_UncompressedRawVertexFormatInputLayoutHandle;
             pipelineDesc.VS = g_Graphic.GetShader("giprobevisualization_VS_VisualizeGIProbes");
             pipelineDesc.PS = g_Graphic.GetShader("giprobevisualization_PS_VisualizeGIProbes");
-            pipelineDesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, g_CommonResources.DepthReadStencilNone, g_CommonResources.CullBackFace };
+            pipelineDesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, g_CommonResources.DepthWriteStencilNone, g_CommonResources.CullBackFace };
             pipelineDesc.bindingLayouts = { bindingLayout };
 
             nvrhi::GraphicsState graphicsState;
@@ -632,7 +644,7 @@ public:
             graphicsState.indirectParams = probeDrawIndirectArgsBuffer;
 
             commandList->setGraphicsState(graphicsState);
-            commandList->setPushConstants(&passConstants, sizeof(passConstants));
+            commandList->setPushConstants(&passParameters, sizeof(passParameters));
             commandList->drawIndexedIndirect(0);
         }
     }

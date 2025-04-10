@@ -48,27 +48,27 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     }
     
     float3 probeCoords = DDGIGetProbeCoords(probeIndex, volume);
+    probeIndex = DDGIGetScrollingProbeIndex(probeCoords, volume);
     float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_ProbeData);
     float3 probeRayDirection = DDGIGetProbeRayDirection(rayIndex, volume);
-
-    // Setup the probe ray
-    RayDesc rayDesc;
-    rayDesc.Origin = probeWorldPosition;
-    rayDesc.Direction = probeRayDirection;
-    rayDesc.TMin = 0.0f;
-    rayDesc.TMax = volume.probeMaxRayDistance;
     
-    const uint kFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    RayDesc radianceRayDesc;
+    radianceRayDesc.Origin = probeWorldPosition;
+    radianceRayDesc.Direction = probeRayDirection;
+    radianceRayDesc.TMin = 0.0f;
+    radianceRayDesc.TMax = volume.probeMaxRayDistance;
+    
+    const uint kRadianceRayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
     
     // TODO: take into account alpha mask & transparency
-    RayQuery<kFlags> rayQuery;
-    rayQuery.TraceRayInline(g_SceneTLAS, kFlags, 0xFF, rayDesc);
-    rayQuery.Proceed();
+    RayQuery<kRadianceRayFlags> radianceRayQuery;
+    radianceRayQuery.TraceRayInline(g_SceneTLAS, kRadianceRayFlags, 0xFF, radianceRayDesc);
+    radianceRayQuery.Proceed();
     
     uint3 outputCoords = DDGIGetRayDataTexelCoords(rayIndex, probeIndex, volume);
     
     // The ray missed. Store the miss radiance, set the hit distance to a large value, and exit early.
-    if (rayQuery.CommittedStatus() == COMMITTED_NOTHING)
+    if (radianceRayQuery.CommittedStatus() == COMMITTED_NOTHING)
     {
         // Store the ray miss
         // TODO: evaluate proper sky radiance
@@ -77,10 +77,10 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
         return;
     }
     
-    if (!rayQuery.CommittedTriangleFrontFace())
+    if (!radianceRayQuery.CommittedTriangleFrontFace())
     {
         // Store the ray backface hit
-        DDGIStoreProbeRayBackfaceHit(g_OutRayData, outputCoords, volume, rayQuery.CommittedRayT());
+        DDGIStoreProbeRayBackfaceHit(g_OutRayData, outputCoords, volume, radianceRayQuery.CommittedRayT());
         return;
     }
     
@@ -89,11 +89,9 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     if ((volume.probeRelocationEnabled || volume.probeClassificationEnabled) && rayIndex < RTXGI_DDGI_NUM_FIXED_RAYS)
     {
         // Store the ray front face hit distance (only)
-        DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, rayQuery.CommittedRayT());
+        DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, radianceRayQuery.CommittedRayT());
         return;
     }
-    
-    // TODO: take into account alpha mask & transparency
 
     GetRayHitInstanceGBufferParamsArguments args;
     args.m_BasePassInstanceConstantsBuffer = g_BasePassInstanceConsts;
@@ -104,27 +102,54 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     args.m_Samplers = g_Samplers;
     
     float3 rayHitWorldPosition;
-    GBufferParams rayHitGBufferParams = GetRayHitInstanceGBufferParams(rayQuery, g_Textures, rayHitWorldPosition, args);
+    GBufferParams rayHitGBufferParams = GetRayHitInstanceGBufferParams(radianceRayQuery, g_Textures, rayHitWorldPosition, args);
     
-    // direct lighting
-    float3 diffuse = EvaluateDirectionalLight(rayHitGBufferParams, probeWorldPosition, rayHitWorldPosition, g_GIProbeTraceConsts.m_DirectionalLightVector);
+    float3 radiance = float3(0, 0, 0);
     
-    float3 surfaceBias = DDGIGetSurfaceBias(rayHitGBufferParams.m_Normal, rayDesc.Direction, volume);
+    RayDesc shadowRayDesc;
+    shadowRayDesc.Origin = probeWorldPosition;
+    shadowRayDesc.Direction = g_GIProbeTraceConsts.m_DirectionalLightVector;
+    shadowRayDesc.TMin = 0.0f;
+    shadowRayDesc.TMax = volume.probeMaxRayDistance;
     
-    DDGIVolumeResources volumeResources;
-    volumeResources.probeIrradiance = g_ProbeIrradiance;
-    volumeResources.probeDistance = g_ProbeDistance;
-    volumeResources.probeData = g_ProbeData;
-    volumeResources.bilinearSampler = g_LinearWrapSampler;
+    const uint kShadowRayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
     
-    // Indirect Lighting (recursive)
-    float3 irradiance = DDGIGetVolumeIrradiance(rayHitWorldPosition, surfaceBias, rayHitGBufferParams.m_Normal, volume, volumeResources);
+    // TODO: take into account alpha mask & transparency
+    RayQuery<kShadowRayFlags> shadowRayQuery;
+    shadowRayQuery.TraceRayInline(g_SceneTLAS, kShadowRayFlags, 0xFF, shadowRayDesc);
+    shadowRayQuery.Proceed();
+    
+    const bool bShadowed = shadowRayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
+    if (!bShadowed)
+    {
+        // direct lighting
+        radiance = EvaluateDirectionalLight(rayHitGBufferParams, probeWorldPosition, rayHitWorldPosition, g_GIProbeTraceConsts.m_DirectionalLightVector);
+    }
+    
+    float3 irradiance = float3(0, 0, 0);
+    
+    float volumeBlendWeight = DDGIGetVolumeBlendWeight(rayHitWorldPosition, volume);
+    if (volumeBlendWeight > 0.0f)
+    {
+        float3 surfaceBias = DDGIGetSurfaceBias(rayHitGBufferParams.m_Normal, radianceRayDesc.Direction, volume);
+    
+        DDGIVolumeResources volumeResources;
+        volumeResources.probeIrradiance = g_ProbeIrradiance;
+        volumeResources.probeDistance = g_ProbeDistance;
+        volumeResources.probeData = g_ProbeData;
+        volumeResources.bilinearSampler = g_LinearWrapSampler;
+    
+        // Indirect Lighting (recursive)
+        irradiance = DDGIGetVolumeIrradiance(rayHitWorldPosition, surfaceBias, rayHitGBufferParams.m_Normal, volume, volumeResources);
+        irradiance *= volumeBlendWeight;
+
+    }
     
     // Perfectly diffuse reflectors don't exist in the real world.
     // Limit the BRDF albedo to a maximum value to account for the energy loss at each bounce.
     const float kMaxAlbedo = 0.9f;
     
     // Store the final ray radiance and hit distance
-    float3 radiance = diffuse + Diffuse_Lambert(min(rayHitGBufferParams.m_Albedo.rgb, float3(kMaxAlbedo, kMaxAlbedo, kMaxAlbedo)) * irradiance);
-    DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, saturate(radiance), rayQuery.CommittedRayT());
+    radiance += Diffuse_Lambert(min(rayHitGBufferParams.m_Albedo.rgb, float3(kMaxAlbedo, kMaxAlbedo, kMaxAlbedo)) * irradiance);
+    DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, saturate(radiance), radianceRayQuery.CommittedRayT());
 }

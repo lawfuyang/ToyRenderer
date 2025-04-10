@@ -286,6 +286,7 @@ struct GIProbeVisualizationUpdateConsts
 struct GIProbeVisualizationConsts
 {
 	Matrix m_WorldToClip;
+	Vector3 m_CameraDirection;
 	float m_ProbeRadius;
 };
 

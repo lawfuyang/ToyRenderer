@@ -4,6 +4,7 @@
 #include "ProbeCommon.hlsl"
 #include "DDGIRootConstants.hlsl"
 #include "rtxgi/ddgi/DDGIVolumeDescGPU.h"
+#include "../Irradiance.hlsl"
 
 #include "culling.hlsli"
 #include "ShaderInterop.h"
@@ -80,8 +81,12 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
 
 cbuffer GIProbeVisualizationConstsBuffer : register(b0) { GIProbeVisualizationConsts g_GIProbeVisualizationConsts; }
 StructuredBuffer<float3> g_InProbePositions : register(t0);
-StructuredBuffer<uint> g_InInstanceIndexToProbeIndex : register(t1);
-RWTexture2DArray<float4> g_RayData : register(u0);
+Texture2DArray<float4> g_VisProbeData : register(t1);
+Texture2DArray<float4> g_VisProbeIrradiance : register(t2);
+Texture2DArray<float4> g_VisProbeDistance : register(t3);
+StructuredBuffer<DDGIVolumeDescGPUPacked> g_VisDDGIVolumes : register(t4);
+StructuredBuffer<uint> g_InInstanceIndexToProbeIndex : register(t5);
+sampler g_LinearWrapSampler : register(s0);
 
 void VS_VisualizeGIProbes
 (
@@ -109,16 +114,40 @@ void PS_VisualizeGIProbes
     in float4 inPosition : SV_POSITION,
     in float3 inNormal : TEXCOORD0,
     in float2 inTexCoord : TEXCOORD1,
-    in float3 worldPosition : TEXCOORD2,
+    in float3 inWorldPosition : TEXCOORD2,
     in uint inInstanceID : TEXCOORD3,
     out float4 outColor : SV_Target0)
 {
     // TODO: multiple volumes
     uint volumeIndex = 0;
     
-    DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
+    DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_VisDDGIVolumes[volumeIndex]);
+    
     uint probeIndex = g_InInstanceIndexToProbeIndex[inInstanceID];
     float3 probeCoords = DDGIGetProbeCoords(probeIndex, volume);
+    probeIndex = DDGIGetScrollingProbeIndex(probeCoords, volume);
+    float3 probePosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_VisProbeData);
+    float3 sampleDirection = normalize(inWorldPosition - probePosition);
+    float2 octantCoords = DDGIGetOctahedralCoordinates(sampleDirection);
+    float3 uv = DDGIGetProbeUV(probeIndex, octantCoords, volume.probeNumIrradianceInteriorTexels, volume);
     
-    outColor = float4(1, 1, 1, 1);
+    float3 irradiance = g_VisProbeIrradiance.SampleLevel(g_LinearWrapSampler, uv, 0).rgb;
+    
+    // Decode the tone curve
+    float3 exponent = volume.probeIrradianceEncodingGamma * 0.5f;
+    irradiance = pow(irradiance, exponent);
+
+    // Go back to linear irradiance
+    irradiance *= irradiance;
+
+    // Multiply by the area of the integration domain (2PI) to complete the irradiance estimate. Divide by PI to normalize for the display.
+    irradiance *= 2.f;
+
+    // Adjust for energy loss due to reduced precision in the R10G10B10A2 irradiance texture format
+    if (volume.probeIrradianceFormat == RTXGI_DDGI_VOLUME_TEXTURE_FORMAT_U32)
+    {
+        irradiance *= 1.0989f;
+    }
+    
+    outColor = float4(irradiance, 1);
 }
