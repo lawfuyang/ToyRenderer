@@ -1,0 +1,50 @@
+source/shaders/imgui.hlsl -T vs -E VS_Main
+source/shaders/imgui.hlsl -T ps -E PS_Main
+source/shaders/basepass.hlsl -T ps -E PS_Main_GBuffer -D ALPHA_MASK_MODE={0,1}
+source/shaders/basepass.hlsl -T ps -E PS_Main_Forward
+source/shaders/basepass.hlsl -T as -E AS_Main -D LATE_CULL={0,1}
+source/shaders/basepass.hlsl -T ms -E MS_Main
+source/shaders/fullscreen.hlsl -T ms -E MS_FullScreenTriangle
+source/shaders/fullscreen.hlsl -T vs -E VS_FullScreenCube
+source/shaders/fullscreen.hlsl -T ps -E PS_Passthrough
+source/shaders/sky.hlsl -T ps -E PS_HosekWilkieSky
+source/shaders/adaptluminance.hlsl -T cs -E CS_GenerateLuminanceHistogram
+source/shaders/adaptluminance.hlsl -T cs -E CS_AdaptExposure
+source/shaders/postprocess.hlsl -T ps -E PS_PostProcess
+source/shaders/ambientocclusion.hlsl -T cs -E CS_XeGTAO_PrefilterDepths
+source/shaders/ambientocclusion.hlsl -T cs -E CS_XeGTAO_MainPass -D DEBUG_OUTPUT_MODE={0,1,2,3}
+source/shaders/ambientocclusion.hlsl -T cs -E CS_XeGTAO_Denoise
+source/shaders/gpuculling.hlsl -T cs -E CS_GPUCulling -D LATE_CULL={0,1}
+source/shaders/gpuculling.hlsl -T cs -E CS_BuildLateCullIndirectArgs
+source/shaders/minmaxdownsample.hlsl -T cs -E CS_Main
+source/shaders/deferredlighting.hlsl -T ps -E PS_Main
+source/shaders/deferredlighting.hlsl -T ps -E PS_Main_Debug
+source/shaders/shadowmask.hlsl -T cs -E CS_ShadowMask
+source/shaders/shadowmask.hlsl -T cs -E CS_PackNormalAndRoughness
+source/shaders/bloom.hlsl -T ps -E PS_Downsample
+source/shaders/bloom.hlsl -T ps -E PS_Upsample
+source/shaders/updateinstanceconsts.hlsl -T cs -E CS_UpdateInstanceConstsAndBuildTLAS
+source/shaders/giprobevisualization.hlsl -T vs -E VS_VisualizeGIProbes
+source/shaders/giprobevisualization.hlsl -T ps -E PS_VisualizeGIProbes
+source/shaders/giprobevisualization.hlsl -T cs -E CS_VisualizeGIProbesCulling
+source/shaders/giprobetrace.hlsl -T cs -E CS_ProbeTrace
+
+extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
+
+extern/nvidia/NRD/Shaders/Source/Clear_Float.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Source/Clear_Uint.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_ClassifyTiles.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_PostBlur.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_SplitScreen.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_TemporalStabilization.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Source/SIGMA_SmoothTiles.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Source/SIGMA_Copy.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_Blur.cs.hlsl -T cs -E main
+
+extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeBlendingCS.hlsl -T cs -E DDGIProbeBlendingCS -D RTXGI_DDGI_BLEND_RADIANCE={0,1}
+extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeRelocationCS.hlsl -T cs -E DDGIProbeRelocationCS
+extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeRelocationCS.hlsl -T cs -E DDGIProbeRelocationResetCS
+extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeClassificationCS.hlsl -T cs -E DDGIProbeClassificationCS
+extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeClassificationCS.hlsl -T cs -E DDGIProbeClassificationResetCS
+extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ReductionCS.hlsl -T cs -E DDGIReductionCS
+extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ReductionCS.hlsl -T cs -E DDGIExtraReductionCS

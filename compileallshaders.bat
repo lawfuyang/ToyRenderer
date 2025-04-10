@@ -19,7 +19,7 @@ IF EXIST "%cd%/bin/ShaderMake.exe" (
 )
 
 SET DXC_PATH="%cd%/extern/dxc/bin/x64/dxc.exe"
-SET CONFIG_FILE="%cd%/source/shaders/shaderstocompile.txt"
+SET CONFIG_FILE="%cd%/shaderstocompile.txt"
 SET OUT="%cd%/bin/shaders/"
 
 SET RELAXED_INCLUDES=--relaxedInclude=MathUtilities.h

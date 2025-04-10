@@ -374,7 +374,7 @@ void Graphic::InitShaders()
 
     m_AllShaders.clear();
 
-    std::filesystem::path inputPath = std::filesystem::path{ GetExecutableDirectory() }.parent_path() / "source" / "shaders" / "shaderstocompile.txt";
+    std::filesystem::path inputPath = std::filesystem::path{ GetExecutableDirectory() }.parent_path() / "shaderstocompile.txt";
     std::string fileFullText;
     ReadTextFromFile(inputPath.string(), fileFullText);
 
