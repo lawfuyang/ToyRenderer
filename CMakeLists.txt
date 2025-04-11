@@ -39,6 +39,8 @@ endfunction()
 CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${EXTERN_DIR}/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_2025_02_20.zip)
 CheckAndDownloadPackage("SDL" ${SDL3_VERSION} ${EXTERN_DIR}/sdl https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-VC.zip)
 
+# symlink SDL.dll
+file(MAKE_DIRECTORY "${BIN_DIR}")
 execute_process(
 COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.dll
