@@ -155,6 +155,7 @@ static void CreateDefaultTextures()
         };
 
     CreateDefaultTexture(g_CommonResources.BlackTexture                   , "Black 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
+    CreateDefaultTexture(g_CommonResources.BlackTexture2DArray            , "Black 2D Texture2DArray", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 0.0f, 0.0f }.RGBA().v, 2, false /*bUAV*/);
     CreateDefaultTexture(g_CommonResources.WhiteTexture                   , "White 2D Texture", nvrhi::Format::RGBA8_UNORM, Color{ 1.0f, 1.0f, 1.0f }.RGBA().v, 1, false /*bUAV*/);
     CreateDefaultTexture(g_CommonResources.DefaultRoughnessMetallicTexture, "Default Roughness Metallic Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.0f, 1.0f, 0.0f }.RGBA().v, 1, false /*bUAV*/);
     CreateDefaultTexture(g_CommonResources.DefaultNormalTexture           , "Default Normal Texture", nvrhi::Format::RGBA8_UNORM, Color{ 0.5f, 0.5f, 1.0f }.RGBA().v, 1, false /*bUAV*/);

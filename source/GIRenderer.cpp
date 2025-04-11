@@ -60,12 +60,12 @@ public:
 
     nvrhi::TextureHandle GetProbeIrradianceTexture() const override
     {
-        return m_ProbeIrradiance;
+        return g_GraphicPropertyGrid.m_GIControllables.m_bEnabled ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeDistanceTexture() const override
     {
-        return m_ProbeDistance;
+        return g_GraphicPropertyGrid.m_GIControllables.m_bEnabled ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     void Create()

@@ -23,6 +23,7 @@ public:
 
     // Textures
     Texture BlackTexture;
+    Texture BlackTexture2DArray;
     Texture WhiteTexture;
     Texture DefaultRoughnessMetallicTexture;
     Texture DefaultNormalTexture;
