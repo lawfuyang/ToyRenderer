@@ -7,6 +7,10 @@
 
 struct GetRayHitInstanceGBufferParamsArguments
 {
+    uint m_InstanceID;
+    uint m_PrimitiveIndex;
+    float2 m_AttribBarycentrics;
+    float3x4 m_ObjectToWorld3x4;
     StructuredBuffer<BasePassInstanceConstants> m_BasePassInstanceConstantsBuffer;
     StructuredBuffer<MaterialData> m_MaterialDataBuffer;
     StructuredBuffer<MeshData> m_MeshDataBuffer;
@@ -15,19 +19,18 @@ struct GetRayHitInstanceGBufferParamsArguments
     sampler m_Samplers[SamplerIdx_Count];
 };
 
-template<uint kRayQueryFlags>
-GBufferParams GetRayHitInstanceGBufferParams(RayQuery<kRayQueryFlags> rayQuery, Texture2D bindlessTextures[], out float3 rayHitWorldPosition, GetRayHitInstanceGBufferParamsArguments inArgs)
+GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArguments inArgs, Texture2D bindlessTextures[], out float3 rayHitWorldPosition)
 {
+    uint instanceID = inArgs.m_InstanceID;
+    uint primitiveIndex = inArgs.m_PrimitiveIndex;
+    float2 attribBarycentrics = inArgs.m_AttribBarycentrics;
+    float3x4 objectToWorld3x4 = inArgs.m_ObjectToWorld3x4;
     StructuredBuffer<BasePassInstanceConstants> basePassInstanceConstantsBuffer = inArgs.m_BasePassInstanceConstantsBuffer;
     StructuredBuffer<MaterialData> materialDataBuffer = inArgs.m_MaterialDataBuffer;
     StructuredBuffer<MeshData> meshDataBuffer = inArgs.m_MeshDataBuffer;
     StructuredBuffer<uint> globalIndexIDsBuffer = inArgs.m_GlobalIndexIDsBuffer;
     StructuredBuffer<RawVertexFormat> globalVertexBuffer = inArgs.m_GlobalVertexBuffer;
     sampler samplers[SamplerIdx_Count] = inArgs.m_Samplers;
-    
-    uint instanceID = rayQuery.CommittedInstanceID();
-    uint primitiveIndex = rayQuery.CommittedPrimitiveIndex();
-    float2 attribBarycentrics = rayQuery.CommittedTriangleBarycentrics();
     
     BasePassInstanceConstants instanceConsts = basePassInstanceConstantsBuffer[instanceID];
     MaterialData materialData = materialDataBuffer[instanceConsts.m_MaterialDataIdx];
@@ -62,7 +65,7 @@ GBufferParams GetRayHitInstanceGBufferParams(RayQuery<kRayQueryFlags> rayQuery, 
         rayHitUV += vertices[i].m_TexCoord * barycentrics[i];
     }
     
-    rayHitWorldPosition = mul(rayQuery.CommittedObjectToWorld3x4(), float4(rayHitWorldPosition, 1.0f)).xyz;
+    rayHitWorldPosition = mul(objectToWorld3x4, float4(rayHitWorldPosition, 1.0f)).xyz;
     
     GetCommonGBufferParamsArguments getCommonGBufferParamsArguments;
     getCommonGBufferParamsArguments.m_TexCoord = rayHitUV;
@@ -72,4 +75,10 @@ GBufferParams GetRayHitInstanceGBufferParams(RayQuery<kRayQueryFlags> rayQuery, 
     getCommonGBufferParamsArguments.m_Samplers = samplers;
     
     return GetCommonGBufferParams(getCommonGBufferParamsArguments, bindlessTextures);
+}
+
+GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArguments inArgs, Texture2D bindlessTextures[])
+{
+    float3 rayHitWorldPosition;
+    return GetRayHitInstanceGBufferParams(inArgs, bindlessTextures, rayHitWorldPosition);
 }

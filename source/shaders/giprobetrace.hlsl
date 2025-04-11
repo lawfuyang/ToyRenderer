@@ -88,6 +88,10 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     }
 
     GetRayHitInstanceGBufferParamsArguments args;
+    args.m_InstanceID = radianceRayQuery.CommittedInstanceID();
+    args.m_PrimitiveIndex = radianceRayQuery.CommittedPrimitiveIndex();
+    args.m_AttribBarycentrics = radianceRayQuery.CommittedTriangleBarycentrics();
+    args.m_ObjectToWorld3x4 = radianceRayQuery.CommittedObjectToWorld3x4();
     args.m_BasePassInstanceConstantsBuffer = g_BasePassInstanceConsts;
     args.m_MaterialDataBuffer = g_MaterialDataBuffer;
     args.m_MeshDataBuffer = g_MeshDataBuffer;
@@ -96,7 +100,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     args.m_Samplers = g_Samplers;
     
     float3 rayHitWorldPosition;
-    GBufferParams rayHitGBufferParams = GetRayHitInstanceGBufferParams(radianceRayQuery, g_Textures, rayHitWorldPosition, args);
+    GBufferParams rayHitGBufferParams = GetRayHitInstanceGBufferParams(args, g_Textures, rayHitWorldPosition);
     
     float3 radiance = float3(0, 0, 0);
     

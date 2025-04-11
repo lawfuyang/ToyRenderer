@@ -112,6 +112,10 @@ void CS_ShadowMask(
         if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
         {
             GetRayHitInstanceGBufferParamsArguments args;
+            args.m_InstanceID = rayQuery.CommittedInstanceID();
+            args.m_PrimitiveIndex = rayQuery.CommittedPrimitiveIndex();
+            args.m_AttribBarycentrics = rayQuery.CommittedTriangleBarycentrics();
+            args.m_ObjectToWorld3x4 = rayQuery.CommittedObjectToWorld3x4();
             args.m_BasePassInstanceConstantsBuffer = g_BasePassInstanceConsts;
             args.m_MaterialDataBuffer = g_MaterialDataBuffer;
             args.m_MeshDataBuffer = g_MeshDataBuffer;
@@ -119,8 +123,7 @@ void CS_ShadowMask(
             args.m_GlobalVertexBuffer = g_GlobalVertexBuffer;
             args.m_Samplers = g_Samplers;
             
-            float3 rayHitWorldPosition;
-            GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(rayQuery, g_Textures, rayHitWorldPosition, args);
+            GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(args, g_Textures);
             
             if (gbufferParams.m_Albedo.a >= gbufferParams.m_AlphaCutoff)
             {
