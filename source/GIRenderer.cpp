@@ -231,10 +231,8 @@ public:
         volumeDesc.probeVariabilityFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Variability]; // not used in RTXGI Shaders, but init anyway
         volumeDesc.movementType = rtxgi::EDDGIVolumeMovementType::Default;
         volumeDesc.probeVisType = rtxgi::EDDGIVolumeProbeVisType::Default;
-
-        const bool bIsSmallScene = g_Scene->m_BoundingSphere.Radius < 3.0f;
         
-        if (bIsSmallScene)
+        if (g_Scene->m_bIsSmallScene)
         {
             // sample's cornell settings:
             volumeDesc.probeViewBias = 0.1f;

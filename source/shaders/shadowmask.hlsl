@@ -88,7 +88,7 @@ void CS_ShadowMask(
     float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_ShadowMaskConsts.m_ClipToWorld);
     
     // empirical offset to remove shadow acne
-    float3 rayOriginOffset = gbufferParams.m_Normal * 0.01f;
+    float3 rayOriginOffset = gbufferParams.m_Normal * g_ShadowMaskConsts.m_RayStartOffset;
     
     const float2 noise = g_BlueNoise[dispatchThreadID.xy % 128].rg + g_ShadowMaskConsts.m_NoisePhase;
     float3 rayDirection = normalize(MapToCone(fmod(noise, 1), g_ShadowMaskConsts.m_DirectionalLightDirection, g_ShadowMaskConsts.m_TanSunAngularRadius));
@@ -96,7 +96,7 @@ void CS_ShadowMask(
     RayDesc rayDesc;
     rayDesc.Origin = worldPosition + rayOriginOffset;
     rayDesc.Direction = rayDirection;
-    rayDesc.TMin = 0.1f;
+    rayDesc.TMin = g_ShadowMaskConsts.m_RayStartOffset;
     rayDesc.TMax = kKindaBigNumber;
     
     // according to Nvidia:

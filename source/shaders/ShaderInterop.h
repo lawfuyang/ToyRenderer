@@ -314,6 +314,7 @@ struct ShadowMaskConsts
     float m_TanSunAngularRadius;
     Vector2U m_OutputResolution;
     uint32_t m_bDoDenoising;
+	float m_RayStartOffset;
 };
 
 struct SkyPassParameters
