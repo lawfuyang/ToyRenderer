@@ -58,7 +58,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     radianceRayDesc.TMin = 0.0f;
     radianceRayDesc.TMax = volume.probeMaxRayDistance;
     
-    const uint kRadianceRayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    const uint kRadianceRayFlags = RAY_FLAG_NONE;
     
     // TODO: take into account alpha mask & transparency
     RayQuery<kRadianceRayFlags> radianceRayQuery;
@@ -125,6 +125,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
         // direct lighting
         radiance = EvaluateDirectionalLight(rayHitGBufferParams, probeWorldPosition, rayHitWorldPosition, g_GIProbeTraceConsts.m_DirectionalLightVector);
     }
+    radiance += rayHitGBufferParams.m_Emissive;
     
     float3 irradiance = float3(0, 0, 0);
     

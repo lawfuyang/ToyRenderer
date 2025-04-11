@@ -7,8 +7,17 @@
 #define RTXGI_DDGI_BLEND_SCROLL_SHARED_MEMORY 1
 #define RTXGI_DDGI_BLEND_RAYS_PER_PROBE 256
 #define RTXGI_DDGI_WAVE_LANE_COUNT 32
-#define RTXGI_DDGI_PROBE_NUM_TEXELS 8
-#define RTXGI_DDGI_PROBE_NUM_INTERIOR_TEXELS 16
+
+static const uint32_t kNumProbeRadianceTexels = 8;
+static const uint32_t kNumProbeDistanceTexels = 16;
+
+#if RTXGI_DDGI_BLEND_RADIANCE
+    #define RTXGI_DDGI_PROBE_NUM_TEXELS kNumProbeRadianceTexels
+    #define RTXGI_DDGI_PROBE_NUM_INTERIOR_TEXELS (kNumProbeRadianceTexels - 2)
+#else
+    #define RTXGI_DDGI_PROBE_NUM_TEXELS kNumProbeDistanceTexels
+    #define RTXGI_DDGI_PROBE_NUM_INTERIOR_TEXELS (kNumProbeDistanceTexels - 2)
+#endif
 
 // Coordinate System
 // 0: RTXGI_COORDINATE_SYSTEM_LEFT

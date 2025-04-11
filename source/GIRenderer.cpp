@@ -14,6 +14,9 @@
 
 #include "shaders/ShaderInterop.h"
 
+CommandLineOption<bool> g_CVarUseDDGICornellDDGIVolumeSettings{ "UseDDGICornellDDGIVolumeSettings", false };
+CommandLineOption<bool> g_CVarUseDDGISponzaDDGIVolumeSettings{ "UseDDGISponzaDDGIVolumeSettings", false };
+
 static_assert(RTXGI_DDGI_WAVE_LANE_COUNT == kNumThreadsPerWave);
 
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
@@ -165,7 +168,6 @@ class GIRenderer : public IRenderer
 public:
     bool m_bResetProbes = true;
     Vector3 m_ProbeSpacing{ 1.0f, 1.0f, 1.0f };
-    uint32_t m_ProbeNumRays = 256;
 
     GIVolume m_GIVolume;
 
@@ -185,9 +187,6 @@ public:
     void PostSceneLoad() override
     {
         g_Scene->m_GIVolume = &m_GIVolume;
-
-        static const int kProbeNumIrradianceTexels = 8;
-        static const int kProbeNumDistanceTexels = 16;
 
         auto& controllables = g_GraphicPropertyGrid.m_GIControllables;
 
@@ -214,11 +213,11 @@ public:
         volumeDesc.eulerAngles = rtxgi::float3{ 0.0f, 0.0f, 0.0f }; // TODO: OBB?
         volumeDesc.probeSpacing = rtxgi::float3{ m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z };
         volumeDesc.probeCounts = volumeProbeCounts;
-        volumeDesc.probeNumRays = m_ProbeNumRays;
-        volumeDesc.probeNumIrradianceTexels = kProbeNumIrradianceTexels;
-        volumeDesc.probeNumIrradianceInteriorTexels = kProbeNumIrradianceTexels - 2;
-        volumeDesc.probeNumDistanceTexels = kProbeNumDistanceTexels;
-        volumeDesc.probeNumDistanceInteriorTexels = kProbeNumDistanceTexels - 2;
+        volumeDesc.probeNumRays = RTXGI_DDGI_BLEND_RAYS_PER_PROBE;
+        volumeDesc.probeNumIrradianceTexels = kNumProbeRadianceTexels;
+        volumeDesc.probeNumIrradianceInteriorTexels = kNumProbeRadianceTexels - 2;
+        volumeDesc.probeNumDistanceTexels = kNumProbeDistanceTexels;
+        volumeDesc.probeNumDistanceInteriorTexels = kNumProbeDistanceTexels - 2;
         volumeDesc.probeMaxRayDistance = g_Scene->m_BoundingSphere.Radius; // empirical shit. Just use scene BS radius
         volumeDesc.probeRelocationEnabled = true;
         volumeDesc.probeRelocationNeedsReset = true;
@@ -235,15 +234,17 @@ public:
         if (g_Scene->m_bIsSmallScene)
         {
             // sample's cornell settings:
+            volumeDesc.probeMaxRayDistance = 10.0f;
             volumeDesc.probeViewBias = 0.1f;
             volumeDesc.probeNormalBias = 0.02f;
             volumeDesc.probeMinFrontfaceDistance = 0.1f;
-            m_GIVolume.m_ProbeVariabilityThreshold = 0.03f;
+            m_GIVolume.m_ProbeVariabilityThreshold = 0.05f;
             m_GIVolume.m_DebugProbeRadius = 0.05f;
         }
         else
         {
             // sample's sponza settings:
+            volumeDesc.probeMaxRayDistance = 10000.0f;
             volumeDesc.probeViewBias = 0.3f;
             volumeDesc.probeNormalBias = 0.1f;
             volumeDesc.probeMinFrontfaceDistance = 0.3f;
@@ -251,14 +252,29 @@ public:
             m_GIVolume.m_DebugProbeRadius = 0.1f;
         }
 
+        // sample's cornell & sponza has these values
+        volumeDesc.probeIrradianceThreshold = 0.2f;
+        volumeDesc.probeBrightnessThreshold = 0.1f;
+
         // leave these values as defaults?
         volumeDesc.probeHysteresis = 0.97f;
         volumeDesc.probeDistanceExponent = 50.f;
         volumeDesc.probeIrradianceEncodingGamma = 5.f;
-        volumeDesc.probeIrradianceThreshold = 0.25f;
-        volumeDesc.probeBrightnessThreshold = 0.10f;
         volumeDesc.probeRandomRayBackfaceThreshold = 0.1f;
         volumeDesc.probeFixedRayBackfaceThreshold = 0.25f;
+
+        if (g_CVarUseDDGICornellDDGIVolumeSettings.Get())
+        {
+            volumeDesc.origin = rtxgi::float3{ 0.0f, 1.0f, 0.0f };
+            volumeDesc.probeCounts = rtxgi::int3{ 9, 9, 9 };
+            volumeDesc.probeSpacing = rtxgi::float3{ 0.3f, 0.3f, 0.3f };
+        }
+        else if (g_CVarUseDDGISponzaDDGIVolumeSettings.Get())
+        {
+            volumeDesc.origin = rtxgi::float3{ -0.4f, 5.4f, -0.25f };
+            volumeDesc.probeCounts = rtxgi::int3{ 22, 22, 22 };
+            volumeDesc.probeSpacing = rtxgi::float3{ 1.02f, 0.5f, 0.45f };
+        }
 
         m_GIVolume.Create();
     }
@@ -289,11 +305,6 @@ public:
         m_bResetProbes |= ImGui::Checkbox("Enable Probe Relocation", &m_GIVolume.GetDesc().probeRelocationEnabled);
         m_bResetProbes |= ImGui::Checkbox("Enable Probe Classification", &m_GIVolume.GetDesc().probeClassificationEnabled);
         ImGui::DragFloat3("Probe Spacing", (float*)&m_ProbeSpacing, 1.0f, 0.1f, 2.0f);
-        if (ImGui::DragInt("Probe Num Rays", (int*)&m_ProbeNumRays, 1.0f, 64, 512))
-        {
-            // force multiple of kNumThreadsPerWave
-            m_ProbeNumRays = (m_ProbeNumRays + (kNumThreadsPerWave - 1)) & ~(kNumThreadsPerWave - 1);
-        }
         ImGui::Text("Volume Variability Average: %f", m_GIVolume.GetVolumeAverageVariability());
     }
 
@@ -420,7 +431,6 @@ public:
 
         if (bIsConverged)
         {
-            // TODO: maybe instead of skipping the pass, just set num rays per probe to be 32 (RTXGI_DDGI_NUM_FIXED_RAYS)?
             return;
         }
 
