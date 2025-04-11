@@ -1,6 +1,10 @@
 #pragma once
 
 #include "toyrenderer_common.hlsli"
+
+#include "DDGIShaderConfig.h"
+#include "../Irradiance.hlsl"
+
 #include "fastmath.hlsli"
 #include "packunpack.hlsli"
 
@@ -306,4 +310,35 @@ GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs, Tex
     result.m_AlphaCutoff = materialData.m_AlphaCutoff;
     
     return result;
+}
+
+struct GetDDGIIrradianceArguments
+{
+    float3 m_WorldPosition;
+    DDGIVolumeDescGPU m_VolumeDesc;
+    GBufferParams m_GBufferParams;
+    float3 m_ViewDirection;
+    DDGIVolumeResources m_DDGIVolumeResources;
+};
+
+float3 GetDDGIIrradiance(GetDDGIIrradianceArguments args)
+{
+    float3 worldPosition = args.m_WorldPosition;
+    DDGIVolumeDescGPU volumeDesc = args.m_VolumeDesc;
+    GBufferParams gbufferParams = args.m_GBufferParams;
+    float3 viewDirection = args.m_ViewDirection;
+    DDGIVolumeResources volumeResources = args.m_DDGIVolumeResources;
+    
+    float3 irradiance = float3(0, 0, 0);
+    
+    float volumeBlendWeight = DDGIGetVolumeBlendWeight(worldPosition, volumeDesc);
+    if (volumeBlendWeight > 0.0f)
+    {
+        float3 surfaceBias = DDGIGetSurfaceBias(gbufferParams.m_Normal, viewDirection, volumeDesc);
+    
+        irradiance = Diffuse_Lambert(gbufferParams.m_Albedo.rgb) * DDGIGetVolumeIrradiance(worldPosition, surfaceBias, gbufferParams.m_Normal, volumeDesc, volumeResources);
+        irradiance *= volumeBlendWeight;
+    }
+    
+    return irradiance;
 }

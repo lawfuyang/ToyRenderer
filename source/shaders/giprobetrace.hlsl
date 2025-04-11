@@ -1,11 +1,5 @@
 #include "toyrenderer_common.hlsli"
 
-#include "DDGIShaderConfig.h"
-#include "ProbeCommon.hlsl"
-#include "DDGIRootConstants.hlsl"
-#include "rtxgi/ddgi/DDGIVolumeDescGPU.h"
-#include "../Irradiance.hlsl"
-
 #include "lightingcommon.hlsli"
 #include "raytracingcommon.hlsli"
 #include "ShaderInterop.h"
@@ -110,7 +104,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     shadowRayDesc.Origin = probeWorldPosition;
     shadowRayDesc.Direction = g_GIProbeTraceConsts.m_DirectionalLightVector;
     shadowRayDesc.TMin = 0.0f;
-    shadowRayDesc.TMax = volume.probeMaxRayDistance;
+    shadowRayDesc.TMax = kKindaBigNumber;
     
     const uint kShadowRayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
     
@@ -127,23 +121,21 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     }
     radiance += rayHitGBufferParams.m_Emissive;
     
-    float3 irradiance = float3(0, 0, 0);
+    DDGIVolumeResources volumeResources;
+    volumeResources.probeIrradiance = g_ProbeIrradiance;
+    volumeResources.probeDistance = g_ProbeDistance;
+    volumeResources.probeData = g_ProbeData;
+    volumeResources.bilinearSampler = g_LinearWrapSampler;
     
-    float volumeBlendWeight = DDGIGetVolumeBlendWeight(rayHitWorldPosition, volume);
-    if (volumeBlendWeight > 0.0f)
-    {
-        float3 surfaceBias = DDGIGetSurfaceBias(rayHitGBufferParams.m_Normal, radianceRayDesc.Direction, volume);
+    GetDDGIIrradianceArguments irradianceArgs;
+    irradianceArgs.m_WorldPosition = rayHitWorldPosition;
+    irradianceArgs.m_VolumeDesc = volume;
+    irradianceArgs.m_GBufferParams = rayHitGBufferParams;
+    irradianceArgs.m_ViewDirection = radianceRayDesc.Direction;
+    irradianceArgs.m_DDGIVolumeResources = volumeResources;
     
-        DDGIVolumeResources volumeResources;
-        volumeResources.probeIrradiance = g_ProbeIrradiance;
-        volumeResources.probeDistance = g_ProbeDistance;
-        volumeResources.probeData = g_ProbeData;
-        volumeResources.bilinearSampler = g_LinearWrapSampler;
-    
-        // Indirect Lighting (recursive)
-        irradiance = DDGIGetVolumeIrradiance(rayHitWorldPosition, surfaceBias, rayHitGBufferParams.m_Normal, volume, volumeResources);
-        irradiance *= volumeBlendWeight;
-    }
+    // Indirect Lighting (recursive)
+    float3 irradiance = GetDDGIIrradiance(irradianceArgs);
     
     // Perfectly diffuse reflectors don't exist in the real world.
     // Limit the BRDF albedo to a maximum value to account for the energy loss at each bounce.

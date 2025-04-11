@@ -1,8 +1,5 @@
 #include "toyrenderer_common.hlsli"
 
-#include "DDGIShaderConfig.h"
-#include "../Irradiance.hlsl"
-
 #include "shadowfiltering.hlsl"
 #include "lightingcommon.hlsli"
 #include "random.hlsli"
@@ -48,23 +45,20 @@ void PS_Main(
     uint volumeIndex = 0;
     DDGIVolumeDescGPU DDGIVolumeDesc = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
     
-    float3 irradiance = float3(0, 0, 0);
+    DDGIVolumeResources volumeResources;
+    volumeResources.probeIrradiance = g_ProbeIrradiance;
+    volumeResources.probeDistance = g_ProbeDistance;
+    volumeResources.probeData = g_ProbeData;
+    volumeResources.bilinearSampler = g_LinearWrapSampler;
     
-    float volumeBlendWeight = DDGIGetVolumeBlendWeight(worldPosition, DDGIVolumeDesc);
-    if (volumeBlendWeight > 0.0f)
-    {
-        float3 cameraDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
-        float3 surfaceBias = DDGIGetSurfaceBias(gbufferParams.m_Normal, cameraDirection, DDGIVolumeDesc);
+    GetDDGIIrradianceArguments irradianceArgs;
+    irradianceArgs.m_WorldPosition = worldPosition;
+    irradianceArgs.m_VolumeDesc = DDGIVolumeDesc;
+    irradianceArgs.m_GBufferParams = gbufferParams;
+    irradianceArgs.m_ViewDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
+    irradianceArgs.m_DDGIVolumeResources = volumeResources;
     
-        DDGIVolumeResources volumeResources;
-        volumeResources.probeIrradiance = g_ProbeIrradiance;
-        volumeResources.probeDistance = g_ProbeDistance;
-        volumeResources.probeData = g_ProbeData;
-        volumeResources.bilinearSampler = g_LinearWrapSampler;
-    
-        irradiance = Diffuse_Lambert(gbufferParams.m_Albedo.rgb) * DDGIGetVolumeIrradiance(worldPosition, surfaceBias, gbufferParams.m_Normal, DDGIVolumeDesc, volumeResources);
-        irradiance *= volumeBlendWeight;
-    }
+    float3 irradiance = GetDDGIIrradiance(irradianceArgs);
     
     if (g_DeferredLightingConsts.m_SSAOEnabled)
     {
@@ -83,6 +77,8 @@ void PS_Main_Debug(
 {
     GBufferParams gbufferParams;
     UnpackGBuffer(g_GBufferA[inPosition.xy], g_GBufferMotion[inPosition.xy], gbufferParams);
+    
+    float3 worldPosition = ScreenUVToWorldPosition(inUV, g_DepthBuffer[inPosition.xy].x, g_DeferredLightingConsts.m_ClipToWorld);
     
     float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, inUV, 0).r;
     shadowFactor = max(0.05f, shadowFactor); // Prevent the shadow factor from being too low to avoid outputting pure black pixels
@@ -128,8 +124,24 @@ void PS_Main_Debug(
     }
     else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_Ambient)
     {
-        // TODO: DDGI
-        rgb = Diffuse_Lambert(gbufferParams.m_Albedo.rgb);
+        // TODO: multiple volumes
+        uint volumeIndex = 0;
+        DDGIVolumeDescGPU DDGIVolumeDesc = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
+    
+        DDGIVolumeResources volumeResources;
+        volumeResources.probeIrradiance = g_ProbeIrradiance;
+        volumeResources.probeDistance = g_ProbeDistance;
+        volumeResources.probeData = g_ProbeData;
+        volumeResources.bilinearSampler = g_LinearWrapSampler;
+    
+        GetDDGIIrradianceArguments irradianceArgs;
+        irradianceArgs.m_WorldPosition = worldPosition;
+        irradianceArgs.m_VolumeDesc = DDGIVolumeDesc;
+        irradianceArgs.m_GBufferParams = gbufferParams;
+        irradianceArgs.m_ViewDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
+        irradianceArgs.m_DDGIVolumeResources = volumeResources;
+        
+        rgb = GetDDGIIrradiance(irradianceArgs);
     }
     else if (g_DeferredLightingConsts.m_DebugMode == kDeferredLightingDebugMode_ShadowMask)
     {

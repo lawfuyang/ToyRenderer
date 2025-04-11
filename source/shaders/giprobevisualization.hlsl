@@ -1,11 +1,6 @@
 #include "toyrenderer_common.hlsli"
 
-#include "DDGIShaderConfig.h"
-#include "ProbeCommon.hlsl"
-#include "DDGIRootConstants.hlsl"
-#include "rtxgi/ddgi/DDGIVolumeDescGPU.h"
-#include "../Irradiance.hlsl"
-
+#include "lightingcommon.hlsli"
 #include "culling.hlsli"
 #include "ShaderInterop.h"
 

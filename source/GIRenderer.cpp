@@ -18,6 +18,7 @@ CommandLineOption<bool> g_CVarUseDDGICornellDDGIVolumeSettings{ "UseDDGICornellD
 CommandLineOption<bool> g_CVarUseDDGISponzaDDGIVolumeSettings{ "UseDDGISponzaDDGIVolumeSettings", false };
 
 static_assert(RTXGI_DDGI_WAVE_LANE_COUNT == kNumThreadsPerWave);
+static_assert(RTXGI_DDGI_BLEND_RAYS_PER_PROBE % kNumThreadsPerWave == 0);
 
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
