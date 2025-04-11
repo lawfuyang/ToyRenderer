@@ -146,6 +146,6 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     const float kMaxAlbedo = 0.9f;
     
     // Store the final ray radiance and hit distance
-    radiance += Diffuse_Lambert(min(rayHitGBufferParams.m_Albedo.rgb, float3(kMaxAlbedo, kMaxAlbedo, kMaxAlbedo)) * irradiance);
-    DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, saturate(radiance), radianceRayQuery.CommittedRayT());
+    radiance += Diffuse_Lambert(min(rayHitGBufferParams.m_Albedo.rgb, float3(kMaxAlbedo, kMaxAlbedo, kMaxAlbedo))) * irradiance;
+    DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, radiance, radianceRayQuery.CommittedRayT());
 }
