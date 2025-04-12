@@ -49,6 +49,8 @@ public:
 			renderGraph.AddReadDependency(g_ShadowMaskRDGTextureHandle);
 		}
 
+		assert(g_Scene->m_GIVolume);
+
 		return true;
     }
 

@@ -34,7 +34,7 @@ const rtxgi::EDDGIVolumeTextureFormat kProbeTextureFormats[(int)rtxgi::EDDGIVolu
     EDDGIVolumeTextureFormat::F16x2, // Note: in large environments FP16 may not be sufficient
     EDDGIVolumeTextureFormat::F16x4,
     EDDGIVolumeTextureFormat::F16,
-    EDDGIVolumeTextureFormat::F16,
+    EDDGIVolumeTextureFormat::F32x2,
 };
 
 static const nvrhi::Format kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::Count] =
@@ -44,7 +44,7 @@ static const nvrhi::Format kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeText
     nvrhi::Format::RG16_FLOAT, // Note: in large environments FP16 may not be sufficient
     nvrhi::Format::RGBA16_FLOAT,
     nvrhi::Format::R16_FLOAT,
-    nvrhi::Format::R16_FLOAT,
+    nvrhi::Format::RG32_FLOAT,
 };
 
 // dont bother with using rtxgi::d3d12::DDGIVolume. We handle all resources internally. Just re-use their logic.
@@ -318,7 +318,7 @@ public:
             return false;
         }
 
-        if (!m_GIVolume.m_ProbeRayData)
+        if (!g_Scene->m_GIVolume)
         {
             return false;
         }
@@ -422,8 +422,6 @@ public:
 
         m_GIVolume.Update();
 
-        ReadbackDDGIVolumeVariability(commandList, renderGraph);
-
         const uint32_t kMinimumVariabilitySamples = 16;
         const float volumeAverageVariability = m_GIVolume.GetVolumeAverageVariability();
         const bool bIsConverged = m_GIVolume.GetProbeVariabilityEnabled()
@@ -432,6 +430,7 @@ public:
 
         if (bIsConverged)
         {
+            // TODO: run a "cheap" trace & blend pass, but without relocation & classification, to get the average variability once converged
             return;
         }
 
@@ -453,6 +452,7 @@ public:
             nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendDistanceOutputRegister, m_GIVolume.m_ProbeDistance),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeDataRegister, m_GIVolume.m_ProbeData),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeVariabilityRegister, m_GIVolume.m_ProbeVariability),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeVariabilityAverageRegister, m_GIVolume.m_ProbeVariabilityAverage),
         };
 
         UINT probeCountX, probeCountY, probeCountZ;
@@ -470,22 +470,26 @@ public:
         computePassParams.m_ShaderName = "ProbeBlendingCS_DDGIProbeBlendingCS RTXGI_DDGI_BLEND_RADIANCE=0";
         g_Graphic.AddComputePass(computePassParams);
 
-        computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_GIVolume.GetNumProbes(), 32);
+        const Vector3U relocationAndClassificationGroupSize = ComputeShaderUtils::GetGroupCount(m_GIVolume.GetNumProbes(), 32);
 
         if (m_GIVolume.GetProbeRelocationEnabled())
         {
             computePassParams.m_ShaderName = "ProbeRelocationCS_DDGIProbeRelocationCS";
+            computePassParams.m_DispatchGroupSize = relocationAndClassificationGroupSize;
             g_Graphic.AddComputePass(computePassParams);
         }
 
         if (m_GIVolume.GetProbeClassificationEnabled())
         {
             computePassParams.m_ShaderName = "ProbeClassificationCS_DDGIProbeClassificationCS";
+            computePassParams.m_DispatchGroupSize = relocationAndClassificationGroupSize;
             g_Graphic.AddComputePass(computePassParams);
         }
 
         if (m_GIVolume.GetProbeVariabilityEnabled())
         {
+            ReadbackDDGIVolumeVariability(commandList, renderGraph);
+
             const Vector3U kNumThreadsInGroup = { 4, 8, 4 }; // Each thread group will have 8x8x8 threads
             const Vector2U kThreadSampleFootprint = { 4, 2 }; // Each thread will sample 4x2 texels
 
@@ -494,10 +498,31 @@ public:
             uint32_t inputTexelsY = probeCountY * m_GIVolume.GetDesc().probeNumIrradianceInteriorTexels;
             uint32_t inputTexelsZ = probeCountZ;
 
-            // One thread group per output texel
-            uint32_t outputTexelsX = (uint32_t)ceil((float)inputTexelsX / (kNumThreadsInGroup.x * kThreadSampleFootprint.x));
-            uint32_t outputTexelsY = (uint32_t)ceil((float)inputTexelsY / (kNumThreadsInGroup.y * kThreadSampleFootprint.y));
-            uint32_t outputTexelsZ = (uint32_t)ceil((float)inputTexelsZ / kNumThreadsInGroup.z);
+            bool bIsFirstPass = true;
+            while (inputTexelsX > 1 || inputTexelsY > 1 || inputTexelsZ > 1)
+            {
+                // One thread group per output texel
+                const uint32_t outputTexelsX = (uint32_t)ceil((float)inputTexelsX / (kNumThreadsInGroup.x * kThreadSampleFootprint.x));
+                const uint32_t outputTexelsY = (uint32_t)ceil((float)inputTexelsY / (kNumThreadsInGroup.y * kThreadSampleFootprint.y));
+                const uint32_t outputTexelsZ = (uint32_t)ceil((float)inputTexelsZ / kNumThreadsInGroup.z);
+
+                rootConsts.reductionInputSizeX = inputTexelsX;
+                rootConsts.reductionInputSizeY = inputTexelsY;
+                rootConsts.reductionInputSizeZ = inputTexelsZ;
+
+                computePassParams.m_ShaderName = bIsFirstPass ? "ReductionCS_DDGIReductionCS" : "ReductionCS_DDGIExtraReductionCS";
+                computePassParams.m_DispatchGroupSize = Vector3U{ outputTexelsX, outputTexelsY, outputTexelsZ };
+                g_Graphic.AddComputePass(computePassParams);
+
+                // Each thread group will write out a value to the averaging texture
+                // If there is more than one thread group, we will need to do extra averaging passes
+                inputTexelsX = outputTexelsX;
+                inputTexelsY = outputTexelsY;
+                inputTexelsZ = outputTexelsZ;
+
+                // Extra reduction passes average values in variability texture down to single value
+                bIsFirstPass = false;
+            }
         }
     }
 };
