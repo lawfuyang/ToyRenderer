@@ -1280,9 +1280,6 @@ std::pair<const void*, size_t> Graphic::FindShaderFromHashForAftermath(uint64_t 
 }
 #endif // NVRHI_WITH_AFTERMATH
 
-uint32_t FencedReadbackBuffer::GetWriteIndex() { return g_Graphic.m_FrameCounter % kNbBuffers; }
-uint32_t FencedReadbackBuffer::GetReadIndex() { return (g_Graphic.m_FrameCounter + 1) % kNbBuffers; }
-
 void FencedReadbackBuffer::Initialize(uint32_t bufferSize)
 {
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
@@ -1297,14 +1294,14 @@ void FencedReadbackBuffer::Initialize(uint32_t bufferSize)
     desc.cpuAccess = nvrhi::CpuAccessMode::Read;
     desc.debugName = "FencedReadbackBuffer";
 
-    for (uint32_t i = 0; i < kNbBuffers; ++i)
+    for (uint32_t i = 0; i < kNbResources; ++i)
     {
         m_Buffers[i] = device->createBuffer(desc);
         m_EventQueries[i] = device->createEventQuery();
     }
 }
 
-void FencedReadbackBuffer::CopyTo(nvrhi::CommandListHandle commandList, nvrhi::BufferHandle bufferSource, nvrhi::CommandQueue queue)
+void FencedReadbackBuffer::CopyTo(nvrhi::CommandListHandle commandList, nvrhi::BufferHandle bufferSource)
 {
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
@@ -1315,12 +1312,11 @@ void FencedReadbackBuffer::CopyTo(nvrhi::CommandListHandle commandList, nvrhi::B
     commandList->copyBuffer(m_Buffers[writeIndex], 0, bufferSource, 0, m_BufferSize);
 
     device->resetEventQuery(m_EventQueries[writeIndex]);
-    device->setEventQuery(m_EventQueries[writeIndex], queue);
+    device->setEventQuery(m_EventQueries[writeIndex], nvrhi::CommandQueue::Graphics); // TODO: other queues
 }
 
 void FencedReadbackBuffer::Read(void* outPtr)
 {
-
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
     assert(m_BufferSize > 0);
 
@@ -1331,5 +1327,55 @@ void FencedReadbackBuffer::Read(void* outPtr)
         void* mappedPtr = device->mapBuffer(m_Buffers[readIndex], nvrhi::CpuAccessMode::Read);
         memcpy(outPtr, mappedPtr, m_BufferSize);
         device->unmapBuffer(m_Buffers[readIndex]);
+    }
+}
+
+void FencedReadbackTexture::Initialize(nvrhi::Format format)
+{
+    // TODO: support more than 1x1x1 staging texture
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+    nvrhi::TextureDesc desc;
+    desc.format = format;
+    desc.debugName = "FencedReadbackTexture";
+    desc.initialState = nvrhi::ResourceStates::CopyDest;
+
+    for (uint32_t i = 0; i < kNbResources; ++i)
+    {
+        m_StagingTexture[i] = device->createStagingTexture(desc, nvrhi::CpuAccessMode::Read);
+        m_EventQueries[i] = device->createEventQuery();
+    }
+}
+
+void FencedReadbackTexture::CopyTo(nvrhi::CommandListHandle commandList, nvrhi::TextureHandle textureSource)
+{
+    // TODO: support texture slice aside from 1st 1x1x1
+    static const nvrhi::TextureSlice kSrcSlice{ 0, 0, 0, 1, 1, 1 };
+    static const nvrhi::TextureSlice kDestSlice{ 0, 0, 0, 1, 1, 1 };
+
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+    const uint32_t writeIndex = GetWriteIndex();
+    commandList->copyTexture(m_StagingTexture[writeIndex], kDestSlice, textureSource, kSrcSlice);
+
+    device->resetEventQuery(m_EventQueries[writeIndex]);
+    device->setEventQuery(m_EventQueries[writeIndex], nvrhi::CommandQueue::Graphics); // TODO: other queues
+}
+
+void FencedReadbackTexture::Read(void* outPtr)
+{
+    // TODO: support texture slice aside from 1st 1x1x1
+    static const nvrhi::TextureSlice kReadbackSlice{ 0, 0, 0, 1, 1, 1 };
+
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+    const uint32_t readIndex = GetReadIndex();
+
+    if (device->pollEventQuery(m_EventQueries[readIndex]))
+    {
+        const uint32_t readbackBytes = nvrhi::getFormatInfo(m_StagingTexture[readIndex]->getDesc().format).bytesPerBlock;
+
+        size_t rowPitch = 0;
+        void* mappedPtr = device->mapStagingTexture(m_StagingTexture[readIndex], kReadbackSlice, nvrhi::CpuAccessMode::Read, &rowPitch);
+        memcpy(outPtr, mappedPtr, readbackBytes);
+        device->unmapStagingTexture(m_StagingTexture[readIndex]);
     }
 }

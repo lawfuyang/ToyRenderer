@@ -83,7 +83,7 @@ public:
         CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Variability);
         CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::VariabilityAverage);
 
-        m_ProbeVariabilityReadback.Initialize(sizeof(float));
+        m_ProbeVariabilityReadback.Initialize(kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::VariabilityAverage]);
 
         // Store the volume rotation
         m_rotationMatrix = EulerAnglesToRotationMatrix(m_desc.eulerAngles);
@@ -100,8 +100,8 @@ public:
     void Destroy() override {}
 
     rtxgi::DDGIVolumeDesc& GetDesc() { return m_desc; }
-
     uint32_t GetNumProbes() const { return m_desc.probeCounts.x * m_desc.probeCounts.y * m_desc.probeCounts.z; }
+    void SetVariability(float v) { m_averageVariability = v; }
 
     nvrhi::TextureHandle m_ProbeRayData;            // Probe ray data texture array - RGB: radiance | A: hit distance
     nvrhi::TextureHandle m_ProbeIrradiance;         // Probe irradiance texture array - RGB irradiance, encoded with a high gamma curve
@@ -109,7 +109,7 @@ public:
     nvrhi::TextureHandle m_ProbeData;               // Probe data texture array - XYZ: world-space relocation offsets | W: classification state
     nvrhi::TextureHandle m_ProbeVariability;        // Probe variability texture array
     nvrhi::TextureHandle m_ProbeVariabilityAverage; // Average of Probe variability for whole volume
-    FencedReadbackBuffer m_ProbeVariabilityReadback; // CPU-readable resource containing final Probe variability average
+    FencedReadbackTexture m_ProbeVariabilityReadback; // CPU-readable resource containing final Probe variability average
 
     uint32_t m_NumVolumeVariabilitySamples = 0;
     float m_DebugProbeRadius = 0.1f;
@@ -357,14 +357,6 @@ public:
         g_Graphic.AddComputePass(computePassParams);
     }
 
-    void ReadbackDDGIVolumeVariability(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
-    {
-        PROFILE_GPU_SCOPED(commandList, __FUNCTION__);
-
-        // TODO
-        // m_GIVolume.SetVolumeAverageVariability();
-    }
-
     void TraceProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
         PROFILE_GPU_SCOPED(commandList, __FUNCTION__);
@@ -431,7 +423,7 @@ public:
         if (bIsConverged)
         {
             // TODO: run a "cheap" trace & blend pass, but without relocation & classification, to get the average variability once converged
-            return;
+            //return;
         }
 
         const rtxgi::DDGIVolumeDescGPUPacked volumeDescGPU = m_GIVolume.GetDescGPUPacked();
@@ -488,7 +480,9 @@ public:
 
         if (m_GIVolume.GetProbeVariabilityEnabled())
         {
-            ReadbackDDGIVolumeVariability(commandList, renderGraph);
+            Vector2 variabilityReadback;
+            m_GIVolume.m_ProbeVariabilityReadback.Read(&variabilityReadback);
+            m_GIVolume.SetVariability(variabilityReadback.x);
 
             const Vector3U kNumThreadsInGroup = { 4, 8, 4 }; // Each thread group will have 8x8x8 threads
             const Vector2U kThreadSampleFootprint = { 4, 2 }; // Each thread will sample 4x2 texels
@@ -523,6 +517,8 @@ public:
                 // Extra reduction passes average values in variability texture down to single value
                 bIsFirstPass = false;
             }
+
+            m_GIVolume.m_ProbeVariabilityReadback.CopyTo(commandList, m_GIVolume.m_ProbeVariabilityAverage);
         }
     }
 };

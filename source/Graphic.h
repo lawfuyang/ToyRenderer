@@ -84,7 +84,7 @@ public:
         return buffer;
     }
 
-    [[nodiscard]]  nvrhi::CommandListHandle AllocateCommandList(nvrhi::CommandQueue queueType = nvrhi::CommandQueue::Graphics);
+    [[nodiscard]] nvrhi::CommandListHandle AllocateCommandList(nvrhi::CommandQueue queueType = nvrhi::CommandQueue::Graphics);
     void FreeCommandList(nvrhi::CommandListHandle cmdList);
     void BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_view name);
     void EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist);
@@ -186,21 +186,38 @@ private:
 };
 #define g_Graphic Graphic::GetInstance()
 
-class FencedReadbackBuffer
+class FencedReadbackResource
 {
 public:
-    static const uint32_t kNbBuffers = 3;
+    static const uint32_t kNbResources = 2;
 
-    static uint32_t GetWriteIndex();
-    static uint32_t GetReadIndex();
+    static uint32_t GetWriteIndex() { return g_Graphic.m_FrameCounter % kNbResources; }
+    static uint32_t GetReadIndex() { return (g_Graphic.m_FrameCounter + 1) % kNbResources; }
 
+    virtual void Read(void* ptr) = 0;
+
+    nvrhi::EventQueryHandle m_EventQueries[kNbResources];
+};
+
+class FencedReadbackBuffer : public FencedReadbackResource
+{
+public:
     void Initialize(uint32_t bufferSize);
-    void CopyTo(nvrhi::CommandListHandle commandList, nvrhi::BufferHandle bufferSource, nvrhi::CommandQueue queue = nvrhi::CommandQueue::Graphics);
-    void Read(void* outPtr);
+    void CopyTo(nvrhi::CommandListHandle commandList, nvrhi::BufferHandle bufferSource);
+    void Read(void* outPtr) override;
 
     uint32_t m_BufferSize = 0;
-    nvrhi::BufferHandle m_Buffers[kNbBuffers];
-    nvrhi::EventQueryHandle m_EventQueries[kNbBuffers];
+    nvrhi::BufferHandle m_Buffers[kNbResources];
+};
+
+class FencedReadbackTexture : public FencedReadbackResource
+{
+public:
+    void Initialize(nvrhi::Format format);
+    void CopyTo(nvrhi::CommandListHandle commandList, nvrhi::TextureHandle textureSource);
+    void Read(void* outPtr) override;
+
+    nvrhi::StagingTextureHandle m_StagingTexture[kNbResources];
 };
 
 class IRenderer
