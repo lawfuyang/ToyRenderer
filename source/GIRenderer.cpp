@@ -100,7 +100,7 @@ public:
     void Destroy() override {}
 
     rtxgi::DDGIVolumeDesc& GetDesc() { return m_desc; }
-    uint32_t GetNumProbes() const { return GetNumProbes(); }
+    uint32_t GetNumProbes() const { return rtxgi::DDGIVolumeBase::GetNumProbes(); }
     void SetVariability(float v) { m_averageVariability = v; }
 
     nvrhi::TextureHandle m_ProbeRayData;            // Probe ray data texture array - RGB: radiance | A: hit distance
