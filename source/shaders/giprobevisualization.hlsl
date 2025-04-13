@@ -40,12 +40,6 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
     float3 probeViewSpacePosition = mul(float4(probeWorldPosition, 1.0f), g_GIProbeVisualizationUpdateConsts.m_WorldToView).xyz;
     probeViewSpacePosition.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
-    // debug probes that are too far can't be seen properly anyway
-    if (length(probeViewSpacePosition) > g_GIProbeVisualizationUpdateConsts.m_MaxDebugProbeDistance)
-    {
-        return;
-    }
-    
     if (!FrustumCull(probeViewSpacePosition, g_GIProbeVisualizationUpdateConsts.m_ProbeRadius, g_GIProbeVisualizationUpdateConsts.m_Frustum))
     {
         return;

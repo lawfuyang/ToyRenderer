@@ -23,10 +23,6 @@ static_assert(RTXGI_DDGI_BLEND_RAYS_PER_PROBE % kNumThreadsPerWave == 0);
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 
-static bool gs_bShowDebugProbes = false;
-static bool gs_bHideInactiveDebugProbes = true;
-static float gs_MaxDebugProbeDistance = 10.0f;
-
 const rtxgi::EDDGIVolumeTextureFormat kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Count] =
 {
     EDDGIVolumeTextureFormat::F32x2,
@@ -231,7 +227,7 @@ public:
         volumeDesc.probeDataFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Data];               // not used in RTXGI Shaders, but init anyway
         volumeDesc.probeVariabilityFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Variability]; // not used in RTXGI Shaders, but init anyway
         volumeDesc.movementType = rtxgi::EDDGIVolumeMovementType::Default;
-        volumeDesc.probeVisType = rtxgi::EDDGIVolumeProbeVisType::Default;
+        volumeDesc.probeVisType = rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
         
         if (g_Scene->m_bIsSmallScene)
         {
@@ -292,18 +288,17 @@ public:
             return;
         }
 
-        ImGui::Checkbox("Show Debug Probes", &gs_bShowDebugProbes);
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
 
-        if (gs_bShowDebugProbes)
+        ImGui::Checkbox("Show Debug Probes", &volumeDesc.showProbes);
+
+        if (volumeDesc.showProbes)
         {
             ImGui::Indent();
-            ImGui::Checkbox("Hide Inactive Probes", &gs_bHideInactiveDebugProbes);
-            ImGui::DragFloat("Max Debug Probe Distance", &gs_MaxDebugProbeDistance, 1.0f, 10.0f, 1000.0f);
+            ImGui::Checkbox("Hide Inactive Probes", (bool*)&volumeDesc.probeVisType);
             ImGui::DragFloat("Probe Radius", &m_GIVolume.m_DebugProbeRadius, 0.01f, 0.05f, 0.2f, "%.2f");
             ImGui::Unindent();
         }
-
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
 
         m_bResetProbes = ImGui::Button("Reset Probes");
         volumeDesc.probeRelocationNeedsReset = ImGui::Button("Reset Relocation");
@@ -355,18 +350,18 @@ public:
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
-        computePassParams.m_ShaderName = "ProbeRelocationCS_DDGIProbeRelocationResetCS";
         computePassParams.m_BindingSetDesc = bindingSetDesc;
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_GIVolume.GetNumProbes(), 32);
         computePassParams.m_PushConstantsData = &rootConsts;
         computePassParams.m_PushConstantsBytes = sizeof(rootConsts);
 
-        if (volumeDesc.probeRelocationNeedsReset)
+        if (volumeDesc.probeRelocationEnabled && volumeDesc.probeRelocationNeedsReset)
         {
+            computePassParams.m_ShaderName = "ProbeRelocationCS_DDGIProbeRelocationResetCS";
             g_Graphic.AddComputePass(computePassParams);
         }
 
-        if (volumeDesc.probeClassificationNeedsReset)
+        if (volumeDesc.probeClassificationEnabled && volumeDesc.probeClassificationNeedsReset)
         {
             computePassParams.m_ShaderName = "ProbeClassificationCS_DDGIProbeClassificationResetCS";
             g_Graphic.AddComputePass(computePassParams);
@@ -428,8 +423,9 @@ public:
 
         m_GIVolume.Update();
 
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
+
         const uint32_t kMinimumVariabilitySamples = 16;
-        const float volumeAverageVariability = m_GIVolume.GetVolumeAverageVariability();
         const bool bIsConverged = m_GIVolume.GetProbeVariabilityEnabled()
             && (m_GIVolume.m_NumVolumeVariabilitySamples++ > kMinimumVariabilitySamples)
             && (m_GIVolume.GetVolumeAverageVariability() < m_GIVolume.m_ProbeVariabilityThreshold);
@@ -444,8 +440,6 @@ public:
         commandList->writeBuffer(g_Scene->m_GIVolumeDescsBuffer, &volumeDescGPU, sizeof(rtxgi::DDGIVolumeDescGPUPacked));
 
         TraceProbes(commandList, renderGraph);
-
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
 
         // TODO: multiple volumes
         DDGIRootConstants rootConsts{ volumeDesc.index, 0, 0 };
@@ -560,7 +554,8 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        if (!gs_bShowDebugProbes)
+        const rtxgi::DDGIVolumeDesc& volumeDesc = gs_GIRenderer.m_GIVolume.GetDesc();
+        if (!volumeDesc.showProbes)
         {
             return false;
         }
@@ -634,9 +629,8 @@ public:
             passParameters.m_P00 = g_Scene->m_View.m_ViewToClip.m[0][0];
             passParameters.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
             passParameters.m_NearPlane = g_Scene->m_View.m_ZNearP;
-			passParameters.m_MaxDebugProbeDistance = gs_MaxDebugProbeDistance;
 			passParameters.m_ProbeRadius = gs_GIRenderer.m_GIVolume.m_DebugProbeRadius;
-            passParameters.m_bHideInactiveProbes = gs_bHideInactiveDebugProbes;
+            passParameters.m_bHideInactiveProbes = gs_GIRenderer.m_GIVolume.GetProbeVisType() == rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
 
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =
