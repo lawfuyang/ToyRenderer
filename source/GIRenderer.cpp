@@ -305,8 +305,8 @@ public:
         volumeDesc.probeClassificationNeedsReset = ImGui::Button("Reset Classification");
         volumeDesc.probeRelocationNeedsReset |= ImGui::Checkbox("Enable Probe Relocation", &volumeDesc.probeRelocationEnabled);
         volumeDesc.probeClassificationNeedsReset |= ImGui::Checkbox("Enable Probe Classification", &volumeDesc.probeClassificationEnabled);
-        ImGui::DragFloat3("Probe Spacing", (float*)&m_ProbeSpacing, 1.0f, 0.1f, 2.0f);
-        ImGui::Text("Volume Variability Average: %f", m_GIVolume.GetVolumeAverageVariability());
+        ImGui::Text("Probe Spacing: [%.1f, %.1f, %.1f]", m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z); // TODO: run-time probe spacing change
+        ImGui::Text("Volume Variability Average: [%.3f]", m_GIVolume.GetVolumeAverageVariability());
     }
 
     bool Setup(RenderGraph& renderGraph) override
