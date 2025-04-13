@@ -100,7 +100,7 @@ public:
     void Destroy() override {}
 
     rtxgi::DDGIVolumeDesc& GetDesc() { return m_desc; }
-    uint32_t GetNumProbes() const { return m_desc.probeCounts.x * m_desc.probeCounts.y * m_desc.probeCounts.z; }
+    uint32_t GetNumProbes() const { return GetNumProbes(); }
     void SetVariability(float v) { m_averageVariability = v; }
 
     nvrhi::TextureHandle m_ProbeRayData;            // Probe ray data texture array - RGB: radiance | A: hit distance
@@ -223,6 +223,7 @@ public:
         volumeDesc.probeRelocationEnabled = true;
         volumeDesc.probeRelocationNeedsReset = true;
         volumeDesc.probeClassificationEnabled = true;
+        volumeDesc.probeClassificationNeedsReset = true;
         volumeDesc.probeVariabilityEnabled = true;
         volumeDesc.probeRayDataFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::RayData];
         volumeDesc.probeIrradianceFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Irradiance];
@@ -235,17 +236,15 @@ public:
         if (g_Scene->m_bIsSmallScene)
         {
             // sample's cornell settings:
-            volumeDesc.probeMaxRayDistance = 10.0f;
             volumeDesc.probeViewBias = 0.1f;
             volumeDesc.probeNormalBias = 0.02f;
             volumeDesc.probeMinFrontfaceDistance = 0.1f;
-            m_GIVolume.m_ProbeVariabilityThreshold = 0.05f;
+            m_GIVolume.m_ProbeVariabilityThreshold = 0.1f;
             m_GIVolume.m_DebugProbeRadius = 0.05f;
         }
         else
         {
             // sample's sponza settings:
-            volumeDesc.probeMaxRayDistance = 10000.0f;
             volumeDesc.probeViewBias = 0.3f;
             volumeDesc.probeNormalBias = 0.1f;
             volumeDesc.probeMinFrontfaceDistance = 0.3f;
@@ -269,12 +268,14 @@ public:
             volumeDesc.origin = rtxgi::float3{ 0.0f, 1.0f, 0.0f };
             volumeDesc.probeCounts = rtxgi::int3{ 9, 9, 9 };
             volumeDesc.probeSpacing = rtxgi::float3{ 0.3f, 0.3f, 0.3f };
+            volumeDesc.probeMaxRayDistance = 10.0f;
         }
         else if (g_CVarUseDDGISponzaDDGIVolumeSettings.Get())
         {
             volumeDesc.origin = rtxgi::float3{ -0.4f, 5.4f, -0.25f };
             volumeDesc.probeCounts = rtxgi::int3{ 22, 22, 22 };
             volumeDesc.probeSpacing = rtxgi::float3{ 1.02f, 0.5f, 0.45f };
+            volumeDesc.probeMaxRayDistance = 10000.0f;
         }
 
         m_GIVolume.Create();
@@ -302,9 +303,13 @@ public:
             ImGui::Unindent();
         }
 
-        m_bResetProbes |= ImGui::Button("Reset Probes");
-        m_bResetProbes |= ImGui::Checkbox("Enable Probe Relocation", &m_GIVolume.GetDesc().probeRelocationEnabled);
-        m_bResetProbes |= ImGui::Checkbox("Enable Probe Classification", &m_GIVolume.GetDesc().probeClassificationEnabled);
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
+
+        m_bResetProbes = ImGui::Button("Reset Probes");
+        volumeDesc.probeRelocationNeedsReset = ImGui::Button("Reset Relocation");
+        volumeDesc.probeClassificationNeedsReset = ImGui::Button("Reset Classification");
+        volumeDesc.probeRelocationNeedsReset |= ImGui::Checkbox("Enable Probe Relocation", &volumeDesc.probeRelocationEnabled);
+        volumeDesc.probeClassificationNeedsReset |= ImGui::Checkbox("Enable Probe Classification", &volumeDesc.probeClassificationEnabled);
         ImGui::DragFloat3("Probe Spacing", (float*)&m_ProbeSpacing, 1.0f, 0.1f, 2.0f);
         ImGui::Text("Volume Variability Average: %f", m_GIVolume.GetVolumeAverageVariability());
     }
@@ -328,13 +333,17 @@ public:
 
     void ResetProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
-        m_GIVolume.m_NumVolumeVariabilitySamples = 0;
+        if (m_bResetProbes)
+        {
+            m_GIVolume.m_NumVolumeVariabilitySamples = 0;
+            commandList->clearTextureFloat(m_GIVolume.m_ProbeIrradiance, nvrhi::AllSubresources, m_GIVolume.m_ProbeIrradiance->getDesc().clearValue);
+            commandList->clearTextureFloat(m_GIVolume.m_ProbeDistance, nvrhi::AllSubresources, m_GIVolume.m_ProbeDistance->getDesc().clearValue);
+        }
 
-        commandList->clearTextureFloat(m_GIVolume.m_ProbeIrradiance, nvrhi::AllSubresources, m_GIVolume.m_ProbeIrradiance->getDesc().clearValue);
-        commandList->clearTextureFloat(m_GIVolume.m_ProbeDistance, nvrhi::AllSubresources, m_GIVolume.m_ProbeDistance->getDesc().clearValue);
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
 
         // TODO: multiple volumes
-        DDGIRootConstants rootConsts{ m_GIVolume.GetDesc().index, 0, 0 };
+        DDGIRootConstants rootConsts{ volumeDesc.index, 0, 0 };
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
@@ -351,10 +360,19 @@ public:
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_GIVolume.GetNumProbes(), 32);
         computePassParams.m_PushConstantsData = &rootConsts;
         computePassParams.m_PushConstantsBytes = sizeof(rootConsts);
-        g_Graphic.AddComputePass(computePassParams);
 
-        computePassParams.m_ShaderName = "ProbeClassificationCS_DDGIProbeClassificationResetCS";
-        g_Graphic.AddComputePass(computePassParams);
+        if (volumeDesc.probeRelocationNeedsReset)
+        {
+            g_Graphic.AddComputePass(computePassParams);
+        }
+
+        if (volumeDesc.probeClassificationNeedsReset)
+        {
+            computePassParams.m_ShaderName = "ProbeClassificationCS_DDGIProbeClassificationResetCS";
+            g_Graphic.AddComputePass(computePassParams);
+        }
+
+        m_bResetProbes = volumeDesc.probeRelocationNeedsReset = volumeDesc.probeClassificationNeedsReset = false;
     }
 
     void TraceProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
@@ -406,11 +424,7 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        if (m_bResetProbes)
-        {
-            ResetProbes(commandList, renderGraph);
-            m_bResetProbes = false;
-        }
+        ResetProbes(commandList, renderGraph);
 
         m_GIVolume.Update();
 
@@ -431,9 +445,19 @@ public:
 
         TraceProbes(commandList, renderGraph);
 
-        // TODO: multiple volumes
-        DDGIRootConstants rootConsts{ m_GIVolume.GetDesc().index, 0, 0 };
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
 
+        // TODO: multiple volumes
+        DDGIRootConstants rootConsts{ volumeDesc.index, 0, 0 };
+
+        // Resource Descriptor Table
+        // 1 SRV for constants structured buffer      (t0, space0)
+        // 1 UAV for ray data texture array           (u0, space0)
+        // 1 UAV for probe irradiance texture array   (u1, space0)
+        // 1 UAV for probe distance texture array     (u2, space0)
+        // 1 UAV for probe data texture array         (u3, space0)
+        // 1 UAV for probe variation array            (u4, space0)
+        // 1 UAV for probe variation average array    (u5, space0)
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
         {
@@ -448,7 +472,7 @@ public:
         };
 
         UINT probeCountX, probeCountY, probeCountZ;
-        rtxgi::GetDDGIVolumeProbeCounts(m_GIVolume.GetDesc(), probeCountX, probeCountY, probeCountZ);
+        rtxgi::GetDDGIVolumeProbeCounts(volumeDesc, probeCountX, probeCountY, probeCountZ);
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
@@ -488,8 +512,8 @@ public:
             const Vector2U kThreadSampleFootprint = { 4, 2 }; // Each thread will sample 4x2 texels
 
             // Initially, the reduction input is the full variability size (same as irradiance texture without border texels)
-            uint32_t inputTexelsX = probeCountX * m_GIVolume.GetDesc().probeNumIrradianceInteriorTexels;
-            uint32_t inputTexelsY = probeCountY * m_GIVolume.GetDesc().probeNumIrradianceInteriorTexels;
+            uint32_t inputTexelsX = probeCountX * volumeDesc.probeNumIrradianceInteriorTexels;
+            uint32_t inputTexelsY = probeCountY * volumeDesc.probeNumIrradianceInteriorTexels;
             uint32_t inputTexelsZ = probeCountZ;
 
             bool bIsFirstPass = true;

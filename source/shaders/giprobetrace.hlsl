@@ -52,9 +52,9 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     radianceRayDesc.TMin = 0.0f;
     radianceRayDesc.TMax = volume.probeMaxRayDistance;
     
-    const uint kRadianceRayFlags = RAY_FLAG_NONE;
-    
     // TODO: take into account alpha mask & transparency
+    const uint kRadianceRayFlags = RAY_FLAG_FORCE_OPAQUE;
+    
     RayQuery<kRadianceRayFlags> radianceRayQuery;
     radianceRayQuery.TraceRayInline(g_SceneTLAS, kRadianceRayFlags, 0xFF, radianceRayDesc);
     radianceRayQuery.Proceed();
@@ -110,9 +110,9 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     shadowRayDesc.TMin = 0.0f;
     shadowRayDesc.TMax = kKindaBigNumber;
     
-    const uint kShadowRayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
-    
     // TODO: take into account alpha mask & transparency
+    const uint kShadowRayFlags = RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    
     RayQuery<kShadowRayFlags> shadowRayQuery;
     shadowRayQuery.TraceRayInline(g_SceneTLAS, kShadowRayFlags, 0xFF, shadowRayDesc);
     shadowRayQuery.Proceed();
@@ -147,5 +147,5 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     
     // Store the final ray radiance and hit distance
     radiance += Diffuse_Lambert(min(rayHitGBufferParams.m_Albedo.rgb, float3(kMaxAlbedo, kMaxAlbedo, kMaxAlbedo))) * irradiance;
-    DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, radiance, radianceRayQuery.CommittedRayT());
+    DDGIStoreProbeRayFrontfaceHit(g_OutRayData, outputCoords, volume, saturate(radiance), radianceRayQuery.CommittedRayT());
 }
