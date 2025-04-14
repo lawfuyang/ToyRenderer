@@ -2,11 +2,19 @@
     • https://github.com/NVIDIAGameWorks/RTXGI-DDGI
 	• https://github.com/NVIDIA-RTX/RTXGI (?)
 • move a whole of shit out of GraphicPropertyGrid into Renderers
+• separate top mip streaming
+    • integrate D3DX12Residency into nvrhi
+    • utilize 'SDL_AsyncIOFromFile' for async mip reading
+    • Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
+	• https://wickedengine.net/2024/06/texture-streaming/
+	• accelerate with https://github.com/microsoft/DirectStorage
 • RT Shadows
 	• half/quarter res trace (?)
 	• improve with 3D motion vector inputs (?)
 	• improve with https://github.com/NVIDIA-RTX/STBN (?)
 	• improve with https://github.com/NVIDIA-RTX/OMM (?)
+• implement HLSL Dynamic Resources (ResourceDescriptorHeap) in nvrhi
+• dont use culling counters in AS. use D3D12_QUERY_DATA_PIPELINE_STATISTICS1. prevents cancellation of EarlyZ
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
 • Reload only dirty PSOs
@@ -36,12 +44,6 @@
 • Transparent support
 	• OIT: https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended
 	• improve with translucent Shadows
-• separate top mip streaming
-    • integrate D3DX12Residency into nvrhi
-    • utilize 'SDL_AsyncIOFromFile' for async mip reading
-    • Sampler Feedback Streaming: https://github.com/GameTechDev/SamplerFeedbackStreaming
-	• https://wickedengine.net/2024/06/texture-streaming/
-	• accelerate with https://github.com/microsoft/DirectStorage
 • volumetric clouds
 • Skinning:
 	• https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
