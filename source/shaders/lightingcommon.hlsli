@@ -336,7 +336,7 @@ float3 GetDDGIIrradiance(GetDDGIIrradianceArguments args)
     {
         float3 surfaceBias = DDGIGetSurfaceBias(gbufferParams.m_Normal, viewDirection, volumeDesc);
     
-        irradiance = Diffuse_Lambert(gbufferParams.m_Albedo.rgb) * DDGIGetVolumeIrradiance(worldPosition, surfaceBias, gbufferParams.m_Normal, volumeDesc, volumeResources);
+        irradiance = DDGIGetVolumeIrradiance(worldPosition, surfaceBias, gbufferParams.m_Normal, volumeDesc, volumeResources);
         irradiance *= volumeBlendWeight;
     }
     

@@ -58,7 +58,7 @@ void PS_Main(
     irradianceArgs.m_ViewDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
     irradianceArgs.m_DDGIVolumeResources = volumeResources;
     
-    float3 irradiance = GetDDGIIrradiance(irradianceArgs);
+    float3 irradiance = Diffuse_Lambert(gbufferParams.m_Albedo.rgb) * GetDDGIIrradiance(irradianceArgs);
     
     if (g_DeferredLightingConsts.m_SSAOEnabled)
     {
