@@ -301,8 +301,6 @@ public:
         }
 
         m_bResetProbes = ImGui::Button("Reset Probes");
-        volumeDesc.probeRelocationNeedsReset = ImGui::Button("Reset Relocation");
-        volumeDesc.probeClassificationNeedsReset = ImGui::Button("Reset Classification");
         volumeDesc.probeRelocationNeedsReset |= ImGui::Checkbox("Enable Probe Relocation", &volumeDesc.probeRelocationEnabled);
         volumeDesc.probeClassificationNeedsReset |= ImGui::Checkbox("Enable Probe Classification", &volumeDesc.probeClassificationEnabled);
         ImGui::Text("Probe Spacing: [%.1f, %.1f, %.1f]", m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z); // TODO: run-time probe spacing change
@@ -324,50 +322,6 @@ public:
         }
 
         return true;
-    }
-
-    void ResetProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
-    {
-        if (m_bResetProbes)
-        {
-            m_GIVolume.m_NumVolumeVariabilitySamples = 0;
-            commandList->clearTextureFloat(m_GIVolume.m_ProbeIrradiance, nvrhi::AllSubresources, m_GIVolume.m_ProbeIrradiance->getDesc().clearValue);
-            commandList->clearTextureFloat(m_GIVolume.m_ProbeDistance, nvrhi::AllSubresources, m_GIVolume.m_ProbeDistance->getDesc().clearValue);
-        }
-
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
-
-        // TODO: multiple volumes
-        DDGIRootConstants rootConsts{ volumeDesc.index, 0, 0 };
-
-        nvrhi::BindingSetDesc bindingSetDesc;
-        bindingSetDesc.bindings =
-        {
-            nvrhi::BindingSetItem::PushConstants(kDDGIRootConstsRegister, sizeof(rootConsts)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(kDDGIVolumeDescGPUPackedRegister, g_Scene->m_GIVolumeDescsBuffer),
-            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeDataRegister, m_GIVolume.m_ProbeRayData),
-        };
-
-        Graphic::ComputePassParams computePassParams;
-        computePassParams.m_CommandList = commandList;
-        computePassParams.m_BindingSetDesc = bindingSetDesc;
-        computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_GIVolume.GetNumProbes(), 32);
-        computePassParams.m_PushConstantsData = &rootConsts;
-        computePassParams.m_PushConstantsBytes = sizeof(rootConsts);
-
-        if (volumeDesc.probeRelocationEnabled && volumeDesc.probeRelocationNeedsReset)
-        {
-            computePassParams.m_ShaderName = "ProbeRelocationCS_DDGIProbeRelocationResetCS";
-            g_Graphic.AddComputePass(computePassParams);
-        }
-
-        if (volumeDesc.probeClassificationEnabled && volumeDesc.probeClassificationNeedsReset)
-        {
-            computePassParams.m_ShaderName = "ProbeClassificationCS_DDGIProbeClassificationResetCS";
-            g_Graphic.AddComputePass(computePassParams);
-        }
-
-        m_bResetProbes = volumeDesc.probeRelocationNeedsReset = volumeDesc.probeClassificationNeedsReset = false;
     }
 
     void TraceProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
@@ -419,7 +373,13 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        ResetProbes(commandList, renderGraph);
+        if (m_bResetProbes)
+        {
+            m_GIVolume.m_NumVolumeVariabilitySamples = 0;
+            commandList->clearTextureFloat(m_GIVolume.m_ProbeIrradiance, nvrhi::AllSubresources, m_GIVolume.m_ProbeIrradiance->getDesc().clearValue);
+            commandList->clearTextureFloat(m_GIVolume.m_ProbeDistance, nvrhi::AllSubresources, m_GIVolume.m_ProbeDistance->getDesc().clearValue);
+            m_bResetProbes = false;
+        }
 
         m_GIVolume.Update();
 
