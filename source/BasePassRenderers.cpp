@@ -30,9 +30,7 @@ public:
 
     void CreateInstanceConstsBuffer(nvrhi::CommandListHandle commandList)
     {
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        const uint32_t nbPrimitives = scene->m_Primitives.size();
+        const uint32_t nbPrimitives = g_Scene->m_Primitives.size();
         if (nbPrimitives == 0)
         {
             return;
@@ -41,11 +39,11 @@ public:
         std::vector<BasePassInstanceConstants> instanceConstsBytes;
         instanceConstsBytes.reserve(nbPrimitives);
 
-        for (const Primitive& primitive : scene->m_Primitives)
+        for (const Primitive& primitive : g_Scene->m_Primitives)
         {
             assert(primitive.IsValid());
 
-            const Node& node = scene->m_Nodes.at(primitive.m_NodeID);
+            const Node& node = g_Scene->m_Nodes.at(primitive.m_NodeID);
             const Material& material = primitive.m_Material;
             const Mesh& mesh = g_Graphic.m_Meshes.at(primitive.m_MeshIdx);
 
@@ -66,18 +64,16 @@ public:
         desc.canHaveUAVs = true;
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-        scene->m_InstanceConstsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        g_Scene->m_InstanceConstsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
 
-        commandList->writeBuffer(scene->m_InstanceConstsBuffer, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
+        commandList->writeBuffer(g_Scene->m_InstanceConstsBuffer, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
     }
 
     void CreateNodeTransformsBuffer(nvrhi::CommandListHandle commandList)
     {
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        for (const Node& node : scene->m_Nodes)
+        for (const Node& node : g_Scene->m_Nodes)
         {
-            NodeLocalTransform& data = *(NodeLocalTransform*)&scene->m_NodeLocalTransforms.emplace_back();
+            NodeLocalTransform& data = *(NodeLocalTransform*)&g_Scene->m_NodeLocalTransforms.emplace_back();
             data.m_ParentNodeIdx = node.m_ParentNodeID;
             data.m_Position = node.m_Position;
             data.m_Rotation = node.m_Rotation;
@@ -86,33 +82,33 @@ public:
 
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = scene->m_Nodes.size() * sizeof(NodeLocalTransform);
+            desc.byteSize = g_Scene->m_Nodes.size() * sizeof(NodeLocalTransform);
             desc.structStride = sizeof(NodeLocalTransform);
             desc.debugName = "Node Transforms Buffer";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-            scene->m_NodeLocalTransformsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Scene->m_NodeLocalTransformsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         }
 
-        commandList->writeBuffer(scene->m_NodeLocalTransformsBuffer, scene->m_NodeLocalTransforms.data(), scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
+        commandList->writeBuffer(g_Scene->m_NodeLocalTransformsBuffer, g_Scene->m_NodeLocalTransforms.data(), g_Scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
 
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = scene->m_Primitives.size() * sizeof(uint32_t);
+            desc.byteSize = g_Scene->m_Primitives.size() * sizeof(uint32_t);
             desc.structStride = sizeof(uint32_t);
             desc.debugName = "PrimitiveIDToNodeID Buffer";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-            scene->m_PrimitiveIDToNodeIDBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Scene->m_PrimitiveIDToNodeIDBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         }
 
         std::vector<uint32_t> primitiveIDToNodeIDBytes;
-        for (const Primitive& primitive : scene->m_Primitives)
+        for (const Primitive& primitive : g_Scene->m_Primitives)
         {
             primitiveIDToNodeIDBytes.push_back(primitive.m_NodeID);
         }
 
-        commandList->writeBuffer(scene->m_PrimitiveIDToNodeIDBuffer, primitiveIDToNodeIDBytes.data(), primitiveIDToNodeIDBytes.size() * sizeof(uint32_t));
+        commandList->writeBuffer(g_Scene->m_PrimitiveIDToNodeIDBuffer, primitiveIDToNodeIDBytes.data(), primitiveIDToNodeIDBytes.size() * sizeof(uint32_t));
     }
 
     void PostSceneLoad() override
@@ -126,9 +122,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        if (scene->m_Primitives.empty())
+        if (g_Scene->m_Primitives.empty())
         {
             return false;
         }
@@ -138,14 +132,12 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        Scene* scene = g_Graphic.m_Scene.get();
-
         {
             PROFILE_GPU_SCOPED(commandList, "Upload Node Transforms");
-            commandList->writeBuffer(scene->m_NodeLocalTransformsBuffer, scene->m_NodeLocalTransforms.data(), scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
+            commandList->writeBuffer(g_Scene->m_NodeLocalTransformsBuffer, g_Scene->m_NodeLocalTransforms.data(), g_Scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
         }
 
-        const uint32_t numPrimitives = scene->m_Primitives.size();
+        const uint32_t numPrimitives = g_Scene->m_Primitives.size();
 
         UpdateInstanceConstsPassConstants passConstants;
         passConstants.m_NumInstances = numPrimitives;
@@ -156,10 +148,10 @@ public:
         bindingSetDesc.bindings =
         {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_NodeLocalTransformsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, scene->m_PrimitiveIDToNodeIDBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, scene->m_TLASInstanceDescsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_NodeLocalTransformsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Scene->m_PrimitiveIDToNodeIDBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, g_Scene->m_TLASInstanceDescsBuffer),
         };
 
         Graphic::ComputePassParams computePassParams;
@@ -175,7 +167,7 @@ public:
         // TODO: async compute this
         {
             PROFILE_GPU_SCOPED(commandList, "Build TLAS");
-            commandList->buildTopLevelAccelStructFromBuffer(scene->m_TLAS, scene->m_TLASInstanceDescsBuffer, 0, numPrimitives);
+            commandList->buildTopLevelAccelStructFromBuffer(g_Scene->m_TLAS, g_Scene->m_TLASInstanceDescsBuffer, 0, numPrimitives);
         }
     }
 };
@@ -332,10 +324,9 @@ public:
         PROFILE_GPU_SCOPED(commandList, "GPU Culling");
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
 
-        const uint32_t nbInstances = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs.size() : scene->m_OpaquePrimitiveIDs.size();
+        const uint32_t nbInstances = bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskPrimitiveIDs.size() : g_Scene->m_OpaquePrimitiveIDs.size();
         if (nbInstances == 0)
         {
             return;
@@ -384,10 +375,10 @@ public:
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? scene->m_AlphaMaskInstanceIDsBuffer : scene->m_OpaqueInstanceIDsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer : g_Scene->m_OpaqueInstanceIDsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
-            nvrhi::BindingSetItem::Texture_SRV(3, m_bDoOcclusionCulling ? scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
+            nvrhi::BindingSetItem::Texture_SRV(3, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, meshletAmplificationDataBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, meshletDispatchArgumentsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
@@ -449,10 +440,9 @@ public:
         PROFILE_GPU_SCOPED(commandList, "Render Instances");
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
 
-		std::span<const uint32_t> primitivesIDs = bAlphaMaskPrimitives ? scene->m_AlphaMaskPrimitiveIDs : scene->m_OpaquePrimitiveIDs;
+		std::span<const uint32_t> primitivesIDs = bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskPrimitiveIDs : g_Scene->m_OpaquePrimitiveIDs;
         const uint32_t nbInstances = primitivesIDs.size();
 
         if (nbInstances == 0)
@@ -500,7 +490,7 @@ public:
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_GlobalVertexBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Graphic.m_GlobalMaterialDataBuffer),
@@ -508,7 +498,7 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMeshletVertexOffsetsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMeshletIndicesBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(7, meshletAmplificationDataBuffer),
-            nvrhi::BindingSetItem::Texture_SRV(8, m_bDoOcclusionCulling ? scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
+            nvrhi::BindingSetItem::Texture_SRV(8, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, counterStatsBuffer),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
@@ -550,8 +540,6 @@ public:
         PROFILE_FUNCTION();
         PROFILE_GPU_SCOPED(commandList, "Generate HZB");
 
-        Scene* scene = g_Graphic.m_Scene.get();
-
         MinMaxDownsampleConsts passParameters;
         passParameters.m_OutputDimensions = m_HZBDimensions;
         passParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
@@ -562,7 +550,7 @@ public:
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
             nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
-            nvrhi::BindingSetItem::Texture_UAV(0, scene->m_HZB),
+            nvrhi::BindingSetItem::Texture_UAV(0, g_Scene->m_HZB),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
@@ -578,7 +566,7 @@ public:
 
         // generate HZB mip chain
         const nvrhi::SamplerReductionType reductionType = Graphic::kInversedDepthBuffer ? nvrhi::SamplerReductionType::Minimum : nvrhi::SamplerReductionType::Maximum;
-        m_SPDHelper.Execute(commandList, renderGraph, depthStencilBuffer, scene->m_HZB, reductionType);
+        m_SPDHelper.Execute(commandList, renderGraph, depthStencilBuffer, g_Scene->m_HZB, reductionType);
     }
 
     void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
@@ -586,7 +574,6 @@ public:
         assert(params.m_View);
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
         View& view = *params.m_View;
 
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
@@ -609,7 +596,7 @@ public:
         m_CullingFlags |= m_bDoOcclusionCulling ? kCullingFlagOcclusionCullingEnable : 0;
         m_CullingFlags |= m_bDoMeshletConeCulling ? kCullingFlagMeshletConeCullingEnable : 0;
 
-        m_HZBDimensions = m_bDoOcclusionCulling ? Vector2U{ scene->m_HZB->getDesc().width, scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
+        m_HZBDimensions = m_bDoOcclusionCulling ? Vector2U{ g_Scene->m_HZB->getDesc().width, g_Scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
 
         Matrix projectionT = view.m_ViewToClip.Transpose();
         Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
@@ -653,30 +640,31 @@ class GBufferRenderer : public BasePassRenderer
 public:
     GBufferRenderer() : BasePassRenderer("GBufferRenderer") {}
 
+	void Initialize() override
+	{
+		BasePassRenderer::Initialize();
+
+		nvrhi::TextureDesc desc;
+		desc.width = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
+		desc.height = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
+		desc.format = Graphic::kHZBFormat;
+		desc.isUAV = true;
+		desc.debugName = "HZB";
+		desc.mipLevels = ComputeNbMips(desc.width, desc.height);
+		desc.useClearValue = false;
+		desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+		g_Scene->m_HZB = g_Graphic.m_NVRHIDevice->createTexture(desc);
+
+		nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+		SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "GBufferRenderer::Initialize");
+
+		commandList->clearTextureFloat(g_Scene->m_HZB, nvrhi::AllSubresources, nvrhi::Color{ Graphic::kFarDepth });
+	}
+
     bool Setup(RenderGraph& renderGraph) override
     {
 		BasePassRenderer::Setup(renderGraph);
-
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        {
-            nvrhi::TextureDesc desc;
-            desc.width = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
-            desc.height = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
-            desc.format = Graphic::kHZBFormat;
-            desc.isUAV = true;
-            desc.debugName = "HZB";
-            desc.mipLevels = ComputeNbMips(desc.width, desc.height);
-            desc.useClearValue = false;
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-            scene->m_HZB = g_Graphic.m_NVRHIDevice->createTexture(desc);
-
-            nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-            SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "GBufferRenderer::Setup");
-
-            commandList->clearTextureFloat(scene->m_HZB, nvrhi::AllSubresources, nvrhi::Color{ Graphic::kFarDepth });
-        }
 
         {
             nvrhi::TextureDesc desc;
@@ -724,14 +712,12 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        if (scene->m_Primitives.empty())
+        if (g_Scene->m_Primitives.empty())
         {
             return;
         }
 
-        View& view = scene->m_View;
+        View& view = g_Scene->m_View;
 
         nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
         nvrhi::TextureHandle GBufferMotionTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
