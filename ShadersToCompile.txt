@@ -46,5 +46,5 @@ extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeRelocationCS.hlsl -T cs -E 
 extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeRelocationCS.hlsl -T cs -E DDGIProbeRelocationResetCS
 extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeClassificationCS.hlsl -T cs -E DDGIProbeClassificationCS
 extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeClassificationCS.hlsl -T cs -E DDGIProbeClassificationResetCS
-extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ReductionCS.hlsl -T cs -E DDGIReductionCS
+extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ReductionCS.hlsl -T cs -E DDGIReductionCS -D REDUCTION=1
 extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ReductionCS.hlsl -T cs -E DDGIExtraReductionCS

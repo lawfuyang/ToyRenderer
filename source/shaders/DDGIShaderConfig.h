@@ -11,7 +11,7 @@
 static const uint32_t kNumProbeRadianceTexels = 8;
 static const uint32_t kNumProbeDistanceTexels = 16;
 
-#if RTXGI_DDGI_BLEND_RADIANCE
+#if RTXGI_DDGI_BLEND_RADIANCE || REDUCTION
     #define RTXGI_DDGI_PROBE_NUM_TEXELS kNumProbeRadianceTexels
     #define RTXGI_DDGI_PROBE_NUM_INTERIOR_TEXELS (kNumProbeRadianceTexels - 2)
 #else

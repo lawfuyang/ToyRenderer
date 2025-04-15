@@ -482,7 +482,7 @@ public:
                 rootConsts.reductionInputSizeY = inputTexelsY;
                 rootConsts.reductionInputSizeZ = inputTexelsZ;
 
-                computePassParams.m_ShaderName = bIsFirstPass ? "ReductionCS_DDGIReductionCS" : "ReductionCS_DDGIExtraReductionCS";
+                computePassParams.m_ShaderName = bIsFirstPass ? "ReductionCS_DDGIReductionCS REDUCTION=1" : "ReductionCS_DDGIExtraReductionCS";
                 computePassParams.m_DispatchGroupSize = Vector3U{ outputTexelsX, outputTexelsY, outputTexelsZ };
                 g_Graphic.AddComputePass(computePassParams);
 
