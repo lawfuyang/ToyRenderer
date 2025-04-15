@@ -53,10 +53,8 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     radianceRayDesc.TMax = volume.probeMaxRayDistance;
     
     // TODO: take into account alpha mask & transparency
-    const uint kRadianceRayFlags = RAY_FLAG_FORCE_OPAQUE;
-    
-    RayQuery<kRadianceRayFlags> radianceRayQuery;
-    radianceRayQuery.TraceRayInline(g_SceneTLAS, kRadianceRayFlags, 0xFF, radianceRayDesc);
+    RayQuery<RAY_FLAG_FORCE_OPAQUE> radianceRayQuery;
+    radianceRayQuery.TraceRayInline(g_SceneTLAS, RAY_FLAG_NONE, 0xFF, radianceRayDesc);
     radianceRayQuery.Proceed();
     
     uint3 outputCoords = DDGIGetRayDataTexelCoords(rayIndex, probeIndex, volume);
@@ -111,10 +109,8 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     shadowRayDesc.TMax = kKindaBigNumber;
     
     // TODO: take into account alpha mask & transparency
-    const uint kShadowRayFlags = RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
-    
-    RayQuery<kShadowRayFlags> shadowRayQuery;
-    shadowRayQuery.TraceRayInline(g_SceneTLAS, kShadowRayFlags, 0xFF, shadowRayDesc);
+    RayQuery<RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> shadowRayQuery;
+    shadowRayQuery.TraceRayInline(g_SceneTLAS, RAY_FLAG_NONE, 0xFF, shadowRayDesc);
     shadowRayQuery.Proceed();
     
     const bool bShadowed = shadowRayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
