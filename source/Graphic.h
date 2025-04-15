@@ -189,7 +189,7 @@ private:
 class FencedReadbackResource
 {
 public:
-    static const uint32_t kNbResources = 2;
+    static const uint32_t kNbResources = 3;
 
     static uint32_t GetWriteIndex() { return g_Graphic.m_FrameCounter % kNbResources; }
     static uint32_t GetReadIndex() { return (g_Graphic.m_FrameCounter + 1) % kNbResources; }
