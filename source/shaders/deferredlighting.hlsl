@@ -54,7 +54,7 @@ void PS_Main(
     GetDDGIIrradianceArguments irradianceArgs;
     irradianceArgs.m_WorldPosition = worldPosition;
     irradianceArgs.m_VolumeDesc = DDGIVolumeDesc;
-    irradianceArgs.m_GBufferParams = gbufferParams;
+    irradianceArgs.m_Normal = gbufferParams.m_Normal;
     irradianceArgs.m_ViewDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
     irradianceArgs.m_DDGIVolumeResources = volumeResources;
     
@@ -137,7 +137,7 @@ void PS_Main_Debug(
         GetDDGIIrradianceArguments irradianceArgs;
         irradianceArgs.m_WorldPosition = worldPosition;
         irradianceArgs.m_VolumeDesc = DDGIVolumeDesc;
-        irradianceArgs.m_GBufferParams = gbufferParams;
+        irradianceArgs.m_Normal = gbufferParams.m_Normal;
         irradianceArgs.m_ViewDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
         irradianceArgs.m_DDGIVolumeResources = volumeResources;
         

@@ -316,7 +316,7 @@ struct GetDDGIIrradianceArguments
 {
     float3 m_WorldPosition;
     DDGIVolumeDescGPU m_VolumeDesc;
-    GBufferParams m_GBufferParams;
+    float3 m_Normal;
     float3 m_ViewDirection;
     DDGIVolumeResources m_DDGIVolumeResources;
 };
@@ -325,7 +325,7 @@ float3 GetDDGIIrradiance(GetDDGIIrradianceArguments args)
 {
     float3 worldPosition = args.m_WorldPosition;
     DDGIVolumeDescGPU volumeDesc = args.m_VolumeDesc;
-    GBufferParams gbufferParams = args.m_GBufferParams;
+    float3 surfaceNormal = args.m_Normal;
     float3 viewDirection = args.m_ViewDirection;
     DDGIVolumeResources volumeResources = args.m_DDGIVolumeResources;
     
@@ -334,9 +334,10 @@ float3 GetDDGIIrradiance(GetDDGIIrradianceArguments args)
     float volumeBlendWeight = DDGIGetVolumeBlendWeight(worldPosition, volumeDesc);
     if (volumeBlendWeight > 0.0f)
     {
-        float3 surfaceBias = DDGIGetSurfaceBias(gbufferParams.m_Normal, viewDirection, volumeDesc);
+        float3 surfaceBias = DDGIGetSurfaceBias(surfaceNormal, viewDirection, volumeDesc);
     
-        irradiance = DDGIGetVolumeIrradiance(worldPosition, surfaceBias, gbufferParams.m_Normal, volumeDesc, volumeResources);
+        float3 samplingDirection = surfaceNormal;
+        irradiance = DDGIGetVolumeIrradiance(worldPosition, surfaceBias, samplingDirection, volumeDesc, volumeResources);
         irradiance *= volumeBlendWeight;
     }
     

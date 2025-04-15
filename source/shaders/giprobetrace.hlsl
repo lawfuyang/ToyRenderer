@@ -134,7 +134,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     GetDDGIIrradianceArguments irradianceArgs;
     irradianceArgs.m_WorldPosition = rayHitWorldPosition;
     irradianceArgs.m_VolumeDesc = volume;
-    irradianceArgs.m_GBufferParams = rayHitGBufferParams;
+    irradianceArgs.m_Normal = rayHitGBufferParams.m_Normal;
     irradianceArgs.m_ViewDirection = radianceRayDesc.Direction;
     irradianceArgs.m_DDGIVolumeResources = volumeResources;
     
