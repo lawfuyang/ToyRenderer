@@ -64,6 +64,36 @@ public:
         return g_GraphicPropertyGrid.m_GIControllables.m_bEnabled ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
+    void Update() override
+    {
+        rtxgi::DDGIVolumeBase::Update();
+
+        m_VariabilitiesCursor = (m_VariabilitiesCursor + 1) % kMinimumVariabilitySamples;
+
+        float sum = 0.0f;
+        for (float val : m_Variabilities)
+        {
+            sum += val;
+        }
+        const float mean = sum / kMinimumVariabilitySamples;
+
+        float variance = 0.0f;
+        for (float val : m_Variabilities)
+        {
+            float diff = val - mean;
+            variance += diff * diff;
+        }
+
+        m_VariabilityStdDev = std::sqrt(variance / kMinimumVariabilitySamples);
+        bIsConverged = GetProbeVariabilityEnabled() && (m_NumVolumeVariabilitySamples++ > kMinimumVariabilitySamples) && (m_VariabilityStdDev < m_VariabilityStdDevThreshold);
+    }
+
+    void SetVariabilityForCurrentFrame(float v)
+    {
+        assert(v == 0.0f || std::isnormal(v));
+        m_Variabilities[m_VariabilitiesCursor] = v;
+    }
+
     void Create()
     {
         assert(GetNumProbes() > 0);
@@ -89,8 +119,6 @@ public:
         m_probeScrollAnchor = m_desc.origin;
 
         SeedRNG(std::random_device{}());
-
-        m_averageVariability = kKindaBigNumber;
     }
 
     void Destroy() override {}
@@ -109,9 +137,15 @@ public:
 
     uint32_t m_NumVolumeVariabilitySamples = 0;
     float m_DebugProbeRadius = 0.1f;
-    float m_ProbeVariabilityThreshold = 0.4f;
+    float m_VariabilityStdDev = kKindaBigNumber;
+    float m_VariabilityStdDevThreshold = 0.05f;
+    bool bIsConverged = false;
 
 private:
+    static const uint32_t kMinimumVariabilitySamples = 16;
+    float m_Variabilities[kMinimumVariabilitySamples]{};
+    uint32_t m_VariabilitiesCursor = 0;
+
     struct ProbeTextureCreateInfo
     {
         nvrhi::TextureHandle& m_TextureHandle;
@@ -235,7 +269,6 @@ public:
             volumeDesc.probeViewBias = 0.1f;
             volumeDesc.probeNormalBias = 0.02f;
             volumeDesc.probeMinFrontfaceDistance = 0.1f;
-            m_GIVolume.m_ProbeVariabilityThreshold = 0.1f;
             m_GIVolume.m_DebugProbeRadius = 0.05f;
         }
         else
@@ -244,7 +277,6 @@ public:
             volumeDesc.probeViewBias = 0.3f;
             volumeDesc.probeNormalBias = 0.1f;
             volumeDesc.probeMinFrontfaceDistance = 0.3f;
-            m_GIVolume.m_ProbeVariabilityThreshold = 0.4f;
             m_GIVolume.m_DebugProbeRadius = 0.1f;
         }
 
@@ -303,8 +335,10 @@ public:
         m_bResetProbes = ImGui::Button("Reset Probes");
         volumeDesc.probeRelocationNeedsReset |= ImGui::Checkbox("Enable Probe Relocation", &volumeDesc.probeRelocationEnabled);
         volumeDesc.probeClassificationNeedsReset |= ImGui::Checkbox("Enable Probe Classification", &volumeDesc.probeClassificationEnabled);
+        ImGui::DragFloat("Probe Variability Std Dev Threshold", &m_GIVolume.m_VariabilityStdDevThreshold, 0.001f, 0.001f, 0.1f, "%.3f");
         ImGui::Text("Probe Spacing: [%.1f, %.1f, %.1f]", m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z); // TODO: run-time probe spacing change
         ImGui::Text("Volume Variability Average: [%.3f]", m_GIVolume.GetVolumeAverageVariability());
+        ImGui::Text("Probe Variability Std Dev: [%.3f]", m_GIVolume.m_VariabilityStdDev);
     }
 
     bool Setup(RenderGraph& renderGraph) override
@@ -381,19 +415,14 @@ public:
             m_bResetProbes = false;
         }
 
-        m_GIVolume.Update();
-
         rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
 
-        const uint32_t kMinimumVariabilitySamples = 16;
-        const bool bIsConverged = m_GIVolume.GetProbeVariabilityEnabled()
-            && (m_GIVolume.m_NumVolumeVariabilitySamples++ > kMinimumVariabilitySamples)
-            && (m_GIVolume.GetVolumeAverageVariability() < m_GIVolume.m_ProbeVariabilityThreshold);
+        m_GIVolume.Update();
 
-        if (bIsConverged)
+        if (m_GIVolume.bIsConverged)
         {
             // TODO: run a "cheap" trace & blend pass, but without relocation & classification, to get the average variability once converged
-            //return;
+            return;
         }
 
         const rtxgi::DDGIVolumeDescGPUPacked volumeDescGPU = m_GIVolume.GetDescGPUPacked();
@@ -461,6 +490,7 @@ public:
             Vector2 variabilityReadback;
             m_GIVolume.m_ProbeVariabilityReadback.Read(&variabilityReadback);
             m_GIVolume.SetVariability(variabilityReadback.x);
+            m_GIVolume.SetVariabilityForCurrentFrame(variabilityReadback.x);
 
             const Vector3U kNumThreadsInGroup = { 4, 8, 4 }; // Each thread group will have 8x8x8 threads
             const Vector2U kThreadSampleFootprint = { 4, 2 }; // Each thread will sample 4x2 texels
@@ -478,11 +508,34 @@ public:
                 const uint32_t outputTexelsY = (uint32_t)ceil((float)inputTexelsY / (kNumThreadsInGroup.y * kThreadSampleFootprint.y));
                 const uint32_t outputTexelsZ = (uint32_t)ceil((float)inputTexelsZ / kNumThreadsInGroup.z);
 
-                rootConsts.reductionInputSizeX = inputTexelsX;
-                rootConsts.reductionInputSizeY = inputTexelsY;
-                rootConsts.reductionInputSizeZ = inputTexelsZ;
+                if (bIsFirstPass)
+                {
+                    rootConsts.reductionInputSizeX = inputTexelsX;
+                    rootConsts.reductionInputSizeY = inputTexelsY;
+                    rootConsts.reductionInputSizeZ = inputTexelsZ;
 
-                computePassParams.m_ShaderName = bIsFirstPass ? "ReductionCS_DDGIReductionCS REDUCTION=1" : "ReductionCS_DDGIExtraReductionCS";
+                    computePassParams.m_ShaderName = "ReductionCS_DDGIReductionCS REDUCTION=1";
+                }
+
+                // NOTE: supposed to call 'ReductionCS_DDGIExtraReductionCS', but there's a nan bug in the shader
+                else
+                {
+                    GIProbeExtraReductionConsts passParameters;
+                    passParameters.m_ReductionInputSize = Vector3U{ inputTexelsX, inputTexelsY, inputTexelsZ };
+
+                    bindingSetDesc.bindings =
+                    {
+                        nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
+                        nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_GIVolumeDescsBuffer),
+                        nvrhi::BindingSetItem::Texture_UAV(0, m_GIVolume.m_ProbeVariabilityAverage),
+                    };
+
+                    computePassParams.m_ShaderName = "giprobeextrareduction_CS_DDGIExtraReduction";
+                    computePassParams.m_BindingSetDesc = bindingSetDesc;
+                    computePassParams.m_PushConstantsData = &passParameters;
+                    computePassParams.m_PushConstantsBytes = sizeof(passParameters);
+                }
+
                 computePassParams.m_DispatchGroupSize = Vector3U{ outputTexelsX, outputTexelsY, outputTexelsZ };
                 g_Graphic.AddComputePass(computePassParams);
 
@@ -492,7 +545,6 @@ public:
                 inputTexelsY = outputTexelsY;
                 inputTexelsZ = outputTexelsZ;
 
-                // Extra reduction passes average values in variability texture down to single value
                 bIsFirstPass = false;
             }
 

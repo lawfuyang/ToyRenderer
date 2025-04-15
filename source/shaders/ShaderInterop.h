@@ -263,6 +263,11 @@ struct PostProcessParameters
 	float m_BloomStrength;
 };
 
+struct GIProbeExtraReductionConsts
+{
+	Vector3U m_ReductionInputSize;
+};
+
 struct GIProbeTraceConsts
 {
 	Vector3 m_DirectionalLightVector;

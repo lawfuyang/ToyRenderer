@@ -28,6 +28,7 @@ source/shaders/giprobevisualization.hlsl -T vs -E VS_VisualizeGIProbes
 source/shaders/giprobevisualization.hlsl -T ps -E PS_VisualizeGIProbes
 source/shaders/giprobevisualization.hlsl -T cs -E CS_VisualizeGIProbesCulling
 source/shaders/giprobetrace.hlsl -T cs -E CS_ProbeTrace
+source/shaders/giprobeextrareduction.hlsl -T cs -E CS_DDGIExtraReduction
 
 extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 
