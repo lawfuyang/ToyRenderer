@@ -5,6 +5,20 @@
 
 #include "ShaderInterop.h"
 
+UncompressedRawVertexFormat InterpolateVertex(RawVertexFormat vertices[3], float3 barycentrics)
+{
+    UncompressedRawVertexFormat v = (UncompressedRawVertexFormat)0;
+    
+    for (uint i = 0; i < 3; i++)
+    {
+        v.m_Position += vertices[i].m_Position * barycentrics[i];
+        v.m_Normal += UnpackR10G10B10A2F(vertices[i].m_PackedNormal).xyz * barycentrics[i];
+        v.m_TexCoord += vertices[i].m_TexCoord * barycentrics[i];
+    }
+    
+    return v;
+}
+
 struct GetRayHitInstanceGBufferParamsArguments
 {
     uint m_InstanceID;
@@ -52,25 +66,15 @@ GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArgum
         globalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[2]],
     };
     
-    float barycentrics[3] = { (1.0f - attribBarycentrics.x - attribBarycentrics.y), attribBarycentrics.x, attribBarycentrics.y };
+    float3 barycentrics = { (1.0f - attribBarycentrics.x - attribBarycentrics.y), attribBarycentrics.x, attribBarycentrics.y };
+    UncompressedRawVertexFormat v = InterpolateVertex(vertices, barycentrics);
     
-    rayHitWorldPosition = float3(0.0f, 0.0f, 0.0f);
-    float3 rayHitNormal = float3(0.0f, 0.0f, 0.0f);
-    float2 rayHitUV = float2(0.0f, 0.0f);
-    
-    for (uint i = 0; i < 3; i++)
-    {
-        rayHitWorldPosition += vertices[i].m_Position * barycentrics[i];
-        rayHitNormal += UnpackR10G10B10A2F(vertices[i].m_PackedNormal).xyz * barycentrics[i];
-        rayHitUV += vertices[i].m_TexCoord * barycentrics[i];
-    }
-    
-    rayHitWorldPosition = mul(objectToWorld3x4, float4(rayHitWorldPosition, 1.0f)).xyz;
+    rayHitWorldPosition = mul(objectToWorld3x4, float4(v.m_Position, 1.0f)).xyz;
     
     GetCommonGBufferParamsArguments getCommonGBufferParamsArguments;
-    getCommonGBufferParamsArguments.m_TexCoord = rayHitUV;
+    getCommonGBufferParamsArguments.m_TexCoord = v.m_TexCoord;
     getCommonGBufferParamsArguments.m_WorldPosition = rayHitWorldPosition;
-    getCommonGBufferParamsArguments.m_Normal = rayHitNormal;
+    getCommonGBufferParamsArguments.m_Normal = v.m_Normal;
     getCommonGBufferParamsArguments.m_MaterialData = materialData;
     getCommonGBufferParamsArguments.m_Samplers = samplers;
     
