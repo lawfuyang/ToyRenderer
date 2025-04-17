@@ -64,6 +64,11 @@ public:
         return g_GraphicPropertyGrid.m_GIControllables.m_bEnabled ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
+    void Setup(RenderGraph& renderGraph)
+    {
+        renderGraph.CreateTransientResource(m_ProbeRayDataRDGTextureHandle, GetProbeTextureDesc(rtxgi::EDDGIVolumeTextureType::RayData));
+    }
+
     void Update() override
     {
         rtxgi::DDGIVolumeBase::Update();
@@ -102,12 +107,11 @@ public:
                   m_desc.origin.x, m_desc.origin.y, m_desc.origin.z,
                   m_desc.probeCounts.x, m_desc.probeCounts.y, m_desc.probeCounts.z);
 
-        CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::RayData);
-        CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Irradiance);
-        CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Distance);
-        CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Data);
-        CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Variability);
-        CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::VariabilityAverage);
+        m_ProbeIrradiance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Irradiance);
+        m_ProbeDistance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Distance);
+        m_ProbeData = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Data);
+        m_ProbeVariability = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Variability);
+        m_ProbeVariabilityAverage = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::VariabilityAverage);
 
         m_ProbeVariabilityReadback.Initialize(kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::VariabilityAverage]);
 
@@ -127,7 +131,8 @@ public:
     uint32_t GetNumProbes() const { return rtxgi::DDGIVolumeBase::GetNumProbes(); }
     void SetVariability(float v) { m_averageVariability = v; }
 
-    nvrhi::TextureHandle m_ProbeRayData;            // Probe ray data texture array - RGB: radiance | A: hit distance
+    RenderGraph::ResourceHandle m_ProbeRayDataRDGTextureHandle; // Probe ray data texture array - RGB: radiance | A: hit distance
+    
     nvrhi::TextureHandle m_ProbeIrradiance;         // Probe irradiance texture array - RGB irradiance, encoded with a high gamma curve
     nvrhi::TextureHandle m_ProbeDistance;           // Probe distance texture array - R: mean distance | G: mean distance^2
     nvrhi::TextureHandle m_ProbeData;               // Probe data texture array - XYZ: world-space relocation offsets | W: classification state
@@ -138,7 +143,7 @@ public:
     uint32_t m_NumVolumeVariabilitySamples = 0;
     float m_DebugProbeRadius = 0.1f;
     float m_VariabilityStdDev = kKindaBigNumber;
-    float m_VariabilityStdDevThreshold = 0.05f;
+    float m_VariabilityStdDevThreshold = 0.005f;
     bool bIsConverged = false;
 
 private:
@@ -148,7 +153,6 @@ private:
 
     struct ProbeTextureCreateInfo
     {
-        nvrhi::TextureHandle& m_TextureHandle;
         const char* m_Name;
         nvrhi::ResourceStates m_InitialState;
         bool m_bIsRenderTarget;
@@ -156,15 +160,15 @@ private:
 
     const ProbeTextureCreateInfo kTextureCreateInfos[(int)rtxgi::EDDGIVolumeTextureType::Count] =
     {
-        { m_ProbeRayData, "Probe Ray Data", nvrhi::ResourceStates::UnorderedAccess, false },
-        { m_ProbeIrradiance, "Probe Irradiance", nvrhi::ResourceStates::ShaderResource, true },
-        { m_ProbeDistance, "Probe Distance", nvrhi::ResourceStates::ShaderResource, true },
-        { m_ProbeData, "Probe Data", nvrhi::ResourceStates::UnorderedAccess, false },
-        { m_ProbeVariability, "Probe Variability", nvrhi::ResourceStates::UnorderedAccess, false },
-        { m_ProbeVariabilityAverage, "Probe Variability Average", nvrhi::ResourceStates::UnorderedAccess, false },
+        { "Probe Ray Data", nvrhi::ResourceStates::UnorderedAccess, false },
+        { "Probe Irradiance", nvrhi::ResourceStates::ShaderResource, true },
+        { "Probe Distance", nvrhi::ResourceStates::ShaderResource, true },
+        { "Probe Data", nvrhi::ResourceStates::UnorderedAccess, false },
+        { "Probe Variability", nvrhi::ResourceStates::UnorderedAccess, false },
+        { "Probe Variability Average", nvrhi::ResourceStates::UnorderedAccess, false },
     };
 
-    void CreateProbeTexture(rtxgi::EDDGIVolumeTextureType textureType)
+    nvrhi::TextureDesc GetProbeTextureDesc(rtxgi::EDDGIVolumeTextureType textureType)
     {
         uint32_t width, height, arraySize;
         GetDDGIVolumeTextureDimensions(m_desc, textureType, width, height, arraySize);
@@ -188,9 +192,14 @@ private:
             desc.setClearValue(nvrhi::Color{ 0.0f, 0.0f, 0.0f, 1.0f });
         }
 
-        createInfo.m_TextureHandle = g_Graphic.m_NVRHIDevice->createTexture(desc);
+        //LOG_DEBUG("DDGI volume texture: %s, %ux%u, %u slices, format: %s", desc.debugName.c_str(), desc.width, desc.height, desc.arraySize, nvrhi::utils::FormatToString(desc.format));
 
-        LOG_DEBUG("Created DDGI volume texture: %s, %ux%u, %u slices, format: %s", desc.debugName.c_str(), desc.width, desc.height, desc.arraySize, nvrhi::utils::FormatToString(desc.format));
+        return desc;
+    }
+
+    nvrhi::TextureHandle CreateProbeTexture(rtxgi::EDDGIVolumeTextureType textureType)
+    {
+        return g_Graphic.m_NVRHIDevice->createTexture(GetProbeTextureDesc(textureType));
     }
 };
 
@@ -335,6 +344,7 @@ public:
         m_bResetProbes = ImGui::Button("Reset Probes");
         volumeDesc.probeRelocationNeedsReset |= ImGui::Checkbox("Enable Probe Relocation", &volumeDesc.probeRelocationEnabled);
         volumeDesc.probeClassificationNeedsReset |= ImGui::Checkbox("Enable Probe Classification", &volumeDesc.probeClassificationEnabled);
+        ImGui::Checkbox("Enable Probe Variability", &volumeDesc.probeVariabilityEnabled);
         ImGui::DragFloat("Probe Variability Std Dev Threshold", &m_GIVolume.m_VariabilityStdDevThreshold, 0.001f, 0.001f, 0.1f, "%.3f");
         ImGui::Text("Probe Spacing: [%.1f, %.1f, %.1f]", m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z); // TODO: run-time probe spacing change
         ImGui::Text("Volume Variability Average: [%.3f]", m_GIVolume.GetVolumeAverageVariability());
@@ -355,12 +365,16 @@ public:
             return false;
         }
 
+        m_GIVolume.Setup(renderGraph);
+
         return true;
     }
 
     void TraceProbes(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
         PROFILE_GPU_SCOPED(commandList, __FUNCTION__);
+
+        nvrhi::TextureHandle probeRayDataTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeRayDataRDGTextureHandle);
 
         GIProbeTraceConsts passConstants;
         passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
@@ -379,7 +393,7 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMaterialDataBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(8, g_Graphic.m_GlobalIndexBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(9, g_Graphic.m_GlobalMeshDataBuffer),
-            nvrhi::BindingSetItem::Texture_UAV(0, m_GIVolume.m_ProbeRayData),
+            nvrhi::BindingSetItem::Texture_UAV(0, probeRayDataTexture),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
@@ -425,6 +439,8 @@ public:
             return;
         }
 
+        nvrhi::TextureHandle probeRayDataTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeRayDataRDGTextureHandle);
+
         const rtxgi::DDGIVolumeDescGPUPacked volumeDescGPU = m_GIVolume.GetDescGPUPacked();
         commandList->writeBuffer(g_Scene->m_GIVolumeDescsBuffer, &volumeDescGPU, sizeof(rtxgi::DDGIVolumeDescGPUPacked));
 
@@ -446,7 +462,7 @@ public:
         {
             nvrhi::BindingSetItem::PushConstants(kDDGIRootConstsRegister, sizeof(rootConsts)),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(kDDGIVolumeDescGPUPackedRegister, g_Scene->m_GIVolumeDescsBuffer),
-            nvrhi::BindingSetItem::Texture_UAV(kDDGIRayDataRegister, m_GIVolume.m_ProbeRayData),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIRayDataRegister, probeRayDataTexture),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendRadianceOutputRegister, m_GIVolume.m_ProbeIrradiance),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendDistanceOutputRegister, m_GIVolume.m_ProbeDistance),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeDataRegister, m_GIVolume.m_ProbeData),

@@ -1,5 +1,4 @@
 • GI
-    • https://github.com/NVIDIAGameWorks/RTXGI-DDGI
 	• https://github.com/NVIDIA-RTX/RTXGI (?)
 • move a whole of shit out of GraphicPropertyGrid into Renderers
 • separate top mip streaming
