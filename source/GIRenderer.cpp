@@ -20,7 +20,6 @@ CommandLineOption<bool> g_CVarUseDDGISponzaDDGIVolumeSettings{ "UseDDGISponzaDDG
 static_assert(RTXGI_DDGI_WAVE_LANE_COUNT == kNumThreadsPerWave);
 static_assert(RTXGI_DDGI_BLEND_RAYS_PER_PROBE % kNumThreadsPerWave == 0);
 
-extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 
 const rtxgi::EDDGIVolumeTextureFormat kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Count] =
@@ -127,9 +126,9 @@ public:
 
     void Destroy() override {}
 
-    rtxgi::DDGIVolumeDesc& GetDesc() { return m_desc; }
-    uint32_t GetNumProbes() const { return rtxgi::DDGIVolumeBase::GetNumProbes(); }
-    void SetVariability(float v) { m_averageVariability = v; }
+    // direct accessors to private rxtgi::DDGIVolumeBase members, because im lazy
+    rtxgi::DDGIVolumeDesc& m_Desc = m_desc;
+    float& m_AverageVariability = m_averageVariability;
     
     nvrhi::TextureHandle m_ProbeIrradiance;         // Probe irradiance texture array - RGB irradiance, encoded with a high gamma curve
     nvrhi::TextureHandle m_ProbeDistance;           // Probe distance texture array - R: mean distance | G: mean distance^2
@@ -144,7 +143,7 @@ public:
     uint32_t m_NumVolumeVariabilitySamples = 0;
     float m_DebugProbeRadius = 0.1f;
     float m_VariabilityStdDev = kKindaBigNumber;
-    float m_VariabilityStdDevThreshold = 0.005f;
+    float m_VariabilityStdDevThreshold = 0.001f;
     bool bIsConverged = false;
 
 private:
@@ -249,7 +248,7 @@ public:
             (int)std::ceil(g_Scene->m_AABB.Extents.z * 2 / m_ProbeSpacing.z)
         };
 
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.m_Desc;
         volumeDesc.origin = rtxgi::float3{ g_Scene->m_AABB.Center.x, g_Scene->m_AABB.Center.y, g_Scene->m_AABB.Center.z };
         volumeDesc.eulerAngles = rtxgi::float3{ 0.0f, 0.0f, 0.0f }; // TODO: OBB?
         volumeDesc.probeSpacing = rtxgi::float3{ m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z };
@@ -294,8 +293,10 @@ public:
         volumeDesc.probeIrradianceThreshold = 0.2f;
         volumeDesc.probeBrightnessThreshold = 0.1f;
 
+        // make radiance delta faster. default: 0.97
+        volumeDesc.probeHysteresis = 0.90f;
+
         // leave these values as defaults?
-        volumeDesc.probeHysteresis = 0.97f;
         volumeDesc.probeDistanceExponent = 50.f;
         volumeDesc.probeIrradianceEncodingGamma = 5.f;
         volumeDesc.probeRandomRayBackfaceThreshold = 0.1f;
@@ -330,7 +331,7 @@ public:
             return;
         }
 
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.m_Desc;
 
         ImGui::Checkbox("Show Debug Probes", &volumeDesc.showProbes);
 
@@ -430,7 +431,7 @@ public:
             m_bResetProbes = false;
         }
 
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.GetDesc();
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.m_Desc;
 
         m_GIVolume.Update();
 
@@ -508,7 +509,7 @@ public:
         {
             Vector2 variabilityReadback;
             m_GIVolume.m_ProbeVariabilityReadback.Read(&variabilityReadback);
-            m_GIVolume.SetVariability(variabilityReadback.x);
+            m_GIVolume.m_AverageVariability = variabilityReadback.x;
             m_GIVolume.SetVariabilityForCurrentFrame(variabilityReadback.x);
 
             const Vector3U kNumThreadsInGroup = { 4, 8, 4 }; // Each thread group will have 8x8x8 threads
@@ -585,7 +586,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        const rtxgi::DDGIVolumeDesc& volumeDesc = gs_GIRenderer.m_GIVolume.GetDesc();
+        const rtxgi::DDGIVolumeDesc& volumeDesc = gs_GIRenderer.m_GIVolume.m_Desc;
         if (!volumeDesc.showProbes)
         {
             return false;

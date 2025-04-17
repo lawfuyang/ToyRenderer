@@ -9,7 +9,7 @@ thread_local RenderGraph::PassID tl_CurrentThreadPassID = RenderGraph::kInvalidP
 
 static const bool kDoDebugLogging = false;
 static const uint32_t kDefaultHeapBlockSize = MB_TO_BYTES(16);
-static const uint32_t kMaxHeapBlockSize = MB_TO_BYTES(256); // equivalent to 4k texture with RGBA32 format.
+static const uint32_t kMaxHeapBlockSize = GB_TO_BYTES(1);
 static const uint32_t kHeapAlignment = KB_TO_BYTES(64);
 static const uint32_t kMaxTransientResourceAge = 2;
 
