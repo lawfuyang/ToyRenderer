@@ -51,7 +51,7 @@ class GIVolume
 public:
     nvrhi::TextureHandle GetProbeDataTexture() const override
     {
-        return m_ProbeData;
+        return g_GraphicPropertyGrid.m_GIControllables.m_bEnabled ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeIrradianceTexture() const override
