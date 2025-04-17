@@ -67,6 +67,8 @@ public:
     void Setup(RenderGraph& renderGraph)
     {
         renderGraph.CreateTransientResource(m_ProbeRayDataRDGTextureHandle, GetProbeTextureDesc(rtxgi::EDDGIVolumeTextureType::RayData));
+        renderGraph.CreateTransientResource(m_ProbeVariabilityRDGTextureHandle, GetProbeTextureDesc(rtxgi::EDDGIVolumeTextureType::Variability));
+        renderGraph.CreateTransientResource(m_ProbeVariabilityAverageRDGTextureHandle, GetProbeTextureDesc(rtxgi::EDDGIVolumeTextureType::VariabilityAverage));
     }
 
     void Update() override
@@ -110,8 +112,6 @@ public:
         m_ProbeIrradiance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Irradiance);
         m_ProbeDistance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Distance);
         m_ProbeData = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Data);
-        m_ProbeVariability = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Variability);
-        m_ProbeVariabilityAverage = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::VariabilityAverage);
 
         m_ProbeVariabilityReadback.Initialize(kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::VariabilityAverage]);
 
@@ -130,14 +130,15 @@ public:
     rtxgi::DDGIVolumeDesc& GetDesc() { return m_desc; }
     uint32_t GetNumProbes() const { return rtxgi::DDGIVolumeBase::GetNumProbes(); }
     void SetVariability(float v) { m_averageVariability = v; }
-
-    RenderGraph::ResourceHandle m_ProbeRayDataRDGTextureHandle; // Probe ray data texture array - RGB: radiance | A: hit distance
     
     nvrhi::TextureHandle m_ProbeIrradiance;         // Probe irradiance texture array - RGB irradiance, encoded with a high gamma curve
     nvrhi::TextureHandle m_ProbeDistance;           // Probe distance texture array - R: mean distance | G: mean distance^2
     nvrhi::TextureHandle m_ProbeData;               // Probe data texture array - XYZ: world-space relocation offsets | W: classification state
-    nvrhi::TextureHandle m_ProbeVariability;        // Probe variability texture array
-    nvrhi::TextureHandle m_ProbeVariabilityAverage; // Average of Probe variability for whole volume
+
+    RenderGraph::ResourceHandle m_ProbeRayDataRDGTextureHandle;            // Probe ray data texture array - RGB: radiance | A: hit distance
+    RenderGraph::ResourceHandle m_ProbeVariabilityRDGTextureHandle;        // Probe variability texture array
+    RenderGraph::ResourceHandle m_ProbeVariabilityAverageRDGTextureHandle; // Average of Probe variability for whole volume
+
     FencedReadbackTexture m_ProbeVariabilityReadback; // CPU-readable resource containing final Probe variability average
 
     uint32_t m_NumVolumeVariabilitySamples = 0;
@@ -440,6 +441,8 @@ public:
         }
 
         nvrhi::TextureHandle probeRayDataTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeRayDataRDGTextureHandle);
+        nvrhi::TextureHandle probeVariabilityTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeVariabilityRDGTextureHandle);
+        nvrhi::TextureHandle probeVariabilityAverageTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeVariabilityAverageRDGTextureHandle);
 
         const rtxgi::DDGIVolumeDescGPUPacked volumeDescGPU = m_GIVolume.GetDescGPUPacked();
         commandList->writeBuffer(g_Scene->m_GIVolumeDescsBuffer, &volumeDescGPU, sizeof(rtxgi::DDGIVolumeDescGPUPacked));
@@ -466,8 +469,8 @@ public:
             nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendRadianceOutputRegister, m_GIVolume.m_ProbeIrradiance),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIBlendDistanceOutputRegister, m_GIVolume.m_ProbeDistance),
             nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeDataRegister, m_GIVolume.m_ProbeData),
-            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeVariabilityRegister, m_GIVolume.m_ProbeVariability),
-            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeVariabilityAverageRegister, m_GIVolume.m_ProbeVariabilityAverage),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeVariabilityRegister, probeVariabilityTexture),
+            nvrhi::BindingSetItem::Texture_UAV(kDDGIProbeVariabilityAverageRegister, probeVariabilityAverageTexture),
         };
 
         UINT probeCountX, probeCountY, probeCountZ;
@@ -543,7 +546,7 @@ public:
                     {
                         nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
                         nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_GIVolumeDescsBuffer),
-                        nvrhi::BindingSetItem::Texture_UAV(0, m_GIVolume.m_ProbeVariabilityAverage),
+                        nvrhi::BindingSetItem::Texture_UAV(0, probeVariabilityAverageTexture),
                     };
 
                     computePassParams.m_ShaderName = "giprobeextrareduction_CS_DDGIExtraReduction";
@@ -564,7 +567,7 @@ public:
                 bIsFirstPass = false;
             }
 
-            m_GIVolume.m_ProbeVariabilityReadback.CopyTo(commandList, m_GIVolume.m_ProbeVariabilityAverage);
+            m_GIVolume.m_ProbeVariabilityReadback.CopyTo(commandList, probeVariabilityAverageTexture);
         }
     }
 };
