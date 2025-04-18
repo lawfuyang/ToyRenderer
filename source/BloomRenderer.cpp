@@ -24,6 +24,7 @@ public:
 	{
 		const uint32_t nbMaxBloomMips = ComputeNbMips(g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y);
 
+		ImGui::Checkbox("Enabled", &g_Scene->m_bEnableBloom);
 		ImGui::SliderInt("Number of Bloom Mips", (int*)&m_NbBloomMips, 2, nbMaxBloomMips);
 		ImGui::SliderFloat("Upsample Filter Radius", &m_UpsampleFilterRadius, 0.001f, 0.1f);
 		ImGui::SliderFloat("Bloom Strength", &g_Scene->m_BloomStrength, 0.01f, 1.0f);
@@ -31,7 +32,7 @@ public:
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
-		if (!g_Scene->m_bBloomEnabled)
+		if (!g_Scene->m_bEnableBloom)
 		{
 			return false;
 		}
@@ -55,7 +56,6 @@ public:
 	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
 	{
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-		Scene* scene = g_Graphic.m_Scene.get();
 
 		const uint32_t nbPasses = m_NbBloomMips - 1;
 

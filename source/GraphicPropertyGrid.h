@@ -45,14 +45,5 @@ public:
         float m_MiddleGray = 0.18f;
     };
     AdaptLuminanceControllables m_AdaptLuminanceControllables;
-
-    struct ShadowControllables
-    {
-        bool m_bEnabled = true;
-        bool m_bEnableSoftShadows = true;
-        bool m_bEnableShadowDenoising = true;
-        float m_SunAngularDiameter = 0.533f; // empirical shit
-    };
-    ShadowControllables m_ShadowControllables;
 };
 #define g_GraphicPropertyGrid GraphicPropertyGrid::GetInstance()

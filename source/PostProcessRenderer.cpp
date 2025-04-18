@@ -17,7 +17,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
 	{
-        if (g_Scene->m_bBloomEnabled)
+        if (g_Scene->m_bEnableBloom)
         {
             renderGraph.AddReadDependency(g_BloomRDGTextureHandle);
         }
@@ -30,7 +30,6 @@ public:
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
 
         // Render Targets & Depth Buffer
         nvrhi::FramebufferDesc frameBufferDesc;
@@ -41,17 +40,17 @@ public:
         passParameters.m_OutputDims = g_Graphic.m_RenderResolution;
         passParameters.m_ManualExposure = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_ManualExposureOverride;
         passParameters.m_MiddleGray = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_MiddleGray;
-        passParameters.m_BloomStrength = g_Scene->m_bBloomEnabled ? g_Scene->m_BloomStrength : 0.0f;
+        passParameters.m_BloomStrength = g_Scene->m_bEnableBloom ? g_Scene->m_BloomStrength : 0.0f;
 
         nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
-        nvrhi::TextureHandle bloomTexture = g_Scene->m_bBloomEnabled ? renderGraph.GetTexture(g_BloomRDGTextureHandle) : g_CommonResources.BlackTexture.m_NVRHITextureHandle;
+        nvrhi::TextureHandle bloomTexture = g_Scene->m_bEnableBloom ? renderGraph.GetTexture(g_BloomRDGTextureHandle) : g_CommonResources.BlackTexture.m_NVRHITextureHandle;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
         {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
             nvrhi::BindingSetItem::Texture_SRV(0, lightingOutput),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, scene->m_LuminanceBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Scene->m_LuminanceBuffer),
             nvrhi::BindingSetItem::Texture_SRV(2, bloomTexture),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
         };

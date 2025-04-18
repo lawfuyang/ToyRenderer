@@ -50,17 +50,17 @@ class GIVolume
 public:
     nvrhi::TextureHandle GetProbeDataTexture() const override
     {
-        return g_Scene->m_bGIEnabled ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->m_bEnableGI ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeIrradianceTexture() const override
     {
-        return g_Scene->m_bGIEnabled ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->m_bEnableGI ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeDistanceTexture() const override
     {
-        return g_Scene->m_bGIEnabled ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->m_bEnableGI ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     void Setup(RenderGraph& renderGraph)
@@ -320,8 +320,8 @@ public:
 
     void UpdateImgui() override
     {
-        ImGui::Checkbox("Enabled", &g_Scene->m_bGIEnabled);
-        if (!g_Scene->m_bGIEnabled)
+        ImGui::Checkbox("Enabled", &g_Scene->m_bEnableGI);
+        if (!g_Scene->m_bEnableGI)
         {
             return;
         }
@@ -350,7 +350,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        if (!g_Scene->m_bGIEnabled)
+        if (!g_Scene->m_bEnableGI)
         {
             return false;
         }

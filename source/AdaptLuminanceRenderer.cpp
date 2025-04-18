@@ -48,22 +48,21 @@ public:
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
 
         // read back previous frame's scene exposure
-        m_ExposureReadbackBuffer.Read((void*)&scene->m_LastFrameExposure);
+        m_ExposureReadbackBuffer.Read((void*)&g_Scene->m_LastFrameExposure);
 
         const GraphicPropertyGrid::AdaptLuminanceControllables& controllables = g_GraphicPropertyGrid.m_AdaptLuminanceControllables;
 
         ON_EXIT_SCOPE_LAMBDA([&]
             {
                 // copy to staging texture to be read back by CPU next frame, regardless whether manual exposure mode is enabled or not
-                m_ExposureReadbackBuffer.CopyTo(commandList, scene->m_LuminanceBuffer);
+                m_ExposureReadbackBuffer.CopyTo(commandList, g_Scene->m_LuminanceBuffer);
             });
 
         if (controllables.m_ManualExposureOverride > 0.0f)
         {
-            commandList->writeBuffer(scene->m_LuminanceBuffer, &controllables.m_ManualExposureOverride, sizeof(float));
+            commandList->writeBuffer(g_Scene->m_LuminanceBuffer, &controllables.m_ManualExposureOverride, sizeof(float));
             return;
         }
 
@@ -112,7 +111,7 @@ public:
             bindingSetDesc.bindings = {
                 nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(0, luminanceHistogramBuffer),
-                nvrhi::BindingSetItem::StructuredBuffer_UAV(0, scene->m_LuminanceBuffer)
+                nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_LuminanceBuffer)
             };
 
             Graphic::ComputePassParams computePassParams;

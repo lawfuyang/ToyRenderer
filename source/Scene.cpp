@@ -40,8 +40,6 @@ public:
         static bool s_ClearBackBufferEveryFrame = true; // clearing every frame makes things easier to debug
         static bool s_ClearLightingOutputEveryFrame = true; // clearing every frame makes things easier to debug
 
-        Scene* scene = g_Graphic.m_Scene.get();
-
         if (s_ClearBackBufferEveryFrame)
         {
             PROFILE_GPU_SCOPED(commandList, "Clear Back Buffer");
@@ -179,7 +177,7 @@ void Scene::SetCamera(uint32_t idx)
 
 bool Scene::IsShadowsEnabled() const
 {
-    return !!m_TLAS && g_GraphicPropertyGrid.m_ShadowControllables.m_bEnabled;
+    return !!m_TLAS && m_bEnableShadows;
 }
 
 void Scene::UpdateMainViewCameraControls()
@@ -499,9 +497,6 @@ void Scene::UpdateIMGUI()
 {
     if (ImGui::TreeNode("Ambient Occlusion"))
     {
-        ImGui::Checkbox("Enabled", &m_bAOEnabled);
-        ImGui::Separator();
-
         extern IRenderer* g_AmbientOcclusionRenderer;
         g_AmbientOcclusionRenderer->UpdateImgui();
 
@@ -510,8 +505,6 @@ void Scene::UpdateIMGUI()
 
     if (ImGui::TreeNode("Bloom"))
     {
-        ImGui::Checkbox("Enabled", &m_bBloomEnabled);
-
         extern IRenderer* g_BloomRenderer;
         g_BloomRenderer->UpdateImgui();
 
@@ -541,6 +534,33 @@ void Scene::UpdateIMGUI()
         ImGui::TreePop();
     }
 
+    if (ImGui::TreeNode("Culling Stats"))
+    {
+        const auto& InstanceRenderingControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
+
+        // TODO: support transparent
+
+        ImGui::Text("Early:");
+
+        ImGui::Indent();
+
+        ImGui::Text("Instances:[%d]", m_View.m_GPUCullingCounters.m_EarlyInstances);
+        ImGui::Text("Meshlets: [%d]", m_View.m_GPUCullingCounters.m_EarlyMeshlets);
+
+        ImGui::Unindent();
+
+        ImGui::Text("Late:");
+
+        ImGui::Indent();
+
+        ImGui::Text("Instances: [%d]", m_View.m_GPUCullingCounters.m_LateInstances);
+        ImGui::Text("Meshlets: [%d]", m_View.m_GPUCullingCounters.m_LateMeshlets);
+
+        ImGui::Unindent();
+
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNode("Lighting"))
     {
         bool bUpdateDirection = false;
@@ -556,29 +576,10 @@ void Scene::UpdateIMGUI()
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Culling Stats"))
+    if (ImGui::TreeNode("Shadows"))
     {
-		const auto& InstanceRenderingControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
-
-        // TODO: support transparent
-
-		ImGui::Text("Early:");
-
-		ImGui::Indent();
-
-		ImGui::Text("Instances:[%d]", m_View.m_GPUCullingCounters.m_EarlyInstances);
-		ImGui::Text("Meshlets: [%d]", m_View.m_GPUCullingCounters.m_EarlyMeshlets);
-
-		ImGui::Unindent();
-
-        ImGui::Text("Late:");
-
-        ImGui::Indent();
-
-        ImGui::Text("Instances: [%d]", m_View.m_GPUCullingCounters.m_LateInstances);
-        ImGui::Text("Meshlets: [%d]", m_View.m_GPUCullingCounters.m_LateMeshlets);
-
-        ImGui::Unindent();
+        extern IRenderer* g_ShadowMaskRenderer;
+        g_ShadowMaskRenderer->UpdateImgui();
 
         ImGui::TreePop();
     }

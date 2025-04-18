@@ -38,7 +38,7 @@ public:
 		renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
 
-		if (g_Scene->m_bAOEnabled)
+		if (g_Scene->m_bEnableAO)
 		{
 			renderGraph.AddReadDependency(g_SSAORDGTextureHandle);
 		}
@@ -66,14 +66,14 @@ public:
 		passConstants.m_DirectionalLightColor = g_Scene->m_DirLightColor;
 		passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
 		passConstants.m_ClipToWorld = view.m_ClipToWorld;
-		passConstants.m_SSAOEnabled = g_Scene->m_bAOEnabled;
+		passConstants.m_SSAOEnabled = g_Scene->m_bEnableAO;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
 		passConstants.m_DebugMode = debugControllables.m_DebugMode;
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
         nvrhi::TextureHandle GBufferMotionTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
-		nvrhi::TextureHandle ssaoTexture = g_Scene->m_bAOEnabled ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
+		nvrhi::TextureHandle ssaoTexture = g_Scene->m_bEnableAO ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle shadowMaskTexture = g_Scene->IsShadowsEnabled() ? renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);

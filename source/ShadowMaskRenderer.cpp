@@ -1,6 +1,7 @@
 #include "Graphic.h"
 
 #include "extern/nvidia/NRD/Include/NRD.h"
+#include "extern/imgui/imgui.h"
 
 #include "CommonResources.h"
 #include "Engine.h"
@@ -82,6 +83,10 @@ class ShadowMaskRenderer : public IRenderer
     std::vector<RenderGraph::ResourceHandle> m_NRDTemporaryTextureHandles;
 	RenderGraph::ResourceHandle m_ShadowPenumbraRDGTextureHandle;
 	RenderGraph::ResourceHandle m_NormalRoughnessRDGTextureHandle;
+
+	bool m_bEnableSoftShadows = true;
+	bool m_bEnableShadowDenoising = true;
+	float m_SunAngularDiameter = 0.533f; // empirical shit
 
 public:
 	ShadowMaskRenderer() : IRenderer("ShadowMaskRenderer") {}
@@ -169,14 +174,20 @@ public:
 		}
     }
 
+	void UpdateImgui() override
+	{
+		ImGui::Checkbox("Enable Shadows", &g_Scene->m_bEnableShadows);
+		ImGui::Checkbox("Enable Soft Shadows", &m_bEnableSoftShadows);
+		ImGui::Checkbox("Enable Shadow Denoising", &m_bEnableShadowDenoising);
+		ImGui::SliderFloat("Sun Angular Diameter", &m_SunAngularDiameter, 0.0f, 3.0f);
+	}
+
 	bool Setup(RenderGraph& renderGraph) override
     {
 		if (!g_Scene->IsShadowsEnabled())
 		{
 			return false;
 		}
-
-		const auto& controllables = g_GraphicPropertyGrid.m_ShadowControllables;
 
 		{
 			nvrhi::TextureDesc desc;
@@ -189,7 +200,7 @@ public:
 			renderGraph.CreateTransientResource(g_ShadowMaskRDGTextureHandle, desc);
 		}
 
-		if (controllables.m_bEnableShadowDenoising)
+		if (m_bEnableShadowDenoising)
 		{
 			{
 				nvrhi::TextureDesc desc;
@@ -244,23 +255,21 @@ public:
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 		View& view = g_Scene->m_View;
 
-		const auto& controllables = g_GraphicPropertyGrid.m_ShadowControllables;
-
-		nvrhi::TextureHandle shadowDataTexture = controllables.m_bEnableShadowDenoising ? renderGraph.GetTexture(m_ShadowPenumbraRDGTextureHandle) : renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
+		nvrhi::TextureHandle shadowDataTexture = m_bEnableShadowDenoising ? renderGraph.GetTexture(m_ShadowPenumbraRDGTextureHandle) : renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
         nvrhi::TextureHandle linearViewDepthTexture = renderGraph.GetTexture(g_LinearViewDepthRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
 
-		const float tanSunAngularRadius = tanf(ConvertToRadians(controllables.m_SunAngularDiameter * 0.5f));
+		const float tanSunAngularRadius = tanf(ConvertToRadians(m_SunAngularDiameter * 0.5f));
 
 		ShadowMaskConsts passConstants;
 		passConstants.m_ClipToWorld = view.m_ClipToWorld;
 		passConstants.m_DirectionalLightDirection = g_Scene->m_DirLightVec;
 		passConstants.m_OutputResolution = Vector2U{ shadowDataTexture->getDesc().width , shadowDataTexture->getDesc().height };
 		passConstants.m_NoisePhase = (g_Graphic.m_FrameCounter & 0xff) * kGoldenRatio;
-		passConstants.m_TanSunAngularRadius = controllables.m_bEnableSoftShadows ? tanSunAngularRadius : 0.0f;
+		passConstants.m_TanSunAngularRadius = m_bEnableSoftShadows ? tanSunAngularRadius : 0.0f;
         passConstants.m_CameraPosition = g_Scene->m_View.m_Eye;
-        passConstants.m_bDoDenoising = controllables.m_bEnableShadowDenoising;
+        passConstants.m_bDoDenoising = m_bEnableShadowDenoising;
 		passConstants.m_RayStartOffset = (g_Scene->m_BoundingSphere.Radius < 3.0f) ? 0.01f : 0.1f;
 
 		nvrhi::BindingSetDesc bindingSetDesc;
@@ -323,8 +332,7 @@ public:
 
 	void DenoiseShadows(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
 	{
-		const auto& controllables = g_GraphicPropertyGrid.m_ShadowControllables;
-		if (!controllables.m_bEnableShadowDenoising)
+		if (!m_bEnableShadowDenoising)
 		{
 			return;
 		}

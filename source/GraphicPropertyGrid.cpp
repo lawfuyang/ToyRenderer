@@ -9,8 +9,6 @@
 
 void GraphicPropertyGrid::UpdateIMGUI()
 {
-    Scene* scene = g_Graphic.m_Scene.get();
-
     if (ImGui::TreeNode("Shaders"))
     {
         if (ImGui::Button("Compile & Reload Shaders"))
@@ -90,18 +88,6 @@ void GraphicPropertyGrid::UpdateIMGUI()
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Shadows"))
-    {
-        ShadowControllables& params = m_ShadowControllables;
-
-        ImGui::Checkbox("Enabled", &params.m_bEnabled);
-        ImGui::Checkbox("Enable Soft Shadows", &params.m_bEnableSoftShadows);
-        ImGui::Checkbox("Enable Shadow Denoising", &params.m_bEnableShadowDenoising);
-        ImGui::SliderFloat("Sun Angular Diameter", &params.m_SunAngularDiameter, 0.0f, 3.0f);
-
-        ImGui::TreePop();
-    }
-
     if (ImGui::TreeNode("Sky"))
     {
         SkyControllables& params = m_SkyControllables;
@@ -118,7 +104,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
 
         bool bLuminanceDirty = false;
 
-        ImGui::Text("Scene Luminance: %f", scene->m_LastFrameExposure);
+        ImGui::Text("Scene Luminance: %f", g_Scene->m_LastFrameExposure);
         ImGui::DragFloat("Manual Exposure Override", &params.m_ManualExposureOverride, 0.1f, 0.0f);
         bLuminanceDirty |= ImGui::DragFloat("Minimum Luminance", &params.m_MinimumLuminance, 0.01f, 0.0f);
         bLuminanceDirty |= ImGui::DragFloat("Maximum Luminance", &params.m_MaximumLuminance, 0.01f, 0.0f);

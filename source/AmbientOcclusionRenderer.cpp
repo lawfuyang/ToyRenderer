@@ -88,6 +88,7 @@ public:
 
 	void UpdateImgui() override
 	{
+        ImGui::Checkbox("Enabled", &g_Scene->m_bEnableAO);
 		ImGui::Combo("Debug Output Mode", &m_DebugOutputMode, "None\0Screen-Space Normals\0Edges\0Bent Normals\0");
 		ImGui::Separator();
 
@@ -96,7 +97,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
 	{
-        if (!g_Scene->m_bAOEnabled)
+        if (!g_Scene->m_bEnableAO)
         {
             return false;
 		}

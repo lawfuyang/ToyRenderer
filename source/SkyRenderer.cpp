@@ -149,8 +149,6 @@ public:
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
-        View& mainView = scene->m_View;
 
         nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
         nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
@@ -164,11 +162,11 @@ public:
 
         // pass consts
         SkyPassParameters skyPassParameters{};
-        skyPassParameters.m_ClipToWorld = mainView.m_ClipToWorld;
-        skyPassParameters.m_SunLightDir = scene->m_DirLightVec;
-        skyPassParameters.m_CameraPosition = mainView.m_Eye;
+        skyPassParameters.m_ClipToWorld = g_Scene->m_View.m_ClipToWorld;
+        skyPassParameters.m_SunLightDir = g_Scene->m_DirLightVec;
+        skyPassParameters.m_CameraPosition = g_Scene->m_View.m_Eye;
 
-        HosekWilkieHelper::SkyParameters skyParams = HosekWilkieHelper::CalculateSkyParameters(g_GraphicPropertyGrid.m_SkyControllables.m_SkyTurbidity, g_GraphicPropertyGrid.m_SkyControllables.m_GroundAlbedo, scene->m_DirLightVec);
+        HosekWilkieHelper::SkyParameters skyParams = HosekWilkieHelper::CalculateSkyParameters(g_GraphicPropertyGrid.m_SkyControllables.m_SkyTurbidity, g_GraphicPropertyGrid.m_SkyControllables.m_GroundAlbedo, g_Scene->m_DirLightVec);
         for (uint32_t i = 0; i < skyParams.size(); ++i)
         {
             skyPassParameters.m_HosekParams.m_Params[i] = Vector4{ Vector3{ skyParams[i] } };

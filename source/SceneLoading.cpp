@@ -587,8 +587,6 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Load Nodes");
 
-        Scene* scene = g_Graphic.m_Scene.get();
-
         if (const float customSceneScale = g_CustomSceneScale.Get();
             g_CustomSceneScale.Get() > 0.0f)
         {
@@ -607,12 +605,12 @@ struct GLTFSceneLoader
 
         std::vector<Vector3> AABBPointsForSceneOBB;
 
-        scene->m_Nodes.resize(m_GLTFData->nodes_count);
+        g_Scene->m_Nodes.resize(m_GLTFData->nodes_count);
 
         for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
         {
             cgltf_node& node = m_GLTFData->nodes[i];
-            Node& newNode = scene->m_Nodes[i];
+            Node& newNode = g_Scene->m_Nodes[i];
 
             Matrix outLocalMatrix;
             cgltf_node_transform_local(&node, (cgltf_float*)&outLocalMatrix);
@@ -631,9 +629,9 @@ struct GLTFSceneLoader
             {
                 for (const Primitive& primitive : m_SceneMeshPrimitives.at(cgltf_mesh_index(m_GLTFData, node.mesh)))
                 {
-                    const uint32_t primitiveID = scene->m_Primitives.size();
+                    const uint32_t primitiveID = g_Scene->m_Primitives.size();
 
-                    Primitive& newPrimitive = scene->m_Primitives.emplace_back();
+                    Primitive& newPrimitive = g_Scene->m_Primitives.emplace_back();
                     newPrimitive.m_NodeID = i;
                     newPrimitive.m_MeshIdx = primitive.m_MeshIdx;
                     newPrimitive.m_Material = primitive.m_Material;
@@ -654,8 +652,8 @@ struct GLTFSceneLoader
                     Sphere worldBoundingSphere;
                     primitiveMesh.m_BoundingSphere.Transform(worldBoundingSphere, outWorldMatrix);
 
-                    AABB::CreateMerged(scene->m_AABB, scene->m_AABB, worldAABB);
-                    Sphere::CreateMerged(scene->m_BoundingSphere, scene->m_BoundingSphere, worldBoundingSphere);
+                    AABB::CreateMerged(g_Scene->m_AABB, g_Scene->m_AABB, worldAABB);
+                    Sphere::CreateMerged(g_Scene->m_BoundingSphere, g_Scene->m_BoundingSphere, worldBoundingSphere);
                 }
             }
 
@@ -663,7 +661,7 @@ struct GLTFSceneLoader
             {
                 assert(node.camera->type == cgltf_camera_type_perspective);
 
-                Scene::Camera& newCamera = scene->m_Cameras.emplace_back();
+                Scene::Camera& newCamera = g_Scene->m_Cameras.emplace_back();
 
                 newCamera.m_Name = node.name ? node.name : "Un-named Camera";
                 newCamera.m_Orientation = worldRotation;
@@ -674,18 +672,18 @@ struct GLTFSceneLoader
             {
                 if (node.light->type == cgltf_light_type_directional)
                 {
-                    scene->m_DirLightVec = -outWorldMatrix.Forward();
+                    g_Scene->m_DirLightVec = -outWorldMatrix.Forward();
 
                     // Ensure the vector has valid length
-                    assert(scene->m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
+                    assert(g_Scene->m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
 
                     // Step 1: Calculate m_SunInclination (phi)
-                    scene->m_SunInclination = std::asin(scene->m_DirLightVec.y);  // Asin returns radians
-                    scene->m_SunInclination = ConvertToDegrees(scene->m_SunInclination); // Convert to degrees
+                    g_Scene->m_SunInclination = std::asin(g_Scene->m_DirLightVec.y);  // Asin returns radians
+                    g_Scene->m_SunInclination = ConvertToDegrees(g_Scene->m_SunInclination); // Convert to degrees
 
                     // Step 2: Calculate m_SunOrientation (theta)
-                    scene->m_SunOrientation = std::atan2(scene->m_DirLightVec.z, scene->m_DirLightVec.x); // Atan2 returns radians
-                    scene->m_SunOrientation = ConvertToDegrees(scene->m_SunOrientation); // Convert to degrees
+                    g_Scene->m_SunOrientation = std::atan2(g_Scene->m_DirLightVec.z, g_Scene->m_DirLightVec.x); // Atan2 returns radians
+                    g_Scene->m_SunOrientation = ConvertToDegrees(g_Scene->m_SunOrientation); // Convert to degrees
                 }
             }
 
@@ -704,7 +702,7 @@ struct GLTFSceneLoader
 
         if (!AABBPointsForSceneOBB.empty())
         {
-            OBB::CreateFromPoints(scene->m_OBB, AABBPointsForSceneOBB.size(), AABBPointsForSceneOBB.data(), sizeof(Vector3));
+            OBB::CreateFromPoints(g_Scene->m_OBB, AABBPointsForSceneOBB.size(), AABBPointsForSceneOBB.data(), sizeof(Vector3));
         }
     }
     
@@ -712,15 +710,13 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Load Animations");
 
-        Scene* scene = g_Graphic.m_Scene.get();
-
-        scene->m_Animations.resize(m_GLTFData->animations_count);
+        g_Scene->m_Animations.resize(m_GLTFData->animations_count);
 
         for (uint32_t animationIdx = 0; animationIdx < m_GLTFData->animations_count; ++animationIdx)
         {
             const cgltf_animation& gltfAnimation = m_GLTFData->animations[animationIdx];
 
-            Animation& newAnimation = scene->m_Animations[animationIdx];
+            Animation& newAnimation = g_Scene->m_Animations[animationIdx];
             newAnimation.m_Name = gltfAnimation.name ? gltfAnimation.name : "Un-named Animation";
 
             for (uint32_t channelIdx = 0; channelIdx < gltfAnimation.channels_count; ++channelIdx)
