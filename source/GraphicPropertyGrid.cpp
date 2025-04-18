@@ -7,13 +7,6 @@
 #include "Scene.h"
 #include "RenderGraph.h"
 
-#if 0
-namespace nvrhi::d3d12
-{
-    extern D3D12MA::Allocator* g_D3D12MAAllocator;
-}
-#endif
-
 void GraphicPropertyGrid::UpdateIMGUI()
 {
     Scene* scene = g_Graphic.m_Scene.get();
@@ -149,27 +142,6 @@ void GraphicPropertyGrid::UpdateIMGUI()
         {
             params.m_MaximumLuminance = std::max(params.m_MaximumLuminance, params.m_MinimumLuminance + 0.1f);
         }
-
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Bloom"))
-    {
-        BloomControllables& params = m_BloomControllables;
-
-        const uint32_t nbMaxBloomMips = ComputeNbMips(g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y);
-
-        ImGui::Checkbox("Enabled", &params.m_bEnabled);
-        ImGui::SliderInt("Number of Bloom Mips", (int*)&params.m_NbBloomMips, 2, nbMaxBloomMips);
-        ImGui::SliderFloat("Upsample Filter Radius", &params.m_UpsampleFilterRadius, 0.001f, 0.1f);
-        ImGui::SliderFloat("Bloom Strength", &params.m_BloomStrength, 0.01f, 1.0f);
-
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Scene"))
-    {
-        g_Graphic.m_Scene->UpdateIMGUIPropertyGrid();
 
         ImGui::TreePop();
     }

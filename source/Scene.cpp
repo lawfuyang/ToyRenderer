@@ -495,8 +495,18 @@ void Scene::Shutdown()
     m_RenderGraph->Shutdown();
 }
 
-void Scene::UpdateIMGUIPropertyGrid()
+void Scene::UpdateIMGUI()
 {
+    if (ImGui::TreeNode("Bloom"))
+    {
+        ImGui::Checkbox("Enabled", &m_bBloomEnabled);
+
+        extern IRenderer* g_BloomRenderer;
+        g_BloomRenderer->UpdateImgui();
+
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNode("Cameras"))
     {
         std::string cameraComboStr;
@@ -566,8 +576,6 @@ void Scene::UpdateIMGUIPropertyGrid()
 void Scene::PostSceneLoad()
 {
     PROFILE_FUNCTION();
-
-    m_bIsSmallScene = m_BoundingSphere.Radius < 3.0f;
 
     // empirically set camera near plane based on scene BS radius
     m_View.m_ZNearP = std::max(0.1f, std::min(m_BoundingSphere.Radius * 0.01f, 0.1f));

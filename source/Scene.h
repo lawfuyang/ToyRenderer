@@ -90,7 +90,7 @@ public:
     void Initialize();
     void Update();
     void Shutdown();
-    void UpdateIMGUIPropertyGrid();
+    void UpdateIMGUI();
     void PostSceneLoad();
     void SetCamera(uint32_t idx);
 
@@ -100,14 +100,15 @@ public:
 
     View m_View;
 
-    bool m_bIsSmallScene = false;
-
     double m_AnimationTimeSeconds = 0.0;
     float m_SunOrientation = 270.0f;
     float m_SunInclination = 30.0f;
     Vector3 m_DirLightVec = Vector3{ 0.5773502691896258f, 0.5773502691896258f, -0.5773502691896258f };
     Vector3 m_DirLightColor = Vector3::One;
     float m_LastFrameExposure = 1.0f;
+
+    bool m_bBloomEnabled = true;
+    float m_BloomStrength = 0.1f;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;

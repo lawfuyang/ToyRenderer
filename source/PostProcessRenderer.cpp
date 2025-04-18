@@ -17,8 +17,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
 	{
-        const auto& bloomControllables = g_GraphicPropertyGrid.m_BloomControllables;
-        if (bloomControllables.m_bEnabled)
+        if (g_Scene->m_bBloomEnabled)
         {
             renderGraph.AddReadDependency(g_BloomRDGTextureHandle);
         }
@@ -33,8 +32,6 @@ public:
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         Scene* scene = g_Graphic.m_Scene.get();
 
-        const auto& bloomControllables = g_GraphicPropertyGrid.m_BloomControllables;
-
         // Render Targets & Depth Buffer
         nvrhi::FramebufferDesc frameBufferDesc;
         frameBufferDesc.addColorAttachment(g_Graphic.GetCurrentBackBuffer());
@@ -44,10 +41,10 @@ public:
         passParameters.m_OutputDims = g_Graphic.m_RenderResolution;
         passParameters.m_ManualExposure = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_ManualExposureOverride;
         passParameters.m_MiddleGray = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_MiddleGray;
-        passParameters.m_BloomStrength = bloomControllables.m_bEnabled ? bloomControllables.m_BloomStrength : 0.0f;
+        passParameters.m_BloomStrength = g_Scene->m_bBloomEnabled ? g_Scene->m_BloomStrength : 0.0f;
 
         nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
-        nvrhi::TextureHandle bloomTexture = bloomControllables.m_bEnabled ? renderGraph.GetTexture(g_BloomRDGTextureHandle) : g_CommonResources.BlackTexture.m_NVRHITextureHandle;
+        nvrhi::TextureHandle bloomTexture = g_Scene->m_bBloomEnabled ? renderGraph.GetTexture(g_BloomRDGTextureHandle) : g_CommonResources.BlackTexture.m_NVRHITextureHandle;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =

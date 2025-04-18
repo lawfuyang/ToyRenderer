@@ -66,14 +66,5 @@ public:
         bool m_bEnabled = true;
     };
     GIControllables m_GIControllables;
-    
-    struct BloomControllables
-    {
-        bool m_bEnabled = true;
-        uint32_t m_NbBloomMips = 6;
-        float m_UpsampleFilterRadius = 0.005f;
-        float m_BloomStrength = 0.1f;
-    };
-    BloomControllables m_BloomControllables;
 };
 #define g_GraphicPropertyGrid GraphicPropertyGrid::GetInstance()

@@ -272,7 +272,7 @@ public:
         volumeDesc.movementType = rtxgi::EDDGIVolumeMovementType::Default;
         volumeDesc.probeVisType = rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
         
-        if (g_Scene->m_bIsSmallScene)
+        if (g_Scene->m_BoundingSphere.Radius < 3.0f)
         {
             // sample's cornell settings:
             volumeDesc.probeViewBias = 0.1f;

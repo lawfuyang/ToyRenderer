@@ -261,7 +261,7 @@ public:
 		passConstants.m_TanSunAngularRadius = controllables.m_bEnableSoftShadows ? tanSunAngularRadius : 0.0f;
         passConstants.m_CameraPosition = g_Scene->m_View.m_Eye;
         passConstants.m_bDoDenoising = controllables.m_bEnableShadowDenoising;
-		passConstants.m_RayStartOffset = g_Scene->m_bIsSmallScene ? 0.01f : 0.1f;
+		passConstants.m_RayStartOffset = (g_Scene->m_BoundingSphere.Radius < 3.0f) ? 0.01f : 0.1f;
 
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {

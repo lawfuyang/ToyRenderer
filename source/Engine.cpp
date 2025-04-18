@@ -414,6 +414,7 @@ void Engine::UpdateIMGUI()
         if (ImGui::Begin("Graphic Property Grid", &bShowGraphicPropertyGrid, ImGuiWindowFlags_AlwaysAutoResize))
         {
             g_GraphicPropertyGrid.UpdateIMGUI();
+            g_Scene->UpdateIMGUI();
         }
         ImGui::End();
     }

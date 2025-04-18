@@ -1,5 +1,7 @@
 #include "Graphic.h"
 
+#include "extern/imgui/imgui.h"
+
 #include "Scene.h"
 #include "GraphicPropertyGrid.h"
 #include "CommonResources.h"
@@ -12,13 +14,24 @@ extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 
 class BloomRenderer : public IRenderer
 {
+	uint32_t m_NbBloomMips = 6;
+	float m_UpsampleFilterRadius = 0.005f;
+
 public:
 	BloomRenderer() : IRenderer("BloomRenderer") {}
 
+	void UpdateImgui() override
+	{
+		const uint32_t nbMaxBloomMips = ComputeNbMips(g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y);
+
+		ImGui::SliderInt("Number of Bloom Mips", (int*)&m_NbBloomMips, 2, nbMaxBloomMips);
+		ImGui::SliderFloat("Upsample Filter Radius", &m_UpsampleFilterRadius, 0.001f, 0.1f);
+		ImGui::SliderFloat("Bloom Strength", &g_Scene->m_BloomStrength, 0.01f, 1.0f);
+	}
+
 	bool Setup(RenderGraph& renderGraph) override
 	{
-		const GraphicPropertyGrid::BloomControllables& bloomControllables = g_GraphicPropertyGrid.m_BloomControllables;
-		if (!bloomControllables.m_bEnabled)
+		if (!g_Scene->m_bBloomEnabled)
 		{
 			return false;
 		}
@@ -28,7 +41,7 @@ public:
 		desc.height = g_Graphic.m_RenderResolution.y;
 		desc.format = Graphic::kLightingOutputFormat;
 		desc.debugName = "Bloom Texture";
-		desc.mipLevels = bloomControllables.m_NbBloomMips;
+		desc.mipLevels = m_NbBloomMips;
 		desc.isRenderTarget = true;
 		desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
@@ -41,16 +54,10 @@ public:
 
 	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
 	{
-		const GraphicPropertyGrid::BloomControllables& bloomControllables = g_GraphicPropertyGrid.m_BloomControllables;
-		if (!bloomControllables.m_bEnabled)
-		{
-			return;
-		}
-
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 		Scene* scene = g_Graphic.m_Scene.get();
 
-		const uint32_t nbPasses = bloomControllables.m_NbBloomMips - 1;
+		const uint32_t nbPasses = m_NbBloomMips - 1;
 
 		nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle bloomTexture = renderGraph.GetTexture(g_BloomRDGTextureHandle);
@@ -103,7 +110,7 @@ public:
 			const uint32_t destMip = srcMip - 1;
 
 			BloomUpsampleConsts upsampleConsts;
-			upsampleConsts.m_FilterRadius = bloomControllables.m_UpsampleFilterRadius;
+			upsampleConsts.m_FilterRadius = m_UpsampleFilterRadius;
 
 			nvrhi::BindingSetDesc bindingSetDesc;
 			bindingSetDesc.bindings = {
