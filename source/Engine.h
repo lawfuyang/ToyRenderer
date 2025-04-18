@@ -27,6 +27,8 @@ public:
 
     bool m_bWindowsDeveloperMode = false;
 
+    uint32_t m_FPSLimit = 200;
+
     float m_CPUFrameTimeMs = 0.0f;
     float m_CPUCappedFrameTimeMs = 0.0f;
     float m_GPUTimeMs = 0.0f;

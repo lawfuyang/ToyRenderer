@@ -7,7 +7,6 @@
 #include "CommonResources.h"
 #include "Engine.h"
 #include "Graphic.h"
-#include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
 #include "Visual.h"
 
@@ -126,7 +125,7 @@ void View::Update()
     Frustum::CreateFromMatrix(m_Frustum, m_ViewToClip);
     m_Frustum.Transform(m_Frustum, m_ViewToWorld);
 
-	const bool bFreezeCullingCamera = g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera;
+	const bool bFreezeCullingCamera = g_Scene->m_bFreezeCullingCamera;
     if (!bFreezeCullingCamera)
     {
         m_CullingPrevWorldToView = m_PrevWorldToView;
@@ -440,7 +439,7 @@ void Scene::Update()
 
     m_View.Update();
 
-    if (g_GraphicPropertyGrid.m_DebugControllables.m_EnableAnimations)
+    if (m_EnableAnimations)
     {
         UpdateAnimations();
     }
@@ -495,18 +494,70 @@ void Scene::Shutdown()
 
 void Scene::UpdateIMGUI()
 {
-    if (ImGui::TreeNode("Ambient Occlusion"))
+    if (ImGui::TreeNode("Debug"))
     {
-        extern IRenderer* g_AmbientOcclusionRenderer;
-        g_AmbientOcclusionRenderer->UpdateImgui();
+        if (ImGui::Button("Compile & Reload Shaders"))
+        {
+            std::system(StringFormat("\"%s/../compileallshaders\" NO_PAUSE", GetExecutableDirectory()));
+            g_Graphic.m_bTriggerReloadShaders = true;
+
+        }
+        ImGui::SliderInt("FPS Limit", (int*)&g_Engine.m_FPSLimit, 10, 240);
+
+        // keep in sync with 'kDeferredLightingDebugMode_*'
+        static const char* kDebugModeNames[] =
+        {
+            "None",
+            "Lighting Only",
+            "Colorize Instances",
+            "Colorize Meshlets",
+            "Albedo",
+            "Normal",
+            "Emissive",
+            "Metalness",
+            "Roughness",
+            "Ambient Occlusion",
+            "Indirect Lighting",
+            "Shadow Mask",
+            "Mesh LOD",
+            "Motion Vectors"
+        };
+
+        ImGui::Combo("##DebugModeCombo", &m_DebugViewMode, kDebugModeNames, std::size(kDebugModeNames));
+        ImGui::Checkbox("Enable Animations", &m_EnableAnimations);
+
+        static bool s_bGPUStablePower = false;
+        if (ImGui::Checkbox("GPU Stable Power", &s_bGPUStablePower))
+        {
+            g_Graphic.SetGPUStablePowerState(s_bGPUStablePower);
+        }
 
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Bloom"))
+    for (IRenderer* renderer : IRenderer::ms_AllRenderers)
     {
-        extern IRenderer* g_BloomRenderer;
-        g_BloomRenderer->UpdateImgui();
+        if (ImGui::TreeNode(renderer->m_Name.c_str()))
+        {
+            renderer->UpdateImgui();
+            ImGui::TreePop();
+        }
+    }
+
+    if (ImGui::TreeNode("Render Graph"))
+    {
+        m_RenderGraph->UpdateIMGUI();
+
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Instance Rendering"))
+    {
+        ImGui::Checkbox("Enable Frustum Culling", &m_bEnableFrustumCulling);
+        ImGui::Checkbox("Enable Occlusion Culling", &m_bEnableOcclusionCulling);
+        ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);
+        ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
+        ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, Graphic::kMaxNumMeshLODs - 1);
 
         ImGui::TreePop();
     }
@@ -536,8 +587,6 @@ void Scene::UpdateIMGUI()
 
     if (ImGui::TreeNode("Culling Stats"))
     {
-        const auto& InstanceRenderingControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
-
         // TODO: support transparent
 
         ImGui::Text("Early:");
@@ -561,14 +610,6 @@ void Scene::UpdateIMGUI()
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("HDR"))
-    {
-        extern IRenderer* g_AdaptLuminanceRenderer;
-        g_AdaptLuminanceRenderer->UpdateImgui();
-
-        ImGui::TreePop();
-    }
-
     if (ImGui::TreeNode("Lighting"))
     {
         bool bUpdateDirection = false;
@@ -580,14 +621,6 @@ void Scene::UpdateIMGUI()
         }
 
         ImGui::DragFloat3("Directional Light Color", (float*)&m_DirLightColor, 0.01f, 0.0f, 1.0f, "%.1f");
-
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Shadows"))
-    {
-        extern IRenderer* g_ShadowMaskRenderer;
-        g_ShadowMaskRenderer->UpdateImgui();
 
         ImGui::TreePop();
     }

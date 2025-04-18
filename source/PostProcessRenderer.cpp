@@ -1,7 +1,6 @@
 #include "Graphic.h"
 
 #include "CommonResources.h"
-#include "GraphicPropertyGrid.h"
 #include "Scene.h"
 #include "RenderGraph.h"
 

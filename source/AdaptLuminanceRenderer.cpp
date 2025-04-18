@@ -3,7 +3,6 @@
 #include "extern/imgui/imgui.h"
 
 #include "Engine.h"
-#include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
 #include "Scene.h"
 
@@ -48,9 +47,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        const GraphicPropertyGrid::AdaptLuminanceControllables& controllables = g_GraphicPropertyGrid.m_AdaptLuminanceControllables;
-
-        if (controllables.m_ManualExposureOverride > 0.0f)
+        if (g_Scene->m_ManualExposureOverride > 0.0f)
         {
             return false;
         }
@@ -75,22 +72,20 @@ public:
         // read back previous frame's scene exposure
         m_ExposureReadbackBuffer.Read((void*)&g_Scene->m_LastFrameExposure);
 
-        const GraphicPropertyGrid::AdaptLuminanceControllables& controllables = g_GraphicPropertyGrid.m_AdaptLuminanceControllables;
-
         ON_EXIT_SCOPE_LAMBDA([&]
             {
                 // copy to staging texture to be read back by CPU next frame, regardless whether manual exposure mode is enabled or not
                 m_ExposureReadbackBuffer.CopyTo(commandList, g_Scene->m_LuminanceBuffer);
             });
 
-        if (controllables.m_ManualExposureOverride > 0.0f)
+        if (g_Scene->m_ManualExposureOverride > 0.0f)
         {
-            commandList->writeBuffer(g_Scene->m_LuminanceBuffer, &controllables.m_ManualExposureOverride, sizeof(float));
+            commandList->writeBuffer(g_Scene->m_LuminanceBuffer, &g_Scene->m_ManualExposureOverride, sizeof(float));
             return;
         }
 
-        const float minLogLum = std::log2(controllables.m_MinimumLuminance);
-        const float maxLogLum = std::log2(controllables.m_MaximumLuminance);
+        const float minLogLum = std::log2(m_MinimumLuminance);
+        const float maxLogLum = std::log2(m_MaximumLuminance);
 
         nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
         nvrhi::BufferHandle luminanceHistogramBuffer = renderGraph.GetBuffer(m_LuminanceHistogramRDGBufferHandle);
@@ -125,7 +120,7 @@ public:
         // AdaptExposure
         {
             AdaptExposureParameters passParameters{};
-            passParameters.m_AdaptationSpeed = std::clamp(controllables.m_AutoExposureSpeed * g_Engine.m_CPUCappedFrameTimeMs, 0.0f, 1.0f);
+            passParameters.m_AdaptationSpeed = std::clamp(m_AutoExposureSpeed * g_Engine.m_CPUCappedFrameTimeMs, 0.0f, 1.0f);
             passParameters.m_MinLogLuminance = minLogLum;
             passParameters.m_LogLuminanceRange = maxLogLum - minLogLum;
             passParameters.m_NbPixels = g_Graphic.m_RenderResolution.x * g_Graphic.m_RenderResolution.y;

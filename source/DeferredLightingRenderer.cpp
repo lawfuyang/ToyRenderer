@@ -1,7 +1,6 @@
 #include "Graphic.h"
 
 #include "CommonResources.h"
-#include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
 #include "Scene.h"
 
@@ -56,19 +55,16 @@ public:
 	void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
 	{
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-		View& view = g_Scene->m_View;
-
-		const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
 
 		// pass constants
 		DeferredLightingConsts passConstants;
-		passConstants.m_CameraOrigin = view.m_Eye;
+		passConstants.m_CameraOrigin = g_Scene->m_View.m_Eye;
 		passConstants.m_DirectionalLightColor = g_Scene->m_DirLightColor;
 		passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
-		passConstants.m_ClipToWorld = view.m_ClipToWorld;
+		passConstants.m_ClipToWorld = g_Scene->m_View.m_ClipToWorld;
 		passConstants.m_SSAOEnabled = g_Scene->m_bEnableAO;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
-		passConstants.m_DebugMode = debugControllables.m_DebugMode;
+		passConstants.m_DebugMode = g_Scene->m_DebugViewMode;
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
@@ -104,7 +100,7 @@ public:
 		depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
 		depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
 
-		const bool bHasDebugView = debugControllables.m_DebugMode != 0;
+		const bool bHasDebugView = g_Scene->m_DebugViewMode != 0;
 		const char* shaderName = bHasDebugView ? "deferredlighting_PS_Main_Debug" : "deferredlighting_PS_Main";
 
 		g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, shaderName, nullptr, &depthStencilState);

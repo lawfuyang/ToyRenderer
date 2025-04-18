@@ -107,6 +107,8 @@ public:
     Vector3 m_DirLightColor = Vector3::One;
     float m_LastFrameExposure = 1.0f;
 
+    int m_DebugViewMode = 0;
+    bool m_EnableAnimations = true;
     bool m_bEnableShadows = true;
     bool m_bEnableAO = true;
     bool m_bEnableGI = true;
@@ -114,6 +116,11 @@ public:
     float m_BloomStrength = 0.1f;
     float m_ManualExposureOverride = 0.0f; // 0 = automatic
     float m_MiddleGray = 0.18f;
+    bool m_bEnableFrustumCulling = true;
+    bool m_bEnableOcclusionCulling = true;
+    bool m_bEnableMeshletConeCulling = true;
+    bool m_bFreezeCullingCamera = false;
+    int m_ForceMeshLOD = -1;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;

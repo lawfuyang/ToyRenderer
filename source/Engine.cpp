@@ -11,7 +11,6 @@
 #include "SDL3/SDL_keyboard.h"
 
 #include "Graphic.h"
-#include "GraphicPropertyGrid.h"
 #include "Scene.h"
 #include "Utilities.h"
 
@@ -356,12 +355,11 @@ void Engine::MainLoop()
 
         m_CPUFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
 
-		if (const uint32_t fpsLimit = g_GraphicPropertyGrid.m_DebugControllables.m_FPSLimit;
-            fpsLimit != 0)
+		if (m_FPSLimit != 0)
 		{
             PROFILE_SCOPED("Busy Wait Until FPS Limit");
 
-			const std::chrono::microseconds frameDuration{ 1000000 / fpsLimit };
+			const std::chrono::microseconds frameDuration{ 1000000 / m_FPSLimit };
             const auto timeLeft = frameDuration - std::chrono::microseconds{ frameTimer.GetElapsedMicroSeconds() };
 
             if (timeLeft.count() > 0)
@@ -413,7 +411,6 @@ void Engine::UpdateIMGUI()
     {
         if (ImGui::Begin("Graphic Properties", &bShowGraphicPropertyGrid, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            g_GraphicPropertyGrid.UpdateIMGUI();
             g_Scene->UpdateIMGUI();
         }
         ImGui::End();

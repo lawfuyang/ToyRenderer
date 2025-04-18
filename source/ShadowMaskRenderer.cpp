@@ -6,7 +6,6 @@
 #include "CommonResources.h"
 #include "Engine.h"
 #include "FFXHelpers.h"
-#include "GraphicPropertyGrid.h"
 #include "Scene.h"
 #include "RenderGraph.h"
 
@@ -253,7 +252,6 @@ public:
         PROFILE_GPU_SCOPED(commandList, "TraceShadows");
 
 		nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-		View& view = g_Scene->m_View;
 
 		nvrhi::TextureHandle shadowDataTexture = m_bEnableShadowDenoising ? renderGraph.GetTexture(m_ShadowPenumbraRDGTextureHandle) : renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
         nvrhi::TextureHandle linearViewDepthTexture = renderGraph.GetTexture(g_LinearViewDepthRDGTextureHandle);
@@ -263,7 +261,7 @@ public:
 		const float tanSunAngularRadius = tanf(ConvertToRadians(m_SunAngularDiameter * 0.5f));
 
 		ShadowMaskConsts passConstants;
-		passConstants.m_ClipToWorld = view.m_ClipToWorld;
+		passConstants.m_ClipToWorld = g_Scene->m_View.m_ClipToWorld;
 		passConstants.m_DirectionalLightDirection = g_Scene->m_DirLightVec;
 		passConstants.m_OutputResolution = Vector2U{ shadowDataTexture->getDesc().width , shadowDataTexture->getDesc().height };
 		passConstants.m_NoisePhase = (g_Graphic.m_FrameCounter & 0xff) * kGoldenRatio;
@@ -342,17 +340,15 @@ public:
 		// TODO: when we have multiple passes using NRD, we can move this to its own renderer
         PackNormalRoughness(commandList, renderGraph);
 
-		View& view = g_Scene->m_View;
-
 		nrd::SigmaSettings sigmaSettings;
 		memcpy(sigmaSettings.lightDirection, &g_Scene->m_DirLightVec, sizeof(sigmaSettings.lightDirection));
 		NRD_CALL(nrd::SetDenoiserSettings(*m_NRDInstance, NRD_ID(SIGMA_SHADOW), &sigmaSettings));
 
 		nrd::CommonSettings commonSettings;
-        memcpy(commonSettings.viewToClipMatrix, &view.m_ViewToClip, sizeof(commonSettings.viewToClipMatrix));
-        memcpy(commonSettings.viewToClipMatrixPrev, &view.m_PrevViewToClip, sizeof(commonSettings.viewToClipMatrixPrev));
-        memcpy(commonSettings.worldToViewMatrix, &view.m_WorldToView, sizeof(commonSettings.worldToViewMatrix));
-        memcpy(commonSettings.worldToViewMatrixPrev, &view.m_PrevWorldToView, sizeof(commonSettings.worldToViewMatrixPrev));
+        memcpy(commonSettings.viewToClipMatrix, &g_Scene->m_View.m_ViewToClip, sizeof(commonSettings.viewToClipMatrix));
+        memcpy(commonSettings.viewToClipMatrixPrev, &g_Scene->m_View.m_PrevViewToClip, sizeof(commonSettings.viewToClipMatrixPrev));
+        memcpy(commonSettings.worldToViewMatrix, &g_Scene->m_View.m_WorldToView, sizeof(commonSettings.worldToViewMatrix));
+        memcpy(commonSettings.worldToViewMatrixPrev, &g_Scene->m_View.m_PrevWorldToView, sizeof(commonSettings.worldToViewMatrixPrev));
         commonSettings.motionVectorScale[0] = 1.0f / g_Graphic.m_RenderResolution.x;
         commonSettings.motionVectorScale[1] = 1.0f / g_Graphic.m_RenderResolution.y;
         commonSettings.cameraJitter[0] = 0.0f; // TODO: jitter stuff

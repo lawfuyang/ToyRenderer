@@ -5,7 +5,8 @@ namespace HosekData
 #include "HosekDataRGB.h"
 }
 
-#include "GraphicPropertyGrid.h"
+#include "extern/imgui/imgui.h"
+
 #include "CommonResources.h"
 #include "MathUtilities.h"
 #include "Scene.h"
@@ -130,12 +131,23 @@ namespace HosekWilkieHelper
 
 class SkyRenderer : public IRenderer
 {
+    bool m_bEnabled = true;
+    float m_SkyTurbidity = 2.0f;
+    Vector3 m_GroundAlbedo{ 0.1f, 0.1f, 0.1f };
+
 public:
     SkyRenderer() : IRenderer{ "SkyRenderer" } {}
 
+    void UpdateImgui() override
+    {
+        ImGui::Checkbox("Enabled", &m_bEnabled);
+        ImGui::SliderFloat3("Ground Albedo", (float*)&m_GroundAlbedo, 0.0f, 1.0f);
+        ImGui::SliderFloat("Sky Turbidity", &m_SkyTurbidity, 1.0f, 10.0f);
+    }
+
     bool Setup(RenderGraph& renderGraph) override
 	{
-        if (!g_GraphicPropertyGrid.m_SkyControllables.m_bEnabled)
+        if (!m_bEnabled)
         {
             return false;
         }
@@ -166,7 +178,7 @@ public:
         skyPassParameters.m_SunLightDir = g_Scene->m_DirLightVec;
         skyPassParameters.m_CameraPosition = g_Scene->m_View.m_Eye;
 
-        HosekWilkieHelper::SkyParameters skyParams = HosekWilkieHelper::CalculateSkyParameters(g_GraphicPropertyGrid.m_SkyControllables.m_SkyTurbidity, g_GraphicPropertyGrid.m_SkyControllables.m_GroundAlbedo, g_Scene->m_DirLightVec);
+        HosekWilkieHelper::SkyParameters skyParams = HosekWilkieHelper::CalculateSkyParameters(m_SkyTurbidity, m_GroundAlbedo, g_Scene->m_DirLightVec);
         for (uint32_t i = 0; i < skyParams.size(); ++i)
         {
             skyPassParameters.m_HosekParams.m_Params[i] = Vector4{ Vector3{ skyParams[i] } };

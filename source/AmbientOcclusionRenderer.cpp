@@ -5,7 +5,6 @@
 
 #include "CommonResources.h"
 #include "Engine.h"
-#include "GraphicPropertyGrid.h"
 #include "Scene.h"
 #include "RenderGraph.h"
 

@@ -3,7 +3,6 @@
 #include "extern/imgui/imgui.h"
 
 #include "Scene.h"
-#include "GraphicPropertyGrid.h"
 #include "CommonResources.h"
 #include "RenderGraph.h"
 

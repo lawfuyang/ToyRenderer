@@ -4,7 +4,6 @@
 #include "DescriptorTableManager.h"
 #include "Engine.h"
 #include "FFXHelpers.h"
-#include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
 #include "Scene.h"
 
@@ -201,7 +200,6 @@ public:
     {
         nvrhi::ShaderHandle m_PS;
         nvrhi::ShaderHandle m_PSAlphaMask;
-        View* m_View;
         nvrhi::RenderState m_RenderState;
         nvrhi::FramebufferDesc m_FrameBufferDesc;
     };
@@ -223,10 +221,9 @@ public:
             return true;
 		}
 
-        const auto& instanceControllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
-        m_DoFrustumCulling = instanceControllables.m_bEnableFrustumCulling;
-        m_bDoOcclusionCulling = instanceControllables.m_bEnableOcclusionCulling;
-        m_bDoMeshletConeCulling = instanceControllables.m_bEnableMeshletConeCulling;
+        m_DoFrustumCulling = g_Scene->m_bEnableFrustumCulling;
+        m_bDoOcclusionCulling = g_Scene->m_bEnableOcclusionCulling;
+        m_bDoMeshletConeCulling = g_Scene->m_bEnableMeshletConeCulling;
 
 		{
 			nvrhi::BufferDesc desc;
@@ -324,7 +321,6 @@ public:
         PROFILE_GPU_SCOPED(commandList, "GPU Culling");
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        View& view = *params.m_View;
 
         const uint32_t nbInstances = bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskPrimitiveIDs.size() : g_Scene->m_OpaquePrimitiveIDs.size();
         if (nbInstances == 0)
@@ -353,22 +349,20 @@ public:
             }
         }
 
-        const auto& controllables = g_GraphicPropertyGrid.m_InstanceRenderingControllables;
-
-        const uint32_t forcedMeshLOD = (controllables.m_ForceMeshLOD >= 0) ? controllables.m_ForceMeshLOD : kInvalidMeshLOD;
+        const uint32_t forcedMeshLOD = (g_Scene->m_ForceMeshLOD >= 0) ? g_Scene->m_ForceMeshLOD : kInvalidMeshLOD;
 
         GPUCullingPassConstants passParameters{};
         passParameters.m_NbInstances = nbInstances;
         passParameters.m_CullingFlags = m_CullingFlags;
         passParameters.m_Frustum = m_CullingFrustum;
         passParameters.m_HZBDimensions = m_HZBDimensions;
-        passParameters.m_WorldToView = view.m_CullingWorldToView;
-        passParameters.m_PrevWorldToView = view.m_CullingPrevWorldToView;
-        passParameters.m_NearPlane = view.m_ZNearP;
-        passParameters.m_P00 = view.m_ViewToClip.m[0][0];
-        passParameters.m_P11 = view.m_ViewToClip.m[1][1];
+        passParameters.m_WorldToView = g_Scene->m_View.m_CullingWorldToView;
+        passParameters.m_PrevWorldToView = g_Scene->m_View.m_CullingPrevWorldToView;
+        passParameters.m_NearPlane = g_Scene->m_View.m_ZNearP;
+        passParameters.m_P00 = g_Scene->m_View.m_ViewToClip.m[0][0];
+        passParameters.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
         passParameters.m_ForcedMeshLOD =  forcedMeshLOD;
-        passParameters.m_MeshLODTarget = (2.0f / view.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
+        passParameters.m_MeshLODTarget = (2.0f / g_Scene->m_View.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -440,7 +434,6 @@ public:
         PROFILE_GPU_SCOPED(commandList, "Render Instances");
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        View& view = *params.m_View;
 
 		std::span<const uint32_t> primitivesIDs = bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskPrimitiveIDs : g_Scene->m_OpaquePrimitiveIDs;
         const uint32_t nbInstances = primitivesIDs.size();
@@ -472,16 +465,16 @@ public:
 
         // pass consts
         BasePassConstants basePassConstants;
-        basePassConstants.m_WorldToClip = view.m_WorldToClip;
-        basePassConstants.m_PrevWorldToClip = view.m_PrevWorldToClip;
-        basePassConstants.m_WorldToView = view.m_CullingWorldToView;
+        basePassConstants.m_WorldToClip = g_Scene->m_View.m_WorldToClip;
+        basePassConstants.m_PrevWorldToClip = g_Scene->m_View.m_PrevWorldToClip;
+        basePassConstants.m_WorldToView = g_Scene->m_View.m_CullingWorldToView;
         basePassConstants.m_Frustum = m_CullingFrustum;
         basePassConstants.m_CullingFlags = finalCullingFlags;
         basePassConstants.m_HZBDimensions = m_HZBDimensions;
-        basePassConstants.m_P00 = view.m_ViewToClip.m[0][0];
-        basePassConstants.m_P11 = view.m_ViewToClip.m[1][1];
-        basePassConstants.m_NearPlane = view.m_ZNearP;
-        basePassConstants.m_DebugMode = g_GraphicPropertyGrid.m_DebugControllables.m_DebugMode;
+        basePassConstants.m_P00 = g_Scene->m_View.m_ViewToClip.m[0][0];
+        basePassConstants.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
+        basePassConstants.m_NearPlane = g_Scene->m_View.m_ZNearP;
+        basePassConstants.m_DebugMode = g_Scene->m_DebugViewMode;
         basePassConstants.m_OutputResolution = Vector2U{ viewportTexDesc.width, viewportTexDesc.height };
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
@@ -532,7 +525,7 @@ public:
 
     void GenerateHZB(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
     {
-        if (g_GraphicPropertyGrid.m_InstanceRenderingControllables.m_bFreezeCullingCamera)
+        if (g_Scene->m_bFreezeCullingCamera)
         {
             return;
         }
@@ -571,10 +564,7 @@ public:
 
     void RenderBasePass(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, const RenderBasePassParams& params)
     {
-        assert(params.m_View);
-
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        View& view = *params.m_View;
 
         nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
         commandList->clearBufferUInt(counterStatsBuffer, 0);
@@ -585,7 +575,7 @@ public:
             m_CounterStatsReadbackBuffer.Read(readbackResults);
 
             // TODO: support transparent
-            GPUCullingCounters& cullingCounters = view.m_GPUCullingCounters;
+            GPUCullingCounters& cullingCounters = g_Scene->m_View.m_GPUCullingCounters;
             cullingCounters.m_EarlyInstances = readbackResults[kCullingEarlyInstancesBufferCounterIdx];
             cullingCounters.m_EarlyMeshlets = readbackResults[kCullingEarlyMeshletsBufferCounterIdx];
             cullingCounters.m_LateInstances = readbackResults[kCullingLateInstancesBufferCounterIdx];
@@ -598,7 +588,7 @@ public:
 
         m_HZBDimensions = m_bDoOcclusionCulling ? Vector2U{ g_Scene->m_HZB->getDesc().width, g_Scene->m_HZB->getDesc().height } : Vector2U{ 1, 1 };
 
-        Matrix projectionT = view.m_ViewToClip.Transpose();
+        Matrix projectionT = g_Scene->m_View.m_ViewToClip.Transpose();
         Vector4 frustumX = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[0] };
         Vector4 frustumY = Vector4{ projectionT.m[3] } + Vector4{ projectionT.m[1] };
         frustumX.Normalize();
@@ -716,9 +706,6 @@ public:
         {
             return;
         }
-
-        View& view = g_Scene->m_View;
-
         nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
         nvrhi::TextureHandle GBufferMotionTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
         nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
@@ -736,7 +723,6 @@ public:
         RenderBasePassParams params;
         params.m_PS = g_Graphic.GetShader("basepass_PS_Main_GBuffer ALPHA_MASK_MODE=0");
         params.m_PSAlphaMask = g_Graphic.GetShader("basepass_PS_Main_GBuffer ALPHA_MASK_MODE=1");
-        params.m_View = &view;
         params.m_RenderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, depthStencilState, g_CommonResources.CullBackFace };
         params.m_FrameBufferDesc = frameBufferDesc;
 
