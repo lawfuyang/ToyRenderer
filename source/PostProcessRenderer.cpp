@@ -38,8 +38,8 @@ public:
 
         PostProcessParameters passParameters{};
         passParameters.m_OutputDims = g_Graphic.m_RenderResolution;
-        passParameters.m_ManualExposure = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_ManualExposureOverride;
-        passParameters.m_MiddleGray = g_GraphicPropertyGrid.m_AdaptLuminanceControllables.m_MiddleGray;
+        passParameters.m_ManualExposure = g_Scene->m_ManualExposureOverride;
+        passParameters.m_MiddleGray = g_Scene->m_MiddleGray;
         passParameters.m_BloomStrength = g_Scene->m_bEnableBloom ? g_Scene->m_BloomStrength : 0.0f;
 
         nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);

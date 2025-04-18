@@ -561,6 +561,14 @@ void Scene::UpdateIMGUI()
         ImGui::TreePop();
     }
 
+    if (ImGui::TreeNode("HDR"))
+    {
+        extern IRenderer* g_AdaptLuminanceRenderer;
+        g_AdaptLuminanceRenderer->UpdateImgui();
+
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNode("Lighting"))
     {
         bool bUpdateDirection = false;

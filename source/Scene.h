@@ -112,6 +112,8 @@ public:
     bool m_bEnableGI = true;
     bool m_bEnableBloom = true;
     float m_BloomStrength = 0.1f;
+    float m_ManualExposureOverride = 0.0f; // 0 = automatic
+    float m_MiddleGray = 0.18f;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;

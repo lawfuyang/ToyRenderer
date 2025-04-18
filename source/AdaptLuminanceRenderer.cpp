@@ -1,5 +1,7 @@
 #include "Graphic.h"
 
+#include "extern/imgui/imgui.h"
+
 #include "Engine.h"
 #include "GraphicPropertyGrid.h"
 #include "RenderGraph.h"
@@ -14,6 +16,10 @@ class AdaptLuminanceRenderer : public IRenderer
     FencedReadbackBuffer m_ExposureReadbackBuffer;
     RenderGraph::ResourceHandle m_LuminanceHistogramRDGBufferHandle;
 
+    float m_MinimumLuminance = 0.004f;
+    float m_MaximumLuminance = 12.0f;
+    float m_AutoExposureSpeed = 0.0025f;
+
 public:
     AdaptLuminanceRenderer() : IRenderer("AdaptLuminanceRenderer") {}
 
@@ -21,6 +27,23 @@ public:
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
         m_ExposureReadbackBuffer.Initialize(sizeof(float));
+    }
+
+    void UpdateImgui() override
+    {
+        bool bLuminanceDirty = false;
+
+        ImGui::Text("Scene Luminance: %f", g_Scene->m_LastFrameExposure);
+        ImGui::DragFloat("Manual Exposure Override", &g_Scene->m_ManualExposureOverride, 0.1f, 0.0f);
+        bLuminanceDirty |= ImGui::DragFloat("Minimum Luminance", &m_MinimumLuminance, 0.01f, 0.0f);
+        bLuminanceDirty |= ImGui::DragFloat("Maximum Luminance", &m_MaximumLuminance, 0.01f, 0.0f);
+        ImGui::DragFloat("Auto Exposure Speed", &m_AutoExposureSpeed, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat("Middle Gray", &g_Scene->m_MiddleGray, 0.01f, 0.0f);
+
+        if (bLuminanceDirty)
+        {
+            m_MaximumLuminance = std::max(m_MaximumLuminance, m_MinimumLuminance + 0.1f);
+        }
     }
 
     bool Setup(RenderGraph& renderGraph) override

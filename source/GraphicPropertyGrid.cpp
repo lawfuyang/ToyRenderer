@@ -97,25 +97,4 @@ void GraphicPropertyGrid::UpdateIMGUI()
 
         ImGui::TreePop();
     }
-
-    if (ImGui::TreeNode("HDR"))
-    {
-        AdaptLuminanceControllables& params = m_AdaptLuminanceControllables;
-
-        bool bLuminanceDirty = false;
-
-        ImGui::Text("Scene Luminance: %f", g_Scene->m_LastFrameExposure);
-        ImGui::DragFloat("Manual Exposure Override", &params.m_ManualExposureOverride, 0.1f, 0.0f);
-        bLuminanceDirty |= ImGui::DragFloat("Minimum Luminance", &params.m_MinimumLuminance, 0.01f, 0.0f);
-        bLuminanceDirty |= ImGui::DragFloat("Maximum Luminance", &params.m_MaximumLuminance, 0.01f, 0.0f);
-        ImGui::DragFloat("Auto Exposure Speed", &params.m_AutoExposureSpeed, 0.01f, 0.0f, 1.0f);
-        ImGui::DragFloat("Middle Gray", &params.m_MiddleGray, 0.01f, 0.0f);
-
-        if (bLuminanceDirty)
-        {
-            params.m_MaximumLuminance = std::max(params.m_MaximumLuminance, params.m_MinimumLuminance + 0.1f);
-        }
-
-        ImGui::TreePop();
-    }
 }
