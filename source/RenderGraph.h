@@ -82,6 +82,7 @@ public:
 	void Shutdown();
 	void Compile();
 	void AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed = nullptr);
+	void UpdateIMGUI();
 
 	// Setup Phase funcs
 	template <typename ResourceDescT>
@@ -102,6 +103,9 @@ private:
 	void CreateNewHeap(uint32_t size);
 
 	tf::Taskflow* m_TaskFlow;
+
+	bool m_bPassCulling = true;
+	bool m_bResourceAliasing = true;
 	
 	std::vector<tf::Task> m_CommandListQueueTasks;
 	std::vector<Pass> m_Passes;

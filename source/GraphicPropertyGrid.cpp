@@ -5,6 +5,7 @@
 #include "Graphic.h"
 #include "Engine.h"
 #include "Scene.h"
+#include "RenderGraph.h"
 
 #if 0
 namespace nvrhi::d3d12
@@ -29,11 +30,7 @@ void GraphicPropertyGrid::UpdateIMGUI()
 
     if (ImGui::TreeNode("Render Graph"))
     {
-        auto& params = m_RenderGraphControllables;
-
-        ImGui::Checkbox("Enable Pass Culling", &params.m_bPassCulling);
-        ImGui::Checkbox("Enable Resource Tracking", &params.m_bResourceAliasing);
-        ImGui::Separator();
+        g_Scene->m_RenderGraph->UpdateIMGUI();
 
         ImGui::TreePop();
     }

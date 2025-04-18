@@ -75,12 +75,5 @@ public:
         float m_BloomStrength = 0.1f;
     };
     BloomControllables m_BloomControllables;
-
-    struct RenderGraphControllables
-    {
-        bool m_bPassCulling = true;
-        bool m_bResourceAliasing = true;
-    };
-    RenderGraphControllables m_RenderGraphControllables;
 };
 #define g_GraphicPropertyGrid GraphicPropertyGrid::GetInstance()

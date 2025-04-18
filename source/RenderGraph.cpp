@@ -1,5 +1,7 @@
 #include "RenderGraph.h"
 
+#include "extern/imgui/imgui.h"
+
 #include "Engine.h"
 #include "Graphic.h"
 #include "Scene.h"
@@ -285,6 +287,12 @@ void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
 		renderTask.succeed(*taskToSucceed);
         queueCommandListTask.succeed(*taskToSucceed);
 	}
+}
+
+void RenderGraph::UpdateIMGUI()
+{
+	ImGui::Checkbox("Enable Pass Culling", &m_bPassCulling);
+	ImGui::Checkbox("Enable Resource Tracking", &m_bResourceAliasing);
 }
 
 template <typename ResourceDescT>
