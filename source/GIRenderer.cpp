@@ -50,17 +50,17 @@ class GIVolume
 public:
     nvrhi::TextureHandle GetProbeDataTexture() const override
     {
-        return g_GraphicPropertyGrid.m_GIControllables.m_bEnabled ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->m_bGIEnabled ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeIrradianceTexture() const override
     {
-        return g_GraphicPropertyGrid.m_GIControllables.m_bEnabled ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->m_bGIEnabled ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeDistanceTexture() const override
     {
-        return g_GraphicPropertyGrid.m_GIControllables.m_bEnabled ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->m_bGIEnabled ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     void Setup(RenderGraph& renderGraph)
@@ -228,8 +228,6 @@ public:
     {
         g_Scene->m_GIVolume = &m_GIVolume;
 
-        auto& controllables = g_GraphicPropertyGrid.m_GIControllables;
-
         // enforce minimum of 10x10x10 probes
         m_ProbeSpacing.x = std::min(m_ProbeSpacing.x, g_Scene->m_AABB.Extents.x * 0.2f);
         m_ProbeSpacing.y = std::min(m_ProbeSpacing.y, g_Scene->m_AABB.Extents.y * 0.2f);
@@ -322,11 +320,8 @@ public:
 
     void UpdateImgui() override
     {
-        auto& controllables = g_GraphicPropertyGrid.m_GIControllables;
-
-        ImGui::Checkbox("Enabled", &controllables.m_bEnabled);
-
-        if (!controllables.m_bEnabled)
+        ImGui::Checkbox("Enabled", &g_Scene->m_bGIEnabled);
+        if (!g_Scene->m_bGIEnabled)
         {
             return;
         }
@@ -355,9 +350,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        const auto& controllables = g_GraphicPropertyGrid.m_GIControllables;
-
-        if (!controllables.m_bEnabled)
+        if (!g_Scene->m_bGIEnabled)
         {
             return false;
         }

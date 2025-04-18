@@ -60,11 +60,5 @@ public:
         bool m_bEnabled = true;
     };
     AmbientOcclusionControllables m_AmbientOcclusionControllables;
-
-    struct GIControllables
-    {
-        bool m_bEnabled = true;
-    };
-    GIControllables m_GIControllables;
 };
 #define g_GraphicPropertyGrid GraphicPropertyGrid::GetInstance()
