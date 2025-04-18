@@ -54,11 +54,5 @@ public:
         float m_SunAngularDiameter = 0.533f; // empirical shit
     };
     ShadowControllables m_ShadowControllables;
-
-    struct AmbientOcclusionControllables
-    {
-        bool m_bEnabled = true;
-    };
-    AmbientOcclusionControllables m_AmbientOcclusionControllables;
 };
 #define g_GraphicPropertyGrid GraphicPropertyGrid::GetInstance()

@@ -107,6 +107,7 @@ public:
     Vector3 m_DirLightColor = Vector3::One;
     float m_LastFrameExposure = 1.0f;
 
+    bool m_bAOEnabled = true;
     bool m_bGIEnabled = true;
     bool m_bBloomEnabled = true;
     float m_BloomStrength = 0.1f;

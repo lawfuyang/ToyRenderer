@@ -90,19 +90,6 @@ void GraphicPropertyGrid::UpdateIMGUI()
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Ambient Occlusion"))
-    {
-        AmbientOcclusionControllables& params = m_AmbientOcclusionControllables;
-
-        ImGui::Checkbox("Enabled", &params.m_bEnabled);
-        ImGui::Separator();
-
-        extern IRenderer* g_AmbientOcclusionRenderer;
-        g_AmbientOcclusionRenderer->UpdateImgui();
-
-        ImGui::TreePop();
-    }
-
     if (ImGui::TreeNode("Shadows"))
     {
         ShadowControllables& params = m_ShadowControllables;

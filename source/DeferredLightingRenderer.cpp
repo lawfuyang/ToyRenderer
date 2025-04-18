@@ -38,8 +38,7 @@ public:
 		renderGraph.AddReadDependency(g_DepthStencilBufferRDGTextureHandle);
 		renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
 
-		const GraphicPropertyGrid::AmbientOcclusionControllables& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
-		if (AOControllables.m_bEnabled)
+		if (g_Scene->m_bAOEnabled)
 		{
 			renderGraph.AddReadDependency(g_SSAORDGTextureHandle);
 		}
@@ -60,7 +59,6 @@ public:
 		View& view = g_Scene->m_View;
 
 		const auto& debugControllables = g_GraphicPropertyGrid.m_DebugControllables;
-		const auto& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
 
 		// pass constants
 		DeferredLightingConsts passConstants;
@@ -68,14 +66,14 @@ public:
 		passConstants.m_DirectionalLightColor = g_Scene->m_DirLightColor;
 		passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
 		passConstants.m_ClipToWorld = view.m_ClipToWorld;
-		passConstants.m_SSAOEnabled = AOControllables.m_bEnabled;
+		passConstants.m_SSAOEnabled = g_Scene->m_bAOEnabled;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
 		passConstants.m_DebugMode = debugControllables.m_DebugMode;
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
         nvrhi::TextureHandle GBufferMotionTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
-		nvrhi::TextureHandle ssaoTexture = AOControllables.m_bEnabled ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
+		nvrhi::TextureHandle ssaoTexture = g_Scene->m_bAOEnabled ? renderGraph.GetTexture(g_SSAORDGTextureHandle) : g_CommonResources.R8UIntMax2DTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle shadowMaskTexture = g_Scene->IsShadowsEnabled() ? renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle) : g_CommonResources.WhiteTexture.m_NVRHITextureHandle;
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);

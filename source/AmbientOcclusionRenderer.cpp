@@ -38,7 +38,6 @@ public:
         m_XeGTAOSettings.DenoisePasses = 3;
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "AmbientOcclusionRenderer Init");
@@ -80,10 +79,10 @@ public:
             desc.canHaveUAVs = true;
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-            scene->m_LuminanceBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Scene->m_LuminanceBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
 
             const float kInitialExposure = 1.0f;
-            commandList->writeBuffer(scene->m_LuminanceBuffer, &kInitialExposure, sizeof(float));
+            commandList->writeBuffer(g_Scene->m_LuminanceBuffer, &kInitialExposure, sizeof(float));
         }
 	}
 
@@ -97,9 +96,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
 	{
-        const GraphicPropertyGrid::AmbientOcclusionControllables& AOControllables = g_GraphicPropertyGrid.m_AmbientOcclusionControllables;
-
-        if (!AOControllables.m_bEnabled)
+        if (!g_Scene->m_bAOEnabled)
         {
             return false;
 		}
@@ -144,13 +141,11 @@ public:
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        Scene* scene = g_Graphic.m_Scene.get();
-        View& mainView = scene->m_View;
 
         XeGTAO::GTAOConstants GTAOconsts{};
         const bool bRowMajor = true;
         const uint32_t frameCounter = g_Graphic.m_FrameCounter % 256;
-        XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, m_XeGTAOSettings, (const float*)&mainView.m_ViewToClip.m, bRowMajor, frameCounter);
+        XeGTAO::GTAOUpdateConstants(GTAOconsts, g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y, m_XeGTAOSettings, (const float*)&g_Scene->m_View.m_ViewToClip.m, bRowMajor, frameCounter);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, GTAOconsts);
 
@@ -185,7 +180,7 @@ public:
         // main pass
         {
             XeGTAOMainPassConstantBuffer mainPassConsts{};
-            mainPassConsts.m_WorldToViewNoTranslate = mainView.m_WorldToView;
+            mainPassConsts.m_WorldToViewNoTranslate = g_Scene->m_View.m_WorldToView;
             mainPassConsts.m_WorldToViewNoTranslate.Translation(Vector3::Zero);
 
             mainPassConsts.m_Quality = m_XeGTAOSettings.QualityLevel;

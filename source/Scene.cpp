@@ -497,6 +497,17 @@ void Scene::Shutdown()
 
 void Scene::UpdateIMGUI()
 {
+    if (ImGui::TreeNode("Ambient Occlusion"))
+    {
+        ImGui::Checkbox("Enabled", &m_bAOEnabled);
+        ImGui::Separator();
+
+        extern IRenderer* g_AmbientOcclusionRenderer;
+        g_AmbientOcclusionRenderer->UpdateImgui();
+
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNode("Bloom"))
     {
         ImGui::Checkbox("Enabled", &m_bBloomEnabled);
