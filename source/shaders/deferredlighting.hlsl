@@ -33,7 +33,12 @@ void PS_Main(
     float depth = g_DepthBuffer[inPosition.xy].x;
     float3 worldPosition = ScreenUVToWorldPosition(inUV, depth, g_DeferredLightingConsts.m_ClipToWorld);
     
-    float3 lighting = EvaluateDirectionalLight(gbufferParams, g_DeferredLightingConsts.m_CameraOrigin, worldPosition, g_DeferredLightingConsts.m_DirectionalLightVector);
+    float3 lighting = EvaluateDirectionalLight(
+                        gbufferParams,
+                        g_DeferredLightingConsts.m_CameraOrigin,
+                        worldPosition,
+                        g_DeferredLightingConsts.m_DirectionalLightVector,
+                        g_DeferredLightingConsts.m_DirectionalLightStrength);
     
     // Retrieve the shadow factor from the shadow mask texture
     float shadowFactor = g_ShadowMaskTexture.SampleLevel(g_PointClampSampler, inUV, 0).r;

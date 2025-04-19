@@ -59,8 +59,8 @@ public:
 		// pass constants
 		DeferredLightingConsts passConstants;
 		passConstants.m_CameraOrigin = g_Scene->m_View.m_Eye;
-		passConstants.m_DirectionalLightColor = g_Scene->m_DirLightColor;
 		passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
+        passConstants.m_DirectionalLightStrength = g_Scene->m_DirLightStrength;
 		passConstants.m_ClipToWorld = g_Scene->m_View.m_ClipToWorld;
 		passConstants.m_SSAOEnabled = g_Scene->m_bEnableAO;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;

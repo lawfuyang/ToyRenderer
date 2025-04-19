@@ -186,7 +186,8 @@ float3 EvaluateDirectionalLight(
     GBufferParams gbufferParams,
     float3 origin,
     float3 worldPosition,
-    float3 lightDirection)
+    float3 lightDirection,
+    float lightStrength)
 {
     const float materialSpecular = 0.5f; // TODO?
     float3 diffuse = ComputeDiffuseColor(gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);
@@ -195,7 +196,7 @@ float3 EvaluateDirectionalLight(
     float3 V = normalize(origin - worldPosition);
     float3 L = lightDirection;
     
-    return DefaultLitBxDF(specular, gbufferParams.m_Roughness, diffuse, gbufferParams.m_Normal, V, L);
+    return DefaultLitBxDF(specular, gbufferParams.m_Roughness, diffuse, gbufferParams.m_Normal, V, L) * lightStrength;
 }
 
 struct SampleMaterialValueArguments

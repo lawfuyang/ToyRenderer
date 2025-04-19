@@ -620,7 +620,7 @@ void Scene::UpdateIMGUI()
             UpdateDirectionalLightVector();
         }
 
-        ImGui::DragFloat3("Directional Light Color", (float*)&m_DirLightColor, 0.01f, 0.0f, 1.0f, "%.1f");
+        ImGui::DragFloat("Directional Light Strength", &m_DirLightStrength, 0.01f, 0.0f, 10.0f);
 
         ImGui::TreePop();
     }

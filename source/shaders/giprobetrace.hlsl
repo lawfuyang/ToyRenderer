@@ -117,7 +117,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     if (!bShadowed)
     {
         // direct lighting
-        radiance = EvaluateDirectionalLight(rayHitGBufferParams, probeWorldPosition, rayHitWorldPosition, g_GIProbeTraceConsts.m_DirectionalLightVector);
+        radiance = EvaluateDirectionalLight(rayHitGBufferParams, probeWorldPosition, rayHitWorldPosition, g_GIProbeTraceConsts.m_DirectionalLightVector, g_GIProbeTraceConsts.m_DirectionalLightStrength);
     }
     radiance += rayHitGBufferParams.m_Emissive;
     

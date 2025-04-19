@@ -104,7 +104,7 @@ public:
     float m_SunOrientation = 270.0f;
     float m_SunInclination = 30.0f;
     Vector3 m_DirLightVec = Vector3{ 0.5773502691896258f, 0.5773502691896258f, -0.5773502691896258f };
-    Vector3 m_DirLightColor = Vector3::One;
+    float m_DirLightStrength = 1.0f;
     float m_LastFrameExposure = 1.0f;
 
     int m_DebugViewMode = 0;

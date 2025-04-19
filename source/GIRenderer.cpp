@@ -372,6 +372,7 @@ public:
 
         GIProbeTraceConsts passConstants;
         passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
+        passConstants.m_DirectionalLightStrength = g_Scene->m_DirLightStrength;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =

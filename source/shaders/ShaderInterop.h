@@ -122,10 +122,9 @@ struct DeferredLightingConsts
 	Matrix m_ClipToWorld;
 	Vector3 m_CameraOrigin;
 	uint32_t m_SSAOEnabled;
-	Vector3 m_DirectionalLightColor;
 	uint32_t m_DebugMode;
 	Vector3 m_DirectionalLightVector;
-	uint32_t PAD0;
+	float m_DirectionalLightStrength;
 	Vector2U m_LightingOutputResolution;
 };
 
@@ -271,6 +270,7 @@ struct GIProbeExtraReductionConsts
 struct GIProbeTraceConsts
 {
 	Vector3 m_DirectionalLightVector;
+	float m_DirectionalLightStrength;
 };
 
 struct GIProbeVisualizationUpdateConsts
