@@ -1,6 +1,7 @@
 • GI
 	• upon variability convergence, plane-slice tracing & blending dispatches without relocated & classification
 	• https://github.com/NVIDIA-RTX/RTXGI (?)
+• DirectX 12 Agility SDK: https://devblogs.microsoft.com/directx/directx12agility/
 • separate top mip streaming
     • integrate D3DX12Residency into nvrhi
     • utilize 'SDL_AsyncIOFromFile' for async mip reading
