@@ -48,6 +48,7 @@
 • Skinning:
 	• https://learnopengl.com/Guest-Articles/2020/Skeletal-Animation
     • https://wickedengine.net/2017/09/skinning-in-compute-shader/
+    • use 'meshopt_buildMeshletsSplit' & VK_NV_cluster_acceleration_structure for skinned meshes
 • Terrain: https://learnopengl.com/Guest-Articles/2021/Tessellation/Height-map
 • Compute Queue
     • async XeGTAO
