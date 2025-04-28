@@ -14,6 +14,8 @@
 	• improve with https://github.com/NVIDIA-RTX/STBN (?)
 	• improve with https://github.com/NVIDIA-RTX/OMM (?)
 • implement HLSL Dynamic Resources (ResourceDescriptorHeap) in nvrhi
+• convert entire RHI stack to Vulkan
+    • for running on Linux. It's time
 • dont use culling counters in AS. use D3D12_QUERY_DATA_PIPELINE_STATISTICS1. prevents cancellation of EarlyZ
 • fix all -Wconversion Shader warnings
 • fix inverted view-space Z coord
