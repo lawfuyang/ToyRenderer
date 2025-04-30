@@ -4,7 +4,8 @@ option(ENABLE_UNITY_BUILD "" OFF)
 option(ENABLE_IPO "" OFF)
 option(ENABLE_ADDRESS_SANITIZER "" OFF)
 
-set(DXC_VERSION "1.8.2502")
+set(AGILITY_SDK_VERSION "1.615.1")
+set(DXC_VERSION "v1.8.2502/dxc_2025_02_20")
 set(SDL3_VERSION "3.2.10")
 
 set(NRD_NORMAL_ENCODING 2 CACHE STRING "")
@@ -36,7 +37,8 @@ function(CheckAndDownloadPackage NAME VERSION LOCAL_PATH URL)
     endif()
 endfunction()
 
-CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${EXTERN_DIR}/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_2025_02_20.zip)
+CheckAndDownloadPackage("Agility SDK" ${AGILITY_SDK_VERSION} ${EXTERN_DIR}/agilitysdk https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION})
+CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${EXTERN_DIR}/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/${DXC_VERSION}.zip)
 CheckAndDownloadPackage("SDL" ${SDL3_VERSION} ${EXTERN_DIR}/sdl https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-VC.zip)
 
 # symlink SDL.dll
