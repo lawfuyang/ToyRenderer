@@ -41,8 +41,22 @@ CheckAndDownloadPackage("Agility SDK" ${AGILITY_SDK_VERSION} ${EXTERN_DIR}/agili
 CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${EXTERN_DIR}/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/${DXC_VERSION}.zip)
 CheckAndDownloadPackage("SDL" ${SDL3_VERSION} ${EXTERN_DIR}/sdl https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-VC.zip)
 
-# symlink SDL.dll
+# create bin dir
 file(MAKE_DIRECTORY "${BIN_DIR}")
+
+# symlink dlls
+execute_process(
+COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${EXTERN_DIR}/agilitysdk/build/native/bin/x64/D3D12Core.dll
+        ${BIN_DIR}/D3D12Core.dll
+)
+
+execute_process(
+COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${EXTERN_DIR}/agilitysdk/build/native/bin/x64/d3d12SDKLayers.dll
+        ${BIN_DIR}/d3d12SDKLayers.dll
+)
+
 execute_process(
 COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.dll
@@ -166,6 +180,7 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/imgui")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/magic_enum/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/RTXGI-DDGI/rtxgi-sdk/include")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/agilitysdk/build/native/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 # global preprocessor macros

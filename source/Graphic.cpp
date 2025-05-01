@@ -15,12 +15,13 @@
 #include "CommonResources.h"
 #include "DescriptorTableManager.h"
 #include "Engine.h"
-#include "RenderGraph.h"
 #include "Scene.h"
-#include "SmallVector.h"
 #include "Utilities.h"
 
 #include "shaders/ShaderInterop.h"
+
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\"; }
 
 CommandLineOption<bool> g_EnableD3DDebug{ "d3ddebug", false };
 CommandLineOption<bool> g_EnableGPUValidation{ "enablegpuvalidation", false };
@@ -39,24 +40,23 @@ void DeviceRemovedHandler()
     assert(0);
 }
 
-// NVRHI message CB
 class NVRHIMessageCallback : public nvrhi::IMessageCallback
 {
     // Inherited via IMessageCallback
     void message(nvrhi::MessageSeverity severity, const char* messageText) override
     {
+        LOG_DEBUG("[NVRHI]: %s", messageText);
+
         switch (severity)
         {
             // just print info messages
         case nvrhi::MessageSeverity::Info:
-            LOG_DEBUG("[NVRHI]: %s", messageText);
             break;
 
             // treat everything else critically
         case nvrhi::MessageSeverity::Warning:
         case nvrhi::MessageSeverity::Error:
         case nvrhi::MessageSeverity::Fatal:
-            LOG_DEBUG("[NVRHI]: %s", messageText);
             assert(false);
             break;
         }
