@@ -7,6 +7,7 @@ option(ENABLE_ADDRESS_SANITIZER "" OFF)
 set(AGILITY_SDK_VERSION "1.615.1")
 set(DXC_VERSION "v1.8.2502/dxc_2025_02_20")
 set(SDL3_VERSION "3.2.10")
+set(RENDERDOC_VERSION "1.37")
 
 set(NRD_NORMAL_ENCODING 2 CACHE STRING "")
 set(NRD_ROUGHNESS_ENCODING 1 CACHE STRING "")
@@ -40,6 +41,7 @@ endfunction()
 CheckAndDownloadPackage("Agility SDK" ${AGILITY_SDK_VERSION} ${EXTERN_DIR}/agilitysdk https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION})
 CheckAndDownloadPackage("DXC" ${DXC_VERSION} ${EXTERN_DIR}/dxc https://github.com/microsoft/DirectXShaderCompiler/releases/download/${DXC_VERSION}.zip)
 CheckAndDownloadPackage("SDL" ${SDL3_VERSION} ${EXTERN_DIR}/sdl https://github.com/libsdl-org/SDL/releases/download/release-${SDL3_VERSION}/SDL3-devel-${SDL3_VERSION}-VC.zip)
+CheckAndDownloadPackage("RenderDoc" ${RENDERDOC_VERSION} ${EXTERN_DIR}/renderdoc https://renderdoc.org/stable/1.37/RenderDoc_${RENDERDOC_VERSION}_64.zip)
 
 # create bin dir
 file(MAKE_DIRECTORY "${BIN_DIR}")
@@ -61,6 +63,18 @@ execute_process(
 COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.dll
         ${BIN_DIR}/SDL3.dll
+)
+
+execute_process(
+COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc.dll
+        ${BIN_DIR}/renderdoc.dll
+)
+
+execute_process(
+COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc_app.h
+        ${EXTERN_DIR}/renderdoc/renderdoc_app.h
 )
 
 # i need to do this because shadermake manually & retardedly sets 'CMAKE_MSVC_RUNTIME_LIBRARY'

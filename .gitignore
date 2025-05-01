@@ -6,4 +6,5 @@
 /extern/nvidia/aftermath
 /extern/sdl
 /extern/agilitysdk
+/extern/renderdoc
 *.lnk

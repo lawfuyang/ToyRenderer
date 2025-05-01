@@ -6,6 +6,7 @@
 #include "extern/microprofile/microprofile.h"
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 #include "extern/nvrhi/include/nvrhi/utils.h"
+#include "extern/renderdoc/renderdoc_app.h"
 
 #if NVRHI_WITH_AFTERMATH
 #include "AftermathCrashDump.h"
@@ -56,6 +57,7 @@ public:
     void PostSceneLoad();
     void Shutdown();
     void Update();
+    void InitRenderDocAPI();
     void InitDevice();
     void InitSwapChain();
     void InitShaders();
@@ -120,6 +122,7 @@ public:
     Vector2 GetCurrentJitterOffset();
 
     nvrhi::DeviceHandle m_NVRHIDevice;
+    RENDERDOC_API_1_6_0* m_RenderDocAPI = nullptr;
 
     std::shared_ptr<Scene> m_Scene;
     std::shared_ptr<CommonResources> m_CommonResources;
@@ -289,3 +292,5 @@ constexpr uint32_t ComputeNbMips(uint32_t width, uint32_t height)
 #define SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, NAME) \
     ScopedCommandList GENERATE_UNIQUE_VARIABLE(scopedCommandList) { commandList, NAME, true /*bAutoQueue*/ }; \
     PROFILE_GPU_SCOPED(commandList, NAME)
+
+#define SCOPED_RENDERDOC_CAPTURE(condition) const ScopedRenderDocCapture GENERATE_UNIQUE_VARIABLE(scopedRenderDocCapture){ condition };

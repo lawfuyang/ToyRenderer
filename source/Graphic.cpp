@@ -25,6 +25,7 @@ extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\"; }
 
 CommandLineOption<bool> g_EnableD3DDebug{ "d3ddebug", false };
 CommandLineOption<bool> g_EnableGPUValidation{ "enablegpuvalidation", false };
+CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
 
 PRAGMA_OPTIMIZE_OFF;
 void DeviceRemovedHandler()
@@ -104,6 +105,23 @@ static D3D_FEATURE_LEVEL QueryHighestFeatureLevel(ID3D12Device* device)
     return dFeatureLevel.MaxSupportedFeatureLevel;
 }
 
+void Graphic::InitRenderDocAPI()
+{
+    PROFILE_FUNCTION();
+
+    if (!g_AttachRenderDoc.Get())
+    {
+        return;
+    }
+
+    LOG_DEBUG("Initializing RenderDoc API");
+    HMODULE mod = ::LoadLibraryA("renderdoc.dll");
+    assert(mod);
+
+    pRENDERDOC_GetAPI RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
+    verify(RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_6_0, (void**)&m_RenderDocAPI) == 1);
+}
+
 void Graphic::InitDevice()
 {
     {
@@ -141,13 +159,17 @@ void Graphic::InitDevice()
     if (g_EnableD3DDebug.Get())
     {
         // enable DRED
-        ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> pDredSettings;
-        HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&pDredSettings)));
+        // NOTE: RenderDoc <= 1.37 doesnt like this
+        if (!m_RenderDocAPI)
+        {
+            ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> pDredSettings;
+            HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&pDredSettings)));
 
-        // Turn on auto-breadcrumbs and page fault reporting.
-        pDredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        pDredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        pDredSettings->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            // Turn on auto-breadcrumbs and page fault reporting.
+            pDredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            pDredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            pDredSettings->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        }
 
         debugInterface->EnableDebugLayer();
         LOG_DEBUG("D3D12 Debug Layer enabled");
@@ -267,7 +289,12 @@ void Graphic::InitDevice()
                 EnsureFeatureSupport(nvrhi::Feature::RayTracingAccelStruct);
                 EnsureFeatureSupport(nvrhi::Feature::RayTracingPipeline);
                 EnsureFeatureSupport(nvrhi::Feature::RayQuery);
-                EnsureFeatureSupport(nvrhi::Feature::SamplerFeedback);
+
+                // NOTE: RenderDoc <= 1.37 doesnt like this
+                if (!m_RenderDocAPI)
+                {
+                    EnsureFeatureSupport(nvrhi::Feature::SamplerFeedback);
+                }
             }
 
             m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();
@@ -895,6 +922,7 @@ void Graphic::Initialize()
     // TODO: upscaling stuff
     m_RenderResolution = m_DisplayResolution;
 
+    InitRenderDocAPI();
     InitDevice();
 
     tf::Taskflow tf;
@@ -1003,6 +1031,17 @@ void Graphic::Update()
         g_Engine.m_Executor->corun(tf);
 
         m_bTriggerReloadShaders = false;
+    }
+    
+    if (m_RenderDocAPI)
+    {
+        const SDL_Keymod keyMod = SDL_GetModState();
+        const bool* keyboardStates = SDL_GetKeyboardState(nullptr);
+        if ((keyMod & SDL_KMOD_ALT) && 
+            (keyboardStates[SDL_SCANCODE_F12]))
+        {
+            m_RenderDocAPI->TriggerCapture();
+        }
     }
 
     // get GPU time for previous frame
