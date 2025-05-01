@@ -78,7 +78,6 @@ void AS_Main(
         
         bVisible = !bDoFrustumCulling || FrustumCull(sphereCenterViewSpace, sphereRadius, g_BasePassConsts.m_Frustum);
         
-    #if LATE_CULL
         if (bVisible && bDoOcclusionCulling)
         {
             OcclusionCullArguments occlusionCullArguments;
@@ -93,7 +92,6 @@ void AS_Main(
         
             bVisible = OcclusionCull(occlusionCullArguments);
         }
-    #endif // LATE_CULL
         
         if (bVisible && bDoConeCulling)
         {
