@@ -9,6 +9,7 @@ This is a personal toy renderer meant as a playground for experimenting with ide
     - Fork changes:
         - Integration of [D3D12 Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator) into D3D12 codebase
         - **DispatchMeshIndirect** support
+        - **PipelineStatistics Query** support
 - **Offline Shader compilation & Hot Reloading using [ShaderMake](https://github.com/NVIDIA-RTX/ShaderMake)**
 - **Multi-threaded Commandlist recording using [Taskflow](https://github.com/taskflow/taskflow)**
 - **Render Graph**

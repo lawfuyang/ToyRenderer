@@ -1049,8 +1049,8 @@ void Graphic::Update()
     {
         const float prevGPUTimeSeconds = m_NVRHIDevice->getTimerQueryTime(m_FrameTimerQuery);
         g_Engine.m_GPUTimeMs = Timer::SecondsToMilliSeconds(prevGPUTimeSeconds);
-        m_NVRHIDevice->resetTimerQuery(m_FrameTimerQuery);
     }
+    m_NVRHIDevice->resetTimerQuery(m_FrameTimerQuery);
 
     ++m_FrameCounter;
 
