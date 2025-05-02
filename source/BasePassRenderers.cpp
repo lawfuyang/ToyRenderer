@@ -178,9 +178,9 @@ IRenderer* g_UpdateInstanceConstsRenderer = &gs_UpdateInstanceConstsRenderer;
 class PipelineStatisticsQuery
 {
 public:
-    struct ScopedQuery
+    struct Scope
     {
-        ScopedQuery(PipelineStatisticsQuery& query, nvrhi::CommandListHandle commandList)
+        Scope(PipelineStatisticsQuery& query, nvrhi::CommandListHandle commandList)
             : m_Query(query)
             , m_CommandList(commandList)
         {
@@ -188,7 +188,7 @@ public:
             commandList->beginPipelineStatisticsQuery(m_Query.m_PipelineStatisticsQueryHandle[m_Query.m_Counter]);
         }
 
-        ~ScopedQuery()
+        ~Scope()
         {
             m_CommandList->endPipelineStatisticsQuery(m_Query.m_PipelineStatisticsQueryHandle[m_Query.m_Counter]);
             m_Query.m_Counter = (m_Query.m_Counter + 1) % kQueuedFramesCount;
@@ -210,16 +210,20 @@ public:
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-        for (int i = m_Counter - 1; i >= 0; i--)
+        for (int32_t i = m_Counter - 1; i >= 0; i--)
         {
             if (device->pollPipelineStatisticsQuery(m_PipelineStatisticsQueryHandle[i]))
+            {
                 return device->getPipelineStatistics(m_PipelineStatisticsQueryHandle[i]);
+            }
         }
 
-        for (int i = kQueuedFramesCount - 1; i > m_Counter; i--)
+        for (int32_t i = kQueuedFramesCount - 1; i > m_Counter; i--)
         {
             if (device->pollPipelineStatisticsQuery(m_PipelineStatisticsQueryHandle[i]))
+            {
                 return device->getPipelineStatistics(m_PipelineStatisticsQueryHandle[i]);
+            }
         }
 
         return {};
@@ -231,7 +235,7 @@ private:
 
     uint32_t m_Counter = 0;
 };
-#define SCOPED_PIPELINE_STATISTICS_QUERY(query, commandList) PipelineStatisticsQuery::ScopedQuery scopedQuery(query, commandList)
+#define SCOPED_PIPELINE_STATISTICS_QUERY(query, commandList) PipelineStatisticsQuery::Scope scopedQuery{ query, commandList }
 
 class BasePassRenderer : public IRenderer
 {

@@ -66,6 +66,7 @@ class NVRHIMessageCallback : public nvrhi::IMessageCallback
 static NVRHIMessageCallback g_NVRHIErrorCB;
 PRAGMA_OPTIMIZE_ON;
 
+// for D3D12MAAllocator creation in nvrhi d3d12 device ctor
 IDXGIAdapter1* g_DXGIAdapter;
 
 // copied from d3dx12.h
@@ -297,7 +298,7 @@ void Graphic::InitDevice()
                 }
             }
 
-            m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();
+            m_FrameTimerQuery.Initialize();
 
             if (g_EnableD3DDebug.Get())
             {
@@ -998,8 +999,6 @@ void Graphic::Shutdown()
 		m_FreeCommandLists[i].clear();
     }
 
-    m_FrameTimerQuery.Reset();
-
     // Make sure that all frames have finished rendering & garbage collect
     verify(m_NVRHIDevice->waitForIdle());
     m_NVRHIDevice->runGarbageCollection();
@@ -1044,36 +1043,27 @@ void Graphic::Update()
         }
     }
 
-    // get GPU time for previous frame
-    if (m_NVRHIDevice->pollTimerQuery(m_FrameTimerQuery))
-    {
-        const float prevGPUTimeSeconds = m_NVRHIDevice->getTimerQueryTime(m_FrameTimerQuery);
-        g_Engine.m_GPUTimeMs = Timer::SecondsToMilliSeconds(prevGPUTimeSeconds);
-    }
-    m_NVRHIDevice->resetTimerQuery(m_FrameTimerQuery);
-
     ++m_FrameCounter;
 
     // execute all cmd lists that may have been potentially added as engine commands
     ExecuteAllCommandLists();
 
-    {
-        PROFILE_SCOPED("Begin Frame Timer Query");
+    g_Engine.m_GPUTimeMs = m_FrameTimerQuery.GetLastValid();
 
+    {
         nvrhi::CommandListHandle commandList = AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Begin Frame Timer Query");
-
-        commandList->beginTimerQuery(m_FrameTimerQuery);
+        m_FrameTimerQuery.Begin(commandList);
     }
 
     tf::Taskflow tf;
 
     // Releases the resources that were referenced in the command lists that have finished executing
     tf.emplace([this]
-        {
-            PROFILE_SCOPED("Graphics Garbage Collection");
-            m_NVRHIDevice->runGarbageCollection();
-        });
+               {
+                   PROFILE_SCOPED("Graphics Garbage Collection");
+                   m_NVRHIDevice->runGarbageCollection();
+               });
 
     tf.emplace([this] { m_Scene->Update(); });
 
@@ -1081,12 +1071,9 @@ void Graphic::Update()
     g_Engine.m_Executor->corun(tf);
 
     {
-        PROFILE_SCOPED("End Frame Timer Query");
-
         nvrhi::CommandListHandle commandList = AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "End Frame Timer Query");
-
-        commandList->endTimerQuery(m_FrameTimerQuery);
+        m_FrameTimerQuery.End(commandList);
     }
 
     // execute all cmd lists for this frame
@@ -1418,4 +1405,47 @@ void FencedReadbackTexture::Read(void* outPtr)
         memcpy(outPtr, mappedPtr, readbackBytes);
         device->unmapStagingTexture(m_StagingTexture[readIndex]);
     }
+}
+
+void GPUTimerQuery::Initialize()
+{
+    for (uint32_t i = 0; i < kQueuedFramesCount; ++i)
+    {
+        m_TimerQueryHandles[i] = g_Graphic.m_NVRHIDevice->createTimerQuery();
+    }
+}
+
+void GPUTimerQuery::Begin(nvrhi::CommandListHandle commandList)
+{
+    g_Graphic.m_NVRHIDevice->resetTimerQuery(m_TimerQueryHandles[m_Counter]);
+    commandList->beginTimerQuery(m_TimerQueryHandles[m_Counter]);
+}
+
+void GPUTimerQuery::End(nvrhi::CommandListHandle commandList)
+{
+    commandList->endTimerQuery(m_TimerQueryHandles[m_Counter]);
+    m_Counter = (m_Counter + 1) % kQueuedFramesCount;
+}
+
+float GPUTimerQuery::GetLastValid() const
+{
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+    for (int32_t i = m_Counter - 1; i >= 0; i--)
+    {
+        if (device->pollTimerQuery(m_TimerQueryHandles[i]))
+        {
+            return Timer::SecondsToMilliSeconds(device->getTimerQueryTime(m_TimerQueryHandles[i]));
+        }
+    }
+
+    for (int32_t i = kQueuedFramesCount - 1; i > m_Counter; i--)
+    {
+        if (device->pollTimerQuery(m_TimerQueryHandles[i]))
+        {
+            return Timer::SecondsToMilliSeconds(device->getTimerQueryTime(m_TimerQueryHandles[i]));
+        }
+    }
+
+    return -1.0f;
 }
