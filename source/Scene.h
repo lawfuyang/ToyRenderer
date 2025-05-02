@@ -33,9 +33,7 @@ struct Animation
 struct GPUCullingCounters
 {
     uint32_t m_EarlyInstances;
-    uint32_t m_EarlyMeshlets;
     uint32_t m_LateInstances;
-    uint32_t m_LateMeshlets;
 };
 
 class GIVolumeBase

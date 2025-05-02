@@ -17,7 +17,6 @@ StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
 StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
 StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
 Texture2D g_HZB : register(t8);
-RWStructuredBuffer<uint> g_CullingCounters : register(u0);
 Texture2D g_Textures[] : register(t0, space1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 SamplerState g_LinearClampMinReductionSampler : register(s4);
@@ -116,12 +115,6 @@ void AS_Main(
     
     if (bVisible)
     {
-    #if LATE_CULL
-        InterlockedAdd(g_CullingCounters[kCullingLateMeshletsBufferCounterIdx], 1);
-    #else
-        InterlockedAdd(g_CullingCounters[kCullingEarlyMeshletsBufferCounterIdx], 1);
-    #endif
-        
         s_MeshletPayload.m_InstanceConstIdx = instanceConstIdx;
         s_MeshletPayload.m_MeshLOD = amplificationData.m_MeshLOD;
         
