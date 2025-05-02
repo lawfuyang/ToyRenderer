@@ -589,23 +589,8 @@ void Scene::UpdateIMGUI()
     {
         // TODO: support transparent
 
-        ImGui::Text("Early:");
-
-        ImGui::Indent();
-
-        ImGui::Text("Instances:[%d]", m_View.m_GPUCullingCounters.m_EarlyInstances);
-        ImGui::Text("Meshlets: [%d]", m_View.m_GPUCullingCounters.m_EarlyMeshlets);
-
-        ImGui::Unindent();
-
-        ImGui::Text("Late:");
-
-        ImGui::Indent();
-
-        ImGui::Text("Instances: [%d]", m_View.m_GPUCullingCounters.m_LateInstances);
-        ImGui::Text("Meshlets: [%d]", m_View.m_GPUCullingCounters.m_LateMeshlets);
-
-        ImGui::Unindent();
+        ImGui::Text("Early Instances:[%d]", m_View.m_GPUCullingCounters.m_EarlyInstances);
+        ImGui::Text("Late Instances: [%d]", m_View.m_GPUCullingCounters.m_LateInstances);
 
         ImGui::TreePop();
     }
