@@ -7,11 +7,12 @@ This is a personal toy renderer meant as a playground for experimenting with ide
 - **CPU/GPU Profiler using [microprofile](https://github.com/jonasmr/microprofile)**
 - **Direct3D 12 Graphics API using fork of [NVRHI](https://github.com/NVIDIA-RTX/NVRHI)**
     - Fork changes:
-        - Integration of [D3D12 Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator) into D3D12 codebase
-        - **DispatchMeshIndirect** support
-        - **PipelineStatistics Query** support
+        - [D3D12 Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator)
+        - [DispatchMesh Indirect](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html#executeindirect)
+        - [Pipeline Statistics](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html#pipeline-statistics)
+        - [HLSL Dynamic Resources](https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_DynamicResources.html) (WIP)
 - **Offline Shader compilation & Hot Reloading using [ShaderMake](https://github.com/NVIDIA-RTX/ShaderMake)**
-- **Multi-threaded Commandlist recording using [Taskflow](https://github.com/taskflow/taskflow)**
+- **Multi-threaded Commandlist recording using [Taskflow](https://github.com/taskflow/taskflow)** (WIP)
 - **Render Graph**
     - Renderer scheduling
     - Resource dependency tracking & validation
@@ -29,13 +30,13 @@ This is a personal toy renderer meant as a playground for experimenting with ide
     - Denoised using [Nvidia NRD](https://github.com/NVIDIA-RTX/NRD)
 - **[Hosek-Wilkie Sky Model](https://cgg.mff.cuni.cz/projects/SkylightModelling/)**
 - **HDR Pipeline**
-    - Automatic camera exposure using luminance histogram
+    - [Automatic Exposure Using a Luminance Histogram](https://bruop.github.io/exposure/)
 - **[Ground Truth Ambient Occlusion (XeGTAO)](https://github.com/GameTechDev/XeGTAO)**
 - **[Physically-Based bloom](https://advances.realtimerendering.com/s2014/index.html#_NEXT_GENERATION_POST)**
 - **Static Animations**
     - Linear Translation & Rotation only. No bones & skinning support yet.
 - **GPU Ray-Traced Global Illumination with [Nvidia RTXGI-DDI](https://github.com/NVIDIAGameWorks/RTXGI-DDGI)**
-- **Texture mip streaming with DirectX Sampler Feedback** (WIP)
+- **Texture mip streaming with [Sampler Feedback](https://microsoft.github.io/DirectX-Specs/d3d/SamplerFeedback.html)** (WIP)
 
 ## Building
 
