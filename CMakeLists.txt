@@ -174,9 +174,6 @@ set(TOYRENDERER_LIBRARIES
 	"${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.lib"
 )
 
-# wtf??? why does RTXGI explicit need this to compile???
-add_dependencies(ToyRenderer RTXGI-D3D12)
-
 # libs
 target_link_libraries(ToyRenderer PUBLIC ${TOYRENDERER_LIBRARIES})
 
