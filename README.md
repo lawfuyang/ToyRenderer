@@ -2,8 +2,8 @@
 
 ## Building
 
-- run `generateprojects.bat`
-- run `cmake compile.bat`
+- Run `generateprojects.bat` to download required binaries & generate VS project files
+- Run `cmake compile.bat` to compile ShaderMake & ToyRenderer
 - Open `ToyRenderer.sln` and Compile/Run
 
 ## Running
