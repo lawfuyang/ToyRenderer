@@ -47,6 +47,12 @@ Use "**--scene**" commandline argument to load a scene. Example:
 |---|---|---|
 |![image](https://github.com/user-attachments/assets/827be21d-e9ef-4b9c-b89b-24a3964f8cf5)|![image](https://github.com/user-attachments/assets/4e2da59d-2b97-40e6-83ee-353fd87c04f3)|![image](https://github.com/user-attachments/assets/140b25b5-06c1-4b6d-8467-665f3848e47f)|
 
+### Multi-threading
+|Profiler Viewer|
+|---|
+|![image](https://github.com/user-attachments/assets/444ddfda-cd6c-4047-9176-9a62966035eb)|
+
+
 ## Notable Features
 - **Window handling & Mouse/KB I/O using [SDL3](https://github.com/libsdl-org/SDL)**
 - **GLTF/GLB scene loading using [cgltf](https://github.com/jkuhlmann/cgltf)**
