@@ -64,7 +64,7 @@ Use "**--scene**" commandline argument to load a scene. Example:
         - [Pipeline Statistics](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html#pipeline-statistics)
         - [HLSL Dynamic Resources](https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_DynamicResources.html) (WIP)
 - **Offline Shader compilation & Hot Reloading using [ShaderMake](https://github.com/NVIDIA-RTX/ShaderMake)**
-- **Multi-threaded Commandlist recording using [Taskflow](https://github.com/taskflow/taskflow)** (WIP)
+- **Multi-threaded Commandlist recording using [Taskflow](https://github.com/taskflow/taskflow)**
 - **Render Graph**
     - Renderer scheduling
     - Resource dependency tracking & validation
