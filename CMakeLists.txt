@@ -145,7 +145,6 @@ set(RTXGI_STATIC_LIB ON)
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/meshoptimizer)
-add_subdirectory(extern/d3d12ma)
 add_subdirectory(extern/microprofile)
 add_subdirectory(extern/nvrhi)
 add_subdirectory(extern/taskflow)
@@ -164,7 +163,6 @@ set(TOYRENDERER_LIBRARIES
 	d3d12 dxgi dxguid Ws2_32
 	ShaderMakeBlob
 	meshoptimizer
-	D3D12MemoryAllocator
 	microprofile
 	nvrhi
 	nvrhi_d3d12
@@ -200,8 +198,6 @@ target_compile_definitions(ToyRenderer PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECAT
 target_compile_definitions(ToyRenderer PUBLIC IMGUI_DEFINE_MATH_OPERATORS IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
 
 target_compile_definitions(microprofile PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
-
-target_compile_definitions(nvrhi_d3d12 PUBLIC NVRHI_D3D12_WITH_D3D12MA D3D12MA_INCLUDE_DIR="${EXTERN_DIR}/d3d12ma/include/D3D12MemAlloc.h")
 
 if (ENABLE_UNITY_BUILD)
 	set_target_properties(ToyRenderer PROPERTIES UNITY_BUILD ON)
