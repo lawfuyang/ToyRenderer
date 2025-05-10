@@ -1,4 +1,5 @@
 #include "toyrenderer_common.hlsli"
+#include "ShaderInterop.h"
 
 struct VertexOut
 {
@@ -76,7 +77,8 @@ void VS_FullScreenCube(
     outPosition = vertex[index[inVertexID] - 1];
 }
 
-Texture2D g_Input : register(t0);
+cbuffer FullScreenPassThroughResourcesIndicesBuffer : register(b0){ FullScreenPassThroughResourcesIndices g_ResourceIndices; }
+static Texture2D g_Input = ResourceDescriptorHeap[g_ResourceIndices.m_InputTextureIdx];
 
 void PS_Passthrough(
     in float4 inPosition : SV_POSITION,

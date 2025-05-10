@@ -812,14 +812,36 @@ public:
             PROFILE_GPU_SCOPED(commandList, "Copy depth buffer");
 
             nvrhi::BindingSetDesc bindingSetDesc;
-            bindingSetDesc.bindings = { nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer), };
+            bindingSetDesc.bindings =
+            {
+                nvrhi::BindingSetItem::PushConstants(0, sizeof(FullScreenPassThroughResourcesIndices)),
+                nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
+            };
 
             nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
 
             nvrhi::FramebufferDesc frameBufferDesc;
             frameBufferDesc.addColorAttachment(depthBufferCopy);
 
-            g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, "fullscreen_PS_Passthrough");
+            nvrhi::BindingSetHandle bindingSet;
+            nvrhi::BindingLayoutHandle bindingLayout;
+            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            assert(bindingSet->m_ResourceDescriptorHeapStartIdx != ~0u);
+
+            FullScreenPassThroughResourcesIndices resourcesIndices;
+            resourcesIndices.m_InputTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+
+            Graphic::FullScreenPassParams fullScreenPassParams;
+            fullScreenPassParams.m_CommandList = commandList;
+            fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
+            fullScreenPassParams.m_BindingSet = bindingSet;
+            fullScreenPassParams.m_BindingLayout = bindingLayout;
+            fullScreenPassParams.m_PixelShaderName = "fullscreen_PS_Passthrough";
+            fullScreenPassParams.m_PushConstantsData = &resourcesIndices;
+            fullScreenPassParams.m_PushConstantsBytes = sizeof(resourcesIndices);
+
+            g_Graphic.AddFullScreenPass(fullScreenPassParams);
         }
     }
 };

@@ -267,6 +267,11 @@ struct PackNormalAndRoughnessConsts
     Vector2U m_OutputResolution;
 };
 
+struct FullScreenPassThroughResourcesIndices
+{
+	uint32_t m_InputTextureIdx;
+};
+
 struct PostProcessParameters
 {
 	Vector2U m_OutputDims;
