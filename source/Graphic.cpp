@@ -202,14 +202,6 @@ void Graphic::InitDevice()
         }
         
         LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", maxSupportedFeatureLevel);
-
-        // ensure threads per wave == 32
-        D3D12_FEATURE_DATA_D3D12_OPTIONS1 waveFeatures{};
-        HRESULT_CALL(m_D3DDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &waveFeatures, sizeof(waveFeatures)));
-        assert(waveFeatures.WaveLaneCountMin == waveFeatures.WaveLaneCountMax); // NOTE: wtf does it mean if this is not true?
-        assert(kNumThreadsPerWave == waveFeatures.WaveLaneCountMin);
-
-        LOG_DEBUG("Wave Lane Count: %d", waveFeatures.WaveLaneCountMin);
     }
 
     auto CreateQueue = [this](nvrhi::CommandQueue queue)
@@ -295,6 +287,18 @@ void Graphic::InitDevice()
                 if (!m_RenderDocAPI)
                 {
                     EnsureFeatureSupport(nvrhi::Feature::SamplerFeedback);
+                }
+
+                if (feature.first == nvrhi::Feature::WaveLaneCountMinMax)
+                {
+                    nvrhi::WaveLaneCountMinMaxFeatureInfo waveLaneCountMinMaxInfo;
+                    verify(m_NVRHIDevice->queryFeatureSupport(feature.first, &waveLaneCountMinMaxInfo, sizeof(waveLaneCountMinMaxInfo)));
+
+                    // ensure threads per wave == 32
+                    assert(waveLaneCountMinMaxInfo.minWaveLaneCount == waveLaneCountMinMaxInfo.maxWaveLaneCount); // NOTE: wtf does it mean if this is not true?
+                    assert(kNumThreadsPerWave == waveLaneCountMinMaxInfo.minWaveLaneCount);
+
+                    LOG_DEBUG("Wave Lane Count: %d", waveLaneCountMinMaxInfo.minWaveLaneCount);
                 }
             }
 
