@@ -8,18 +8,19 @@
 #include "ShaderInterop.h"
 
 cbuffer g_DeferredLightingPassConstantsBuffer : register(b0) { DeferredLightingConsts g_DeferredLightingConsts; }
-Texture2D<uint4> g_GBufferA : register(t0);
-Texture2D g_GBufferMotion : register(t1);
-Texture2D g_DepthBuffer : register(t2);
-Texture2D<uint> g_SSAOTexture : register(t3);
-Texture2D g_ShadowMaskTexture : register(t4);
-StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t5);
-Texture2DArray<float4> g_ProbeData : register(t6);
-Texture2DArray<float4> g_ProbeIrradiance : register(t7);
-Texture2DArray<float4> g_ProbeDistance : register(t8);
-RWTexture2D<float3> g_LightingOutput : register(u0);
-SamplerState g_PointClampSampler : register(s0);
-SamplerState g_LinearWrapSampler : register(s1);
+cbuffer g_ResourceIndices : register(b1) { DeferredLightingResourceIndices g_ResourceIndices; }
+static Texture2D<uint4> g_GBufferA = ResourceDescriptorHeap[g_ResourceIndices.m_GBufferAIdx];
+static Texture2D g_GBufferMotion = ResourceDescriptorHeap[g_ResourceIndices.m_GBufferMotionIdx];
+static Texture2D g_DepthBuffer = ResourceDescriptorHeap[g_ResourceIndices.m_DepthBufferIdx];
+static Texture2D<uint> g_SSAOTexture = ResourceDescriptorHeap[g_ResourceIndices.m_SSAOTextureIdx];
+static Texture2D g_ShadowMaskTexture = ResourceDescriptorHeap[g_ResourceIndices.m_ShadowMaskTextureIdx];
+static StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes = ResourceDescriptorHeap[g_ResourceIndices.m_DDGIVolumesIdx];
+static Texture2DArray<float4> g_ProbeData = ResourceDescriptorHeap[g_ResourceIndices.m_ProbeDataIdx];
+static Texture2DArray<float4> g_ProbeIrradiance = ResourceDescriptorHeap[g_ResourceIndices.m_ProbeIrradianceIdx];
+static Texture2DArray<float4> g_ProbeDistance = ResourceDescriptorHeap[g_ResourceIndices.m_ProbeDistanceIdx];
+static RWTexture2D<float3> g_LightingOutput = ResourceDescriptorHeap[g_ResourceIndices.m_LightingOutputIdx];
+static SamplerState g_PointClampSampler = SamplerDescriptorHeap[g_ResourceIndices.m_LinearWrapSamplerIdx];
+static SamplerState g_LinearWrapSampler = SamplerDescriptorHeap[g_ResourceIndices.m_LinearWrapSamplerIdx];
 
 void PS_Main(
     in float4 inPosition : SV_POSITION,

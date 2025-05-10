@@ -107,6 +107,22 @@ public:
     void ExecuteAllCommandLists();
     void QueueCommandList(nvrhi::CommandListHandle commandList) { AUTO_LOCK(m_PendingCommandListsLock); m_PendingCommandLists.push_back(commandList); }
 
+    struct FullScreenPassParams
+    {
+        nvrhi::CommandListHandle m_CommandList;
+        nvrhi::FramebufferDesc m_FrameBufferDesc;
+        nvrhi::BindingSetHandle m_BindingSet;
+        nvrhi::BindingLayoutHandle m_BindingLayout;
+        std::string_view m_PixelShaderName;
+        const nvrhi::BlendState::RenderTarget* m_BlendState = nullptr;
+        const nvrhi::DepthStencilState* m_DepthStencilState = nullptr;
+        const nvrhi::Viewport* m_ViewPort = nullptr;
+        const void* m_PushConstantsData = nullptr;
+        size_t m_PushConstantsBytes = 0;
+    };
+
+    void AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams);
+
     void AddFullScreenPass(
         nvrhi::CommandListHandle commandList,
         const nvrhi::FramebufferDesc& frameBufferDesc,

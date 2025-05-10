@@ -3,10 +3,9 @@
 #include "ShaderInterop.h"
 
 cbuffer PostProcessParametersConstantBuffer : register(b0){ PostProcessParameters g_PostProcessParameters; }
-Texture2D g_ColorInput : register(t0);
-StructuredBuffer<float> g_AverageLuminanceBuffer : register(t1);
-Texture2D g_BloomTexture : register(t2);
-sampler g_LinearClampSampler : register(s0);
+static Texture2D g_ColorInput = ResourceDescriptorHeap[g_PostProcessParameters.m_ColorInputIdx];
+static StructuredBuffer<float> g_AverageLuminanceBuffer = ResourceDescriptorHeap[g_PostProcessParameters.m_AverageLuminanceBufferIdx];
+static Texture2D g_BloomTexture = ResourceDescriptorHeap[g_PostProcessParameters.m_BloomTextureIdx];
 
 float3 ACES_Fast(float3 x)
 {

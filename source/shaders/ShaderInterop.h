@@ -126,6 +126,22 @@ struct DeferredLightingConsts
 	Vector2U m_LightingOutputResolution;
 };
 
+struct DeferredLightingResourceIndices
+{
+	uint32_t m_GBufferAIdx;
+	uint32_t m_GBufferMotionIdx;
+	uint32_t m_DepthBufferIdx;
+	uint32_t m_SSAOTextureIdx;
+	uint32_t m_ShadowMaskTextureIdx;
+	uint32_t m_DDGIVolumesIdx;
+	uint32_t m_ProbeDataIdx;
+	uint32_t m_ProbeIrradianceIdx;
+	uint32_t m_ProbeDistanceIdx;
+	uint32_t m_LightingOutputIdx;
+	uint32_t m_PointClampSamplerIdx;
+	uint32_t m_LinearWrapSamplerIdx;
+};
+
 struct DrawIndirectArguments
 {
 	uint32_t m_VertexCount;
@@ -258,6 +274,9 @@ struct PostProcessParameters
 	float m_MiddleGray;
 	float m_WhitePoint;
 	float m_BloomStrength;
+	uint32_t m_ColorInputIdx;
+	uint32_t m_AverageLuminanceBufferIdx;
+	uint32_t m_BloomTextureIdx;
 };
 
 struct GIProbeExtraReductionConsts

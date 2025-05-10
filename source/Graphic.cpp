@@ -261,6 +261,7 @@ void Graphic::InitDevice()
             deviceDesc.pGraphicsCommandQueue = m_GraphicsQueue.Get();
             deviceDesc.pComputeCommandQueue = m_ComputeQueue.Get();
             deviceDesc.pCopyCommandQueue = m_CopyQueue.Get();
+            deviceDesc.enableHeapDirectlyIndexed = true;
 
             m_NVRHIDevice = nvrhi::d3d12::createDevice(deviceDesc);
 
@@ -560,7 +561,7 @@ void Graphic::InitDescriptorTable()
     bindlessLayoutDesc.visibility = nvrhi::ShaderType::All;
     bindlessLayoutDesc.maxCapacity = kBindlessLayoutCapacity;
     bindlessLayoutDesc.registerSpaces = { nvrhi::BindingLayoutItem::Texture_SRV(1) };
-    m_BindlessLayout = g_Graphic.GetOrCreateBindingLayout(bindlessLayoutDesc);
+    m_BindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
 
     m_DescriptorTableManager = std::make_shared<DescriptorTableManager>(m_NVRHIDevice, m_BindlessLayout);
 }
@@ -855,7 +856,7 @@ nvrhi::CommandListHandle Graphic::AllocateCommandList(nvrhi::CommandQueue queueT
             params.enableImmediateExecution = false; // always enable parallel executions
             params.queueType = queueType;
 
-            ret = g_Graphic.m_NVRHIDevice->createCommandList(params);
+            ret = m_NVRHIDevice->createCommandList(params);
 
             m_AllCommandLists[queueIdx].push_back(ret);
         }
@@ -1161,6 +1162,54 @@ void Graphic::ExecuteAllCommandLists()
     }
 }
 
+void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams)
+{
+    nvrhi::CommandListHandle commandList = fullScreenPassParams.m_CommandList;
+    const nvrhi::FramebufferDesc& frameBufferDesc = fullScreenPassParams.m_FrameBufferDesc;
+    nvrhi::BindingSetHandle bindingSet = fullScreenPassParams.m_BindingSet;
+    nvrhi::BindingLayoutHandle bindingLayout = fullScreenPassParams.m_BindingLayout;
+    std::string_view pixelShaderName = fullScreenPassParams.m_PixelShaderName;
+    const nvrhi::BlendState::RenderTarget* blendStateIn = fullScreenPassParams.m_BlendState;
+    const nvrhi::DepthStencilState* depthStencilStateIn = fullScreenPassParams.m_DepthStencilState;
+    const nvrhi::Viewport* viewPortIn = fullScreenPassParams.m_ViewPort;
+    const void* pushConstantsData = fullScreenPassParams.m_PushConstantsData;
+    const size_t pushConstantsBytes = fullScreenPassParams.m_PushConstantsBytes;
+
+    PROFILE_FUNCTION();
+    PROFILE_GPU_SCOPED(commandList, pixelShaderName.data());
+
+    const nvrhi::BlendState::RenderTarget& blendState = blendStateIn ? *blendStateIn : g_CommonResources.BlendOpaque;
+    const nvrhi::DepthStencilState& depthStencilState = depthStencilStateIn ? *depthStencilStateIn : g_CommonResources.DepthNoneStencilNone;
+
+    // PSO
+    nvrhi::MeshletPipelineDesc PSODesc;
+    PSODesc.MS = GetShader("fullscreen_MS_FullScreenTriangle");
+    PSODesc.PS = GetShader(pixelShaderName);
+    PSODesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ blendState }, depthStencilState, g_CommonResources.CullNone };
+    PSODesc.bindingLayouts = { bindingLayout };
+
+    nvrhi::FramebufferHandle frameBuffer = m_NVRHIDevice->createFramebuffer(frameBufferDesc);
+
+    const nvrhi::TextureDesc& renderTargetDesc = frameBufferDesc.colorAttachments.at(0).texture->getDesc();
+
+    const nvrhi::Viewport& viewPort = viewPortIn ? *viewPortIn : nvrhi::Viewport{ (float)renderTargetDesc.width, (float)renderTargetDesc.height };
+
+    nvrhi::MeshletState meshletState;
+    meshletState.framebuffer = frameBuffer;
+    meshletState.viewport.addViewportAndScissorRect(viewPort);
+    meshletState.bindings = { bindingSet };
+    meshletState.pipeline = GetOrCreatePSO(PSODesc, frameBuffer);
+
+    commandList->setMeshletState(meshletState);
+
+    if (pushConstantsData)
+    {
+        commandList->setPushConstants(pushConstantsData, pushConstantsBytes);
+    }
+
+    commandList->dispatchMesh(1, 1, 1);
+}
+
 void Graphic::AddFullScreenPass(
     nvrhi::CommandListHandle commandList,
     const nvrhi::FramebufferDesc& frameBufferDesc,
@@ -1172,45 +1221,23 @@ void Graphic::AddFullScreenPass(
     const void* pushConstantsData,
     size_t pushConstantsBytes)
 {
-    PROFILE_FUNCTION();
-    PROFILE_GPU_SCOPED(commandList, pixelShaderName.data());
-
-    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
     nvrhi::BindingSetHandle bindingSet;
     nvrhi::BindingLayoutHandle bindingLayout;
-    g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+    CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-    const nvrhi::BlendState::RenderTarget& blendState = blendStateIn ? *blendStateIn : g_CommonResources.BlendOpaque;
-    const nvrhi::DepthStencilState& depthStencilState = depthStencilStateIn ? *depthStencilStateIn : g_CommonResources.DepthNoneStencilNone;
+    FullScreenPassParams fullScreenPassParams;
+    fullScreenPassParams.m_CommandList = commandList;
+    fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
+    fullScreenPassParams.m_BindingSet = bindingSet;
+    fullScreenPassParams.m_BindingLayout = bindingLayout;
+    fullScreenPassParams.m_PixelShaderName = pixelShaderName;
+    fullScreenPassParams.m_BlendState = blendStateIn;
+    fullScreenPassParams.m_DepthStencilState = depthStencilStateIn;
+    fullScreenPassParams.m_ViewPort = viewPortIn;
+    fullScreenPassParams.m_PushConstantsData = pushConstantsData;
+    fullScreenPassParams.m_PushConstantsBytes = pushConstantsBytes;
 
-    // PSO
-    nvrhi::MeshletPipelineDesc PSODesc;
-    PSODesc.MS = g_Graphic.GetShader("fullscreen_MS_FullScreenTriangle");
-    PSODesc.PS = g_Graphic.GetShader(pixelShaderName);
-    PSODesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ blendState }, depthStencilState, g_CommonResources.CullNone };
-    PSODesc.bindingLayouts = { bindingLayout };
-
-    nvrhi::FramebufferHandle frameBuffer = device->createFramebuffer(frameBufferDesc);
-
-    const nvrhi::TextureDesc& renderTargetDesc = frameBufferDesc.colorAttachments.at(0).texture->getDesc();
-
-    const nvrhi::Viewport& viewPort = viewPortIn ? *viewPortIn : nvrhi::Viewport{ (float)renderTargetDesc.width, (float)renderTargetDesc.height };
-
-    nvrhi::MeshletState meshletState;
-    meshletState.framebuffer = frameBuffer;
-    meshletState.viewport.addViewportAndScissorRect(viewPort);
-    meshletState.bindings = { bindingSet };
-    meshletState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
-
-    commandList->setMeshletState(meshletState);
-
-    if (pushConstantsData)
-	{
-		commandList->setPushConstants(pushConstantsData, pushConstantsBytes);
-	}
-
-    commandList->dispatchMesh(1, 1, 1);
+    AddFullScreenPass(fullScreenPassParams);
 }
 
 void Graphic::AddComputePass(const ComputePassParams& computePassParams)
