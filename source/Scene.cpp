@@ -532,6 +532,12 @@ void Scene::UpdateIMGUI()
             g_Graphic.SetGPUStablePowerState(s_bGPUStablePower);
         }
 
+        ImGui::Checkbox("Enable Frustum Culling", &m_bEnableFrustumCulling);
+        ImGui::Checkbox("Enable Occlusion Culling", &m_bEnableOcclusionCulling);
+        ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);
+        ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
+        ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, Graphic::kMaxNumMeshLODs - 1);
+
         ImGui::TreePop();
     }
 
@@ -547,17 +553,6 @@ void Scene::UpdateIMGUI()
     if (ImGui::TreeNode("Render Graph"))
     {
         m_RenderGraph->UpdateIMGUI();
-
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Instance Rendering"))
-    {
-        ImGui::Checkbox("Enable Frustum Culling", &m_bEnableFrustumCulling);
-        ImGui::Checkbox("Enable Occlusion Culling", &m_bEnableOcclusionCulling);
-        ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);
-        ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
-        ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, Graphic::kMaxNumMeshLODs - 1);
 
         ImGui::TreePop();
     }
