@@ -127,7 +127,9 @@ public:
     {
         nvrhi::CommandListHandle m_CommandList;
         std::string_view m_ShaderName;
-        nvrhi::BindingSetDesc m_BindingSetDesc;
+        nvrhi::BindingSetDesc m_BindingSetDesc; // TODO: remove
+        nvrhi::BindingSetHandle m_BindingSet;
+        nvrhi::BindingLayoutHandle m_BindingLayout;
         Vector3U m_DispatchGroupSize = Vector3U{ 0, 0, 0 };
         nvrhi::BufferHandle m_IndirectArgsBuffer;
         uint32_t m_IndirectArgsBufferOffsetBytes = 0;

@@ -106,10 +106,18 @@ public:
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, luminanceHistogramBuffer)
             };
 
+            nvrhi::BindingSetHandle bindingSet;
+            nvrhi::BindingLayoutHandle bindingLayout;
+            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            passParameters.m_SrcColorIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+            passParameters.m_HistogramOutIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "adaptluminance_CS_GenerateLuminanceHistogram";
-            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_BindingSet = bindingSet;
+            computePassParams.m_BindingLayout = bindingLayout;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passParameters.m_SrcColorDims, Vector2U{ 16, 16 });
             computePassParams.m_PushConstantsData = &passParameters;
             computePassParams.m_PushConstantsBytes = sizeof(passParameters);
@@ -132,10 +140,18 @@ public:
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_LuminanceBuffer)
             };
 
+            nvrhi::BindingSetHandle bindingSet;
+            nvrhi::BindingLayoutHandle bindingLayout;
+            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            passParameters.m_HistogramIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+            passParameters.m_LuminanceBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "adaptluminance_CS_AdaptExposure";
-            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_BindingSet = bindingSet;
+            computePassParams.m_BindingLayout = bindingLayout;
             computePassParams.m_DispatchGroupSize = Vector3U{ 1,1,1 };
             computePassParams.m_PushConstantsData = &passParameters;
             computePassParams.m_PushConstantsBytes = sizeof(passParameters);

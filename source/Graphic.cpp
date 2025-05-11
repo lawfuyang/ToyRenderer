@@ -1214,14 +1214,20 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
 {
     assert(computePassParams.m_CommandList);
     assert(!computePassParams.m_ShaderName.empty());
-    assert(!computePassParams.m_BindingSetDesc.bindings.empty());
 
     PROFILE_FUNCTION();
     PROFILE_GPU_SCOPED(computePassParams.m_CommandList, computePassParams.m_ShaderName.data());
 
-    nvrhi::BindingSetHandle bindingSet;
-    nvrhi::BindingLayoutHandle bindingLayout;
-    CreateBindingSetAndLayout(computePassParams.m_BindingSetDesc, bindingSet, bindingLayout);
+    nvrhi::BindingSetHandle bindingSet = computePassParams.m_BindingSet;
+    nvrhi::BindingLayoutHandle bindingLayout = computePassParams.m_BindingLayout;
+
+    assert((bindingSet && bindingLayout) || !computePassParams.m_BindingSetDesc.bindings.empty());
+
+    // TODO: remove
+    if (!bindingSet && !bindingLayout)
+    {
+        CreateBindingSetAndLayout(computePassParams.m_BindingSetDesc, bindingSet, bindingLayout);
+    }
 
     nvrhi::ComputePipelineDesc pipelineDesc;
     pipelineDesc.CS = GetShader(computePassParams.m_ShaderName);
