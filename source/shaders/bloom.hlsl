@@ -2,9 +2,10 @@
 
 #include "ShaderInterop.h"
 
-cbuffer g_BloomDownsampleConstsBuffer : register(b0) { BloomDownsampleConsts g_BloomDownsampleConsts; }
-Texture2D g_DownsampleSourceTexture : register(t0);
-sampler g_LinearClampSampler : register(s0);
+cbuffer g_BloomConstsBuffer : register(b0) { BloomConsts g_BloomConsts; }
+static Texture2D g_DownsampleSourceTexture = ResourceDescriptorHeap[g_BloomConsts.m_DownsampleSourceTextureIdx];
+static Texture2D g_UpsampleSourceTexture = ResourceDescriptorHeap[g_BloomConsts.m_UpsampleSourceTextureIdx];
+static sampler g_LinearClampSampler = SamplerDescriptorHeap[g_BloomConsts.m_LinearClampSamplerIdx];
 
 float KarisAverage(float3 col)
 {
@@ -18,8 +19,8 @@ void PS_Downsample(
     in float2 inUV : TEXCOORD0,
     out float4 outColor : SV_Target)
 {
-    float x = g_BloomDownsampleConsts.m_InvSourceResolution.x;
-    float y = g_BloomDownsampleConsts.m_InvSourceResolution.y;
+    float x = g_BloomConsts.m_InvSourceResolution.x;
+    float y = g_BloomConsts.m_InvSourceResolution.y;
     
     // Take 13 samples around current texel:
 	// a - b - c
@@ -59,7 +60,7 @@ void PS_Downsample(
     float3 downsample = 0;
     
     // Check if we need to perform Karis average on each block of 4 samples
-    if (g_BloomDownsampleConsts.m_bIsFirstDownsample)
+    if (g_BloomConsts.m_bIsFirstDownsample)
     {
         float3 groups[5];
         
@@ -88,17 +89,14 @@ void PS_Downsample(
     outColor = float4(downsample, 1.0f);
 }
 
-cbuffer g_BloomUpsampleConstsBuffer : register(b0) { BloomUpsampleConsts g_BloomUpsampleConsts; }
-Texture2D g_UpsampleSourceTexture : register(t0);
-
 void PS_Upsample(
     in float4 inPosition : SV_POSITION,
     in float2 inUV : TEXCOORD0,
     out float4 outColor : SV_Target)
 {
     // The filter kernel is applied with a radius, specified in texture coordinates, so that the radius will vary across mip resolutions.
-    float x = g_BloomUpsampleConsts.m_FilterRadius;
-    float y = g_BloomUpsampleConsts.m_FilterRadius;
+    float x = g_BloomConsts.m_FilterRadius;
+    float y = g_BloomConsts.m_FilterRadius;
 
 	// Take 9 samples around current texel:
 	// a - b - c

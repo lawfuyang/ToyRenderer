@@ -74,32 +74,40 @@ public:
 			const Vector2U srcRes{ textureDesc.width >> srcMip, textureDesc.height >> srcMip };
 			const Vector2U destRes{ textureDesc.width >> destMip, textureDesc.height >> destMip };
 
-			BloomDownsampleConsts downsampleConsts;
-			downsampleConsts.m_bIsFirstDownsample = bIsFirstPass;
-			downsampleConsts.m_InvSourceResolution = Vector2{ 1.0f / srcRes.x, 1.0f / srcRes.y };
+			BloomConsts bloomConsts;
+			bloomConsts.m_bIsFirstDownsample = bIsFirstPass;
+			bloomConsts.m_InvSourceResolution = Vector2{ 1.0f / srcRes.x, 1.0f / srcRes.y };
 
 			nvrhi::BindingSetDesc bindingSetDesc;
 			bindingSetDesc.bindings = {
-				nvrhi::BindingSetItem::PushConstants(0, sizeof(downsampleConsts)),
+				nvrhi::BindingSetItem::PushConstants(0, sizeof(bloomConsts)),
 				nvrhi::BindingSetItem::Texture_SRV(0, srcTexture, nvrhi::Format::UNKNOWN, nvrhi::TextureSubresourceSet{ srcMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
 				nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
 			};
 
-			nvrhi::FramebufferDesc framebufferDesc;
-			framebufferDesc.addColorAttachment(bloomTexture, nvrhi::TextureSubresourceSet{ destMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices });
+			nvrhi::FramebufferDesc frameBufferDesc;
+			frameBufferDesc.addColorAttachment(bloomTexture, nvrhi::TextureSubresourceSet{ destMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices });
+
+			nvrhi::BindingSetHandle bindingSet;
+			nvrhi::BindingLayoutHandle bindingLayout;
+			g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+			bloomConsts.m_DownsampleSourceTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+            bloomConsts.m_LinearClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
 			const nvrhi::Viewport viewPort = nvrhi::Viewport{ (float)destRes.x, (float)destRes.y };
 
-			g_Graphic.AddFullScreenPass(
-				commandList,
-				framebufferDesc,
-				bindingSetDesc,
-				"bloom_PS_Downsample",
-				nullptr, // no blend state
-				nullptr, // no depth stencil state
-				&viewPort,
-				&downsampleConsts,
-				sizeof(downsampleConsts));
+			Graphic::FullScreenPassParams fullScreenPassParams;
+			fullScreenPassParams.m_CommandList = commandList;
+			fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
+			fullScreenPassParams.m_BindingSet = bindingSet;
+			fullScreenPassParams.m_BindingLayout = bindingLayout;
+			fullScreenPassParams.m_PixelShaderName = "bloom_PS_Downsample";
+            fullScreenPassParams.m_ViewPort = &viewPort;
+			fullScreenPassParams.m_PushConstantsData = &bloomConsts;
+			fullScreenPassParams.m_PushConstantsBytes = sizeof(bloomConsts);
+
+            g_Graphic.AddFullScreenPass(fullScreenPassParams);
 		}
 
 		// upsample
@@ -108,33 +116,41 @@ public:
 			const uint32_t srcMip = nbPasses - i;
 			const uint32_t destMip = srcMip - 1;
 
-			BloomUpsampleConsts upsampleConsts;
-			upsampleConsts.m_FilterRadius = m_UpsampleFilterRadius;
+			BloomConsts bloomConsts;
+			bloomConsts.m_FilterRadius = m_UpsampleFilterRadius;
 
 			nvrhi::BindingSetDesc bindingSetDesc;
 			bindingSetDesc.bindings = {
-				nvrhi::BindingSetItem::PushConstants(0, sizeof(upsampleConsts)),
+				nvrhi::BindingSetItem::PushConstants(0, sizeof(bloomConsts)),
 				nvrhi::BindingSetItem::Texture_SRV(0, bloomTexture, nvrhi::Format::UNKNOWN, nvrhi::TextureSubresourceSet{ srcMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
 				nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
 			};
 
 			const Vector2U destRes{ textureDesc.width >> destMip, textureDesc.height >> destMip };
 
-			nvrhi::FramebufferDesc framebufferDesc;
-			framebufferDesc.addColorAttachment(bloomTexture, nvrhi::TextureSubresourceSet{ destMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices });
+			nvrhi::FramebufferDesc frameBufferDesc;
+			frameBufferDesc.addColorAttachment(bloomTexture, nvrhi::TextureSubresourceSet{ destMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices });
+
+			nvrhi::BindingSetHandle bindingSet;
+			nvrhi::BindingLayoutHandle bindingLayout;
+			g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            bloomConsts.m_UpsampleSourceTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+            bloomConsts.m_LinearClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
 			const nvrhi::Viewport viewPort = nvrhi::Viewport{ (float)destRes.x, (float)destRes.y };
 
-			g_Graphic.AddFullScreenPass(
-				commandList,
-				framebufferDesc,
-				bindingSetDesc,
-				"bloom_PS_Upsample",
-				nullptr, // no blend state
-				nullptr, // no depth stencil state
-				&viewPort,
-				&upsampleConsts,
-				sizeof(upsampleConsts));
+			Graphic::FullScreenPassParams fullScreenPassParams;
+			fullScreenPassParams.m_CommandList = commandList;
+			fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
+			fullScreenPassParams.m_BindingSet = bindingSet;
+			fullScreenPassParams.m_BindingLayout = bindingLayout;
+			fullScreenPassParams.m_PixelShaderName = "bloom_PS_Upsample";
+			fullScreenPassParams.m_ViewPort = &viewPort;
+			fullScreenPassParams.m_PushConstantsData = &bloomConsts;
+			fullScreenPassParams.m_PushConstantsBytes = sizeof(bloomConsts);
+
+			g_Graphic.AddFullScreenPass(fullScreenPassParams);
 		}
 	}
 };

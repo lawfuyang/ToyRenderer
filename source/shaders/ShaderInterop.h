@@ -104,15 +104,14 @@ struct BasePassInstanceConstants
 	Vector2 PAD0;
 };
 
-struct BloomDownsampleConsts
+struct BloomConsts
 {
 	Vector2 m_InvSourceResolution;
-	uint32_t m_bIsFirstDownsample;
-};
-
-struct BloomUpsampleConsts
-{
 	float m_FilterRadius;
+	uint32_t m_bIsFirstDownsample;
+	uint32_t m_DownsampleSourceTextureIdx;
+	uint32_t m_LinearClampSamplerIdx;
+	uint32_t m_UpsampleSourceTextureIdx;
 };
 
 struct DeferredLightingConsts
