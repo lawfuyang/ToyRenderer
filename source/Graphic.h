@@ -123,17 +123,6 @@ public:
 
     void AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams);
 
-    void AddFullScreenPass(
-        nvrhi::CommandListHandle commandList,
-        const nvrhi::FramebufferDesc& frameBufferDesc,
-        const nvrhi::BindingSetDesc& bindingSetDesc,
-        std::string_view pixelShaderName,
-        const nvrhi::BlendState::RenderTarget* blendState = nullptr,
-        const nvrhi::DepthStencilState* depthStencilState = nullptr,
-        const nvrhi::Viewport* viewPort = nullptr,
-        const void* pushConstantsData = nullptr,
-        size_t pushConstantsBytes = 0);
-
     struct ComputePassParams
     {
         nvrhi::CommandListHandle m_CommandList;

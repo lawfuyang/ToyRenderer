@@ -1210,36 +1210,6 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
     commandList->dispatchMesh(1, 1, 1);
 }
 
-void Graphic::AddFullScreenPass(
-    nvrhi::CommandListHandle commandList,
-    const nvrhi::FramebufferDesc& frameBufferDesc,
-    const nvrhi::BindingSetDesc& bindingSetDesc,
-    std::string_view pixelShaderName,
-    const nvrhi::BlendState::RenderTarget* blendStateIn,
-    const nvrhi::DepthStencilState* depthStencilStateIn,
-    const nvrhi::Viewport* viewPortIn,
-    const void* pushConstantsData,
-    size_t pushConstantsBytes)
-{
-    nvrhi::BindingSetHandle bindingSet;
-    nvrhi::BindingLayoutHandle bindingLayout;
-    CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-    FullScreenPassParams fullScreenPassParams;
-    fullScreenPassParams.m_CommandList = commandList;
-    fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-    fullScreenPassParams.m_BindingSet = bindingSet;
-    fullScreenPassParams.m_BindingLayout = bindingLayout;
-    fullScreenPassParams.m_PixelShaderName = pixelShaderName;
-    fullScreenPassParams.m_BlendState = blendStateIn;
-    fullScreenPassParams.m_DepthStencilState = depthStencilStateIn;
-    fullScreenPassParams.m_ViewPort = viewPortIn;
-    fullScreenPassParams.m_PushConstantsData = pushConstantsData;
-    fullScreenPassParams.m_PushConstantsBytes = pushConstantsBytes;
-
-    AddFullScreenPass(fullScreenPassParams);
-}
-
 void Graphic::AddComputePass(const ComputePassParams& computePassParams)
 {
     assert(computePassParams.m_CommandList);

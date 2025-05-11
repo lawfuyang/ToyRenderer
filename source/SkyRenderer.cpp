@@ -192,9 +192,22 @@ public:
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer)
         };
 
+        nvrhi::BindingSetHandle bindingSet;
+        nvrhi::BindingLayoutHandle bindingLayout;
+        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
         const nvrhi::BlendState::RenderTarget* blendState = nullptr;
         const nvrhi::DepthStencilState& depthStencilState = g_CommonResources.DepthReadStencilNone;
-        g_Graphic.AddFullScreenPass(commandList, frameBufferDesc, bindingSetDesc, "sky_PS_HosekWilkieSky", blendState, &depthStencilState);
+
+        Graphic::FullScreenPassParams fullScreenPassParams;
+        fullScreenPassParams.m_CommandList = commandList;
+        fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
+        fullScreenPassParams.m_BindingSet = bindingSet;
+        fullScreenPassParams.m_BindingLayout = bindingLayout;
+        fullScreenPassParams.m_PixelShaderName = "sky_PS_HosekWilkieSky";
+        fullScreenPassParams.m_DepthStencilState = &depthStencilState;
+
+        g_Graphic.AddFullScreenPass(fullScreenPassParams);
     }
 };
 
