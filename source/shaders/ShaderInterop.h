@@ -371,15 +371,38 @@ struct UpdateInstanceConstsPassConstants
     uint32_t m_NumInstances;
 };
 
+struct XeGTAOPrefilterDepthsResourceIndices
+{
+	uint32_t m_SrcRawDepthIdx;
+	uint32_t m_OutWorkingDepthMIP0Idx;
+	uint32_t m_OutWorkingDepthMIP1Idx;
+	uint32_t m_OutWorkingDepthMIP2Idx;
+	uint32_t m_OutWorkingDepthMIP3Idx;
+	uint32_t m_OutWorkingDepthMIP4Idx;
+	uint32_t m_PointClampSamplerIdx;
+};
+
 struct XeGTAOMainPassConstantBuffer
 {
 	Matrix m_WorldToViewNoTranslate;
 	uint32_t m_Quality;
+    uint32_t m_SrcWorkingDepthIdx;
+    uint32_t m_SrcHilbertLUTIdx;
+    uint32_t m_GBufferAIdx;
+    uint32_t m_OutWorkingAOTermIdx;
+	uint32_t m_OutWorkingEdgesIdx;
+	uint32_t m_DebugOutputIdx;
+	uint32_t m_PointClampSamplerIdx;
 };
 
 struct XeGTAODenoiseConstants
 {
 	uint32_t m_FinalApply;
+    uint32_t m_SrcWorkingAOTermIdx;
+    uint32_t m_SrcWorkingEdgesIdx;
+	uint32_t m_OutFinalAOTermIdx;
+	uint32_t m_DebugOutputIdx;
+	uint32_t m_PointClampSamplerIdx;
 };
 
 #endif // #define _SHADER_INTEROP_H_

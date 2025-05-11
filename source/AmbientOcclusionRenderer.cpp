@@ -154,11 +154,20 @@ public:
         nvrhi::TextureHandle workingEdgesTexture = renderGraph.GetTexture(m_WorkingEdgesRDGTextureHandle);
         nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
 
+        nvrhi::TextureHandle debugOutputTexture = g_CommonResources.DummyUAV2DTexture.m_NVRHITextureHandle;
+        if (m_DebugOutputMode != 0)
+        {
+            debugOutputTexture = renderGraph.GetTexture(m_DebugOutputRDGTextureHandle);
+
+            commandList->clearTextureFloat(debugOutputTexture, nvrhi::AllSubresources, nvrhi::Color{});
+        }
+
         // generate depth mips
         {
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings = {
                 nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+                nvrhi::BindingSetItem::PushConstants(1, sizeof(XeGTAOPrefilterDepthsResourceIndices)),
                 nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopyTexture),
                 nvrhi::BindingSetItem::Texture_UAV(0, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 0, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
                 nvrhi::BindingSetItem::Texture_UAV(1, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 1, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
@@ -168,11 +177,27 @@ public:
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
             };
 
+            nvrhi::BindingSetHandle bindingSet;
+            nvrhi::BindingLayoutHandle bindingLayout;
+            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            XeGTAOPrefilterDepthsResourceIndices prefilterDepthsResourceIndices;
+            prefilterDepthsResourceIndices.m_SrcRawDepthIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP0Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP1Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
+            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP2Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
+            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP3Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
+            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP4Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
+            prefilterDepthsResourceIndices.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
+
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "ambientocclusion_CS_XeGTAO_PrefilterDepths";
-            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_BindingSet = bindingSet;
+            computePassParams.m_BindingLayout = bindingLayout;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ workingDepthBuffer->getDesc().width, workingDepthBuffer->getDesc().height }, Vector2U{ 16, 16 });
+            computePassParams.m_PushConstantsData = &prefilterDepthsResourceIndices;
+            computePassParams.m_PushConstantsBytes = sizeof(prefilterDepthsResourceIndices);
 
             g_Graphic.AddComputePass(computePassParams);
         }
@@ -184,14 +209,6 @@ public:
             mainPassConsts.m_WorldToViewNoTranslate.Translation(Vector3::Zero);
 
             mainPassConsts.m_Quality = m_XeGTAOSettings.QualityLevel;
-
-            nvrhi::TextureHandle debugOutputTexture = g_CommonResources.DummyUAV2DTexture.m_NVRHITextureHandle;
-            if (m_DebugOutputMode != 0)
-            {
-                debugOutputTexture = renderGraph.GetTexture(m_DebugOutputRDGTextureHandle);
-
-                commandList->clearTextureFloat(debugOutputTexture, nvrhi::AllSubresources, nvrhi::Color{});
-            }
 
             nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
 
@@ -208,10 +225,23 @@ public:
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
             };
 
+            nvrhi::BindingSetHandle bindingSet;
+            nvrhi::BindingLayoutHandle bindingLayout;
+            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            mainPassConsts.m_SrcWorkingDepthIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+            mainPassConsts.m_SrcHilbertLUTIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+            mainPassConsts.m_GBufferAIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
+            mainPassConsts.m_OutWorkingAOTermIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
+            mainPassConsts.m_OutWorkingEdgesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
+            mainPassConsts.m_DebugOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
+            mainPassConsts.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
+
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = StringFormat("ambientocclusion_CS_XeGTAO_MainPass DEBUG_OUTPUT_MODE=%d", m_DebugOutputMode);
-            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_BindingSet = bindingSet;
+            computePassParams.m_BindingLayout = bindingLayout;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ workingSSAOTexture->getDesc().width, workingSSAOTexture->getDesc().height }, Vector2U{ XE_GTAO_NUMTHREADS_X, XE_GTAO_NUMTHREADS_Y });
             computePassParams.m_PushConstantsData = &mainPassConsts;
             computePassParams.m_PushConstantsBytes = sizeof(mainPassConsts);
@@ -242,13 +272,25 @@ public:
                 nvrhi::BindingSetItem::Texture_SRV(0, srcTexture),
                 nvrhi::BindingSetItem::Texture_SRV(1, workingEdgesTexture),
                 nvrhi::BindingSetItem::Texture_UAV(0, dstTexture),
+                nvrhi::BindingSetItem::Texture_UAV(1, debugOutputTexture),
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
             };
+
+            nvrhi::BindingSetHandle bindingSet;
+            nvrhi::BindingLayoutHandle bindingLayout;
+            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            denoiseConsts.m_SrcWorkingAOTermIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+            denoiseConsts.m_SrcWorkingEdgesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+            denoiseConsts.m_OutFinalAOTermIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
+            denoiseConsts.m_DebugOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
+            denoiseConsts.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "ambientocclusion_CS_XeGTAO_Denoise";
-            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_BindingSet = bindingSet;
+            computePassParams.m_BindingLayout = bindingLayout;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ srcTexture->getDesc().width, srcTexture->getDesc().height }, Vector2U{ XE_GTAO_NUMTHREADS_X * 2, XE_GTAO_NUMTHREADS_Y });
             computePassParams.m_PushConstantsData = &denoiseConsts;
             computePassParams.m_PushConstantsBytes = sizeof(denoiseConsts);

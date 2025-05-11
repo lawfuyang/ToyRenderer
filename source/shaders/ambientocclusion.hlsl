@@ -18,30 +18,9 @@
 #include "extern/xegtao/XeGTAO.hlsli"
 
 cbuffer GTAOConstantBuffer : register(b0) { GTAOConstants g_GTAOConsts; }
-cbuffer XeGTAOMainPassConstantBuffer : register(b1){ XeGTAOMainPassConstantBuffer g_XeGTAOMainPassConstantBuffer; }
+cbuffer XeGTAOPrefilterDepthsResourceIndicesBuffer : register(b1) { XeGTAOPrefilterDepthsResourceIndices g_XeGTAOPrefilterDepthsResourceIndices; }
+cbuffer XeGTAOMainPassConstantBuffer : register(b1) { XeGTAOMainPassConstantBuffer g_XeGTAOMainPassConstantBuffer; }
 cbuffer XeGTAODenoiseConstantBuffer : register(b1) { XeGTAODenoiseConstants g_XeGTAODenoiseConstants; }
-
-// input output textures for the first pass (XeGTAO_PrefilterDepths16x16)
-Texture2D<float> g_srcRawDepth : register(t0); // source depth buffer data (in NDC space in DirectX)
-RWTexture2D<lpfloat> g_outWorkingDepthMIP0 : register(u0); // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
-RWTexture2D<lpfloat> g_outWorkingDepthMIP1 : register(u1); // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
-RWTexture2D<lpfloat> g_outWorkingDepthMIP2 : register(u2); // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
-RWTexture2D<lpfloat> g_outWorkingDepthMIP3 : register(u3); // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
-RWTexture2D<lpfloat> g_outWorkingDepthMIP4 : register(u4); // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
-
-// input output textures for the second pass (XeGTAO_MainPass)
-Texture2D<lpfloat> g_srcWorkingDepth : register(t0); // viewspace depth with MIPs, output by XeGTAO_PrefilterDepths16x16 and consumed by XeGTAO_MainPass
-Texture2D<uint> g_srcHilbertLUT : register(t1); // hilbert lookup table
-Texture2D<uint4> g_GBufferA : register(t2);
-RWTexture2D<uint> g_outWorkingAOTerm : register(u0); // output AO term (includes bent normals if enabled - packed as R11G11B10 scaled by AO)
-RWTexture2D<unorm float> g_outWorkingEdges : register(u1); // output depth-based edges used by the denoiser
-
-// input output textures for the third pass (XeGTAO_Denoise)
-Texture2D<uint> g_srcWorkingAOTerm : register(t0); // coming from previous pass
-Texture2D<lpfloat> g_srcWorkingEdges : register(t1); // coming from previous pass
-RWTexture2D<uint> g_outFinalAOTerm : register(u0); // final AO term - just 'visibility' or 'visibility + bent normals'
-
-sampler g_PointClampSampler : register(s0);
 
 [numthreads(8, 8, 1)] // <- hard coded to 8x8; each thread computes 2x2 blocks so processing 16x16 block: Dispatch needs to be called with (width + 16-1) / 16, (height + 16-1) / 16
 void CS_XeGTAO_PrefilterDepths(
@@ -50,7 +29,15 @@ void CS_XeGTAO_PrefilterDepths(
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex)
 {
-    XeGTAO_PrefilterDepths16x16(dispatchThreadID.xy, groupThreadID.xy, g_GTAOConsts, g_srcRawDepth, g_PointClampSampler, g_outWorkingDepthMIP0, g_outWorkingDepthMIP1, g_outWorkingDepthMIP2, g_outWorkingDepthMIP3, g_outWorkingDepthMIP4);
+    Texture2D<float> srcRawDepth = ResourceDescriptorHeap[g_XeGTAOPrefilterDepthsResourceIndices.m_SrcRawDepthIdx]; // source depth buffer data (in NDC space in DirectX)
+    RWTexture2D<lpfloat> outWorkingDepthMIP0 = ResourceDescriptorHeap[g_XeGTAOPrefilterDepthsResourceIndices.m_OutWorkingDepthMIP0Idx]; // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
+    RWTexture2D<lpfloat> outWorkingDepthMIP1 = ResourceDescriptorHeap[g_XeGTAOPrefilterDepthsResourceIndices.m_OutWorkingDepthMIP1Idx]; // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
+    RWTexture2D<lpfloat> outWorkingDepthMIP2 = ResourceDescriptorHeap[g_XeGTAOPrefilterDepthsResourceIndices.m_OutWorkingDepthMIP2Idx]; // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
+    RWTexture2D<lpfloat> outWorkingDepthMIP3 = ResourceDescriptorHeap[g_XeGTAOPrefilterDepthsResourceIndices.m_OutWorkingDepthMIP3Idx]; // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
+    RWTexture2D<lpfloat> outWorkingDepthMIP4 = ResourceDescriptorHeap[g_XeGTAOPrefilterDepthsResourceIndices.m_OutWorkingDepthMIP4Idx]; // output viewspace depth MIP (these are views into g_srcWorkingDepth MIP levels)
+    sampler pointClampSampler = SamplerDescriptorHeap[g_XeGTAOPrefilterDepthsResourceIndices.m_PointClampSamplerIdx];
+    
+    XeGTAO_PrefilterDepths16x16(dispatchThreadID.xy, groupThreadID.xy, g_GTAOConsts, srcRawDepth, pointClampSampler, outWorkingDepthMIP0, outWorkingDepthMIP1, outWorkingDepthMIP2, outWorkingDepthMIP3, outWorkingDepthMIP4);
 }
 
 [numthreads(XE_GTAO_NUMTHREADS_X, XE_GTAO_NUMTHREADS_X, 1)]
@@ -90,7 +77,15 @@ void CS_XeGTAO_MainPass(
             break;
     };
     
-    uint noiseIndex = g_srcHilbertLUT.Load(uint3(dispatchThreadID.xy % 64, 0)).x;
+    Texture2D<lpfloat> srcWorkingDepth = ResourceDescriptorHeap[g_XeGTAOMainPassConstantBuffer.m_SrcWorkingDepthIdx]; // viewspace depth with MIPs, output by XeGTAO_PrefilterDepths16x16 and consumed by XeGTAO_MainPass
+    Texture2D<uint> srcHilbertLUT = ResourceDescriptorHeap[g_XeGTAOMainPassConstantBuffer.m_SrcHilbertLUTIdx]; // hilbert lookup table
+    Texture2D<uint4> GBufferA = ResourceDescriptorHeap[g_XeGTAOMainPassConstantBuffer.m_GBufferAIdx];
+    RWTexture2D<uint> outWorkingAOTerm = ResourceDescriptorHeap[g_XeGTAOMainPassConstantBuffer.m_OutWorkingAOTermIdx]; // output AO term (includes bent normals if enabled - packed as R11G11B10 scaled by AO)
+    RWTexture2D<unorm float> outWorkingEdges = ResourceDescriptorHeap[g_XeGTAOMainPassConstantBuffer.m_OutWorkingEdgesIdx]; // output depth-based edges used by the denoiser
+    RWTexture2D<float4> outputDbgImage = ResourceDescriptorHeap[g_XeGTAOMainPassConstantBuffer.m_DebugOutputIdx]; // debug image output (if enabled)
+    sampler pointClampSampler = SamplerDescriptorHeap[g_XeGTAOMainPassConstantBuffer.m_PointClampSamplerIdx];
+    
+    uint noiseIndex = srcHilbertLUT.Load(uint3(dispatchThreadID.xy % 64, 0)).x;
     
     // why 288? tried out a few and that's the best so far (with XE_HILBERT_LEVEL 6U) - but there's probably better :)
     // NOTE: without TAA, temporalIndex is always 0
@@ -102,11 +97,11 @@ void CS_XeGTAO_MainPass(
     // compute view space normals for XeGTAO input
     // NOTE: this assumes AO pass is full render resolution
     GBufferParams gbufferParams;
-    UnpackGBuffer(g_GBufferA[dispatchThreadID.xy], gbufferParams);
+    UnpackGBuffer(GBufferA[dispatchThreadID.xy], gbufferParams);
     float3 viewSpaceNormals = mul(float4(gbufferParams.m_Normal, 1.0f), g_XeGTAOMainPassConstantBuffer.m_WorldToViewNoTranslate).xyz;
     viewSpaceNormals.z *= -1.0f; // TODO: fix inverted view-space Z coord
     
-    XeGTAO_MainPass(dispatchThreadID.xy, sliceCount, stepsPerSlice, (lpfloat2)spatioTemporalNoise, (lpfloat3)viewSpaceNormals, g_GTAOConsts, g_srcWorkingDepth, g_PointClampSampler, g_outWorkingAOTerm, g_outWorkingEdges);
+    XeGTAO_MainPass(dispatchThreadID.xy, sliceCount, stepsPerSlice, (lpfloat2)spatioTemporalNoise, (lpfloat3)viewSpaceNormals, g_GTAOConsts, srcWorkingDepth, pointClampSampler, outWorkingAOTerm, outWorkingEdges, outputDbgImage);
 }
 
 [numthreads(XE_GTAO_NUMTHREADS_X, XE_GTAO_NUMTHREADS_X, 1)]
@@ -116,6 +111,12 @@ void CS_XeGTAO_Denoise(
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex)
 {
+    Texture2D<uint> srcWorkingAOTerm = ResourceDescriptorHeap[g_XeGTAODenoiseConstants.m_SrcWorkingAOTermIdx]; // coming from previous pass
+    Texture2D<lpfloat> srcWorkingEdges = ResourceDescriptorHeap[g_XeGTAODenoiseConstants.m_SrcWorkingEdgesIdx]; // coming from previous pass
+    RWTexture2D<uint> outFinalAOTerm = ResourceDescriptorHeap[g_XeGTAODenoiseConstants.m_OutFinalAOTermIdx]; // final AO term - just 'visibility' or 'visibility + bent normals'
+    RWTexture2D<float4> outputDbgImage = ResourceDescriptorHeap[g_XeGTAODenoiseConstants.m_DebugOutputIdx]; // debug image output (if enabled)
+    
     const uint2 pixCoordBase = dispatchThreadID.xy * uint2(2, 1); // we're computing 2 horizontal pixels at a time (performance optimization)
-    XeGTAO_Denoise(pixCoordBase, g_GTAOConsts, g_srcWorkingAOTerm, g_srcWorkingEdges, g_PointClampSampler, g_outFinalAOTerm, g_XeGTAODenoiseConstants.m_FinalApply);
+    sampler pointClampSampler = SamplerDescriptorHeap[g_XeGTAODenoiseConstants.m_PointClampSamplerIdx];
+    XeGTAO_Denoise(pixCoordBase, g_GTAOConsts, srcWorkingAOTerm, srcWorkingEdges, pointClampSampler, outFinalAOTerm, g_XeGTAODenoiseConstants.m_FinalApply, outputDbgImage);
 }

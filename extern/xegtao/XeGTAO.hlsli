@@ -18,9 +18,10 @@
 #include "vaShared.hlsl"
 #endif
 
-#if defined( XE_GTAO_SHOW_NORMALS ) || defined( XE_GTAO_SHOW_EDGES ) || defined( XE_GTAO_SHOW_BENT_NORMALS )
-RWTexture2D<float4>         g_outputDbgImage    : register( u2 );
-#endif
+// [rlaw]: convert to hlsl dynamic resources. outputDbgImage is passed in through the functions
+//#if defined( XE_GTAO_SHOW_NORMALS ) || defined( XE_GTAO_SHOW_EDGES ) || defined( XE_GTAO_SHOW_BENT_NORMALS )
+//RWTexture2D<float4>         g_outputDbgImage    : register( u2 );
+//#endif
 
 #include "XeGTAO.h"
 
@@ -249,7 +250,8 @@ lpfloat3x3 XeGTAO_RotFromToMatrix( lpfloat3 from, lpfloat3 to )
 }
 
 void XeGTAO_MainPass( const uint2 pixCoord, lpfloat sliceCount, lpfloat stepsPerSlice, const lpfloat2 localNoise, lpfloat3 viewspaceNormal, const GTAOConstants consts, 
-    Texture2D<lpfloat> sourceViewspaceDepth, SamplerState depthSampler, RWTexture2D<uint> outWorkingAOTerm, RWTexture2D<unorm float> outWorkingEdges )
+    Texture2D<lpfloat> sourceViewspaceDepth, SamplerState depthSampler, RWTexture2D<uint> outWorkingAOTerm, RWTexture2D<unorm float> outWorkingEdges,
+    RWTexture2D<float4> outputDbgImage)
 {                                                                       
     float2 normalizedScreenPos = (pixCoord + 0.5.xx) * consts.ViewportPixelSize;
 
@@ -296,11 +298,11 @@ void XeGTAO_MainPass( const uint2 pixCoord, lpfloat sliceCount, lpfloat stepsPer
     // viewspaceNormal = normalize( viewspaceNormal + max( 0, -dot( viewspaceNormal, viewVec ) ) * viewVec );
 
 #ifdef XE_GTAO_SHOW_NORMALS
-    g_outputDbgImage[pixCoord] = float4( DisplayNormalSRGB( viewspaceNormal.xyz ), 1 );
+    outputDbgImage[pixCoord] = float4( DisplayNormalSRGB( viewspaceNormal.xyz ), 1 );
 #endif
 
 #ifdef XE_GTAO_SHOW_EDGES
-    g_outputDbgImage[pixCoord] = 1.0 - float4( edgesLRTB.x, edgesLRTB.y * 0.5 + edgesLRTB.w * 0.5, edgesLRTB.z, 1.0 );
+    outputDbgImage[pixCoord] = 1.0 - float4( edgesLRTB.x, edgesLRTB.y * 0.5 + edgesLRTB.w * 0.5, edgesLRTB.z, 1.0 );
 #endif
 
 #if XE_GTAO_USE_DEFAULT_CONSTANTS != 0
@@ -737,7 +739,8 @@ void XeGTAO_DecodeGatherPartial( const uint4 packedValue, out AOTermType outDeco
 #endif
 }
 
-void XeGTAO_Denoise( const uint2 pixCoordBase, const GTAOConstants consts, Texture2D<uint> sourceAOTerm, Texture2D<lpfloat> sourceEdges, SamplerState texSampler, RWTexture2D<uint> outputTexture, const uniform bool finalApply )
+void XeGTAO_Denoise( const uint2 pixCoordBase, const GTAOConstants consts, Texture2D<uint> sourceAOTerm, Texture2D<lpfloat> sourceEdges, SamplerState texSampler, RWTexture2D<uint> outputTexture, const uniform bool finalApply,
+    RWTexture2D<float4> outputDbgImage)
 {
     const lpfloat blurAmount = (finalApply)?((lpfloat)consts.DenoiseBlurBeta):((lpfloat)consts.DenoiseBlurBeta/(lpfloat)5.0);
     const lpfloat diagWeight = 0.85 * 0.5;
@@ -782,9 +785,9 @@ void XeGTAO_Denoise( const uint2 pixCoordBase, const GTAOConstants consts, Textu
 #endif
 
 #ifdef XE_GTAO_SHOW_EDGES
-        g_outputDbgImage[pixCoord] = 1.0 - lpfloat4( edgesC_LRTB[side].x, edgesC_LRTB[side].y * 0.5 + edgesC_LRTB[side].w * 0.5, edgesC_LRTB[side].z, 1.0 );
-        //g_outputDbgImage[pixCoord] = 1 - float4( edgesC_LRTB[side].z, edgesC_LRTB[side].w , 1, 0 );
-        //g_outputDbgImage[pixCoord] = edginess.xxxx;
+        outputDbgImage[pixCoord] = 1.0 - lpfloat4( edgesC_LRTB[side].x, edgesC_LRTB[side].y * 0.5 + edgesC_LRTB[side].w * 0.5, edgesC_LRTB[side].z, 1.0 );
+        //outputDbgImage[pixCoord] = 1 - float4( edgesC_LRTB[side].z, edgesC_LRTB[side].w , 1, 0 );
+        //outputDbgImage[pixCoord] = edginess.xxxx;
 #endif
 
         // for diagonals; used by first and second pass
@@ -824,7 +827,7 @@ void XeGTAO_Denoise( const uint2 pixCoordBase, const GTAOConstants consts, Textu
 #ifdef XE_GTAO_SHOW_BENT_NORMALS
         if( finalApply )
         {
-            g_outputDbgImage[pixCoord] = float4( DisplayNormalSRGB( aoTerm[side].xyz /** aoTerm[side].www*/ ), 1 );
+            outputDbgImage[pixCoord] = float4( DisplayNormalSRGB( aoTerm[side].xyz /** aoTerm[side].www*/ ), 1 );
         }
 #endif
 
