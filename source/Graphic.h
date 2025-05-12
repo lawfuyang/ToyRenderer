@@ -22,20 +22,6 @@ class RenderGraph;
 class Scene;
 struct MaterialData;
 
-class GPUTimerQuery
-{
-public:
-    void Initialize();
-    void Begin(nvrhi::CommandListHandle commandList);
-    void End(nvrhi::CommandListHandle commandList);
-    float GetLastValid() const; // in MilliSeconds
-
-private:
-    static const uint32_t kQueuedFramesCount = 5;
-    nvrhi::TimerQueryHandle m_TimerQueryHandles[kQueuedFramesCount];
-    uint32_t m_Counter = 0;
-};
-
 class Graphic
 {
 public:
@@ -201,7 +187,7 @@ private:
     std::mutex m_PendingCommandListsLock;
     std::vector<nvrhi::CommandListHandle> m_PendingCommandLists;
 
-    GPUTimerQuery m_FrameTimerQuery;
+    nvrhi::TimerQueryHandle m_FrameTimerQuery;
 
 #if NVRHI_WITH_AFTERMATH
     AftermathCrashDump m_AftermathCrashDumper;

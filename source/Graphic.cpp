@@ -303,7 +303,7 @@ void Graphic::InitDevice()
                 }
             }
 
-            m_FrameTimerQuery.Initialize();
+            m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();
 
             if (g_EnableD3DDebug.Get())
             {
@@ -1053,12 +1053,14 @@ void Graphic::Update()
     // execute all cmd lists that may have been potentially added as engine commands
     ExecuteAllCommandLists();
 
-    g_Engine.m_GPUTimeMs = m_FrameTimerQuery.GetLastValid();
+    g_Engine.m_GPUTimeMs = Timer::SecondsToMilliSeconds(m_NVRHIDevice->getTimerQueryTime(m_FrameTimerQuery));
 
     {
         nvrhi::CommandListHandle commandList = AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Begin Frame Timer Query");
-        m_FrameTimerQuery.Begin(commandList);
+
+        g_Graphic.m_NVRHIDevice->resetTimerQuery(m_FrameTimerQuery);
+        commandList->beginTimerQuery(m_FrameTimerQuery);
     }
 
     tf::Taskflow tf;
@@ -1078,7 +1080,7 @@ void Graphic::Update()
     {
         nvrhi::CommandListHandle commandList = AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "End Frame Timer Query");
-        m_FrameTimerQuery.End(commandList);
+        commandList->endTimerQuery(m_FrameTimerQuery);
     }
 
     // execute all cmd lists for this frame
@@ -1412,47 +1414,4 @@ void FencedReadbackTexture::Read(void* outPtr)
         memcpy(outPtr, mappedPtr, readbackBytes);
         device->unmapStagingTexture(m_StagingTexture[readIndex]);
     }
-}
-
-void GPUTimerQuery::Initialize()
-{
-    for (uint32_t i = 0; i < kQueuedFramesCount; ++i)
-    {
-        m_TimerQueryHandles[i] = g_Graphic.m_NVRHIDevice->createTimerQuery();
-    }
-}
-
-void GPUTimerQuery::Begin(nvrhi::CommandListHandle commandList)
-{
-    g_Graphic.m_NVRHIDevice->resetTimerQuery(m_TimerQueryHandles[m_Counter]);
-    commandList->beginTimerQuery(m_TimerQueryHandles[m_Counter]);
-}
-
-void GPUTimerQuery::End(nvrhi::CommandListHandle commandList)
-{
-    commandList->endTimerQuery(m_TimerQueryHandles[m_Counter]);
-    m_Counter = (m_Counter + 1) % kQueuedFramesCount;
-}
-
-float GPUTimerQuery::GetLastValid() const
-{
-    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-    for (int32_t i = m_Counter - 1; i >= 0; i--)
-    {
-        if (device->pollTimerQuery(m_TimerQueryHandles[i]))
-        {
-            return Timer::SecondsToMilliSeconds(device->getTimerQueryTime(m_TimerQueryHandles[i]));
-        }
-    }
-
-    for (int32_t i = kQueuedFramesCount - 1; i > m_Counter; i--)
-    {
-        if (device->pollTimerQuery(m_TimerQueryHandles[i]))
-        {
-            return Timer::SecondsToMilliSeconds(device->getTimerQueryTime(m_TimerQueryHandles[i]));
-        }
-    }
-
-    return -1.0f;
 }
