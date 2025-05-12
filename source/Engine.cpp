@@ -152,14 +152,13 @@ void Engine::Initialize(int argc, char** argv)
     tf.emplace([this] { m_Graphic = std::make_shared<Graphic>(); m_Graphic->Initialize(); });
     m_Executor->run(tf).wait();
 
-	if (std::string_view sceneToLoad = g_SceneToLoad.Get();
-        !sceneToLoad.empty())
-    {
-        extern void LoadScene(std::string_view filePath);
-        LoadScene(sceneToLoad);
+    std::string_view sceneToLoad = g_SceneToLoad.Get();
+    assert(!sceneToLoad.empty());
 
-        m_Graphic->PostSceneLoad();
-    }
+    extern void LoadScene(std::string_view filePath);
+    LoadScene(sceneToLoad);
+
+    m_Graphic->PostSceneLoad();
 
     if (g_ProfileStartup.Get())
     {
