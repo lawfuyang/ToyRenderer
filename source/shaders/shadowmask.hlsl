@@ -7,19 +7,8 @@
 #include "ShaderInterop.h"
 
 cbuffer g_PassConstantsBuffer : register(b0) { ShadowMaskConsts g_ShadowMaskConsts; }
-Texture2D g_DepthBuffer : register(t0);
-RaytracingAccelerationStructure g_SceneTLAS : register(t1);
-Texture2D<uint4> g_GBufferA : register(t2);
-StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t3);
-StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer : register(t4);
-StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t5);
-StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t6);
-StructuredBuffer<MeshData> g_MeshDataBuffer : register(t7);
-Texture2D g_BlueNoise : register(t8);
-Texture2D g_Textures[] : register(t0, space1);
-RWTexture2D<float> g_ShadowDataOutput : register(u0);
-RWTexture2D<float> g_LinearViewDepthOutput : register(u1);
-sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
+cbuffer g_ShadowMaskResourceIndicesBuffer : register(b1) { ShadowMaskResourceIndices g_ShadowMaskResourceIndices; }
+Texture2D g_InstanceTextures[] : register(t0, space1);
 
 float2x3 CreateTangentVectors(float3 normal)
 {
@@ -74,15 +63,33 @@ void CS_ShadowMask(
         return;
     }
     
-    float depth = g_DepthBuffer[dispatchThreadID.xy].x;
+    Texture2D                                   depthBuffer                = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_DepthBufferIdx];
+    RaytracingAccelerationStructure             sceneTLAS                  = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_SceneTLASIdx];
+    Texture2D<uint4>                            GBufferA                   = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_GBufferAIdx];
+    StructuredBuffer<BasePassInstanceConstants> basePassInstanceConsts     = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_BasePassInstanceConstsIdx];
+    StructuredBuffer<RawVertexFormat>           globalVertexBuffer         = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_GlobalVertexBufferIdx];
+    StructuredBuffer<MaterialData>              materialDataBuffer         = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_MaterialDataBufferIdx];
+    StructuredBuffer<uint>                      globalIndexIDsBuffer       = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_GlobalIndexIDsBufferIdx];
+    StructuredBuffer<MeshData>                  meshDataBuffer             = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_MeshDataBufferIdx];
+    Texture2D                                   blueNoise                  = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_BlueNoiseIdx];
+    RWTexture2D<float>                          shadowDataOutput           = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_ShadowDataOutputIdx];
+    RWTexture2D<float>                          linearViewDepthOutput      = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_LinearViewDepthOutputIdx];
+    
+    sampler anisotropicClampSampler = SamplerDescriptorHeap[g_ShadowMaskResourceIndices.m_SamplersIdx + 0];
+    sampler anisotropicWrapSampler = SamplerDescriptorHeap[g_ShadowMaskResourceIndices.m_SamplersIdx + 1];
+    sampler anisotropicBorderSampler = SamplerDescriptorHeap[g_ShadowMaskResourceIndices.m_SamplersIdx + 2];
+    sampler anisotropicMirrorSampler = SamplerDescriptorHeap[g_ShadowMaskResourceIndices.m_SamplersIdx + 3];
+    sampler samplers[SamplerIdx_Count] = { anisotropicClampSampler, anisotropicWrapSampler, anisotropicBorderSampler, anisotropicMirrorSampler };
+    
+    float depth = depthBuffer[dispatchThreadID.xy].x;
     if (depth == kFarDepth)
     {
-        g_LinearViewDepthOutput[dispatchThreadID.xy] = kFP16Max;
+        linearViewDepthOutput[dispatchThreadID.xy] = kFP16Max;
         return;
     }
     
     GBufferParams gbufferParams;
-    UnpackGBuffer(g_GBufferA[dispatchThreadID.xy], gbufferParams);
+    UnpackGBuffer(GBufferA[dispatchThreadID.xy], gbufferParams);
     
     float2 screenUV = (dispatchThreadID.xy + float2(0.5f, 0.5f)) / g_ShadowMaskConsts.m_OutputResolution;
     float3 worldPosition = ScreenUVToWorldPosition(screenUV, depth, g_ShadowMaskConsts.m_ClipToWorld);
@@ -90,7 +97,7 @@ void CS_ShadowMask(
     // empirical offset to remove shadow acne
     float3 rayOriginOffset = gbufferParams.m_Normal * g_ShadowMaskConsts.m_RayStartOffset;
     
-    const float2 noise = g_BlueNoise[dispatchThreadID.xy % 128].rg + g_ShadowMaskConsts.m_NoisePhase;
+    const float2 noise = blueNoise[dispatchThreadID.xy % 128].rg + g_ShadowMaskConsts.m_NoisePhase;
     float3 rayDirection = normalize(MapToCone(fmod(noise, 1), g_ShadowMaskConsts.m_DirectionalLightDirection, g_ShadowMaskConsts.m_TanSunAngularRadius));
     
     RayDesc rayDesc;
@@ -103,7 +110,7 @@ void CS_ShadowMask(
     // ACCEPT_FIRST_HIT_AND_END_SEARCH ray flag can't be used to optimize tracing, because it can lead to wrong potentially very long hit distances from random distant occluders
     // but i don't care for now... i can't see any difference in the output
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> rayQuery;
-    rayQuery.TraceRayInline(g_SceneTLAS, RAY_FLAG_NONE, 0xFF, rayDesc);
+    rayQuery.TraceRayInline(sceneTLAS, RAY_FLAG_NONE, 0xFF, rayDesc);
     
     while (rayQuery.Proceed())
     {
@@ -114,14 +121,14 @@ void CS_ShadowMask(
             args.m_PrimitiveIndex = rayQuery.CommittedPrimitiveIndex();
             args.m_AttribBarycentrics = rayQuery.CommittedTriangleBarycentrics();
             args.m_ObjectToWorld3x4 = rayQuery.CommittedObjectToWorld3x4();
-            args.m_BasePassInstanceConstantsBuffer = g_BasePassInstanceConsts;
-            args.m_MaterialDataBuffer = g_MaterialDataBuffer;
-            args.m_MeshDataBuffer = g_MeshDataBuffer;
-            args.m_GlobalIndexIDsBuffer = g_GlobalIndexIDsBuffer;
-            args.m_GlobalVertexBuffer = g_GlobalVertexBuffer;
-            args.m_Samplers = g_Samplers;
+            args.m_BasePassInstanceConstantsBuffer = basePassInstanceConsts;
+            args.m_MaterialDataBuffer = materialDataBuffer;
+            args.m_MeshDataBuffer = meshDataBuffer;
+            args.m_GlobalIndexIDsBuffer = globalIndexIDsBuffer;
+            args.m_GlobalVertexBuffer = globalVertexBuffer;
+            args.m_Samplers = samplers;
             
-            GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(args, g_Textures);
+            GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(args, g_InstanceTextures);
             
             if (gbufferParams.m_Albedo.a >= gbufferParams.m_AlphaCutoff)
             {
@@ -133,18 +140,17 @@ void CS_ShadowMask(
     bool bPixelOccluded = rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
     if (g_ShadowMaskConsts.m_bDoDenoising)
     {
-        g_ShadowDataOutput[dispatchThreadID.xy] = SIGMA_FrontEnd_PackPenumbra(bPixelOccluded ? rayQuery.CommittedRayT() : kFP16Max, g_ShadowMaskConsts.m_TanSunAngularRadius);
+        shadowDataOutput[dispatchThreadID.xy] = SIGMA_FrontEnd_PackPenumbra(bPixelOccluded ? rayQuery.CommittedRayT() : kFP16Max, g_ShadowMaskConsts.m_TanSunAngularRadius);
     }
     else
     {
-        g_ShadowDataOutput[dispatchThreadID.xy] = bPixelOccluded ? 0.0f : 1.0f;
+        shadowDataOutput[dispatchThreadID.xy] = bPixelOccluded ? 0.0f : 1.0f;
     }
     
-    g_LinearViewDepthOutput[dispatchThreadID.xy] = length(worldPosition - g_ShadowMaskConsts.m_CameraPosition);
+    linearViewDepthOutput[dispatchThreadID.xy] = length(worldPosition - g_ShadowMaskConsts.m_CameraPosition);
 }
 
 cbuffer g_PackNormalAndRoughnessPassConstantsBuffer : register(b0) { PackNormalAndRoughnessConsts g_PackNormalAndRoughnessConsts; }
-RWTexture2D<float4> g_NormalRoughnessOutput : register(u0);
 
 [numthreads(8, 8, 1)]
 void CS_PackNormalAndRoughness(
@@ -158,9 +164,12 @@ void CS_PackNormalAndRoughness(
         return;
     }
     
+    Texture2D<uint4> gGBufferA = ResourceDescriptorHeap[g_PackNormalAndRoughnessConsts.m_GBufferAIdx];
+    RWTexture2D<float4> normalRoughnessOutput = ResourceDescriptorHeap[g_PackNormalAndRoughnessConsts.m_NormalRoughnessOutputIdx];
+    
     GBufferParams gbufferParams;
-    UnpackGBuffer(g_GBufferA[dispatchThreadID.xy], gbufferParams);
+    UnpackGBuffer(gGBufferA[dispatchThreadID.xy], gbufferParams);
     
     float4 packed = NRD_FrontEnd_PackNormalAndRoughness(gbufferParams.m_Normal, gbufferParams.m_Roughness, 0);
-    g_NormalRoughnessOutput[dispatchThreadID.xy] = packed;
+    normalRoughnessOutput[dispatchThreadID.xy] = packed;
 }

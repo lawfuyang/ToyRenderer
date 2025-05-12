@@ -595,7 +595,7 @@ public:
         meshletState.framebuffer = frameBuffer;
         meshletState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
         meshletState.indirectParams = meshletDispatchArgumentsBuffer;
-        meshletState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
+        meshletState.bindings = { bindingSet, g_Graphic.m_InstancesBindlessResourcesDescriptorTableManager->GetDescriptorTable() };
 
         commandList->setMeshletState(meshletState);
 

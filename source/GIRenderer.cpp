@@ -410,7 +410,7 @@ public:
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector3U{ dispatchX, dispatchY, dispatchZ }, Vector3U{ kNumThreadsPerWave, 1, 1 });
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);
-        computePassParams.m_ShouldAddBindlessResources = true;
+        computePassParams.m_bBindInstancesBindlessResources = true;
         g_Graphic.AddComputePass(computePassParams);
     }
 

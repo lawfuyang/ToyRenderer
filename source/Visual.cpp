@@ -24,7 +24,7 @@ extern nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle 
 
 static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
 {
-    return g_Graphic.m_DescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
+    return g_Graphic.m_InstancesBindlessResourcesDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
 }
 
 void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_view debugName)

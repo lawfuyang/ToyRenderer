@@ -563,7 +563,7 @@ void Graphic::InitDescriptorTable()
     bindlessLayoutDesc.registerSpaces = { nvrhi::BindingLayoutItem::Texture_SRV(1) };
     m_BindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
 
-    m_DescriptorTableManager = std::make_shared<DescriptorTableManager>(m_NVRHIDevice, m_BindlessLayout);
+    m_InstancesBindlessResourcesDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_NVRHIDevice, m_BindlessLayout);
 }
 
 nvrhi::ShaderHandle Graphic::GetShader(std::string_view shaderBinName)
@@ -1233,7 +1233,7 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     pipelineDesc.CS = GetShader(computePassParams.m_ShaderName);
     pipelineDesc.bindingLayouts = { bindingLayout };
 
-    if (computePassParams.m_ShouldAddBindlessResources)
+    if (computePassParams.m_bBindInstancesBindlessResources)
     {
         pipelineDesc.bindingLayouts.push_back(m_BindlessLayout);
     }
@@ -1242,9 +1242,9 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     computeState.pipeline = GetOrCreatePSO(pipelineDesc);
     computeState.bindings = { bindingSet };
 
-    if (computePassParams.m_ShouldAddBindlessResources)
+    if (computePassParams.m_bBindInstancesBindlessResources)
     {
-        computeState.bindings.push_back(m_DescriptorTableManager->GetDescriptorTable());
+        computeState.bindings.push_back(m_InstancesBindlessResourcesDescriptorTableManager->GetDescriptorTable());
     }
 
     if (computePassParams.m_IndirectArgsBuffer)

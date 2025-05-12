@@ -135,7 +135,7 @@ public:
         uint32_t m_IndirectArgsBufferOffsetBytes = 0;
         const void* m_PushConstantsData = nullptr;
         size_t m_PushConstantsBytes = 0;
-        bool m_ShouldAddBindlessResources = false;
+        bool m_bBindInstancesBindlessResources = false;
     };
 
     void AddComputePass(const ComputePassParams& computePassParams);
@@ -153,7 +153,7 @@ public:
     // simple bindless layout that can store up to 1024 SRVs in (t0,space1)
     static const uint32_t kBindlessLayoutCapacity = 1024;
     nvrhi::BindingLayoutHandle m_BindlessLayout;
-    std::shared_ptr<DescriptorTableManager> m_DescriptorTableManager;
+    std::shared_ptr<DescriptorTableManager> m_InstancesBindlessResourcesDescriptorTableManager;
 
     std::vector<Mesh> m_Meshes;
 
@@ -161,9 +161,9 @@ public:
     nvrhi::BufferHandle m_GlobalIndexBuffer;
     nvrhi::BufferHandle m_GlobalMeshDataBuffer;
     nvrhi::BufferHandle m_GlobalMaterialDataBuffer;
-	nvrhi::BufferHandle m_GlobalMeshletVertexOffsetsBuffer;
-	nvrhi::BufferHandle m_GlobalMeshletIndicesBuffer;
-	nvrhi::BufferHandle m_GlobalMeshletDataBuffer;
+    nvrhi::BufferHandle m_GlobalMeshletVertexOffsetsBuffer;
+    nvrhi::BufferHandle m_GlobalMeshletIndicesBuffer;
+    nvrhi::BufferHandle m_GlobalMeshletDataBuffer;
 
     Vector2U m_RenderResolution;
     Vector2U m_DisplayResolution;
@@ -297,8 +297,8 @@ namespace ComputeShaderUtils
 
 constexpr uint32_t ComputeNbMips(uint32_t width, uint32_t height)
 {
-	const uint32_t resolution = std::max(width, height);
-	return resolution == 1 ? 1 : (uint32_t)std::floor(std::log2(resolution));
+    const uint32_t resolution = std::max(width, height);
+    return resolution == 1 ? 1 : (uint32_t)std::floor(std::log2(resolution));
 }
 
 #define PROFILE_GPU_SCOPED(cmdList, NAME) \
