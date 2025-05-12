@@ -175,68 +175,6 @@ public:
 static UpdateInstanceConstsRenderer gs_UpdateInstanceConstsRenderer;
 IRenderer* g_UpdateInstanceConstsRenderer = &gs_UpdateInstanceConstsRenderer;
 
-class PipelineStatisticsQuery
-{
-public:
-    struct Scope
-    {
-        Scope(PipelineStatisticsQuery& query, nvrhi::CommandListHandle commandList)
-            : m_Query(query)
-            , m_CommandList(commandList)
-        {
-            g_Graphic.m_NVRHIDevice->resetPipelineStatisticsQuery(m_Query.m_PipelineStatisticsQueryHandle[m_Query.m_Counter]);
-            commandList->beginPipelineStatisticsQuery(m_Query.m_PipelineStatisticsQueryHandle[m_Query.m_Counter]);
-        }
-
-        ~Scope()
-        {
-            m_CommandList->endPipelineStatisticsQuery(m_Query.m_PipelineStatisticsQueryHandle[m_Query.m_Counter]);
-            m_Query.m_Counter = (m_Query.m_Counter + 1) % kQueuedFramesCount;
-        }
-
-        PipelineStatisticsQuery& m_Query;
-        nvrhi::CommandListHandle m_CommandList;
-    };
-
-    void Initialize()
-    {
-        for (uint32_t i = 0; i < kQueuedFramesCount; ++i)
-        {
-            m_PipelineStatisticsQueryHandle[i] = g_Graphic.m_NVRHIDevice->createPipelineStatisticsQuery();
-        }
-    }
-
-    nvrhi::PipelineStatistics GetLastValid() const
-    {
-        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-        for (int32_t i = m_Counter - 1; i >= 0; i--)
-        {
-            if (device->pollPipelineStatisticsQuery(m_PipelineStatisticsQueryHandle[i]))
-            {
-                return device->getPipelineStatistics(m_PipelineStatisticsQueryHandle[i]);
-            }
-        }
-
-        for (int32_t i = kQueuedFramesCount - 1; i > m_Counter; i--)
-        {
-            if (device->pollPipelineStatisticsQuery(m_PipelineStatisticsQueryHandle[i]))
-            {
-                return device->getPipelineStatistics(m_PipelineStatisticsQueryHandle[i]);
-            }
-        }
-
-        return {};
-    }
-
-private:
-    static const uint32_t kQueuedFramesCount = 5;
-    nvrhi::PipelineStatisticsQueryHandle m_PipelineStatisticsQueryHandle[kQueuedFramesCount];
-
-    uint32_t m_Counter = 0;
-};
-#define SCOPED_PIPELINE_STATISTICS_QUERY(query, commandList) PipelineStatisticsQuery::Scope scopedQuery{ query, commandList }
-
 class BasePassRenderer : public IRenderer
 {
     RenderGraph::ResourceHandle m_InstanceCountRDGBufferHandle;
@@ -249,7 +187,8 @@ class BasePassRenderer : public IRenderer
     RenderGraph::ResourceHandle m_MeshletAmplificationDataBufferRDGBufferHandle;
     RenderGraph::ResourceHandle m_MeshletDispatchArgumentsBufferRDGBufferHandle;
 
-    PipelineStatisticsQuery m_PipelineStatisticsQuery;
+    nvrhi::PipelineStatisticsQueryHandle m_PipelineStatisticsQuery;
+    nvrhi::PipelineStatistics m_LastPipelineStatistics;
 
     bool m_DoFrustumCulling = true;
     bool m_bDoOcclusionCulling = true;
@@ -274,20 +213,18 @@ public:
 
 	void Initialize() override
 	{
-        m_PipelineStatisticsQuery.Initialize();
+        m_PipelineStatisticsQuery = g_Graphic.m_NVRHIDevice->createPipelineStatisticsQuery();
 	}
 
     void UpdateImgui() override
     {
-        const nvrhi::PipelineStatistics stats = m_PipelineStatisticsQuery.GetLastValid();
-
-        ImGui::Text("Primitives Invocations: %llu", stats.CInvocations);
-        ImGui::Text("Primitives Renderered: %llu", stats.CPrimitives);
-        ImGui::Text("PS Invocations: %llu", stats.PSInvocations);
-        ImGui::Text("CS Invocations: %llu", stats.CSInvocations);
-        ImGui::Text("AS Invocations: %llu", stats.ASInvocations);
-        ImGui::Text("MS Invocations: %llu", stats.MSInvocations);
-        ImGui::Text("MS Primitives: %llu", stats.MSPrimitives);
+        ImGui::Text("Primitives Invocations: %llu", m_LastPipelineStatistics.CInvocations);
+        ImGui::Text("Primitives Primitives: %llu", m_LastPipelineStatistics.CPrimitives);
+        ImGui::Text("PS Invocations: %llu", m_LastPipelineStatistics.PSInvocations);
+        ImGui::Text("CS Invocations: %llu", m_LastPipelineStatistics.CSInvocations);
+        ImGui::Text("AS Invocations: %llu", m_LastPipelineStatistics.ASInvocations);
+        ImGui::Text("MS Invocations: %llu", m_LastPipelineStatistics.MSInvocations);
+        ImGui::Text("MS Primitives: %llu", m_LastPipelineStatistics.MSPrimitives);
     }
 
 	bool Setup(RenderGraph& renderGraph) override
@@ -629,7 +566,8 @@ public:
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-        SCOPED_PIPELINE_STATISTICS_QUERY(m_PipelineStatisticsQuery, commandList);
+        m_LastPipelineStatistics = device->getPipelineStatistics(m_PipelineStatisticsQuery);
+        AUTO_SCOPE([&]{ commandList->beginPipelineStatisticsQuery(m_PipelineStatisticsQuery); }, [&]{ commandList->endPipelineStatisticsQuery(m_PipelineStatisticsQuery); });
 
         m_CullingFlags = m_DoFrustumCulling ? kCullingFlagFrustumCullingEnable : 0;
         m_CullingFlags |= m_bDoOcclusionCulling ? kCullingFlagOcclusionCullingEnable : 0;
