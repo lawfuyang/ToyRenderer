@@ -64,8 +64,6 @@ public:                                     \
     ClassName() { ms_Instance = this; }     \
     static ClassName& GetInstance() { static ClassName s_Instance; return s_Instance; }
 
-
-
 #define SingletonFunctionsSimple(ClassName)                      \
 private:                                                         \
     SingletonFunctionsCommon(ClassName);                         \
@@ -81,39 +79,12 @@ public:                                                          \
 #define JOIN_MACROS( Arg1, Arg2 )          JOIN_MACROS_INTERNAL( Arg1, Arg2 )
 #define GENERATE_UNIQUE_VARIABLE(basename) JOIN_MACROS(basename, __COUNTER__)
 
-template<class T>
-class MemberAutoUnset
-{
-    T& m_MemberRef;
-    T   m_BackupVal;
-
-public:
-    MemberAutoUnset(T& member, T value)
-        : m_MemberRef(member)
-    {
-        m_BackupVal = m_MemberRef;
-        m_MemberRef = value;
-    }
-    ~MemberAutoUnset()
-    {
-        m_MemberRef = m_BackupVal;
-    }
-};
-
 template <typename EnterLambda, typename ExitLamda>
 class AutoScopeCaller
 {
 public:
-    AutoScopeCaller(EnterLambda&& enterLambda, ExitLamda&& exitLambda)
-        : m_ExitLambda(exitLambda)
-    {
-        enterLambda();
-    }
-
-    ~AutoScopeCaller()
-    {
-        m_ExitLambda();
-    }
+    AutoScopeCaller(EnterLambda&& enterLambda, ExitLamda&& exitLambda) : m_ExitLambda(exitLambda) { enterLambda(); }
+    ~AutoScopeCaller() { m_ExitLambda(); }
 
 private:
     ExitLamda m_ExitLambda;
@@ -121,9 +92,6 @@ private:
 
 #define AUTO_SCOPE(enterLambda, exitLambda) const AutoScopeCaller GENERATE_UNIQUE_VARIABLE(AutoOnExitVar){ enterLambda, exitLambda };
 #define ON_EXIT_SCOPE_LAMBDA(lambda)        const AutoScopeCaller GENERATE_UNIQUE_VARIABLE(AutoOnExitVar){ []{}, lambda };
-#define SCOPED_UNSET(var, val)              MemberAutoUnset<decltype(var)> GENERATE_UNIQUE_VARIABLE(autoUnset){var, val};
-#define MEM_ZERO_ARRAY(dst)                 memset(dst, 0, sizeof(dst))
-#define MEM_ZERO_STRUCT(dst)                memset(&dst, 0, sizeof(dst))
 
 // Sizes for convenience...
 #define KB_TO_BYTES(Nb)             ((Nb)*1024ULL)                     // Define for kilobytes prefix (2 ^ 10)
