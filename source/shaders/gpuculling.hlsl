@@ -29,9 +29,8 @@ Texture2D g_HZB : register(t3);
 RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(u0);
 RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer : register(u1);
 RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
-RWStructuredBuffer<uint> g_CullingCounters : register(u3);
-RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u4);
-RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u5);
+RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u3);
+RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u4);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts, float4 boundingSphereViewSpace)
@@ -72,7 +71,6 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
     // set counter to a invalid value to signal that we burst the limit
     if (workGroupOffset + numWorkGroups >= kMaxThreadGroupsPerDimension)
     {
-        g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx] = 0xFFFFFFFF;
         return;
     }
     
@@ -85,12 +83,6 @@ void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceCo
         
         g_MeshletAmplificationDataBuffer[workGroupOffset + i] = newData;
     }
-    
-#if LATE_CULL
-    InterlockedAdd(g_CullingCounters[kCullingLateInstancesBufferCounterIdx], 1);
-#else
-    InterlockedAdd(g_CullingCounters[kCullingEarlyInstancesBufferCounterIdx], 1);
-#endif
 }
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
@@ -106,7 +98,6 @@ void CS_GPUCulling(
     uint nbInstances = g_GPUCullingPassConstants.m_NbInstances;
 #endif
     
-
     if (dispatchThreadID.x >= nbInstances)
     {
         return;

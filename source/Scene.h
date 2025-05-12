@@ -30,12 +30,6 @@ struct Animation
     std::vector<Channel> m_Channels;
 };
 
-struct GPUCullingCounters
-{
-    uint32_t m_EarlyInstances;
-    uint32_t m_LateInstances;
-};
-
 class GIVolumeBase
 {
 public:
@@ -71,8 +65,6 @@ public:
     Matrix m_PrevWorldToClip;
 
     Frustum m_Frustum;
-
-    GPUCullingCounters m_GPUCullingCounters;
 };
 
 class Scene

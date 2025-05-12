@@ -245,8 +245,6 @@ class BasePassRenderer : public IRenderer
     RenderGraph::ResourceHandle m_LateCullInstanceIDsBufferRDGBufferHandle;
 
     FFXHelpers::SPD m_SPDHelper;
-    FencedReadbackBuffer m_CounterStatsReadbackBuffer;
-    RenderGraph::ResourceHandle m_CounterStatsRDGBufferHandle;
 
     RenderGraph::ResourceHandle m_MeshletAmplificationDataBufferRDGBufferHandle;
     RenderGraph::ResourceHandle m_MeshletDispatchArgumentsBufferRDGBufferHandle;
@@ -276,8 +274,6 @@ public:
 
 	void Initialize() override
 	{
-		m_CounterStatsReadbackBuffer.Initialize(sizeof(uint32_t) * kNbGPUCullingBufferCounters);
-
         m_PipelineStatisticsQuery.Initialize();
 	}
 
@@ -305,16 +301,6 @@ public:
         m_DoFrustumCulling = g_Scene->m_bEnableFrustumCulling;
         m_bDoOcclusionCulling = g_Scene->m_bEnableOcclusionCulling;
         m_bDoMeshletConeCulling = g_Scene->m_bEnableMeshletConeCulling;
-
-		{
-			nvrhi::BufferDesc desc;
-			desc.byteSize = sizeof(uint32_t) * kNbGPUCullingBufferCounters;
-			desc.structStride = sizeof(uint32_t);
-			desc.canHaveUAVs = true;
-			desc.debugName = "GPUCullingCounterStats";
-			desc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-			renderGraph.CreateTransientResource(m_CounterStatsRDGBufferHandle, desc);
-		}
 
 		{
 			nvrhi::BufferDesc desc;
@@ -415,7 +401,6 @@ public:
         nvrhi::BufferHandle lateCullDispatchIndirectArgsBuffer = m_bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullDispatchIndirectArgsRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
         nvrhi::BufferHandle lateCullInstanceCountBuffer = m_bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceCountBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
 		nvrhi::BufferHandle lateCullInstanceIDsBuffer = m_bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullInstanceIDsBufferRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
-        nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
 
         {
             PROFILE_GPU_SCOPED(commandList, "Clear Buffers");
@@ -457,9 +442,8 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, meshletAmplificationDataBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, meshletDispatchArgumentsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(3, counterStatsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, lateCullInstanceCountBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(5, lateCullInstanceIDsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(3, lateCullInstanceCountBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, lateCullInstanceIDsBuffer),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
@@ -647,20 +631,6 @@ public:
 
         SCOPED_PIPELINE_STATISTICS_QUERY(m_PipelineStatisticsQuery, commandList);
 
-        nvrhi::BufferHandle counterStatsBuffer = renderGraph.GetBuffer(m_CounterStatsRDGBufferHandle);
-        commandList->clearBufferUInt(counterStatsBuffer, 0);
-
-        // read back nb visible instances from counter
-        {
-            uint32_t readbackResults[kNbGPUCullingBufferCounters]{};
-            m_CounterStatsReadbackBuffer.Read(readbackResults);
-
-            // TODO: support transparent
-            GPUCullingCounters& cullingCounters = g_Scene->m_View.m_GPUCullingCounters;
-            cullingCounters.m_EarlyInstances = readbackResults[kCullingEarlyInstancesBufferCounterIdx];
-            cullingCounters.m_LateInstances = readbackResults[kCullingLateInstancesBufferCounterIdx];
-        }
-
         m_CullingFlags = m_DoFrustumCulling ? kCullingFlagFrustumCullingEnable : 0;
         m_CullingFlags |= m_bDoOcclusionCulling ? kCullingFlagOcclusionCullingEnable : 0;
         m_CullingFlags |= m_bDoMeshletConeCulling ? kCullingFlagMeshletConeCullingEnable : 0;
@@ -698,9 +668,6 @@ public:
             GPUCulling(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
             RenderInstances(commandList, renderGraph, params, false /* bLateCull */, true /* bAlphaMaskPrimitives */);
         }
-
-		// copy counter buffer, so that it can be read on CPU next frame
-        m_CounterStatsReadbackBuffer.CopyTo(commandList, counterStatsBuffer);
     }
 };
 

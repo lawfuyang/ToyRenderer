@@ -42,10 +42,6 @@ static const uint32_t SamplerIdx_AnisotropicBorder = 2;
 static const uint32_t SamplerIdx_AnisotropicMirror = 3;
 static const uint32_t SamplerIdx_Count             = 4;
 
-static const uint32_t kCullingEarlyInstancesBufferCounterIdx = 0;
-static const uint32_t kCullingLateInstancesBufferCounterIdx = 1;
-static const uint32_t kNbGPUCullingBufferCounters = 2;
-
 static const uint32_t kCullingFlagFrustumCullingEnable     = (1 << 0);
 static const uint32_t kCullingFlagOcclusionCullingEnable   = (1 << 1);
 static const uint32_t kCullingFlagMeshletConeCullingEnable = (1 << 2);

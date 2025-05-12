@@ -580,16 +580,6 @@ void Scene::UpdateIMGUI()
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Culling Stats"))
-    {
-        // TODO: support transparent
-
-        ImGui::Text("Early Instances:[%d]", m_View.m_GPUCullingCounters.m_EarlyInstances);
-        ImGui::Text("Late Instances: [%d]", m_View.m_GPUCullingCounters.m_LateInstances);
-
-        ImGui::TreePop();
-    }
-
     if (ImGui::TreeNode("Lighting"))
     {
         bool bUpdateDirection = false;
