@@ -21,13 +21,6 @@ Texture2D g_Textures[] : register(t0, space1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 SamplerState g_LinearClampMinReductionSampler : register(s4);
 
-// forward shading specific resources
-Texture2DArray g_DirLightShadowDepthTexture : register(t9);
-Texture2D<uint> g_SSAOTexture : register(t10);
-sampler g_PointClampSampler : register(s5);
-SamplerComparisonState g_PointComparisonLessSampler : register(s6);
-SamplerComparisonState g_LinearComparisonLessSampler : register(s7);
-
 struct VertexOut
 {
     float4 m_Position : SV_POSITION;
