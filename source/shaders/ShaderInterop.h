@@ -269,6 +269,9 @@ struct MinMaxDownsampleConsts
 {
     Vector2U m_OutputDimensions;
     uint32_t m_bDownsampleMax;
+    uint32_t m_InputIdx;
+    uint32_t m_OutputIdx;
+    uint32_t m_PointClampSamplerIdx;
 };
 
 struct NodeLocalTransform

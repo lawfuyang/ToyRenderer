@@ -570,10 +570,19 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
+        nvrhi::BindingSetHandle bindingSet;
+        nvrhi::BindingLayoutHandle bindingLayout;
+        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+        passParameters.m_InputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+        passParameters.m_OutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+        passParameters.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
+
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "minmaxdownsample_CS_Main";
-        computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_BindingSet = bindingSet;
+        computePassParams.m_BindingLayout = bindingLayout;
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_HZBDimensions, 8);
         computePassParams.m_PushConstantsData = &passParameters;
         computePassParams.m_PushConstantsBytes = sizeof(passParameters);
