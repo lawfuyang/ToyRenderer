@@ -316,6 +316,18 @@ struct GIProbeTraceConsts
 {
     Vector3 m_DirectionalLightVector;
     float m_DirectionalLightStrength;
+    uint32_t m_DDGIVolumesIdx;
+    uint32_t m_ProbeDataIdx;
+    uint32_t m_ProbeIrradianceIdx;
+    uint32_t m_ProbeDistanceIdx;
+    uint32_t m_SceneTLASIdx;
+    uint32_t m_BasePassInstanceConstsIdx;
+    uint32_t m_GlobalVertexBufferIdx;
+    uint32_t m_MaterialDataBufferIdx;
+    uint32_t m_GlobalIndexIDsBufferIdx;
+    uint32_t m_MeshDataBufferIdx;
+    uint32_t m_OutRayDataIdx;
+    uint32_t m_SamplersIdx;
 };
 
 struct GIProbeVisualizationUpdateConsts

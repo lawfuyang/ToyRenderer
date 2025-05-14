@@ -396,6 +396,23 @@ public:
             nvrhi::BindingSetItem::Sampler(4, g_CommonResources.LinearWrapSampler),
         };
 
+        nvrhi::BindingSetHandle bindingSet;
+        nvrhi::BindingLayoutHandle bindingLayout;
+        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+        passConstants.m_DDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+        passConstants.m_ProbeDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+        passConstants.m_ProbeIrradianceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
+        passConstants.m_ProbeDistanceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
+        passConstants.m_SceneTLASIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
+        passConstants.m_BasePassInstanceConstsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
+        passConstants.m_GlobalVertexBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 6;
+        passConstants.m_MaterialDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 7;
+        passConstants.m_GlobalIndexIDsBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 8;
+        passConstants.m_MeshDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 9;
+        passConstants.m_OutRayDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 10;
+        passConstants.m_SamplersIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
+
         uint32_t dispatchX, dispatchY, dispatchZ;
         m_GIVolume.GetRayDispatchDimensions(dispatchX, dispatchY, dispatchZ);
 
@@ -406,7 +423,8 @@ public:
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "giprobetrace_CS_ProbeTrace";
-        computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_BindingSet = bindingSet;
+        computePassParams.m_BindingLayout = bindingLayout;
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector3U{ dispatchX, dispatchY, dispatchZ }, Vector3U{ kNumThreadsPerWave, 1, 1 });
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);

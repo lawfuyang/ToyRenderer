@@ -31,6 +31,11 @@ static const uint32_t kNumProbeDistanceTexels = 16;
 // 1: yes
 #define RTXGI_DDGI_SHADER_REFLECTION 0
 
+// Bindless Resource implementation type
+// 0: RTXGI_BINDLESS_TYPE_RESOURCE_ARRAYS
+// 1: RTXGI_BINDLESS_TYPE_DESCRIPTOR_HEAP
+//#define RTXGI_BINDLESS_TYPE 1
+
 // Should DDGI use bindless resources?
 // 0: no
 // 1: yes
