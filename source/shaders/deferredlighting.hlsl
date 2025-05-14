@@ -19,7 +19,7 @@ static Texture2DArray<float4> g_ProbeData = ResourceDescriptorHeap[g_ResourceInd
 static Texture2DArray<float4> g_ProbeIrradiance = ResourceDescriptorHeap[g_ResourceIndices.m_ProbeIrradianceIdx];
 static Texture2DArray<float4> g_ProbeDistance = ResourceDescriptorHeap[g_ResourceIndices.m_ProbeDistanceIdx];
 static RWTexture2D<float3> g_LightingOutput = ResourceDescriptorHeap[g_ResourceIndices.m_LightingOutputIdx];
-static SamplerState g_PointClampSampler = SamplerDescriptorHeap[g_ResourceIndices.m_LinearWrapSamplerIdx];
+static SamplerState g_PointClampSampler = SamplerDescriptorHeap[g_ResourceIndices.m_PointClampSamplerIdx];
 static SamplerState g_LinearWrapSampler = SamplerDescriptorHeap[g_ResourceIndices.m_LinearWrapSamplerIdx];
 
 void PS_Main(
