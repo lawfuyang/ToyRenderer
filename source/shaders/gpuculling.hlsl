@@ -28,9 +28,8 @@ StructuredBuffer<MeshData> g_MeshData : register(t2);
 Texture2D g_HZB : register(t3);
 RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(u0);
 RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer : register(u1);
-RWStructuredBuffer<uint> g_InstanceIndexCounter : register(u2);
-RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u3);
-RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u4);
+RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u2);
+RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u3);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts, float4 boundingSphereViewSpace)
@@ -180,8 +179,7 @@ void CS_GPUCulling(
 #endif
 }
 
-StructuredBuffer<int> g_NumLateCullInstances : register(t0);
-RWStructuredBuffer<DispatchIndirectArguments> g_LateCullDispatchIndirectArgs : register(u0);
+cbuffer GPUCullingBuildLateCullIndirectArgsResourceIndicesBuffer : register(b0) { GPUCullingBuildLateCullIndirectArgsResourceIndices g_GPUCullingBuildLateCullIndirectArgsResourceIndices; }
 
 [numthreads(1, 1, 1)]
 void CS_BuildLateCullIndirectArgs(
@@ -190,7 +188,10 @@ void CS_BuildLateCullIndirectArgs(
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex)
 {
-    g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountX = DivideAndRoundUp(g_NumLateCullInstances[0], 64);
-    g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountY = 1;
-    g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountZ = 1;
+    StructuredBuffer<int> numLateCullInstances = ResourceDescriptorHeap[g_GPUCullingBuildLateCullIndirectArgsResourceIndices.m_NumLateCullInstancesIdx];
+    RWStructuredBuffer<DispatchIndirectArguments> lateCullDispatchIndirectArgs = ResourceDescriptorHeap[g_GPUCullingBuildLateCullIndirectArgsResourceIndices.m_LateCullDispatchIndirectArgsIdx];
+    
+    lateCullDispatchIndirectArgs[0].m_ThreadGroupCountX = DivideAndRoundUp(numLateCullInstances[0], 64);
+    lateCullDispatchIndirectArgs[0].m_ThreadGroupCountY = 1;
+    lateCullDispatchIndirectArgs[0].m_ThreadGroupCountZ = 1;
 }

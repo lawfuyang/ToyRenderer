@@ -187,6 +187,12 @@ struct GPUCullingPassConstants
     float m_MeshLODTarget;
 };
 
+struct GPUCullingBuildLateCullIndirectArgsResourceIndices
+{
+    uint32_t m_NumLateCullInstancesIdx;
+    uint32_t m_LateCullDispatchIndirectArgsIdx;
+};
+
 struct HosekWilkieSkyParameters
 {
     Vector4 m_Params[10];

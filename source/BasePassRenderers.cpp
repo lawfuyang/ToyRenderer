@@ -185,7 +185,6 @@ IRenderer* g_UpdateInstanceConstsRenderer = &gs_UpdateInstanceConstsRenderer;
 
 class BasePassRenderer : public IRenderer
 {
-    RenderGraph::ResourceHandle m_InstanceCountRDGBufferHandle;
     RenderGraph::ResourceHandle m_LateCullDispatchIndirectArgsRDGBufferHandle;
     RenderGraph::ResourceHandle m_LateCullInstanceCountBufferRDGBufferHandle;
     RenderGraph::ResourceHandle m_LateCullInstanceIDsBufferRDGBufferHandle;
@@ -246,18 +245,6 @@ public:
         m_DoFrustumCulling = g_Scene->m_bEnableFrustumCulling;
         m_bDoOcclusionCulling = g_Scene->m_bEnableOcclusionCulling;
         m_bDoMeshletConeCulling = g_Scene->m_bEnableMeshletConeCulling;
-
-		{
-			nvrhi::BufferDesc desc;
-			desc.byteSize = sizeof(uint32_t);
-			desc.structStride = sizeof(uint32_t);
-			desc.canHaveUAVs = true;
-			desc.isDrawIndirectArgs = true;
-			desc.initialState = nvrhi::ResourceStates::ShaderResource;
-			desc.debugName = "InstanceIndexCounter";
-
-			renderGraph.CreateTransientResource(m_InstanceCountRDGBufferHandle, desc);
-		}
 
         {
             nvrhi::BufferDesc desc;
@@ -340,7 +327,6 @@ public:
             return;
         }
 
-        nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle meshletAmplificationDataBuffer = renderGraph.GetBuffer(m_MeshletAmplificationDataBufferRDGBufferHandle);
         nvrhi::BufferHandle meshletDispatchArgumentsBuffer = renderGraph.GetBuffer(m_MeshletDispatchArgumentsBufferRDGBufferHandle);
         nvrhi::BufferHandle lateCullDispatchIndirectArgsBuffer = m_bDoOcclusionCulling ? renderGraph.GetBuffer(m_LateCullDispatchIndirectArgsRDGBufferHandle) : g_CommonResources.DummyUIntStructuredBuffer;
@@ -350,7 +336,6 @@ public:
         {
             PROFILE_GPU_SCOPED(commandList, "Clear Buffers");
 
-			commandList->clearBufferUInt(instanceCountBuffer, 0);
             commandList->clearBufferUInt(meshletDispatchArgumentsBuffer, 0);
 
             if (!bLateCull && m_bDoOcclusionCulling)
@@ -386,20 +371,24 @@ public:
             nvrhi::BindingSetItem::Texture_SRV(3, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, meshletAmplificationDataBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, meshletDispatchArgumentsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceCountBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(3, lateCullInstanceCountBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(4, lateCullInstanceIDsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(2, lateCullInstanceCountBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(3, lateCullInstanceIDsBuffer),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler)
         };
 
         const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE_CULL=%d", bLateCull);
+
+        nvrhi::BindingSetHandle bindingSet;
+        nvrhi::BindingLayoutHandle bindingLayout;
+        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
         if (!bLateCull)
         {
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = shaderName;
-            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_BindingSet = bindingSet;
+            computePassParams.m_BindingLayout = bindingLayout;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave);
 
             g_Graphic.AddComputePass(computePassParams);
@@ -407,13 +396,24 @@ public:
             if (m_bDoOcclusionCulling)
             {
                 bindingSetDesc.bindings = {
+                    nvrhi::BindingSetItem::PushConstants(0, sizeof(GPUCullingBuildLateCullIndirectArgsResourceIndices)),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(0, lateCullInstanceCountBuffer),
                     nvrhi::BindingSetItem::StructuredBuffer_UAV(0, lateCullDispatchIndirectArgsBuffer)
                 };
 
+                g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+                GPUCullingBuildLateCullIndirectArgsResourceIndices resourceIndices;
+                resourceIndices.m_NumLateCullInstancesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+                resourceIndices.m_LateCullDispatchIndirectArgsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+
                 computePassParams.m_ShaderName = "gpuculling_CS_BuildLateCullIndirectArgs";
+                computePassParams.m_BindingSet = bindingSet;
+                computePassParams.m_BindingLayout = bindingLayout;
                 computePassParams.m_BindingSetDesc = bindingSetDesc;
                 computePassParams.m_DispatchGroupSize = Vector3U{ 1, 1, 1 };
+                computePassParams.m_PushConstantsData = &resourceIndices;
+                computePassParams.m_PushConstantsBytes = sizeof(resourceIndices);
 
                 g_Graphic.AddComputePass(computePassParams);
             }
@@ -453,7 +453,6 @@ public:
             return;
         }
 
-        nvrhi::BufferHandle instanceCountBuffer = renderGraph.GetBuffer(m_InstanceCountRDGBufferHandle);
         nvrhi::BufferHandle meshletAmplificationDataBuffer = renderGraph.GetBuffer(m_MeshletAmplificationDataBufferRDGBufferHandle);
         nvrhi::BufferHandle meshletDispatchArgumentsBuffer = renderGraph.GetBuffer(m_MeshletDispatchArgumentsBufferRDGBufferHandle);
 
