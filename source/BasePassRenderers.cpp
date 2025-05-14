@@ -143,8 +143,6 @@ public:
         UpdateInstanceConstsPassConstants passConstants;
         passConstants.m_NumInstances = numPrimitives;
 
-        nvrhi::BufferHandle passConstantsBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
-
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
         {
@@ -155,10 +153,20 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, g_Scene->m_TLASInstanceDescsBuffer),
         };
 
+        nvrhi::BindingSetHandle bindingSet;
+        nvrhi::BindingLayoutHandle bindingLayout;
+        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+        passConstants.m_NodeLocalTransformsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+        passConstants.m_PrimitiveIDToNodeIDBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+        passConstants.m_InstanceConstantsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
+        passConstants.m_TLASInstanceDescsBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
+
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "updateinstanceconsts_CS_UpdateInstanceConstsAndBuildTLAS";
-        computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_BindingSet = bindingSet;
+        computePassParams.m_BindingLayout = bindingLayout;
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_NumInstances, kNumThreadsPerWave);
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);

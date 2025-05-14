@@ -383,6 +383,10 @@ struct TLASInstanceDesc
 struct UpdateInstanceConstsPassConstants
 {
     uint32_t m_NumInstances;
+    uint32_t m_NodeLocalTransformsIdx;
+    uint32_t m_PrimitiveIDToNodeIDBufferIdx;
+    uint32_t m_InstanceConstantsIdx;
+    uint32_t m_TLASInstanceDescsBufferIdx;
 };
 
 struct XeGTAOPrefilterDepthsResourceIndices
