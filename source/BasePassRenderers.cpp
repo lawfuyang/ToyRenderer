@@ -365,6 +365,7 @@ public:
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+            nvrhi::BindingSetItem::PushConstants(1, sizeof(GPUCullingPassResourceIndices)),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer : g_Scene->m_OpaqueInstanceIDsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
@@ -382,6 +383,17 @@ public:
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
+        GPUCullingPassResourceIndices GPUCullingResourceIndices;
+        GPUCullingResourceIndices.m_BasePassInstanceConstsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+        GPUCullingResourceIndices.m_PrimitiveIndicesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+        GPUCullingResourceIndices.m_MeshDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
+        GPUCullingResourceIndices.m_HZBIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
+        GPUCullingResourceIndices.m_MeshletAmplificationDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
+        GPUCullingResourceIndices.m_MeshletDispatchArgumentsBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
+        GPUCullingResourceIndices.m_LateCullInstanceIndicesCounterIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 6;
+        GPUCullingResourceIndices.m_LateCullInstanceIndicesBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 7;
+        GPUCullingResourceIndices.m_LinearClampMinReductionSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
+
         if (!bLateCull)
         {
             Graphic::ComputePassParams computePassParams;
@@ -390,6 +402,8 @@ public:
             computePassParams.m_BindingSet = bindingSet;
             computePassParams.m_BindingLayout = bindingLayout;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave);
+            computePassParams.m_PushConstantsData = &GPUCullingResourceIndices;
+            computePassParams.m_PushConstantsBytes = sizeof(GPUCullingResourceIndices);
 
             g_Graphic.AddComputePass(computePassParams);
 
@@ -403,17 +417,16 @@ public:
 
                 g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-                GPUCullingBuildLateCullIndirectArgsResourceIndices resourceIndices;
-                resourceIndices.m_NumLateCullInstancesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-                resourceIndices.m_LateCullDispatchIndirectArgsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+                GPUCullingBuildLateCullIndirectArgsResourceIndices lateCullIndirectArgsResourceIndices;
+                lateCullIndirectArgsResourceIndices.m_NumLateCullInstancesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+                lateCullIndirectArgsResourceIndices.m_LateCullDispatchIndirectArgsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
 
                 computePassParams.m_ShaderName = "gpuculling_CS_BuildLateCullIndirectArgs";
                 computePassParams.m_BindingSet = bindingSet;
                 computePassParams.m_BindingLayout = bindingLayout;
-                computePassParams.m_BindingSetDesc = bindingSetDesc;
                 computePassParams.m_DispatchGroupSize = Vector3U{ 1, 1, 1 };
-                computePassParams.m_PushConstantsData = &resourceIndices;
-                computePassParams.m_PushConstantsBytes = sizeof(resourceIndices);
+                computePassParams.m_PushConstantsData = &lateCullIndirectArgsResourceIndices;
+                computePassParams.m_PushConstantsBytes = sizeof(lateCullIndirectArgsResourceIndices);
 
                 g_Graphic.AddComputePass(computePassParams);
             }
@@ -425,8 +438,11 @@ public:
                 Graphic::ComputePassParams computePassParams;
                 computePassParams.m_CommandList = commandList;
                 computePassParams.m_ShaderName = shaderName;
-                computePassParams.m_BindingSetDesc = bindingSetDesc;
+                computePassParams.m_BindingSet = bindingSet;
+                computePassParams.m_BindingLayout = bindingLayout;
                 computePassParams.m_IndirectArgsBuffer = lateCullDispatchIndirectArgsBuffer;
+                computePassParams.m_PushConstantsData = &GPUCullingResourceIndices;
+                computePassParams.m_PushConstantsBytes = sizeof(GPUCullingResourceIndices);
 
                 g_Graphic.AddComputePass(computePassParams);
             }

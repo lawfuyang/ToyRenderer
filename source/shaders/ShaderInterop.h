@@ -187,6 +187,19 @@ struct GPUCullingPassConstants
     float m_MeshLODTarget;
 };
 
+struct GPUCullingPassResourceIndices
+{
+    uint32_t m_BasePassInstanceConstsIdx;
+    uint32_t m_PrimitiveIndicesIdx;
+    uint32_t m_MeshDataIdx;
+    uint32_t m_HZBIdx;
+    uint32_t m_MeshletAmplificationDataBufferIdx;
+    uint32_t m_MeshletDispatchArgumentsBufferIdx;
+    uint32_t m_LateCullInstanceIndicesCounterIdx;
+    uint32_t m_LateCullInstanceIndicesBufferIdx;
+    uint32_t m_LinearClampMinReductionSamplerIdx;
+};
+
 struct GPUCullingBuildLateCullIndirectArgsResourceIndices
 {
     uint32_t m_NumLateCullInstancesIdx;

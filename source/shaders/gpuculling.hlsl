@@ -22,15 +22,17 @@
 #endif
 
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
-StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
-StructuredBuffer<uint> g_PrimitiveIndices : register(t1);
-StructuredBuffer<MeshData> g_MeshData : register(t2);
-Texture2D g_HZB : register(t3);
-RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(u0);
-RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer : register(u1);
-RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u2);
-RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u3);
-SamplerState g_LinearClampMinReductionSampler : register(s0);
+cbuffer g_GPUCullingPassResourceIndicesBuffer : register(b1) { GPUCullingPassResourceIndices g_GPUCullingPassResourceIndices; }
+
+static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_BasePassInstanceConstsIdx];
+static StructuredBuffer<uint> g_PrimitiveIndices = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_PrimitiveIndicesIdx];
+static StructuredBuffer<MeshData> g_MeshData = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_MeshDataIdx];
+static Texture2D g_HZB = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_HZBIdx];
+static RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_MeshletAmplificationDataBufferIdx];
+static RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_MeshletDispatchArgumentsBufferIdx];
+static RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_LateCullInstanceIndicesCounterIdx];
+static RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_LateCullInstanceIndicesBufferIdx];
+static SamplerState g_LinearClampMinReductionSampler = SamplerDescriptorHeap[g_GPUCullingPassResourceIndices.m_LinearClampMinReductionSamplerIdx];
 
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts, float4 boundingSphereViewSpace)
 {
