@@ -137,7 +137,6 @@ public:
     nvrhi::BufferHandle m_NodeLocalTransformsBuffer;
     nvrhi::BufferHandle m_PrimitiveIDToNodeIDBuffer;
     nvrhi::BufferHandle m_TLASInstanceDescsBuffer;
-    nvrhi::BufferHandle m_GIVolumeDescsBuffer;
     nvrhi::rt::AccelStructHandle m_TLAS;
 
     GIVolumeBase* m_GIVolume = nullptr;

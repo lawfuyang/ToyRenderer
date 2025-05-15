@@ -9,8 +9,6 @@
 
 //GIProbeExtraReductionConsts
 cbuffer GIProbeExtraReductionConstsBuffer : register(b0) { GIProbeExtraReductionConsts g_GIProbeExtraReductionConsts; }
-StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t0);
-RWTexture2DArray<float4> g_ProbeVariabilityAverage : register(u0);
 
 #define NUM_THREADS_X 4
 #define NUM_THREADS_Y 8
@@ -59,6 +57,9 @@ void CS_DDGIExtraReduction(uint3 GroupID : SV_GroupID, uint3 GroupThreadID : SV_
         MaxAverageEntry = 0;
     }
     GroupMemoryBarrierWithGroupSync();
+    
+    StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes = ResourceDescriptorHeap[g_GIProbeExtraReductionConsts.m_DDGIVolumesIdx];
+    RWTexture2DArray<float4> g_ProbeVariabilityAverage = ResourceDescriptorHeap[g_GIProbeExtraReductionConsts.m_ProbeVariabilityAverageIdx];
     
     uint volumeIndex = 0;
     DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);

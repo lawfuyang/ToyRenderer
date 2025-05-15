@@ -47,31 +47,34 @@ void PS_Main(
     
     lighting += gbufferParams.m_Emissive;
     
-    // TODO: multiple volumes
-    uint volumeIndex = 0;
-    DDGIVolumeDescGPU DDGIVolumeDesc = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
-    
-    DDGIVolumeResources volumeResources;
-    volumeResources.probeIrradiance = g_ProbeIrradiance;
-    volumeResources.probeDistance = g_ProbeDistance;
-    volumeResources.probeData = g_ProbeData;
-    volumeResources.bilinearSampler = g_LinearWrapSampler;
-    
-    GetDDGIIrradianceArguments irradianceArgs;
-    irradianceArgs.m_WorldPosition = worldPosition;
-    irradianceArgs.m_VolumeDesc = DDGIVolumeDesc;
-    irradianceArgs.m_Normal = gbufferParams.m_Normal;
-    irradianceArgs.m_ViewDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
-    irradianceArgs.m_DDGIVolumeResources = volumeResources;
-    
-    float3 irradiance = Diffuse_Lambert(gbufferParams.m_Albedo.rgb) * GetDDGIIrradiance(irradianceArgs);
-    
-    if (g_DeferredLightingConsts.m_SSAOEnabled)
+    if (g_DeferredLightingConsts.m_GIEnabled)
     {
-        irradiance *= g_SSAOTexture[inPosition.xy] / 255.0f;
-    }
+    // TODO: multiple volumes
+        uint volumeIndex = 0;
+        DDGIVolumeDescGPU DDGIVolumeDesc = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
     
-    lighting += irradiance;
+        DDGIVolumeResources volumeResources;
+        volumeResources.probeIrradiance = g_ProbeIrradiance;
+        volumeResources.probeDistance = g_ProbeDistance;
+        volumeResources.probeData = g_ProbeData;
+        volumeResources.bilinearSampler = g_LinearWrapSampler;
+    
+        GetDDGIIrradianceArguments irradianceArgs;
+        irradianceArgs.m_WorldPosition = worldPosition;
+        irradianceArgs.m_VolumeDesc = DDGIVolumeDesc;
+        irradianceArgs.m_Normal = gbufferParams.m_Normal;
+        irradianceArgs.m_ViewDirection = normalize(worldPosition - g_DeferredLightingConsts.m_CameraOrigin);
+        irradianceArgs.m_DDGIVolumeResources = volumeResources;
+    
+        float3 irradiance = Diffuse_Lambert(gbufferParams.m_Albedo.rgb) * GetDDGIIrradiance(irradianceArgs);
+    
+        if (g_DeferredLightingConsts.m_SSAOEnabled)
+        {
+            irradiance *= g_SSAOTexture[inPosition.xy] / 255.0f;
+        }
+    
+        lighting += irradiance;
+    }
    
     outColor = float4(lighting, 1.0f);
 }

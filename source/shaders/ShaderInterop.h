@@ -121,6 +121,7 @@ struct DeferredLightingConsts
     Vector3 m_DirectionalLightVector;
     float m_DirectionalLightStrength;
     Vector2U m_LightingOutputResolution;
+    uint32_t m_GIEnabled;
 };
 
 struct DeferredLightingResourceIndices
@@ -310,6 +311,8 @@ struct PostProcessParameters
 struct GIProbeExtraReductionConsts
 {
     Vector3U m_ReductionInputSize;
+    uint32_t m_DDGIVolumesIdx;
+    uint32_t m_ProbeVariabilityAverageIdx;
 };
 
 struct GIProbeTraceConsts
