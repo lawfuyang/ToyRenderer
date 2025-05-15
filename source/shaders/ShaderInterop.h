@@ -344,11 +344,28 @@ struct GIProbeVisualizationUpdateConsts
     uint32_t m_bHideInactiveProbes;
 };
 
+struct GIProbeVisualizationUpdateResourceIndices
+{
+    uint32_t m_OutProbePositionsIdx;
+    uint32_t m_OutProbeIndirectArgsIdx;
+    uint32_t m_OutInstanceIndexToProbeIndexIdx;
+    uint32_t m_DDGIVolumesIdx;
+    uint32_t m_ProbeDataIdx;
+    uint32_t m_HZBIdx;
+    uint32_t m_LinearClampMinReductionSamplerIdx;
+};
+
 struct GIProbeVisualizationConsts
 {
     Matrix m_WorldToClip;
     Vector3 m_CameraDirection;
     float m_ProbeRadius;
+    uint32_t m_InProbePositionsIdx;
+    uint32_t m_VisProbeDataIdx;
+    uint32_t m_VisProbeIrradianceIdx;
+    uint32_t m_VisDDGIVolumesIdx;
+    uint32_t m_InInstanceIndexToProbeIndexIdx;
+    uint32_t m_LinearWrapSamplerIdx;
 };
 
 // VS-friendly Vertex Layout

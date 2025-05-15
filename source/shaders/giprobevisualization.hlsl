@@ -5,13 +5,7 @@
 #include "ShaderInterop.h"
 
 cbuffer GIProbeVisualizationUpdateConstsBuffer : register(b0) { GIProbeVisualizationUpdateConsts g_GIProbeVisualizationUpdateConsts; }
-RWStructuredBuffer<float3> g_OutProbePositions : register(u0);
-RWStructuredBuffer<DrawIndexedIndirectArguments> g_OutProbeIndirectArgs : register(u1);
-RWStructuredBuffer<uint> g_OutInstanceIndexToProbeIndex : register(u2);
-StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t10);
-RWTexture2DArray<float4> g_ProbeData : register(u10);
-Texture2D g_HZB : register(t0);
-SamplerState g_LinearClampMinReductionSampler : register(s0);
+cbuffer g_GIProbeVisualizationUpdateResourceIndicesBuffer : register(b1) { GIProbeVisualizationUpdateResourceIndices g_GIProbeVisualizationUpdateResourceIndices; }
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
 void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
@@ -22,6 +16,14 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
     {
         return;
     }
+    
+    RWStructuredBuffer<float3> g_OutProbePositions = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_OutProbePositionsIdx];
+    RWStructuredBuffer<DrawIndexedIndirectArguments> g_OutProbeIndirectArgs = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_OutProbeIndirectArgsIdx];
+    RWStructuredBuffer<uint> g_OutInstanceIndexToProbeIndex = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_OutInstanceIndexToProbeIndexIdx];
+    StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_DDGIVolumesIdx];
+    RWTexture2DArray<float4> g_ProbeData = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_ProbeDataIdx];
+    Texture2D g_HZB = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_HZBIdx];
+    SamplerState g_LinearClampMinReductionSampler = SamplerDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_LinearClampMinReductionSamplerIdx];
     
     // TODO: multiple volumes
     uint volumeIndex = 0;
@@ -69,13 +71,6 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
 }
 
 cbuffer GIProbeVisualizationConstsBuffer : register(b0) { GIProbeVisualizationConsts g_GIProbeVisualizationConsts; }
-StructuredBuffer<float3> g_InProbePositions : register(t0);
-Texture2DArray<float4> g_VisProbeData : register(t1);
-Texture2DArray<float4> g_VisProbeIrradiance : register(t2);
-Texture2DArray<float4> g_VisProbeDistance : register(t3);
-StructuredBuffer<DDGIVolumeDescGPUPacked> g_VisDDGIVolumes : register(t4);
-StructuredBuffer<uint> g_InInstanceIndexToProbeIndex : register(t5);
-sampler g_LinearWrapSampler : register(s0);
 
 void VS_VisualizeGIProbes
 (
@@ -89,7 +84,9 @@ void VS_VisualizeGIProbes
     out float3 outWorldPosition : TEXCOORD2,
     nointerpolation out uint outInstanceID : TEXCOORD3)
 {
-    float3 worldPosition = g_InProbePositions[inInstanceID] + (g_GIProbeVisualizationConsts.m_ProbeRadius * inNormal);
+    StructuredBuffer<float3> inProbePositions = ResourceDescriptorHeap[g_GIProbeVisualizationConsts.m_InProbePositionsIdx];
+    
+    float3 worldPosition = inProbePositions[inInstanceID] + (g_GIProbeVisualizationConsts.m_ProbeRadius * inNormal);
     
     outPosition = mul(float4(worldPosition, 1.0f), g_GIProbeVisualizationConsts.m_WorldToClip);
     outNormal = inNormal;
@@ -107,6 +104,12 @@ void PS_VisualizeGIProbes
     in uint inInstanceID : TEXCOORD3,
     out float4 outColor : SV_Target0)
 {
+    Texture2DArray<float4> g_VisProbeData = ResourceDescriptorHeap[g_GIProbeVisualizationConsts.m_VisProbeDataIdx];
+    Texture2DArray<float4> g_VisProbeIrradiance = ResourceDescriptorHeap[g_GIProbeVisualizationConsts.m_VisProbeIrradianceIdx];
+    StructuredBuffer<DDGIVolumeDescGPUPacked> g_VisDDGIVolumes = ResourceDescriptorHeap[g_GIProbeVisualizationConsts.m_VisDDGIVolumesIdx];
+    StructuredBuffer<uint> g_InInstanceIndexToProbeIndex = ResourceDescriptorHeap[g_GIProbeVisualizationConsts.m_InInstanceIndexToProbeIndexIdx];
+    sampler g_LinearWrapSampler = SamplerDescriptorHeap[g_GIProbeVisualizationConsts.m_LinearWrapSamplerIdx];
+    
     // TODO: multiple volumes
     uint volumeIndex = 0;
     

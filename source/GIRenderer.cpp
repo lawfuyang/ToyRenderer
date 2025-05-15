@@ -675,10 +675,13 @@ public:
 			passParameters.m_ProbeRadius = gs_GIRenderer.m_GIVolume.m_DebugProbeRadius;
             passParameters.m_bHideInactiveProbes = gs_GIRenderer.m_GIVolume.GetProbeVisType() == rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
 
+            nvrhi::BufferHandle passParametersBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
+
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =
             {
-                nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
+                nvrhi::BindingSetItem::ConstantBuffer(0, passParametersBuffer),
+                nvrhi::BindingSetItem::PushConstants(1, sizeof(GIProbeVisualizationUpdateResourceIndices)),
                 nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(10, g_Scene->m_GIVolumeDescsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, probePositionsBuffer),
@@ -688,13 +691,27 @@ public:
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler),
             };
 
+            nvrhi::BindingSetHandle bindingSet;
+            nvrhi::BindingLayoutHandle bindingLayout;
+            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            GIProbeVisualizationUpdateResourceIndices passResourceIndices;
+            passResourceIndices.m_HZBIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 0;
+            passResourceIndices.m_DDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+            passResourceIndices.m_OutProbePositionsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
+            passResourceIndices.m_OutProbeIndirectArgsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
+            passResourceIndices.m_OutInstanceIndexToProbeIndexIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
+            passResourceIndices.m_ProbeDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
+            passResourceIndices.m_LinearClampMinReductionSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx + 0;
+
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "giprobevisualization_CS_VisualizeGIProbesCulling";
-            computePassParams.m_BindingSetDesc = bindingSetDesc;
+            computePassParams.m_BindingSet = bindingSet;
+            computePassParams.m_BindingLayout = bindingLayout;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(numProbes, kNumThreadsPerWave);
-            computePassParams.m_PushConstantsData = &passParameters;
-            computePassParams.m_PushConstantsBytes = sizeof(passParameters);
+            computePassParams.m_PushConstantsData = &passResourceIndices;
+            computePassParams.m_PushConstantsBytes = sizeof(passResourceIndices);
 
             g_Graphic.AddComputePass(computePassParams);
         }
@@ -721,19 +738,25 @@ public:
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =
             {
-                nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
+                nvrhi::BindingSetItem::PushConstants(0, sizeof(GIProbeVisualizationConsts)),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(0, probePositionsBuffer),
                 nvrhi::BindingSetItem::Texture_SRV(1, gs_GIRenderer.m_GIVolume.m_ProbeData),
                 nvrhi::BindingSetItem::Texture_SRV(2, gs_GIRenderer.m_GIVolume.m_ProbeIrradiance),
-                nvrhi::BindingSetItem::Texture_SRV(3, gs_GIRenderer.m_GIVolume.m_ProbeDistance),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Scene->m_GIVolumeDescsBuffer),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(5, instanceIDToProbeIndexBuffer),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Scene->m_GIVolumeDescsBuffer),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, instanceIDToProbeIndexBuffer),
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearWrapSampler),
             };
 
             nvrhi::BindingSetHandle bindingSet;
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
+
+            passParameters.m_InProbePositionsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 0;
+            passParameters.m_VisProbeDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
+            passParameters.m_VisProbeIrradianceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
+            passParameters.m_VisDDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
+            passParameters.m_InInstanceIndexToProbeIndexIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
+            passParameters.m_LinearWrapSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx + 0;
 
             nvrhi::GraphicsPipelineDesc pipelineDesc;
             pipelineDesc.inputLayout = g_CommonResources.m_UncompressedRawVertexFormatInputLayoutHandle;
