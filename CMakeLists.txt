@@ -175,9 +175,8 @@ set(TOYRENDERER_LIBRARIES
 # libs
 target_link_libraries(ToyRenderer PUBLIC ${TOYRENDERER_LIBRARIES})
 
-# force include PCH.h
-set(PCH_FILE "${SRC_DIR}/PCH.h")
-set_target_properties(ToyRenderer PROPERTIES COMPILE_FLAGS "/FI \"${PCH_FILE}\"")
+# PCH
+target_precompile_headers(ToyRenderer PRIVATE "${SRC_DIR}/PCH.h")
 
 # force include dirs
 set(TOYRENDERER_INCLUDE_DIRS ${ROOT_DIR})
