@@ -14,7 +14,7 @@ public:
     virtual void InitSwapChainTextureHandles() = 0;
     virtual uint32_t GetCurrentBackBufferIndex() = 0;
     virtual void SwapChainPresent() = 0;
-    virtual void* GetNativeCommandListType(nvrhi::CommandListHandle commandList) = 0;
+    virtual void* GetNativeCommandList(nvrhi::CommandListHandle commandList) = 0;
 
     virtual void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) = 0;
     virtual void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) = 0;
@@ -27,7 +27,7 @@ public:
     void InitSwapChainTextureHandles() override;
     uint32_t GetCurrentBackBufferIndex() override { return m_SwapChain->GetCurrentBackBufferIndex(); }
     void SwapChainPresent() override;
-    void* GetNativeCommandListType(nvrhi::CommandListHandle commandList) override;
+    void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override;
 
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override;
     void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override;
@@ -51,7 +51,7 @@ public:
     void InitSwapChainTextureHandles() override {}
     uint32_t GetCurrentBackBufferIndex() override { return UINT32_MAX; }
     void SwapChainPresent() override {}
-    void* GetNativeCommandListType(nvrhi::CommandListHandle commandList) override { return nullptr; }
+    void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override { return nullptr; }
 
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override {}
     void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override {}

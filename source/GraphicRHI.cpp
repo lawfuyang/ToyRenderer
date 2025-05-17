@@ -312,7 +312,7 @@ void D3D12RHI::SwapChainPresent()
     }
 }
 
-void* D3D12RHI::GetNativeCommandListType(nvrhi::CommandListHandle commandList)
+void* D3D12RHI::GetNativeCommandList(nvrhi::CommandListHandle commandList)
 {
     return commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
 }

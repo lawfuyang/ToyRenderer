@@ -594,7 +594,7 @@ void Graphic::BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_vie
         gpuLog = MicroProfileThreadLogGpuAlloc();
     }
 
-    MicroProfileGpuBegin(m_GraphicRHI->GetNativeCommandListType(cmdList), gpuLog);
+    MicroProfileGpuBegin(m_GraphicRHI->GetNativeCommandList(cmdList), gpuLog);
 }
 
 void Graphic::EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist)
