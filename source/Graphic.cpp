@@ -23,7 +23,7 @@
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\"; }
 
-CommandLineOption<bool> g_EnableD3DDebug{ "d3ddebug", false };
+CommandLineOption<bool> g_EnableGraphicRHIDebug{ "graphicrhidebug", false };
 CommandLineOption<bool> g_EnableGPUValidation{ "enablegpuvalidation", false };
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
 
@@ -128,7 +128,7 @@ void Graphic::InitDevice()
     {
         PROFILE_SCOPED("CreateDXGIFactory");
 
-        const UINT factoryFlags = g_EnableD3DDebug.Get() ? DXGI_CREATE_FACTORY_DEBUG : 0;
+        const UINT factoryFlags = g_EnableGraphicRHIDebug.Get() ? DXGI_CREATE_FACTORY_DEBUG : 0;
         HRESULT_CALL(CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&m_DXGIFactory)));
     }
 
@@ -157,7 +157,7 @@ void Graphic::InitDevice()
 
     ComPtr<ID3D12Debug3> debugInterface;
     HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
-    if (g_EnableD3DDebug.Get())
+    if (g_EnableGraphicRHIDebug.Get())
     {
         // enable DRED
         // NOTE: RenderDoc <= 1.37 doesnt like this
@@ -305,7 +305,7 @@ void Graphic::InitDevice()
 
             m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();
 
-            if (g_EnableD3DDebug.Get())
+            if (g_EnableGraphicRHIDebug.Get())
             {
                 m_NVRHIDevice = nvrhi::validation::createValidationLayer(m_NVRHIDevice); // make the rest of the application go through the validation layer
 
