@@ -526,12 +526,6 @@ void Scene::UpdateIMGUI()
         ImGui::Combo("##DebugModeCombo", &m_DebugViewMode, kDebugModeNames, std::size(kDebugModeNames));
         ImGui::Checkbox("Enable Animations", &m_EnableAnimations);
 
-        static bool s_bGPUStablePower = false;
-        if (ImGui::Checkbox("GPU Stable Power", &s_bGPUStablePower))
-        {
-            g_Graphic.SetGPUStablePowerState(s_bGPUStablePower);
-        }
-
         ImGui::Checkbox("Enable Frustum Culling", &m_bEnableFrustumCulling);
         ImGui::Checkbox("Enable Occlusion Culling", &m_bEnableOcclusionCulling);
         ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);

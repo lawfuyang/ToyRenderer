@@ -1,110 +1,21 @@
 #include "Graphic.h"
 
 #include "extern/cxxopts/include/cxxopts.hpp"
-#include "extern/nvrhi/include/nvrhi/d3d12.h"
-#include "extern/nvrhi/include/nvrhi/validation.h"
 #include "extern/shadermake/include/ShaderMake/ShaderBlob.h"
 
 #include "SDL3/SDL.h"
-#include "SDL3/SDL_properties.h"
-
-#if NVRHI_WITH_AFTERMATH
-#include "nvrhi/common/aftermath.h"
-#endif
 
 #include "CommonResources.h"
 #include "DescriptorTableManager.h"
 #include "Engine.h"
+#include "GraphicRHI.h"
 #include "Scene.h"
 #include "Utilities.h"
 
 #include "shaders/ShaderInterop.h"
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION; }
-extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\"; }
-
-CommandLineOption<bool> g_EnableGraphicRHIDebug{ "graphicrhidebug", false };
-CommandLineOption<bool> g_EnableGPUValidation{ "enablegpuvalidation", false };
+CommandLineOption<bool> g_CVarUseVulkanRHI{ "usevulkanrhi", false };
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
-
-PRAGMA_OPTIMIZE_OFF;
-void DeviceRemovedHandler()
-{
-    LOG_DEBUG("Device removed!");
-    
-    // TODO:
-    //D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 DredAutoBreadcrumbsOutput{};
-    //D3D12_DRED_PAGE_FAULT_OUTPUT1 DredPageFaultOutput{};
-    //HRESULT_CALL(pDred->GetAutoBreadcrumbsOutput1(&DredAutoBreadcrumbsOutput));
-    //HRESULT_CALL(pDred->GetPageFaultAllocationOutput1(&DredPageFaultOutput));
-
-    assert(0);
-}
-
-class NVRHIMessageCallback : public nvrhi::IMessageCallback
-{
-    // Inherited via IMessageCallback
-    void message(nvrhi::MessageSeverity severity, const char* messageText) override
-    {
-        LOG_DEBUG("[NVRHI]: %s", messageText);
-
-        switch (severity)
-        {
-            // just print info messages
-        case nvrhi::MessageSeverity::Info:
-            break;
-
-            // treat everything else critically
-        case nvrhi::MessageSeverity::Warning:
-        case nvrhi::MessageSeverity::Error:
-        case nvrhi::MessageSeverity::Fatal:
-            assert(false);
-            break;
-        }
-    }
-};
-static NVRHIMessageCallback g_NVRHIErrorCB;
-PRAGMA_OPTIMIZE_ON;
-
-// for D3D12MAAllocator creation in nvrhi d3d12 device ctor
-IDXGIAdapter1* g_DXGIAdapter;
-
-// copied from d3dx12.h
-static D3D_FEATURE_LEVEL QueryHighestFeatureLevel(ID3D12Device* device)
-{
-    // Check against a list of all feature levels present in d3dcommon.h
-    // Needs to be updated for future feature levels
-    const D3D_FEATURE_LEVEL allLevels[] =
-    {
-#if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 3)
-        D3D_FEATURE_LEVEL_12_2,
-#endif
-        D3D_FEATURE_LEVEL_12_1,
-        D3D_FEATURE_LEVEL_12_0,
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
-        D3D_FEATURE_LEVEL_9_3,
-        D3D_FEATURE_LEVEL_9_2,
-        D3D_FEATURE_LEVEL_9_1,
-#if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 5)
-        D3D_FEATURE_LEVEL_1_0_CORE,
-#endif
-#if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 611)
-        D3D_FEATURE_LEVEL_1_0_GENERIC
-#endif
-    };
-
-    D3D12_FEATURE_DATA_FEATURE_LEVELS dFeatureLevel;
-    dFeatureLevel.NumFeatureLevels = static_cast<UINT>(sizeof(allLevels) / sizeof(D3D_FEATURE_LEVEL));
-    dFeatureLevel.pFeatureLevelsRequested = allLevels;
-
-    const HRESULT result = device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &dFeatureLevel, sizeof(D3D12_FEATURE_DATA_FEATURE_LEVELS));
-    assert(SUCCEEDED(result));
-
-    return dFeatureLevel.MaxSupportedFeatureLevel;
-}
 
 void Graphic::InitRenderDocAPI()
 {
@@ -125,281 +36,60 @@ void Graphic::InitRenderDocAPI()
 
 void Graphic::InitDevice()
 {
-    {
-        PROFILE_SCOPED("CreateDXGIFactory");
+    PROFILE_FUNCTION();
 
-        const UINT factoryFlags = g_EnableGraphicRHIDebug.Get() ? DXGI_CREATE_FACTORY_DEBUG : 0;
-        HRESULT_CALL(CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&m_DXGIFactory)));
+    if (g_CVarUseVulkanRHI.Get())
+    {
+        m_GraphicRHI = std::make_shared<VulkanRHI>();
+    }
+    else
+    {
+        m_GraphicRHI = std::make_shared<D3D12RHI>();
     }
 
+    m_NVRHIDevice = m_GraphicRHI->CreateDevice();
+
+    for (constexpr auto kFeatures = magic_enum::enum_entries<nvrhi::Feature>();
+         const auto & feature : kFeatures)
     {
-        PROFILE_SCOPED("Get Adapters");
+        const bool bFeatureSupported = m_NVRHIDevice->queryFeatureSupport(feature.first);
+        LOG_DEBUG("Feature Support for [%s]: [%d]", feature.second.data(), bFeatureSupported);
 
-        for (UINT i = 0; m_DXGIFactory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&m_DXGIAdapter)) != DXGI_ERROR_NOT_FOUND; ++i)
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            m_DXGIAdapter->GetDesc1(&desc);
-
-            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+        auto EnsureFeatureSupport = [&](nvrhi::Feature featureRequested)
             {
-                // Don't bother with the Basic Render Driver adapter.
-                continue;
-            }
+                if (feature.first == featureRequested)
+                {
+                    assert(bFeatureSupported);
+                }
+            };
 
-            const char* gpuName = StringUtils::WideToUtf8(desc.Description);
-            LOG_DEBUG("Graphic Adapter: %s", gpuName);
-            break;
-        }
-        assert(m_DXGIAdapter);
+        EnsureFeatureSupport(nvrhi::Feature::Meshlets);
+        EnsureFeatureSupport(nvrhi::Feature::RayTracingAccelStruct);
+        EnsureFeatureSupport(nvrhi::Feature::RayTracingPipeline);
+        EnsureFeatureSupport(nvrhi::Feature::RayQuery);
 
-        g_DXGIAdapter = m_DXGIAdapter.Get();
-    }
-
-    ComPtr<ID3D12Debug3> debugInterface;
-    HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
-    if (g_EnableGraphicRHIDebug.Get())
-    {
-        // enable DRED
         // NOTE: RenderDoc <= 1.37 doesnt like this
         if (!m_RenderDocAPI)
         {
-            ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> pDredSettings;
-            HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&pDredSettings)));
-
-            // Turn on auto-breadcrumbs and page fault reporting.
-            pDredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-            pDredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-            pDredSettings->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            EnsureFeatureSupport(nvrhi::Feature::SamplerFeedback);
         }
 
-        debugInterface->EnableDebugLayer();
-        LOG_DEBUG("D3D12 Debug Layer enabled");
-
-        if (g_EnableGPUValidation.Get())
+        if (feature.first == nvrhi::Feature::WaveLaneCountMinMax)
         {
-            debugInterface->SetEnableGPUBasedValidation(true);
-            LOG_DEBUG("D3D12 GPU Based Validation enabled");
+            nvrhi::WaveLaneCountMinMaxFeatureInfo waveLaneCountMinMaxInfo;
+            verify(m_NVRHIDevice->queryFeatureSupport(feature.first, &waveLaneCountMinMaxInfo, sizeof(waveLaneCountMinMaxInfo)));
+
+            // ensure threads per wave == 32
+            assert(waveLaneCountMinMaxInfo.minWaveLaneCount == waveLaneCountMinMaxInfo.maxWaveLaneCount); // NOTE: wtf does it mean if this is not true?
+            assert(kNumThreadsPerWave == waveLaneCountMinMaxInfo.minWaveLaneCount);
+
+            LOG_DEBUG("Wave Lane Count: %d", waveLaneCountMinMaxInfo.minWaveLaneCount);
         }
     }
 
-    {
-        PROFILE_SCOPED("D3D12CreateDevice");
+    m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();
 
-    #if NVRHI_WITH_AFTERMATH
-        m_AftermathCrashDumper.EnableCrashDumpTracking();
-    #endif
-
-        // enforce requirment of 12_0 feature level at least
-        static const D3D_FEATURE_LEVEL kMinimumFeatureLevel = D3D_FEATURE_LEVEL_12_0;
-        HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, kMinimumFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
-
-        const D3D_FEATURE_LEVEL maxSupportedFeatureLevel = QueryHighestFeatureLevel(m_D3DDevice.Get());
-
-        // use higher feature level if available
-        if (maxSupportedFeatureLevel != kMinimumFeatureLevel)
-        {
-            HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, maxSupportedFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
-        }
-        
-        LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", maxSupportedFeatureLevel);
-    }
-
-    auto CreateQueue = [this](nvrhi::CommandQueue queue)
-    {
-        PROFILE_SCOPED("CreateQueue");
-
-        const char* queueName = nvrhi::utils::CommandQueueToString(queue);
-        PROFILE_SCOPED(queueName);
-
-        static const D3D12_COMMAND_LIST_TYPE kD3D12QueueTypes[] = { D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_TYPE_COMPUTE, D3D12_COMMAND_LIST_TYPE_COPY };
-
-        D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-        queueDesc.Type = kD3D12QueueTypes[(uint32_t)queue];
-        queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-        queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-        queueDesc.NodeMask = 0; // For single-adapter, set to 0. Else, set a bit to identify the node
-
-        ComPtr<ID3D12CommandQueue> outQueue;
-        HRESULT_CALL(m_D3DDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&outQueue)));
-
-        HRESULT_CALL(outQueue->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(queueName), queueName));
-
-        m_GPUQueueLogs[(uint32_t)queue] = MicroProfileInitGpuQueue(queueName);
-
-        return outQueue;
-    };
-
-    // MT create queues
-    tf::Taskflow tf;
-    tf.emplace([&]() { m_GraphicsQueue = CreateQueue(nvrhi::CommandQueue::Graphics); });
-    //tf.emplace([&]() { m_ComputeQueue = CreateQueue(nvrhi::CommandQueue::Compute); });
-    //tf.emplace([&]() { m_CopyQueue = CreateQueue(nvrhi::CommandQueue::Copy); });
-    g_Engine.m_Executor->corun(tf);
-
-    // clear Taskflow... we'll be using it again for more MT init in this func
-    tf.clear();
-
-    tf.emplace([this]()
-        {
-            PROFILE_SCOPED("Init GPU Profiler");
-
-            void* pCommandQueues[] = { m_GraphicsQueue.Get() };
-            MicroProfileGpuInitD3D12(m_D3DDevice.Get(), 1, pCommandQueues);
-            MicroProfileSetCurrentNodeD3D12(0);
-
-            m_GPUThreadLogs.reserve(g_Engine.m_Executor->num_workers() + 1); // +1 because main thread is index 0
-        });
-
-    tf.emplace([this]()
-        {
-            PROFILE_SCOPED("nvrhi::createDevice");
-
-            // create NVRHI device handle
-            nvrhi::d3d12::DeviceDesc deviceDesc;
-            deviceDesc.errorCB = &g_NVRHIErrorCB;
-            deviceDesc.pDevice = m_D3DDevice.Get();
-            deviceDesc.pGraphicsCommandQueue = m_GraphicsQueue.Get();
-            deviceDesc.pComputeCommandQueue = m_ComputeQueue.Get();
-            deviceDesc.pCopyCommandQueue = m_CopyQueue.Get();
-            deviceDesc.enableHeapDirectlyIndexed = true;
-
-            m_NVRHIDevice = nvrhi::d3d12::createDevice(deviceDesc);
-
-            for (constexpr auto kFeatures = magic_enum::enum_entries<nvrhi::Feature>();
-                const auto& feature : kFeatures)
-            {
-                const bool bFeatureSupported = m_NVRHIDevice->queryFeatureSupport(feature.first);
-                LOG_DEBUG("Feature Support for [%s]: [%d]", feature.second.data(), bFeatureSupported);
-
-                auto EnsureFeatureSupport = [&](nvrhi::Feature featureRequested)
-                    {
-                        if (feature.first == featureRequested)
-                        {
-                            assert(bFeatureSupported);
-                        }
-                    };
-
-                EnsureFeatureSupport(nvrhi::Feature::Meshlets);
-                EnsureFeatureSupport(nvrhi::Feature::RayTracingAccelStruct);
-                EnsureFeatureSupport(nvrhi::Feature::RayTracingPipeline);
-                EnsureFeatureSupport(nvrhi::Feature::RayQuery);
-
-                // NOTE: RenderDoc <= 1.37 doesnt like this
-                if (!m_RenderDocAPI)
-                {
-                    EnsureFeatureSupport(nvrhi::Feature::SamplerFeedback);
-                }
-
-                if (feature.first == nvrhi::Feature::WaveLaneCountMinMax)
-                {
-                    nvrhi::WaveLaneCountMinMaxFeatureInfo waveLaneCountMinMaxInfo;
-                    verify(m_NVRHIDevice->queryFeatureSupport(feature.first, &waveLaneCountMinMaxInfo, sizeof(waveLaneCountMinMaxInfo)));
-
-                    // ensure threads per wave == 32
-                    assert(waveLaneCountMinMaxInfo.minWaveLaneCount == waveLaneCountMinMaxInfo.maxWaveLaneCount); // NOTE: wtf does it mean if this is not true?
-                    assert(kNumThreadsPerWave == waveLaneCountMinMaxInfo.minWaveLaneCount);
-
-                    LOG_DEBUG("Wave Lane Count: %d", waveLaneCountMinMaxInfo.minWaveLaneCount);
-                }
-            }
-
-            m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();
-
-            if (g_EnableGraphicRHIDebug.Get())
-            {
-                m_NVRHIDevice = nvrhi::validation::createValidationLayer(m_NVRHIDevice); // make the rest of the application go through the validation layer
-
-                // break on warnings/errors
-                ComPtr<ID3D12InfoQueue> debugInfoQueue;
-                HRESULT_CALL(m_D3DDevice->QueryInterface(__uuidof(ID3D12InfoQueue), (LPVOID*)&debugInfoQueue));
-
-                // NOTE: add whatever d3d12 filters here when needed
-                D3D12_INFO_QUEUE_FILTER newFilter{};
-
-                // Turn off info msgs as these get really spewy
-                D3D12_MESSAGE_SEVERITY denySeverity = D3D12_MESSAGE_SEVERITY_INFO;
-                newFilter.DenyList.NumSeverities = 1;
-                newFilter.DenyList.pSeverityList = &denySeverity;
-
-                D3D12_MESSAGE_ID denyIds[] =
-                {
-                    D3D12_MESSAGE_ID_HEAP_ADDRESS_RANGE_INTERSECTS_MULTIPLE_BUFFERS,
-                    // D3D12 complains when a buffer is created with a specific initial resource state while all buffers are currently created in COMMON state.
-                    // The next transition is then done use state promotion. It's just a warning and we need to keep track of the correct initial state as well for upcoming internal transitions.
-                    D3D12_MESSAGE_ID_CREATERESOURCE_STATE_IGNORED
-                };
-
-                newFilter.DenyList.NumIDs = (UINT)std::size(denyIds);
-                newFilter.DenyList.pIDList = denyIds;
-
-                HRESULT_CALL(debugInfoQueue->PushStorageFilter(&newFilter));
-                HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true));
-                HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true));
-                HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true));
-            }
-
-        #if NVRHI_WITH_AFTERMATH
-            m_NVRHIDevice->getAftermathCrashDumpHelper().registerShaderBinaryLookupCallback(this, std::bind(&Graphic::FindShaderFromHashForAftermath, this, std::placeholders::_1, std::placeholders::_2));
-        #endif
-        });
-
-    // MT init GPU Profiler & nvrhi device
-    g_Engine.m_Executor->corun(tf);
-}
-
-void Graphic::InitSwapChain()
-{
-    PROFILE_FUNCTION();
-
-    BOOL tearingSupported{};
-    HRESULT_CALL(m_DXGIFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearingSupported, sizeof(tearingSupported)));
-    m_bTearingSupported = tearingSupported;
-
-    // Describe and create the swap chain.
-    DXGI_SWAP_CHAIN_DESC1 SwapChainDesc = {};
-    SwapChainDesc.Width = m_DisplayResolution.x;
-    SwapChainDesc.Height = m_DisplayResolution.y;
-    SwapChainDesc.Format = nvrhi::d3d12::convertFormat(nvrhi::Format::RGBA8_UNORM); // TODO: HDR display support
-    SwapChainDesc.Stereo = false; // set to true for VR
-    SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    SwapChainDesc.BufferCount = _countof(m_SwapChainD3D12Resources);
-    SwapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-    SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    SwapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED; // TODO: Learn the differences
-    SwapChainDesc.SampleDesc.Count = 1; // >1 valid only with bit-block transfer (bitblt) model swap chains.
-    SwapChainDesc.Flags = m_bTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-
-    ::HWND hwnd = (::HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(g_Engine.m_SDLWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
-
-    ComPtr<IDXGISwapChain1> SwapChain;
-    HRESULT_CALL(m_DXGIFactory->CreateSwapChainForHwnd(m_GraphicsQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
-        hwnd,
-        &SwapChainDesc,
-        nullptr,
-        nullptr,
-        &SwapChain));
-
-    // Disable Alt-Enter and other DXGI trickery...
-    HRESULT_CALL(m_DXGIFactory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER));
-
-    HRESULT_CALL(SwapChain.As(&m_SwapChain));
-    SwapChain->QueryInterface(IID_PPV_ARGS(&m_SwapChain));
-
-    // create textures for swap chain
-    for (uint32_t i = 0; i < _countof(m_SwapChainD3D12Resources); ++i)
-    {
-        HRESULT_CALL(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&m_SwapChainD3D12Resources[i])));
-
-        nvrhi::TextureDesc textureDesc;
-        textureDesc.width = m_DisplayResolution.x;
-        textureDesc.height = m_DisplayResolution.y;
-        textureDesc.format = nvrhi::Format::RGBA8_UNORM;
-        textureDesc.debugName = "SwapChainBuffer";
-        textureDesc.isRenderTarget = true;
-        textureDesc.initialState = nvrhi::ResourceStates::Present;
-
-        m_SwapChainTextureHandles[i] = m_NVRHIDevice->createHandleForNativeTexture(nvrhi::ObjectTypes::D3D12_Resource, nvrhi::Object{ m_SwapChainD3D12Resources[i].Get() }, textureDesc);
-    }
+    m_GPUThreadLogs.reserve(g_Engine.m_Executor->num_workers() + 1); // +1 because main thread is index 0
 }
 
 void Graphic::InitShaders()
@@ -440,7 +130,6 @@ void Graphic::InitShaders()
         const std::string entryPoint = parseResult["E"].as<std::string>();
 
         // kinda manual... but it's robust enough
-        // NOTE: this enum doesn't matter if we're not using NVRHI_D3D12_WITH_NVAPI
         nvrhi::ShaderType shaderType = nvrhi::ShaderType::None;
         std::string profileStr = profile;
         StringUtils::ToLower(profileStr);
@@ -454,8 +143,8 @@ void Graphic::InitShaders()
             shaderType = nvrhi::ShaderType::Mesh;
         else if (profileStr == "as")
             shaderType = nvrhi::ShaderType::Amplification;
-        else if (profileStr == "lib")
-            shaderType = nvrhi::ShaderType::AllRayTracing; // ???
+
+        // NOTE: for raytracing, only support inline ray query, so dont have to parse weird shader file extensions
 
         assert(shaderType != nvrhi::ShaderType::None);
 
@@ -564,6 +253,11 @@ void Graphic::InitDescriptorTable()
     m_BindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
 
     m_InstancesBindlessResourcesDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_NVRHIDevice, m_BindlessLayout);
+}
+
+nvrhi::TextureHandle Graphic::GetCurrentBackBuffer()
+{
+    return m_SwapChainTextureHandles[m_GraphicRHI->GetCurrentBackBufferIndex()];
 }
 
 nvrhi::ShaderHandle Graphic::GetShader(std::string_view shaderBinName)
@@ -889,8 +583,7 @@ void Graphic::BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_vie
 
     cmdList->open();
 
-    ID3D12GraphicsCommandList* D3D12CommandList = cmdList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
-    HRESULT_CALL(D3D12CommandList->SetPrivateData(WKPDID_D3DDebugObjectName, name.size(), name.data()));
+    m_GraphicRHI->SetRHIObjectDebugName(cmdList, name);
 
     MicroProfileThreadLogGpu*& gpuLog = m_GPUThreadLogs[std::this_thread::get_id()];
 
@@ -901,7 +594,7 @@ void Graphic::BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_vie
         gpuLog = MicroProfileThreadLogGpuAlloc();
     }
 
-    MicroProfileGpuBegin(D3D12CommandList, gpuLog);
+    MicroProfileGpuBegin(m_GraphicRHI->GetNativeCommandListType(cmdList), gpuLog);
 }
 
 void Graphic::EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist)
@@ -932,7 +625,7 @@ void Graphic::Initialize()
     InitDevice();
 
     tf::Taskflow tf;
-    tf.emplace([this] { InitSwapChain(); });
+    tf.emplace([this] { m_GraphicRHI->InitSwapChainTextureHandles(); });
     tf.emplace([this] { InitShaders(); });
     tf::Task initDescriptorTable = tf.emplace([this] { InitDescriptorTable(); });
     tf::Task initCommonResources = tf.emplace([this] { m_CommonResources = std::make_shared<CommonResources>(); g_CommonResources.Initialize(); });
@@ -977,9 +670,6 @@ void Graphic::Shutdown()
     // wait for latest swap chain present to be done
     verify(m_NVRHIDevice->waitForIdle());
 
-#if NVRHI_WITH_AFTERMATH
-    m_NVRHIDevice->getAftermathCrashDumpHelper().unRegisterShaderBinaryLookupCallback(this);
-#endif
 
     m_Scene->Shutdown();
     m_Scene.reset();
@@ -1087,50 +777,7 @@ void Graphic::Update()
     ExecuteAllCommandLists();
 
     // finally, present swap chain
-    Present();
-}
-
-void Graphic::Present()
-{
-    PROFILE_FUNCTION();
-
-    const UINT kSyncInterval = 0; // 0: no vsync, 1: vsync
-
-    // When using sync interval 0, it is recommended to always pass the tearing flag when it is supported.
-    const UINT kFlags = (kSyncInterval == 0 && m_bTearingSupported) ? DXGI_PRESENT_ALLOW_TEARING : 0;
-
-    // Present the frame.
-    const HRESULT presentResult = m_SwapChain->Present(kSyncInterval, kFlags);
-
-    if (FAILED(presentResult))
-    {
-        verify(m_NVRHIDevice->waitForIdle());
-
-    #if NVRHI_WITH_AFTERMATH
-        AftermathCrashDump::WaitForCrashDump();
-    #endif
-
-        DeviceRemovedHandler();
-        assert(0);
-    }
-}
-
-void Graphic::SetGPUStablePowerState(bool bEnable)
-{
-    if (!g_Engine.m_bWindowsDeveloperMode)
-    {
-        return;
-    }
-
-    m_D3DDevice->SetStablePowerState(bEnable);
-}
-
-void Graphic::UpdateResourceDebugName(nvrhi::IResource* resource, std::string_view debugName)
-{
-    assert(resource);
-
-    ID3D12Resource* D3D12Resource = resource->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
-    HRESULT_CALL(D3D12Resource->SetPrivateData(WKPDID_D3DDebugObjectName, debugName.size(), debugName.data()));
+    m_GraphicRHI->SwapChainPresent();
 }
 
 void Graphic::ExecuteAllCommandLists()
@@ -1294,27 +941,6 @@ Vector2 Graphic::GetCurrentJitterOffset()
     const uint32_t index = (m_FrameCounter % 16) + 1;
     return Vector2{ VanDerCorput(2, index), VanDerCorput(3, index) } - Vector2{ 0.5f, 0.5f };
 }
-
-#if NVRHI_WITH_AFTERMATH
-std::pair<const void*, size_t> Graphic::FindShaderFromHashForAftermath(uint64_t hash, std::function<uint64_t(std::pair<const void*, size_t>, nvrhi::GraphicsAPI)> hashGenerator)
-{
-    for (const auto [shaderHandleHash, shaderHandle] : m_AllShaders)
-    {
-        // NOTE: shaderHandleHash is simply the hash of the Shader's file name, not byte code hash
-
-        const void* pByteCode;
-        size_t size;
-        shaderHandle->getBytecode(&pByteCode, &size);
-
-        uint64_t entryHash = hashGenerator(std::make_pair(pByteCode, size), nvrhi::GraphicsAPI::D3D12);
-        if (entryHash == hash)
-        {
-            return std::make_pair(pByteCode, size);
-        }
-    }
-    return std::make_pair(nullptr, 0);
-}
-#endif // NVRHI_WITH_AFTERMATH
 
 void FencedReadbackBuffer::Initialize(uint32_t bufferSize)
 {

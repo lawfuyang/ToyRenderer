@@ -1,16 +1,9 @@
 #pragma once
 
-#include <d3d12.h>
-#include <dxgi1_6.h>
-
 #include "extern/microprofile/microprofile.h"
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 #include "extern/nvrhi/include/nvrhi/utils.h"
 #include "extern/renderdoc/renderdoc_app.h"
-
-#if NVRHI_WITH_AFTERMATH
-#include "AftermathCrashDump.h"
-#endif
 
 #include "CriticalSection.h"
 #include "MathUtilities.h"
@@ -59,15 +52,10 @@ public:
     void Update();
     void InitRenderDocAPI();
     void InitDevice();
-    void InitSwapChain();
     void InitShaders();
     void InitDescriptorTable();
-    void Present();
-    void SetGPUStablePowerState(bool bEnable);
-
-    static void UpdateResourceDebugName(nvrhi::IResource* resource, std::string_view debugName);
     
-    [[nodiscard]] nvrhi::TextureHandle GetCurrentBackBuffer() { return m_SwapChainTextureHandles[m_SwapChain->GetCurrentBackBufferIndex()]; }
+    [[nodiscard]] nvrhi::TextureHandle GetCurrentBackBuffer();
     [[nodiscard]] nvrhi::ShaderHandle GetShader(std::string_view shaderBinName);
     [[nodiscard]] nvrhi::BindingLayoutHandle GetOrCreateBindingLayout(const nvrhi::BindingLayoutDesc& layoutDesc);
     [[nodiscard]] nvrhi::BindingLayoutHandle GetOrCreateBindingLayout(const nvrhi::BindlessLayoutDesc& layoutDesc);
@@ -163,19 +151,12 @@ public:
     std::deque<nvrhi::CommandListHandle> m_FreeCommandLists[(uint32_t)nvrhi::CommandQueue::Count];
     std::mutex m_FreeCommandListsLock;
 
-private:
-    bool m_bTearingSupported = false;
-
-    ComPtr<ID3D12CommandQueue> m_ComputeQueue;
-    ComPtr<ID3D12CommandQueue> m_CopyQueue;
-    ComPtr<ID3D12CommandQueue> m_GraphicsQueue;
-    ComPtr<ID3D12Device> m_D3DDevice;
-    ComPtr<ID3D12Resource> m_SwapChainD3D12Resources[2];
-    ComPtr<IDXGIAdapter1> m_DXGIAdapter;
-    ComPtr<IDXGIFactory6> m_DXGIFactory;
-    ComPtr<IDXGISwapChain3> m_SwapChain;
-
     int m_GPUQueueLogs[(uint32_t)nvrhi::CommandQueue::Count];
+
+private:
+    std::shared_ptr<class GraphicRHI> m_GraphicRHI;
+
+    bool m_bTearingSupported = false;
     
     std::unordered_map<size_t, nvrhi::ShaderHandle> m_AllShaders;
     std::unordered_map<size_t, nvrhi::GraphicsPipelineHandle> m_CachedGraphicPSOs;
@@ -188,11 +169,6 @@ private:
     std::vector<nvrhi::CommandListHandle> m_PendingCommandLists;
 
     nvrhi::TimerQueryHandle m_FrameTimerQuery;
-
-#if NVRHI_WITH_AFTERMATH
-    AftermathCrashDump m_AftermathCrashDumper;
-    std::pair<const void*, size_t> FindShaderFromHashForAftermath(uint64_t hash, std::function<uint64_t(std::pair<const void*, size_t>, nvrhi::GraphicsAPI)> hashGenerator);
-#endif // NVRHI_WITH_AFTERMATH
 };
 #define g_Graphic Graphic::GetInstance()
 
