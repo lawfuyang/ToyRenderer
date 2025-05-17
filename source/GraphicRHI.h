@@ -47,12 +47,12 @@ public:
 class VulkanRHI : public GraphicRHI
 {
 public:
-    nvrhi::DeviceHandle CreateDevice() override { return {}; }
-    void InitSwapChainTextureHandles() override {}
-    uint32_t GetCurrentBackBufferIndex() override { return UINT32_MAX; }
-    void SwapChainPresent() override {}
-    void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override { return nullptr; }
+    nvrhi::DeviceHandle CreateDevice() override { assert(false && "Not Implemented!"); return {}; }
+    void InitSwapChainTextureHandles() override { assert(false && "Not Implemented!"); }
+    uint32_t GetCurrentBackBufferIndex() override { assert(false && "Not Implemented!"); return UINT32_MAX; }
+    void SwapChainPresent() override { assert(false && "Not Implemented!"); }
+    void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override { assert(false && "Not Implemented!"); return nullptr; }
 
-    void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override {}
-    void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override {}
+    void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override { assert(false && "Not Implemented!"); }
+    void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override { assert(false && "Not Implemented!"); }
 };
