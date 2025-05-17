@@ -130,6 +130,7 @@ file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgu
 set(TOYRENDERER_SRC ${BASE_SRC} ${IMGUI_SRC})
 
 set(NVRHI_WITH_DX12 ON)
+set(NVRHI_WITH_VULKAN ON)
 set(NVRHI_WITH_AFTERMATH OFF)
 set(NVRHI_WITH_RTXMU OFF)
 set(AFTERMATH_SEARCH_PATHS "${EXTERN_DIR}/nvidia/aftermath")
@@ -166,6 +167,7 @@ set(TOYRENDERER_LIBRARIES
 	microprofile
 	nvrhi
 	nvrhi_d3d12
+	nvrhi_vk
 	Taskflow
 	NRD
 	RTXGI-D3D12
