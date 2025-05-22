@@ -185,12 +185,15 @@ public:
             nvrhi::ColorMask::All             // colorWriteMask
         };
 
+        nvrhi::BlendState RTBlendState;
+        RTBlendState.targets[0] = kRTBlendState;
+
         // PSO
         nvrhi::GraphicsPipelineDesc PSODesc;
         PSODesc.inputLayout = m_InputLayout;
         PSODesc.VS = g_Graphic.GetShader("imgui_VS_Main");
         PSODesc.PS = g_Graphic.GetShader("imgui_PS_Main");
-        PSODesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ kRTBlendState }, g_CommonResources.DepthNoneStencilNone, g_CommonResources.CullNone };
+        PSODesc.renderState = nvrhi::RenderState{ RTBlendState, g_CommonResources.DepthNoneStencilNone, g_CommonResources.CullNone };
 
         // Render command lists
         // (Because we merged all buffers into a single one, we maintain our own offset into them)

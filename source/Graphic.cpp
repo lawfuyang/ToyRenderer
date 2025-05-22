@@ -827,14 +827,16 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
     PROFILE_FUNCTION();
     PROFILE_GPU_SCOPED(commandList, pixelShaderName.data());
 
-    const nvrhi::BlendState::RenderTarget& blendState = blendStateIn ? *blendStateIn : g_CommonResources.BlendOpaque;
+    nvrhi::BlendState blendState;
+    blendState.targets[0] = blendStateIn ? *blendStateIn : g_CommonResources.BlendOpaque;
+
     const nvrhi::DepthStencilState& depthStencilState = depthStencilStateIn ? *depthStencilStateIn : g_CommonResources.DepthNoneStencilNone;
 
     // PSO
     nvrhi::MeshletPipelineDesc PSODesc;
     PSODesc.MS = GetShader("fullscreen_MS_FullScreenTriangle");
     PSODesc.PS = GetShader(pixelShaderName);
-    PSODesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ blendState }, depthStencilState, g_CommonResources.CullNone };
+    PSODesc.renderState = nvrhi::RenderState{ blendState, depthStencilState, g_CommonResources.CullNone };
     PSODesc.bindingLayouts = { bindingLayout };
 
     nvrhi::FramebufferHandle frameBuffer = m_NVRHIDevice->createFramebuffer(frameBufferDesc);

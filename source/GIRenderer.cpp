@@ -803,11 +803,14 @@ public:
             passParameters.m_InInstanceIndexToProbeIndexIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
             passParameters.m_LinearWrapSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx + 0;
 
+            nvrhi::BlendState blendState;
+            blendState.targets[0] = g_CommonResources.BlendOpaque;
+
             nvrhi::GraphicsPipelineDesc pipelineDesc;
             pipelineDesc.inputLayout = g_CommonResources.m_UncompressedRawVertexFormatInputLayoutHandle;
             pipelineDesc.VS = g_Graphic.GetShader("giprobevisualization_VS_VisualizeGIProbes");
             pipelineDesc.PS = g_Graphic.GetShader("giprobevisualization_PS_VisualizeGIProbes");
-            pipelineDesc.renderState = nvrhi::RenderState{ nvrhi::BlendState{ g_CommonResources.BlendOpaque }, g_CommonResources.DepthWriteStencilNone, g_CommonResources.CullBackFace };
+            pipelineDesc.renderState = nvrhi::RenderState{ blendState, g_CommonResources.DepthWriteStencilNone, g_CommonResources.CullBackFace };
             pipelineDesc.bindingLayouts = { bindingLayout };
 
             nvrhi::GraphicsState graphicsState;
