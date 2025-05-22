@@ -508,7 +508,7 @@ void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetD
     PROFILE_FUNCTION();
 
     // copied from nvrhi::utils::CreateBindingSetAndLayout
-    auto ConvertSetToLayout = [](const nvrhi::BindingSetItemArray& setDesc)
+    auto ConvertSetToLayout = [](std::span<const nvrhi::BindingSetItem> setDesc)
         {
             nvrhi::BindingLayoutDesc layoutDesc;
             layoutDesc.visibility = nvrhi::ShaderType::All;
@@ -517,6 +517,7 @@ void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetD
                 nvrhi::BindingLayoutItem layoutItem{};
                 layoutItem.slot = item.slot;
                 layoutItem.type = item.type;
+                layoutItem.size = 1;
                 if (item.type == nvrhi::ResourceType::PushConstants)
                     layoutItem.size = uint32_t(item.range.byteSize);
                 layoutDesc.bindings.push_back(layoutItem);

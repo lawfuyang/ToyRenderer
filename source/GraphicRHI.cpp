@@ -159,32 +159,35 @@ nvrhi::DeviceHandle D3D12RHI::CreateDevice()
         LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", maxSupportedFeatureLevel);
 
         // break on warnings/errors
-        ComPtr<ID3D12InfoQueue> debugInfoQueue;
-        HRESULT_CALL(m_D3DDevice->QueryInterface(__uuidof(ID3D12InfoQueue), (LPVOID*)&debugInfoQueue));
-
-        // NOTE: add whatever d3d12 filters here when needed
-        D3D12_INFO_QUEUE_FILTER newFilter{};
-
-        // Turn off info msgs as these get really spewy
-        D3D12_MESSAGE_SEVERITY denySeverity = D3D12_MESSAGE_SEVERITY_INFO;
-        newFilter.DenyList.NumSeverities = 1;
-        newFilter.DenyList.pSeverityList = &denySeverity;
-
-        D3D12_MESSAGE_ID denyIds[] =
+        if (g_EnableGPUValidation.Get())
         {
-            D3D12_MESSAGE_ID_HEAP_ADDRESS_RANGE_INTERSECTS_MULTIPLE_BUFFERS,
-            // D3D12 complains when a buffer is created with a specific initial resource state while all buffers are currently created in COMMON state.
-            // The next transition is then done use state promotion. It's just a warning and we need to keep track of the correct initial state as well for upcoming internal transitions.
-            D3D12_MESSAGE_ID_CREATERESOURCE_STATE_IGNORED
-        };
+            ComPtr<ID3D12InfoQueue> debugInfoQueue;
+            HRESULT_CALL(m_D3DDevice->QueryInterface(__uuidof(ID3D12InfoQueue), (LPVOID*)&debugInfoQueue));
 
-        newFilter.DenyList.NumIDs = (UINT)std::size(denyIds);
-        newFilter.DenyList.pIDList = denyIds;
+            // NOTE: add whatever d3d12 filters here when needed
+            D3D12_INFO_QUEUE_FILTER newFilter{};
 
-        HRESULT_CALL(debugInfoQueue->PushStorageFilter(&newFilter));
-        HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true));
-        HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true));
-        HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true));
+            // Turn off info msgs as these get really spewy
+            D3D12_MESSAGE_SEVERITY denySeverity = D3D12_MESSAGE_SEVERITY_INFO;
+            newFilter.DenyList.NumSeverities = 1;
+            newFilter.DenyList.pSeverityList = &denySeverity;
+
+            D3D12_MESSAGE_ID denyIds[] =
+            {
+                D3D12_MESSAGE_ID_HEAP_ADDRESS_RANGE_INTERSECTS_MULTIPLE_BUFFERS,
+                // D3D12 complains when a buffer is created with a specific initial resource state while all buffers are currently created in COMMON state.
+                // The next transition is then done use state promotion. It's just a warning and we need to keep track of the correct initial state as well for upcoming internal transitions.
+                D3D12_MESSAGE_ID_CREATERESOURCE_STATE_IGNORED
+            };
+
+            newFilter.DenyList.NumIDs = (UINT)std::size(denyIds);
+            newFilter.DenyList.pIDList = denyIds;
+
+            HRESULT_CALL(debugInfoQueue->PushStorageFilter(&newFilter));
+            HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true));
+            HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true));
+            HRESULT_CALL(debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true));
+        }
     }
 
     auto CreateQueue = [this](nvrhi::CommandQueue queue)
