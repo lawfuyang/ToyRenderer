@@ -1,4 +1,6 @@
 /.vs
+/.vscode
+/build
 /projects
 /bin
 /tmp
