@@ -203,7 +203,7 @@ void Scene::UpdateMainViewCameraControls()
     }
 
     m_MouseLastPos = m_CurrentMousePos;
-    m_CurrentMousePos = { mouseX, mouseY };
+    m_CurrentMousePos = Vector2{ mouseX, mouseY };
 
     // Calculate the move vector in camera space.
     Vector3 finalMoveVector;

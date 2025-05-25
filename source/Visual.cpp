@@ -282,7 +282,7 @@ void Mesh::Initialize(
                 // Unnormalize x, y, z from [0, 1] to [-1, 1]
                 Vector3& unpackedNormal = unpackedNormals.emplace_back();
 
-                unpackedNormal = { (float)xInt / 1023.0f, (float)yInt / 1023.0f, (float)zInt / 1023.0f };
+                unpackedNormal = Vector3{ (float)xInt / 1023.0f, (float)yInt / 1023.0f, (float)zInt / 1023.0f };
                 unpackedNormal = (unpackedNormal * 2.0f) - Vector3::One;
             }
 
