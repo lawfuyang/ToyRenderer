@@ -13,10 +13,10 @@ if %errorlevel% neq 0 (
 )
 
 :: cmake call
-cmake -S "%cd%" -B "%cd%\projects\ToyRenderer"
+cmake -S "%cd%" -B "%cd%\build"
 
 :: create shortcuts to VS sln in root folder
-call :CreateSlnShortcut "%cd%\projects\ToyRenderer\ToyRenderer.sln" "%cd%\ToyRenderer.sln.lnk"
+call :CreateSlnShortcut "%cd%\build\ToyRenderer.sln" "%cd%\ToyRenderer.sln.lnk"
 goto :AfterCreateSlnShortcuts
 
 :CreateSlnShortcut

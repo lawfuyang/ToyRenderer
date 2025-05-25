@@ -34,7 +34,7 @@ SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/source/shaders/"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/amd/FidelityFX/sdk/include/FidelityFX/gpu/"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/Shaders/Include"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/NRD/Shaders/Resources"
-SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/projects/ToyRenderer/_deps/mathlib-src"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/build/_deps/mathlib-src"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/RTXGI-DDGI/rtxgi-sdk/include"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/include"
 
@@ -45,7 +45,7 @@ SET GLOBAL_DEFINES=-D FFX_GPU -D FFX_HLSL -D HLSL
 SET GLOBAL_DEFINES=%GLOBAL_DEFINES% -D RTXGI_DDGI_USE_SHADER_CONFIG_FILE=1
 
 :: global defines based on CMakeCache.txt
-set "CACHE_FILE=%cd%\projects\ToyRenderer\CMakeCache.txt"
+set "CACHE_FILE=%cd%\build\CMakeCache.txt"
 
 call :SetGlobalDefineFromCMakeCache NRD_NORMAL_ENCODING
 call :SetGlobalDefineFromCMakeCache NRD_ROUGHNESS_ENCODING
