@@ -90,11 +90,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SUPPRESS_REGENERATION true)
 
 # Global compiler flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zi")     # Program Database
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")     # Multi-Processor compilation
-
-# Set iterator debug level to 0 for all targets (no iterator debugging)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_ITERATOR_DEBUG_LEVEL=0")
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zi /MP")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_ITERATOR_DEBUG_LEVEL=0")
+    set_directory_properties(PROPERTIES COMPILE_OPTIONS "/W0" DIRECTORY ${EXTERN_DIR})
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_ITERATOR_DEBUG_LEVEL=0")
+    set_directory_properties(PROPERTIES COMPILE_OPTIONS "-w" DIRECTORY ${EXTERN_DIR})
+endif()
 
 if (ENABLE_ADDRESS_SANITIZER)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
@@ -104,9 +108,6 @@ endif()
 if (ENABLE_IPO)
 	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
-
-# disable warnings for extern. we dont care about them
-set_directory_properties(PROPERTIES COMPILE_OPTIONS "/W0" DIRECTORY ${EXTERN_DIR})
 
 # all binaries for all config types (if any) go to the "bin" folder
 foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
@@ -143,6 +144,8 @@ set(NRD_EMBEDS_DXIL_SHADERS OFF)
 set(NRD_EMBEDS_DXBC_SHADERS OFF)
 set(RTXGI_BUILD_SAMPLES OFF)
 set(RTXGI_STATIC_LIB ON)
+set(SHADERMAKE_FIND_FXC OFF)
+set(SHADERMAKE_FIND_DXC OFF)
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/meshoptimizer)
@@ -154,8 +157,10 @@ add_subdirectory(extern/nvidia/RTXGI-DDGI)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
-target_compile_definitions(ToyRenderer PUBLIC "/W4") # Level 4 warnings
-target_compile_definitions(ToyRenderer PUBLIC "/WX") # Warnings as errors
+target_compile_options(ToyRenderer PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>        # Level 4 warnings and warnings as errors for MSVC
+    $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Werror>  # Common warning flags for Clang
+)
 
 # startup proj = 'ToyRenderer'
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ToyRenderer)
