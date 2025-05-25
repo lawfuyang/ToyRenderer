@@ -1,5 +1,5 @@
 /.vs
-/.vscode
+/.vscode/launch.json
 /build
 /projects
 /bin
