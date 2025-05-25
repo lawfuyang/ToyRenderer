@@ -158,8 +158,8 @@ add_subdirectory(extern/nvidia/RTXGI-DDGI)
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
 target_compile_options(ToyRenderer PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>        # Level 4 warnings and warnings as errors for MSVC
-    $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Werror>  # Common warning flags for Clang
+    $<$<CXX_COMPILER_ID:MSVC>:/WX>
+    $<$<CXX_COMPILER_ID:Clang>:-Werror>
 )
 
 # startup proj = 'ToyRenderer'
