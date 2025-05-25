@@ -107,56 +107,29 @@ nvrhi::DeviceHandle D3D12RHI::CreateDevice()
     {
         PROFILE_SCOPED("D3D12CreateDevice");
 
-        // enforce requirment of 12_0 feature level at least
         static const D3D_FEATURE_LEVEL kMinimumFeatureLevel = D3D_FEATURE_LEVEL_12_0;
         HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, kMinimumFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
 
-        // copied from d3dx12.h
-        static auto QueryHighestFeatureLevel = [](ID3D12Device* device)
+        static const D3D_FEATURE_LEVEL kD3DFeatureLevels[] =
             {
-                // Check against a list of all feature levels present in d3dcommon.h
-                // Needs to be updated for future feature levels
-                const D3D_FEATURE_LEVEL allLevels[] =
-                {
-            #if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 3)
-                    D3D_FEATURE_LEVEL_12_2,
-            #endif
-                    D3D_FEATURE_LEVEL_12_1,
-                    D3D_FEATURE_LEVEL_12_0,
-                    D3D_FEATURE_LEVEL_11_1,
-                    D3D_FEATURE_LEVEL_11_0,
-                    D3D_FEATURE_LEVEL_10_1,
-                    D3D_FEATURE_LEVEL_10_0,
-                    D3D_FEATURE_LEVEL_9_3,
-                    D3D_FEATURE_LEVEL_9_2,
-                    D3D_FEATURE_LEVEL_9_1,
-            #if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 5)
-                    D3D_FEATURE_LEVEL_1_0_CORE,
-            #endif
-            #if defined(D3D12_SDK_VERSION) && (D3D12_SDK_VERSION >= 611)
-                    D3D_FEATURE_LEVEL_1_0_GENERIC
-            #endif
-                };
-
-                D3D12_FEATURE_DATA_FEATURE_LEVELS dFeatureLevel;
-                dFeatureLevel.NumFeatureLevels = static_cast<UINT>(sizeof(allLevels) / sizeof(D3D_FEATURE_LEVEL));
-                dFeatureLevel.pFeatureLevelsRequested = allLevels;
-
-                const HRESULT result = device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &dFeatureLevel, sizeof(D3D12_FEATURE_DATA_FEATURE_LEVELS));
-                assert(SUCCEEDED(result));
-
-                return dFeatureLevel.MaxSupportedFeatureLevel;
+                D3D_FEATURE_LEVEL_12_2,
+                D3D_FEATURE_LEVEL_12_1,
+                D3D_FEATURE_LEVEL_12_0
             };
 
-        const D3D_FEATURE_LEVEL maxSupportedFeatureLevel = QueryHighestFeatureLevel(m_D3DDevice.Get());
+        D3D12_FEATURE_DATA_FEATURE_LEVELS dFeatureLevel;
+        dFeatureLevel.NumFeatureLevels = std::size(kD3DFeatureLevels);
+        dFeatureLevel.pFeatureLevelsRequested = kD3DFeatureLevels;
 
-        // use higher feature level if available
-        if (maxSupportedFeatureLevel != kMinimumFeatureLevel)
+        const HRESULT result = m_D3DDevice->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &dFeatureLevel, sizeof(D3D12_FEATURE_DATA_FEATURE_LEVELS));
+        assert(SUCCEEDED(result));
+
+        if (dFeatureLevel.MaxSupportedFeatureLevel != kMinimumFeatureLevel)
         {
-            HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, maxSupportedFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
+            HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, dFeatureLevel.MaxSupportedFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
         }
 
-        LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", maxSupportedFeatureLevel);
+        LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", dFeatureLevel.MaxSupportedFeatureLevel);
 
         // break on warnings/errors
         if (g_EnableGPUValidation.Get())
