@@ -8,6 +8,7 @@
 #include "CriticalSection.h"
 #include "MathUtilities.h"
 #include "Visual.h"
+#include "GraphicRHI.h"
 
 class CommonResources;
 class DescriptorTableManager;
@@ -154,7 +155,7 @@ public:
     int m_GPUQueueLogs[(uint32_t)nvrhi::CommandQueue::Count];
 
 private:
-    std::shared_ptr<class GraphicRHI> m_GraphicRHI;
+    std::unique_ptr<GraphicRHI> m_GraphicRHI;
 
     bool m_bTearingSupported = false;
     

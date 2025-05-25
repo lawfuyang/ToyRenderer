@@ -8,7 +8,6 @@
 #include "CommonResources.h"
 #include "DescriptorTableManager.h"
 #include "Engine.h"
-#include "GraphicRHI.h"
 #include "Scene.h"
 #include "Utilities.h"
 
@@ -38,14 +37,7 @@ void Graphic::InitDevice()
 {
     PROFILE_FUNCTION();
 
-    if (g_CVarUseVulkanRHI.Get())
-    {
-        m_GraphicRHI = std::make_shared<VulkanRHI>();
-    }
-    else
-    {
-        m_GraphicRHI = std::make_shared<D3D12RHI>();
-    }
+    m_GraphicRHI = std::unique_ptr<GraphicRHI>{ GraphicRHI::Create(nvrhi::GraphicsAPI::D3D12) };
 
     m_NVRHIDevice = m_GraphicRHI->CreateDevice();
 
