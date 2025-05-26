@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "cppvsdbg",
+      "request": "launch",
+      "name": "No Scene",
+      "program": "${workspaceFolder}/bin/${input:exeName}.exe",
+      "cwd": "${workspaceFolder}/bin",
+      "preLaunchTask": "CMake: build",
+      "args": ["--graphicrhivalidation"]
+    }
+  ]
+}
