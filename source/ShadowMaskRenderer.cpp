@@ -11,7 +11,7 @@
 
 #include "shaders/ShaderInterop.h"
 
-#define NRD_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { LOG_DEBUG("NRD call failed: %s", EnumUtils::ToString(result)); assert(0); }
+#define NRD_FUNC_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { LOG_DEBUG("NRD call failed: %s", EnumUtils::ToString(result)); assert(0); }
 #define NRD_ID(x) nrd::Identifier(nrd::Denoiser::x)
 
 RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
@@ -112,7 +112,7 @@ public:
         instanceCreationDesc.denoisers = denoiserDescs;
         instanceCreationDesc.denoisersNum = std::size(denoiserDescs);
 
-        NRD_CALL(nrd::CreateInstance(instanceCreationDesc, m_NRDInstance));
+        NRD_FUNC_CALL(nrd::CreateInstance(instanceCreationDesc, m_NRDInstance));
 
         const nrd::InstanceDesc& instanceDesc = nrd::GetInstanceDesc(*m_NRDInstance);
 
@@ -372,7 +372,7 @@ public:
 
         nrd::SigmaSettings sigmaSettings;
         memcpy(sigmaSettings.lightDirection, &g_Scene->m_DirLightVec, sizeof(sigmaSettings.lightDirection));
-        NRD_CALL(nrd::SetDenoiserSettings(*m_NRDInstance, NRD_ID(SIGMA_SHADOW), &sigmaSettings));
+        NRD_FUNC_CALL(nrd::SetDenoiserSettings(*m_NRDInstance, NRD_ID(SIGMA_SHADOW), &sigmaSettings));
 
         nrd::CommonSettings commonSettings;
         memcpy(commonSettings.viewToClipMatrix, &g_Scene->m_View.m_ViewToClip, sizeof(commonSettings.viewToClipMatrix));
@@ -399,12 +399,12 @@ public:
         commonSettings.isMotionVectorInWorldSpace = false;
         commonSettings.enableValidation = false; // NOTE: not used for SIGMA denoising
 
-        NRD_CALL(nrd::SetCommonSettings(*m_NRDInstance, commonSettings));
+        NRD_FUNC_CALL(nrd::SetCommonSettings(*m_NRDInstance, commonSettings));
 
         const nrd::Identifier denoiserIdentifiers[] = { NRD_ID(SIGMA_SHADOW) };
         const nrd::DispatchDesc* dispatchDescs = nullptr;
         uint32_t dispatchDescNum = 0;
-        NRD_CALL(nrd::GetComputeDispatches(*m_NRDInstance, denoiserIdentifiers, std::size(denoiserIdentifiers), dispatchDescs, dispatchDescNum));
+        NRD_FUNC_CALL(nrd::GetComputeDispatches(*m_NRDInstance, denoiserIdentifiers, std::size(denoiserIdentifiers), dispatchDescs, dispatchDescNum));
 
         std::vector<nvrhi::TextureHandle> transientTextures;
         transientTextures.resize(m_NRDTemporaryTextureHandles.size());

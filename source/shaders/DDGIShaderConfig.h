@@ -24,7 +24,9 @@ static const uint32_t kNumProbeDistanceTexels = 16;
 // 1: RTXGI_COORDINATE_SYSTEM_LEFT_Z_UP
 // 2: RTXGI_COORDINATE_SYSTEM_RIGHT
 // 3: RTXGI_COORDINATE_SYSTEM_RIGHT_Z_UP
-#define RTXGI_COORDINATE_SYSTEM 0
+#ifndef RTXGI_COORDINATE_SYSTEM
+    #define RTXGI_COORDINATE_SYSTEM 0
+#endif
 
 // Use Shader Reflection?
 // 0: no
