@@ -198,7 +198,7 @@ void Engine::ParseCommandlineArguments(int argc, char** argv)
 
     if (!parseResult.unmatched().empty())
     {
-        std::string printArgsStr = "Unmatched Command Line Arguments: { ";
+        printArgsStr = "Unmatched Command Line Arguments: { ";
         for (std::string_view s : parseResult.unmatched())
         {
             printArgsStr += StringFormat("%s ", s.data());

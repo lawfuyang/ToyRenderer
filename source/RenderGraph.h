@@ -27,7 +27,7 @@ public:
 
 		uint32_t m_AllocatedFrameIdx = UINT32_MAX;
 		uint32_t m_DescIdx = UINT32_MAX;
-		Type m_Type = (Type)UINT32_MAX;
+		Type m_Type;
 
 		// Compile-time data
 		PassID m_FirstAccess = kInvalidPassID; // First pass that accesses this resource

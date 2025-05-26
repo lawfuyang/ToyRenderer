@@ -158,7 +158,7 @@ add_subdirectory(extern/nvidia/RTXGI-DDGI)
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
 target_compile_options(ToyRenderer PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/WX /W3 /wd4018 /wd4244 /wd4267 /wd4305>
+    $<$<CXX_COMPILER_ID:MSVC>:/WX /W3 /wd4018 /wd4100 /wd4189 /wd4244 /wd4267 /wd4305>
     $<$<CXX_COMPILER_ID:Clang>:-Werror>
 )
 

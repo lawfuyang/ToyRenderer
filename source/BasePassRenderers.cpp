@@ -760,8 +760,8 @@ public:
 
             nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
 
-            nvrhi::FramebufferDesc frameBufferDesc;
-            frameBufferDesc.addColorAttachment(depthBufferCopy);
+            nvrhi::FramebufferDesc frameBufferDescDepthBufferCopy;
+            frameBufferDescDepthBufferCopy.addColorAttachment(depthBufferCopy);
 
             nvrhi::BindingSetHandle bindingSet;
             nvrhi::BindingLayoutHandle bindingLayout;

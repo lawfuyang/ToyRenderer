@@ -704,7 +704,7 @@ struct DDSFile
             return Result::ErrorVerify;
         }
 
-        bool dxt10Header = false;
+        bool bIsDXT10Header = false;
         if ((header->m_pixelFormat.m_flags &
              uint32_t(PixelFormatFlagBits::FourCC)) &&
             (MakeFourCC('D', 'X', '1', '0') == header->m_pixelFormat.m_fourCC))
@@ -714,11 +714,11 @@ struct DDSFile
             {
                 return Result::ErrorSize;
             }
-            dxt10Header = true;
+            bIsDXT10Header = true;
         }
 
         ptrdiff_t offset = sizeof(uint32_t) + sizeof(Header) +
-            (dxt10Header ? sizeof(HeaderDXT10) : 0);
+            (bIsDXT10Header ? sizeof(HeaderDXT10) : 0);
 
         m_height = header->m_height;
         m_width = header->m_width;
@@ -732,7 +732,7 @@ struct DDSFile
             m_mipCount = 1;
         }
 
-        if (dxt10Header)
+        if (bIsDXT10Header)
         {
             const HeaderDXT10* dxt10Header = reinterpret_cast<const HeaderDXT10*>(
                 reinterpret_cast<const char*>(header) + sizeof(Header));

@@ -41,31 +41,32 @@ public:
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "AmbientOcclusionRenderer Init");
 
-		const uint32_t kTexDim = 64;
+        const uint32_t kTexDim = 64;
+        std::vector<uint16_t> data;
+        data.resize(kTexDim * kTexDim);
 
-		nvrhi::TextureDesc desc;
-		desc.width = kTexDim;
-		desc.height = kTexDim;
-		desc.format = nvrhi::Format::R16_UINT;
-		desc.debugName = "Hilbert LUT";
-		desc.initialState = nvrhi::ResourceStates::ShaderResource;
+        for (int x = 0; x < kTexDim; x++)
+        {
+            for (int y = 0; y < kTexDim; y++)
+            {
+                uint32_t r2index = XeGTAO::HilbertIndex(x, y);
+                assert(r2index < 65536);
+                data[x + 64 * y] = (uint16_t)r2index;
+            }
+        }
 
-		std::vector<uint16_t> data;
-		data.resize(kTexDim * kTexDim);
+        {
+            nvrhi::TextureDesc desc;
+            desc.width = kTexDim;
+            desc.height = kTexDim;
+            desc.format = nvrhi::Format::R16_UINT;
+            desc.debugName = "Hilbert LUT";
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-		for (int x = 0; x < kTexDim; x++)
-		{
-			for (int y = 0; y < kTexDim; y++)
-			{
-				uint32_t r2index = XeGTAO::HilbertIndex(x, y);
-				assert(r2index < 65536);
-				data[x + 64 * y] = (uint16_t)r2index;
-			}
-		}
+            m_HilbertLUT = device->createTexture(desc);
+        }
 
-		m_HilbertLUT = device->createTexture(desc);
-
-		commandList->writeTexture(m_HilbertLUT, 0, 0, data.data(), kTexDim * nvrhi::getFormatInfo(desc.format).bytesPerBlock);
+        commandList->writeTexture(m_HilbertLUT, 0, 0, data.data(), kTexDim * nvrhi::getFormatInfo(m_HilbertLUT->getDesc().format).bytesPerBlock);
 		commandList->setPermanentTextureState(m_HilbertLUT, nvrhi::ResourceStates::ShaderResource);
 		commandList->commitBarriers();
 

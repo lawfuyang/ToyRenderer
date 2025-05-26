@@ -692,9 +692,9 @@ struct GLTFSceneLoader
                 newNode.m_ParentNodeID = cgltf_node_index(m_GLTFData, node.parent);
             }
 
-            for (uint32_t i = 0; i < node.children_count; ++i)
+            for (uint32_t j = 0; j < node.children_count; ++j)
             {
-                newNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[i]));
+                newNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[j]));
             }
 
 			//LOG_DEBUG("New Node: [%s]", node.name ? node.name : "Un-named Node");
