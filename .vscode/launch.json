@@ -5,7 +5,7 @@
       "type": "cppvsdbg",
       "request": "launch",
       "name": "No Scene",
-      "program": "${workspaceFolder}/bin/${input:exeName}.exe",
+      "program": "${workspaceFolder}/bin/ToyRenderer.exe",
       "cwd": "${workspaceFolder}/bin",
       "preLaunchTask": "CMake: build",
       "args": ["--graphicrhivalidation"]
