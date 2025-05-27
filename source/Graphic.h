@@ -228,6 +228,10 @@ public:
 
     const std::string m_Name;
 
+    float m_CPUFrameTime = 0.0f;
+    float m_GPUFrameTime = 0.0f;
+    nvrhi::TimerQueryHandle m_FrameTimerQuery;
+
     inline static std::vector<IRenderer*> ms_AllRenderers;
 };
 

@@ -494,6 +494,40 @@ void Scene::Shutdown()
 
 void Scene::UpdateIMGUI()
 {
+    if (ImGui::TreeNode("Profiler"))
+    {
+        if (ImGui::BeginTable("RendererStats", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+        {
+            ImGui::TableSetupColumn("Renderer");
+            ImGui::TableSetupColumn("CPU Frame Time (ms)");
+            ImGui::TableSetupColumn("GPU Frame Time (ms)");
+            ImGui::TableHeadersRow();
+
+            for (IRenderer *renderer : IRenderer::ms_AllRenderers)
+            {
+                if (renderer->m_CPUFrameTime <= 0.0f && renderer->m_GPUFrameTime <= 0.0f)
+                {
+                    continue; // skip renderers that didn't run this frame
+                }
+
+                ImGui::TableNextRow();
+
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%s", renderer->m_Name.c_str());
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%.2f", renderer->m_CPUFrameTime);
+
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%.2f", renderer->m_GPUFrameTime);
+            }
+
+            ImGui::EndTable();
+        }
+
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNode("Debug"))
     {
         if (ImGui::Button("Compile & Reload Shaders"))

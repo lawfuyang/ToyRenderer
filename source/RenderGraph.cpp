@@ -243,6 +243,9 @@ void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
 		// allocating a transient resource will implicitly add a write dependency as well
 		assert(newPass.m_ResourceAccesses.empty());
 		m_Passes.pop_back();
+		
+		renderer->m_CPUFrameTime = 0.0f;
+		renderer->m_GPUFrameTime = 0.0f;
 
 		return;
 	}
@@ -253,19 +256,34 @@ void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
     // main Renderer task
 	tf::Task renderTask = m_TaskFlow->emplace([this, passIdx]
 		{
+			// NOTE: see comment in declaration of this threadlocal variable
+			tl_CurrentThreadPassID = passIdx;
+
 			Pass& pass = m_Passes.at(passIdx);
 			IRenderer* renderer = pass.m_Renderer;
 			assert(renderer);
 			assert(pass.m_CommandList);
 
 			PROFILE_SCOPED(renderer->m_Name.c_str());
+			Timer passTimer;
 
 			SCOPED_COMMAND_LIST(pass.m_CommandList, renderer->m_Name.c_str());
 
-			// NOTE: see comment in declaration of this threadlocal variable
-			tl_CurrentThreadPassID = passIdx;
+			if (!renderer->m_FrameTimerQuery)
+			{
+				renderer->m_FrameTimerQuery = g_Graphic.m_NVRHIDevice->createTimerQuery();
+			}
+
+			renderer->m_GPUFrameTime = Timer::SecondsToMilliSeconds(g_Graphic.m_NVRHIDevice->getTimerQueryTime(renderer->m_FrameTimerQuery));
+			
+			g_Graphic.m_NVRHIDevice->resetTimerQuery(renderer->m_FrameTimerQuery);
+        	pass.m_CommandList->beginTimerQuery(renderer->m_FrameTimerQuery);
 
 			renderer->Render(pass.m_CommandList, *this);
+
+			pass.m_CommandList->endTimerQuery(renderer->m_FrameTimerQuery);
+
+			renderer->m_CPUFrameTime = Timer::SecondsToMilliSeconds(passTimer.GetElapsedSeconds());
 
 			tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 		});
