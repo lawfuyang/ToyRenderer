@@ -774,7 +774,7 @@ public:
 
             Graphic::FullScreenPassParams fullScreenPassParams;
             fullScreenPassParams.m_CommandList = commandList;
-            fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
+            fullScreenPassParams.m_FrameBufferDesc = frameBufferDescDepthBufferCopy;
             fullScreenPassParams.m_BindingSet = bindingSet;
             fullScreenPassParams.m_BindingLayout = bindingLayout;
             fullScreenPassParams.m_PixelShaderName = "fullscreen_PS_Passthrough";
