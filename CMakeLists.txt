@@ -96,15 +96,21 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set_directory_properties(PROPERTIES COMPILE_OPTIONS "-w" DIRECTORY ${EXTERN_DIR})
 endif()
 
-# all binaries for all config types (if any) go to the "bin" folder
-foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
-    string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG )
-    set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BIN_DIR})
-    set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BIN_DIR})
-    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BIN_DIR})
+# Set output directories for each configuration
+foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG_U)
+    # Archive files (.lib) go to intermediate directory
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG_U} ${BIN_DIR}/intermediate)
+    # PDB files go to intermediate directory (MSVC-specific)
+    set(CMAKE_PDB_OUTPUT_DIRECTORY_${OUTPUTCONFIG_U} ${BIN_DIR}/intermediate)
+    # Runtime files (.exe, .dll) go to BIN_DIR
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG_U} ${BIN_DIR})
+    # Shared library files (.dll) go to BIN_DIR
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG_U} ${BIN_DIR})
 endforeach()
 
-set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${BIN_DIR})
+set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${BIN_DIR}/intermediate)
+set( CMAKE_PDB_OUTPUT_DIRECTORY ${BIN_DIR}/intermediate)
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${BIN_DIR})
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 
