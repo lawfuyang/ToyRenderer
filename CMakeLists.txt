@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
 
-option(ENABLE_UNITY_BUILD "" OFF)
-option(ENABLE_IPO "" OFF)
-option(ENABLE_ADDRESS_SANITIZER "" OFF)
-
 set(AGILITY_SDK_VERSION "1.615.1")
 set(DXC_VERSION "v1.8.2502/dxc_2025_02_20")
 set(SDL3_VERSION "3.2.14")
@@ -100,15 +96,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set_directory_properties(PROPERTIES COMPILE_OPTIONS "-w" DIRECTORY ${EXTERN_DIR})
 endif()
 
-if (ENABLE_ADDRESS_SANITIZER)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
-endif()
-
-if (ENABLE_IPO)
-	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
-
 # all binaries for all config types (if any) go to the "bin" folder
 foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
     string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG )
@@ -198,19 +185,10 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/R
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/agilitysdk/build/native/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
-# global preprocessor macros
 target_compile_definitions(ToyRenderer PUBLIC _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
 target_compile_definitions(ToyRenderer PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
 target_compile_definitions(ToyRenderer PUBLIC IMGUI_DEFINE_MATH_OPERATORS IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
-
 target_compile_definitions(microprofile PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
-
-if (ENABLE_UNITY_BUILD)
-	set_target_properties(ToyRenderer PROPERTIES UNITY_BUILD ON)
-	
-	# unity builds results in large objs...
-	target_compile_options(ToyRenderer PRIVATE /bigobj)
-endif()
 
 ################################################################################
 
