@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.18)
 
 set(AGILITY_SDK_VERSION "1.615.1")
 set(DXC_VERSION "v1.8.2502/dxc_2025_02_20")
@@ -82,7 +82,6 @@ project(ToyRenderer)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 set(CMAKE_SUPPRESS_REGENERATION true)
 
 # Global compiler flags
