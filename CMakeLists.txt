@@ -193,16 +193,6 @@ target_compile_definitions(microprofile PUBLIC MICROPROFILE_GPU_TIMERS MICROPROF
 ################################################################################
 
 ################################################################################
-file(GLOB_RECURSE SHADER_SRC "${SRC_DIR}/*.hlsl" "${SRC_DIR}/*.hlsli")
-set(SHADER_SRC_FILES ${SHADER_SRC})
-add_custom_target(ShaderSourceFiles SOURCES ${SHADER_SRC_FILES})
-
-# Shaders do not participate in the build
-set_source_files_properties(${SHADER_SRC} PROPERTIES VS_TOOL_OVERRIDE "None")
-
-################################################################################
-
-################################################################################
 # SHADER COMPILATION
 
 # compile shaders first before running the app, to ensure latest and proper Shader binaries
