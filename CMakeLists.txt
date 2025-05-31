@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 
 set(AGILITY_SDK_VERSION "1.616.0")
-set(DXC_VERSION "v1.8.2502/dxc_2025_02_20")
+set(DXC_VERSION "v1.8.2505/dxc_2025_05_24")
 set(SDL3_VERSION "3.2.14")
 set(RENDERDOC_VERSION "1.38")
 
