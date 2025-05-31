@@ -83,22 +83,10 @@ public:
             g_DXGIAdapter = m_DXGIAdapter.Get();
         }
 
-        ComPtr<ID3D12Debug3> debugInterface;
-        HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
         if (g_EnableGraphicRHIValidation.Get())
         {
-            // enable DRED
-            // NOTE: RenderDoc <= 1.37 doesnt like this
-            if (!g_Graphic.m_RenderDocAPI)
-            {
-                ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> pDredSettings;
-                HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&pDredSettings)));
-
-                // Turn on auto-breadcrumbs and page fault reporting.
-                pDredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-                pDredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-                pDredSettings->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-            }
+            ComPtr<ID3D12Debug6> debugInterface;
+            HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
 
             debugInterface->EnableDebugLayer();
             LOG_DEBUG("D3D12 Debug Layer enabled");
