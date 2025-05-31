@@ -108,7 +108,8 @@ public:
                 {
                     D3D_FEATURE_LEVEL_12_2,
                     D3D_FEATURE_LEVEL_12_1,
-                    D3D_FEATURE_LEVEL_12_0};
+                    D3D_FEATURE_LEVEL_12_0
+                };
 
             D3D12_FEATURE_DATA_FEATURE_LEVELS dFeatureLevel;
             dFeatureLevel.NumFeatureLevels = std::size(kD3DFeatureLevels);
