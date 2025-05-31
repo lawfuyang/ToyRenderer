@@ -1,7 +1,7 @@
 #include "Graphic.h"
 
 #include "extern/cxxopts/include/cxxopts.hpp"
-#include "extern/shadermake/include/ShaderMake/ShaderBlob.h"
+#include "extern/shadermake/ShaderMake/ShaderBlob.h"
 
 #include "SDL3/SDL.h"
 
