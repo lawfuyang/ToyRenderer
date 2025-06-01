@@ -60,6 +60,15 @@ inline std::size_t HashRawMem(const T& s)
     return HashRange((std::byte*)& s, sizeof(T));
 }
 
+struct ScopedFile
+{
+    ScopedFile(std::string_view filePath, const char* mode);
+    ~ScopedFile();
+
+    operator FILE*() const { return m_File; }
+    FILE* m_File;
+};
+
 class Timer
 {
 public:

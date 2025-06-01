@@ -247,41 +247,31 @@ struct GLTFSceneLoader
                     const cgltf_texture& texture = m_GLTFData->textures[i];
                     const cgltf_image* image = texture.image;
                     assert(image);
+                    assert(!image->buffer_view); // dont support images in buffer views
+                    assert(image->uri);
 
-                    const char* debugName = image->name ? image->name : "Un-Named Image";
+                    std::string filePath = (std::filesystem::path{m_BaseFolderPath} / image->uri).string();
+                    cgltf_decode_uri(filePath.data());
 
-                    if (image->buffer_view)
+                    // ghetto hack to handle "MSFT_texture_dds" extension with 2 image URIs
+                    for (uint32_t j = 0; j < texture.extensions_count; ++j)
                     {
-                        debugName = !debugName ? image->buffer_view->name : debugName;
-                        m_SceneImages[i].LoadFromMemory((std::byte*)image->buffer_view->buffer->data + image->buffer_view->offset, image->buffer_view->size, debugName);
+                        if (strcmp(texture.extensions[j].name, "MSFT_texture_dds") == 0)
+                        {
+                            filePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
+                        }
                     }
-                    else
+
+                    // ghetto hack to handle if "MSFT_texture_dds" extension was stripped away by MeshOptimizer
+                    if (!std::filesystem::exists(filePath))
                     {
-                        assert(image->uri);
-
-                        std::string filePath = (std::filesystem::path{ m_BaseFolderPath } / image->uri).string();
-                        cgltf_decode_uri(filePath.data());
-
-                        // ghetto hack to handle "MSFT_texture_dds" extension with 2 image URIs
-                        for (uint32_t j = 0; j < texture.extensions_count; ++j)
-                        {
-                            if (strcmp(texture.extensions[j].name, "MSFT_texture_dds") == 0)
-                            {
-                                filePath = std::filesystem::path{ filePath }.replace_extension(".dds").string();
-                            }
-                        }
-
-                        // ghetto hack to handle if "MSFT_texture_dds" extension was stripped away by MeshOptimizer
-                        if (!std::filesystem::exists(filePath))
-                        {
-                            filePath = std::filesystem::path{ filePath }.replace_extension(".dds").string();
-                        }
-
-                        // final sanity check
-                        assert(std::filesystem::exists(filePath));
-
-                        m_SceneImages[i].LoadFromFile(filePath);
+                        filePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
                     }
+
+                    // final sanity check
+                    assert(std::filesystem::exists(filePath));
+
+                    m_SceneImages[i].LoadFromFile(filePath);
                 });
         }
 

@@ -7,6 +7,7 @@
 #include "Graphic.h"
 #include "Scene.h"
 #include "Utilities.h"
+#include "TextureLoading.h"
 
 #include "shaders/ShaderInterop.h"
 
@@ -16,11 +17,6 @@ static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletTriangles);
 static_assert(std::is_same_v<uint32_t, Graphic::IndexBufferFormat_t>);
 static_assert(_countof(Mesh::m_LODs) == Graphic::kMaxNumMeshLODs);
 static_assert(Graphic::kMaxNumMeshLODs == kMaxNumMeshLODs);
-
-extern bool IsSTBImage(const void* data, uint32_t nbBytes);
-extern bool IsDDSImage(const void* data);
-extern nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false);
-extern nvrhi::TextureHandle CreateDDSTextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName);
 
 static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
 {
@@ -42,7 +38,8 @@ void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_
     }
     else if (IsDDSImage(rawData))
     {
-        m_NVRHITextureHandle = CreateDDSTextureFromMemory(commandList, rawData, nbBytes, debugName.data());
+        // dds have mips, and we have texture mip streaming, so dont load the whole thing from memory
+        assert(0);
     }
     else
     {
@@ -71,7 +68,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     m_DescriptorIndex = GetDescriptorIndexForTexture(newTexture);
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Texture::LoadFromMemory");
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
 
     // fill texture data for mip0
     // NOTE: fills each array slice with the same exact src data bytes
@@ -90,12 +87,38 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     assert(!IsValid());
 
-    std::vector<std::byte> imageBytes;
-    ReadDataFromFile(filePath, imageBytes);
-    assert(!imageBytes.empty());
-
     const std::string debugName = std::filesystem::path{ filePath }.stem().string();
-    LoadFromMemory(imageBytes.data(), (uint32_t)imageBytes.size(), debugName);
+
+    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
+
+    ScopedFile fileStream(filePath, "rb");
+
+    if (IsSTBImage(fileStream))
+    {
+        std::vector<std::byte> imageBytes;
+        ReadDataFromFile(filePath, imageBytes);
+        assert(!imageBytes.empty());
+
+        const std::string debugName = std::filesystem::path{filePath}.stem().string();
+        LoadFromMemory(imageBytes.data(), (uint32_t)imageBytes.size(), debugName);
+    }
+    else if (IsDDSImage(fileStream))
+    {
+        m_NVRHITextureHandle = CreateDDSTextureFromFile(commandList, fileStream, debugName.data());
+    }
+    else
+    {
+        assert(0);
+    }
+
+    assert(m_NVRHITextureHandle);
+
+    m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
+
+    const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
+    LOG_DEBUG("New Texture: %s, %d x %d, %s", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
+
 }
 
 bool Texture::IsValid() const

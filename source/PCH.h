@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 
 // C++ Lib
 #include <algorithm>

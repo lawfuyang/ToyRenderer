@@ -186,3 +186,16 @@ ScopedTimer::~ScopedTimer()
 {
     LOG_DEBUG("ScopedTimer: [%s] took %f seconds", m_Name, m_Timer.GetElapsedSeconds());
 }
+
+ScopedFile::ScopedFile(std::string_view filePath, const char* mode)
+    : m_File(fopen(filePath.data(), mode))
+{
+    assert(m_File);
+}
+
+ScopedFile::~ScopedFile()
+{
+    assert(m_File);
+    fclose(m_File);
+    m_File = nullptr;
+}
