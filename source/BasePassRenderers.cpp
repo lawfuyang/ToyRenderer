@@ -165,8 +165,8 @@ public:
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "updateinstanceconsts_CS_UpdateInstanceConstsAndBuildTLAS";
-        computePassParams.m_BindingSet = bindingSet;
-        computePassParams.m_BindingLayout = bindingLayout;
+        computePassParams.m_BindingSets = { bindingSet };
+        computePassParams.m_BindingLayouts = { bindingLayout };
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_NumInstances, kNumThreadsPerWave);
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);
@@ -399,8 +399,8 @@ public:
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = shaderName;
-            computePassParams.m_BindingSet = bindingSet;
-            computePassParams.m_BindingLayout = bindingLayout;
+            computePassParams.m_BindingSets = { bindingSet };
+            computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave);
             computePassParams.m_PushConstantsData = &GPUCullingResourceIndices;
             computePassParams.m_PushConstantsBytes = sizeof(GPUCullingResourceIndices);
@@ -422,8 +422,8 @@ public:
                 lateCullIndirectArgsResourceIndices.m_LateCullDispatchIndirectArgsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
 
                 computePassParams.m_ShaderName = "gpuculling_CS_BuildLateCullIndirectArgs";
-                computePassParams.m_BindingSet = bindingSet;
-                computePassParams.m_BindingLayout = bindingLayout;
+                computePassParams.m_BindingSets = { bindingSet };
+                computePassParams.m_BindingLayouts = { bindingLayout };
                 computePassParams.m_DispatchGroupSize = Vector3U{ 1, 1, 1 };
                 computePassParams.m_PushConstantsData = &lateCullIndirectArgsResourceIndices;
                 computePassParams.m_PushConstantsBytes = sizeof(lateCullIndirectArgsResourceIndices);
@@ -438,8 +438,8 @@ public:
                 Graphic::ComputePassParams computePassParams;
                 computePassParams.m_CommandList = commandList;
                 computePassParams.m_ShaderName = shaderName;
-                computePassParams.m_BindingSet = bindingSet;
-                computePassParams.m_BindingLayout = bindingLayout;
+                computePassParams.m_BindingSets = { bindingSet };
+                computePassParams.m_BindingLayouts = { bindingLayout };
                 computePassParams.m_IndirectArgsBuffer = lateCullDispatchIndirectArgsBuffer;
                 computePassParams.m_PushConstantsData = &GPUCullingResourceIndices;
                 computePassParams.m_PushConstantsBytes = sizeof(GPUCullingResourceIndices);
@@ -532,7 +532,7 @@ public:
         PSODesc.MS = g_Graphic.GetShader("basepass_MS_Main");
         PSODesc.PS = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
         PSODesc.renderState = finalRenderState;
-        PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
+        PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_InstancesBindlessLayout };
 
         nvrhi::MeshletState meshletState;
         meshletState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
@@ -581,8 +581,8 @@ public:
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "minmaxdownsample_CS_Main";
-        computePassParams.m_BindingSet = bindingSet;
-        computePassParams.m_BindingLayout = bindingLayout;
+        computePassParams.m_BindingSets = { bindingSet };
+        computePassParams.m_BindingLayouts = { bindingLayout };
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_HZBDimensions, 8);
         computePassParams.m_PushConstantsData = &passParameters;
         computePassParams.m_PushConstantsBytes = sizeof(passParameters);

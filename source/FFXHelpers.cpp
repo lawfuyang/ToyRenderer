@@ -110,8 +110,8 @@ namespace FFXHelpers
 		Graphic::ComputePassParams computePassParams;
 		computePassParams.m_CommandList = commandList;
 		computePassParams.m_ShaderName = StringFormat("ffx_spd_downsample_pass_CS FFX_SPD_OPTION_DOWNSAMPLE_FILTER=%d", GetSPDReductionTypeIdx(reductionType));
-        computePassParams.m_BindingSet = bindingSet;
-        computePassParams.m_BindingLayout = bindingLayout;
+        computePassParams.m_BindingSets = { bindingSet };
+        computePassParams.m_BindingLayouts = { bindingLayout };
         computePassParams.m_DispatchGroupSize = Vector3U{ dispatchThreadGroupCountXY[0], dispatchThreadGroupCountXY[1], 1 };
 		computePassParams.m_PushConstantsData = &passParameters;
 		computePassParams.m_PushConstantsBytes = sizeof(passParameters);

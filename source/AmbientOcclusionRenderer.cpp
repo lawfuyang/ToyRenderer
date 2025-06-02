@@ -194,8 +194,8 @@ public:
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "ambientocclusion_CS_XeGTAO_PrefilterDepths";
-            computePassParams.m_BindingSet = bindingSet;
-            computePassParams.m_BindingLayout = bindingLayout;
+            computePassParams.m_BindingSets = { bindingSet };
+            computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ workingDepthBuffer->getDesc().width, workingDepthBuffer->getDesc().height }, Vector2U{ 16, 16 });
             computePassParams.m_PushConstantsData = &prefilterDepthsResourceIndices;
             computePassParams.m_PushConstantsBytes = sizeof(prefilterDepthsResourceIndices);
@@ -241,8 +241,8 @@ public:
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = StringFormat("ambientocclusion_CS_XeGTAO_MainPass DEBUG_OUTPUT_MODE=%d", m_DebugOutputMode);
-            computePassParams.m_BindingSet = bindingSet;
-            computePassParams.m_BindingLayout = bindingLayout;
+            computePassParams.m_BindingSets = { bindingSet };
+            computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ workingSSAOTexture->getDesc().width, workingSSAOTexture->getDesc().height }, Vector2U{ XE_GTAO_NUMTHREADS_X, XE_GTAO_NUMTHREADS_Y });
             computePassParams.m_PushConstantsData = &mainPassConsts;
             computePassParams.m_PushConstantsBytes = sizeof(mainPassConsts);
@@ -290,8 +290,8 @@ public:
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "ambientocclusion_CS_XeGTAO_Denoise";
-            computePassParams.m_BindingSet = bindingSet;
-            computePassParams.m_BindingLayout = bindingLayout;
+            computePassParams.m_BindingSets = { bindingSet };
+            computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ srcTexture->getDesc().width, srcTexture->getDesc().height }, Vector2U{ XE_GTAO_NUMTHREADS_X * 2, XE_GTAO_NUMTHREADS_Y });
             computePassParams.m_PushConstantsData = &denoiseConsts;
             computePassParams.m_PushConstantsBytes = sizeof(denoiseConsts);

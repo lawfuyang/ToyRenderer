@@ -242,9 +242,9 @@ void Graphic::InitDescriptorTable()
     bindlessLayoutDesc.visibility = nvrhi::ShaderType::All;
     bindlessLayoutDesc.maxCapacity = kBindlessLayoutCapacity;
     bindlessLayoutDesc.registerSpaces = { nvrhi::BindingLayoutItem::Texture_SRV(1) };
-    m_BindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
+    m_InstancesBindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
 
-    m_InstancesBindlessResourcesDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_NVRHIDevice, m_BindlessLayout);
+    m_InstancesBindlessResourcesDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_NVRHIDevice, m_InstancesBindlessLayout);
 }
 
 nvrhi::TextureHandle Graphic::GetCurrentBackBuffer()
@@ -493,6 +493,11 @@ nvrhi::rt::PipelineHandle Graphic::GetOrCreatePSO(const nvrhi::rt::PipelineDesc&
     }
 
     return pipeline;
+}
+
+nvrhi::IDescriptorTable* Graphic::GetInstancesBindingSet()
+{
+    return m_InstancesBindlessResourcesDescriptorTableManager->GetDescriptorTable();
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace)
@@ -863,44 +868,13 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     PROFILE_FUNCTION();
     PROFILE_GPU_SCOPED(computePassParams.m_CommandList, computePassParams.m_ShaderName.data());
 
-    nvrhi::BindingSetHandle bindingSet = computePassParams.m_BindingSet;
-    nvrhi::BindingLayoutHandle bindingLayout = computePassParams.m_BindingLayout;
-
-    assert((bindingSet && bindingLayout) || !computePassParams.m_BindingSetDesc.bindings.empty());
-
-    // TODO: remove
-    if (!bindingSet && !bindingLayout)
-    {
-        CreateBindingSetAndLayout(computePassParams.m_BindingSetDesc, bindingSet, bindingLayout);
-    }
-
     nvrhi::ComputePipelineDesc pipelineDesc;
     pipelineDesc.CS = GetShader(computePassParams.m_ShaderName);
-    pipelineDesc.bindingLayouts = { bindingLayout };
-
-    for (nvrhi::BindingLayoutHandle layout : computePassParams.m_AdditionalBindingLayouts)
-    {
-        pipelineDesc.bindingLayouts.push_back(layout);
-    }
-
-    if (computePassParams.m_bBindInstancesBindlessResources)
-    {
-        pipelineDesc.bindingLayouts.push_back(m_BindlessLayout);
-    }
+    std::copy(computePassParams.m_BindingLayouts.begin(), computePassParams.m_BindingLayouts.end(), std::back_inserter(pipelineDesc.bindingLayouts));
 
     nvrhi::ComputeState computeState;
     computeState.pipeline = GetOrCreatePSO(pipelineDesc);
-    computeState.bindings = { bindingSet };
-
-    for (nvrhi::BindingSetHandle additionalBindingSet : computePassParams.m_AdditionalBindingSets)
-    {
-        computeState.bindings.push_back(additionalBindingSet);
-    }
-
-    if (computePassParams.m_bBindInstancesBindlessResources)
-    {
-        computeState.bindings.push_back(m_InstancesBindlessResourcesDescriptorTableManager->GetDescriptorTable());
-    }
+    std::copy(computePassParams.m_BindingSets.begin(), computePassParams.m_BindingSets.end(), std::back_inserter(computeState.bindings));
 
     if (computePassParams.m_IndirectArgsBuffer)
     {

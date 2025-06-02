@@ -116,8 +116,8 @@ public:
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "adaptluminance_CS_GenerateLuminanceHistogram";
-            computePassParams.m_BindingSet = bindingSet;
-            computePassParams.m_BindingLayout = bindingLayout;
+            computePassParams.m_BindingSets = { bindingSet };
+            computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passParameters.m_SrcColorDims, Vector2U{ 16, 16 });
             computePassParams.m_PushConstantsData = &passParameters;
             computePassParams.m_PushConstantsBytes = sizeof(passParameters);
@@ -150,8 +150,8 @@ public:
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "adaptluminance_CS_AdaptExposure";
-            computePassParams.m_BindingSet = bindingSet;
-            computePassParams.m_BindingLayout = bindingLayout;
+            computePassParams.m_BindingSets = { bindingSet };
+            computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = Vector3U{ 1,1,1 };
             computePassParams.m_PushConstantsData = &passParameters;
             computePassParams.m_PushConstantsBytes = sizeof(passParameters);

@@ -65,6 +65,8 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
     [[nodiscard]] nvrhi::rt::PipelineHandle GetOrCreatePSO(const nvrhi::rt::PipelineDesc& psoDesc);
 
+    nvrhi::IDescriptorTable* GetInstancesBindingSet();
+
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
     {
         CreateBindingSetAndLayout(bindingSetDesc, outBindingSetHandle, outLayoutHandle, 0);
@@ -108,16 +110,13 @@ public:
         nvrhi::CommandListHandle m_CommandList;
         std::string_view m_ShaderName;
         nvrhi::BindingSetDesc m_BindingSetDesc; // TODO: remove
-        nvrhi::BindingSetHandle m_BindingSet;
-        nvrhi::BindingLayoutHandle m_BindingLayout;
-        std::vector<nvrhi::BindingSetHandle> m_AdditionalBindingSets;
-        std::vector<nvrhi::BindingLayoutHandle> m_AdditionalBindingLayouts;
+        std::vector<nvrhi::BindingSetHandle> m_BindingSets;
+        std::vector<nvrhi::BindingLayoutHandle> m_BindingLayouts;
         Vector3U m_DispatchGroupSize = Vector3U{ 0, 0, 0 };
         nvrhi::BufferHandle m_IndirectArgsBuffer;
         uint32_t m_IndirectArgsBufferOffsetBytes = 0;
         const void* m_PushConstantsData = nullptr;
         size_t m_PushConstantsBytes = 0;
-        bool m_bBindInstancesBindlessResources = false;
     };
 
     void AddComputePass(const ComputePassParams& computePassParams);
@@ -134,7 +133,7 @@ public:
 
     // simple bindless layout that can store up to 1024 SRVs in (t0,space1)
     static const uint32_t kBindlessLayoutCapacity = 1024;
-    nvrhi::BindingLayoutHandle m_BindlessLayout;
+    nvrhi::BindingLayoutHandle m_InstancesBindlessLayout;
     std::shared_ptr<DescriptorTableManager> m_InstancesBindlessResourcesDescriptorTableManager;
 
     std::vector<Mesh> m_Meshes;

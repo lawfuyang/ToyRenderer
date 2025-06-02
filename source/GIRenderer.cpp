@@ -434,12 +434,11 @@ public:
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "giprobetrace_CS_ProbeTrace";
-        computePassParams.m_BindingSet = bindingSet;
-        computePassParams.m_BindingLayout = bindingLayout;
+        computePassParams.m_BindingSets = { bindingSet, g_Graphic.GetInstancesBindingSet() };
+        computePassParams.m_BindingLayouts = { bindingLayout, g_Graphic.m_InstancesBindlessLayout };
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector3U{ dispatchX, dispatchY, dispatchZ }, Vector3U{ kNumThreadsPerWave, 1, 1 });
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);
-        computePassParams.m_bBindInstancesBindlessResources = true;
         g_Graphic.AddComputePass(computePassParams);
     }
 
@@ -521,8 +520,8 @@ public:
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "ProbeBlendingCS_DDGIProbeBlendingCS RTXGI_DDGI_BLEND_RADIANCE=1";
-        computePassParams.m_BindingSet = bindingSet;
-        computePassParams.m_BindingLayout = bindingLayout;
+        computePassParams.m_BindingSets = { bindingSet };
+        computePassParams.m_BindingLayouts = { bindingLayout };
         computePassParams.m_DispatchGroupSize = Vector3U{ probeCountX, probeCountY, probeCountZ };
         computePassParams.m_PushConstantsData = &rootConsts;
         computePassParams.m_PushConstantsBytes = sizeof(rootConsts);
@@ -598,8 +597,8 @@ public:
                     passParameters.m_ProbeVariabilityAverageIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
 
                     computePassParams.m_ShaderName = "giprobeextrareduction_CS_DDGIExtraReduction";
-                    computePassParams.m_BindingSet = bindingSet;
-                    computePassParams.m_BindingLayout = bindingLayout;
+                    computePassParams.m_BindingSets = { bindingSet };
+                    computePassParams.m_BindingLayouts = { bindingLayout };
                     computePassParams.m_PushConstantsData = &passParameters;
                     computePassParams.m_PushConstantsBytes = sizeof(passParameters);
                 }
@@ -752,8 +751,8 @@ public:
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "giprobevisualization_CS_VisualizeGIProbesCulling";
-            computePassParams.m_BindingSet = bindingSet;
-            computePassParams.m_BindingLayout = bindingLayout;
+            computePassParams.m_BindingSets = { bindingSet };
+            computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(numProbes, kNumThreadsPerWave);
             computePassParams.m_PushConstantsData = &passResourceIndices;
             computePassParams.m_PushConstantsBytes = sizeof(passResourceIndices);
