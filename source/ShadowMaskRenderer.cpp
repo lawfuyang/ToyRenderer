@@ -443,12 +443,6 @@ public:
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.addItem(nvrhi::BindingSetItem::ConstantBuffer(instanceDesc.constantBufferRegisterIndex, m_NRDConstantBuffer));
 
-            assert(instanceDesc.samplersNum <= std::size(m_NRDSamplers));
-            for (uint32_t samplerIndex = 0; samplerIndex < instanceDesc.samplersNum; samplerIndex++)
-            {
-                bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Sampler(instanceDesc.samplersBaseRegisterIndex + samplerIndex, m_NRDSamplers[samplerIndex]));
-            }
-
             uint32_t resourceIndex = 0;
             for (uint32_t resourceRangeIndex = 0; resourceRangeIndex < nrdPipelineDesc.resourceRangesNum; resourceRangeIndex++)
             {
@@ -496,7 +490,7 @@ public:
 
                     nvrhi::BindingSetItem setItem = nvrhi::BindingSetItem::None();
                     setItem.resourceHandle = texture;
-                    setItem.slot = nrdDescriptorRange.baseRegisterIndex + descriptorOffset;
+                    setItem.slot = instanceDesc.resourcesBaseRegisterIndex + descriptorOffset;
                     setItem.subresources = subresources;
                     setItem.type = (nrdDescriptorRange.descriptorType == nrd::DescriptorType::TEXTURE)
                         ? nvrhi::ResourceType::Texture_SRV
@@ -518,7 +512,24 @@ public:
             computePassParams.m_ShaderName = nrdPipelineDesc.shaderFileName;
             computePassParams.m_BindingSet = bindingSet;
             computePassParams.m_BindingLayout = bindingLayout;
-            computePassParams.m_DispatchGroupSize = { dispatchDesc.gridWidth, dispatchDesc.gridHeight, 1 };
+            computePassParams.m_DispatchGroupSize = {dispatchDesc.gridWidth, dispatchDesc.gridHeight, 1};
+
+            if (instanceDesc.samplersNum > 0)
+            {
+                nvrhi::BindingSetDesc samplersBindingSetDesc;
+                assert(instanceDesc.samplersNum <= std::size(m_NRDSamplers));
+                for (uint32_t samplerIndex = 0; samplerIndex < instanceDesc.samplersNum; samplerIndex++)
+                {
+                    samplersBindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Sampler(instanceDesc.samplersBaseRegisterIndex + samplerIndex, m_NRDSamplers[samplerIndex]));
+                }
+
+                nvrhi::BindingSetHandle samplersBindingSet;
+                nvrhi::BindingLayoutHandle samplersBindingLayout;
+                g_Graphic.CreateBindingSetAndLayout(samplersBindingSetDesc, samplersBindingSet, samplersBindingLayout, 1); // NOTE: samplers are in register space 1, as of NRD 4.15
+
+                computePassParams.m_AdditionalBindingSets.push_back(samplersBindingSet);
+                computePassParams.m_AdditionalBindingLayouts.push_back(samplersBindingLayout);
+            }
 
             g_Graphic.AddComputePass(computePassParams);
         }

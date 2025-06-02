@@ -65,7 +65,12 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
     [[nodiscard]] nvrhi::rt::PipelineHandle GetOrCreatePSO(const nvrhi::rt::PipelineDesc& psoDesc);
 
-    void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle);
+    void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
+    {
+        CreateBindingSetAndLayout(bindingSetDesc, outBindingSetHandle, outLayoutHandle, 0);
+    }
+
+    void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace);
 
     template <typename T>
     [[nodiscard]] nvrhi::BufferHandle CreateConstantBuffer(nvrhi::CommandListHandle commandList, const T& srcData)
@@ -105,6 +110,8 @@ public:
         nvrhi::BindingSetDesc m_BindingSetDesc; // TODO: remove
         nvrhi::BindingSetHandle m_BindingSet;
         nvrhi::BindingLayoutHandle m_BindingLayout;
+        std::vector<nvrhi::BindingSetHandle> m_AdditionalBindingSets;
+        std::vector<nvrhi::BindingLayoutHandle> m_AdditionalBindingLayouts;
         Vector3U m_DispatchGroupSize = Vector3U{ 0, 0, 0 };
         nvrhi::BufferHandle m_IndirectArgsBuffer;
         uint32_t m_IndirectArgsBufferOffsetBytes = 0;

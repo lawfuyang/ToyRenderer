@@ -495,29 +495,30 @@ nvrhi::rt::PipelineHandle Graphic::GetOrCreatePSO(const nvrhi::rt::PipelineDesc&
     return pipeline;
 }
 
-void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
+void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace)
 {
     PROFILE_FUNCTION();
 
     // copied from nvrhi::utils::CreateBindingSetAndLayout
     auto ConvertSetToLayout = [](std::span<const nvrhi::BindingSetItem> setDesc)
+    {
+        nvrhi::BindingLayoutDesc layoutDesc;
+        layoutDesc.visibility = nvrhi::ShaderType::All;
+        for (const nvrhi::BindingSetItem &item : setDesc)
         {
-            nvrhi::BindingLayoutDesc layoutDesc;
-            layoutDesc.visibility = nvrhi::ShaderType::All;
-            for (const nvrhi::BindingSetItem& item : setDesc)
-            {
-                nvrhi::BindingLayoutItem layoutItem{};
-                layoutItem.slot = item.slot;
-                layoutItem.type = item.type;
-                layoutItem.size = 1;
-                if (item.type == nvrhi::ResourceType::PushConstants)
-                    layoutItem.size = uint32_t(item.range.byteSize);
-                layoutDesc.bindings.push_back(layoutItem);
-            }
-            return layoutDesc;
-        };
+            nvrhi::BindingLayoutItem layoutItem{};
+            layoutItem.slot = item.slot;
+            layoutItem.type = item.type;
+            layoutItem.size = 1;
+            if (item.type == nvrhi::ResourceType::PushConstants)
+                layoutItem.size = uint32_t(item.range.byteSize);
+            layoutDesc.bindings.push_back(layoutItem);
+        }
+        return layoutDesc;
+    };
 
     nvrhi::BindingLayoutDesc layoutDesc = ConvertSetToLayout(bindingSetDesc.bindings);
+    layoutDesc.registerSpace = registerSpace;
 
     outLayoutHandle = GetOrCreateBindingLayout(layoutDesc);
     assert(outLayoutHandle);
@@ -877,6 +878,11 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     pipelineDesc.CS = GetShader(computePassParams.m_ShaderName);
     pipelineDesc.bindingLayouts = { bindingLayout };
 
+    for (nvrhi::BindingLayoutHandle layout : computePassParams.m_AdditionalBindingLayouts)
+    {
+        pipelineDesc.bindingLayouts.push_back(layout);
+    }
+
     if (computePassParams.m_bBindInstancesBindlessResources)
     {
         pipelineDesc.bindingLayouts.push_back(m_BindlessLayout);
@@ -885,6 +891,11 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     nvrhi::ComputeState computeState;
     computeState.pipeline = GetOrCreatePSO(pipelineDesc);
     computeState.bindings = { bindingSet };
+
+    for (nvrhi::BindingSetHandle additionalBindingSet : computePassParams.m_AdditionalBindingSets)
+    {
+        computeState.bindings.push_back(additionalBindingSet);
+    }
 
     if (computePassParams.m_bBindInstancesBindlessResources)
     {
