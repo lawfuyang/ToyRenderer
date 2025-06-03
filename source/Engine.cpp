@@ -445,21 +445,6 @@ void Engine::UpdateIMGUI()
     }
 }
 
-#if ENABLE_MEM_LEAK_DETECTION
-
-#define STB_LEAKCHECK_IMPLEMENTATION
-#include "extern/stb/stb_leakcheck.h"
-
-struct LeakDetector
-{
-	~LeakDetector()
-    {
-        stb_leakcheck_dumpmem();
-	}
-};
-static LeakDetector gs_LeakDetector;
-#endif // ENABLE_MEM_LEAK_DETECTION
-
 int SDL_main(int argc, char** argv)
 {
     Engine e;
