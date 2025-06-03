@@ -136,9 +136,9 @@ public:
 		Graphic::FullScreenPassParams fullScreenPassParams;
 		fullScreenPassParams.m_CommandList = commandList;
 		fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-		fullScreenPassParams.m_BindingSet = bindingSet;
-		fullScreenPassParams.m_BindingLayout = bindingLayout;
-		fullScreenPassParams.m_PixelShaderName = shaderName;
+		fullScreenPassParams.m_BindingSets = { bindingSet };
+		fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+		fullScreenPassParams.m_ShaderName = shaderName;
 		fullScreenPassParams.m_DepthStencilState = &depthStencilState;
 		fullScreenPassParams.m_PushConstantsData = &rootConsts;
 		fullScreenPassParams.m_PushConstantsBytes = sizeof(rootConsts);

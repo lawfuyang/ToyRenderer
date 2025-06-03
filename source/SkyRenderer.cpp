@@ -202,9 +202,9 @@ public:
         Graphic::FullScreenPassParams fullScreenPassParams;
         fullScreenPassParams.m_CommandList = commandList;
         fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-        fullScreenPassParams.m_BindingSet = bindingSet;
-        fullScreenPassParams.m_BindingLayout = bindingLayout;
-        fullScreenPassParams.m_PixelShaderName = "sky_PS_HosekWilkieSky";
+        fullScreenPassParams.m_BindingSets = { bindingSet };
+        fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+        fullScreenPassParams.m_ShaderName = "sky_PS_HosekWilkieSky";
         fullScreenPassParams.m_DepthStencilState = &depthStencilState;
 
         g_Graphic.AddFullScreenPass(fullScreenPassParams);

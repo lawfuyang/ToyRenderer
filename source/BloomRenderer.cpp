@@ -100,9 +100,9 @@ public:
 			Graphic::FullScreenPassParams fullScreenPassParams;
 			fullScreenPassParams.m_CommandList = commandList;
 			fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-			fullScreenPassParams.m_BindingSet = bindingSet;
-			fullScreenPassParams.m_BindingLayout = bindingLayout;
-			fullScreenPassParams.m_PixelShaderName = "bloom_PS_Downsample";
+			fullScreenPassParams.m_BindingSets = { bindingSet };
+			fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+			fullScreenPassParams.m_ShaderName = "bloom_PS_Downsample";
             fullScreenPassParams.m_ViewPort = &viewPort;
 			fullScreenPassParams.m_PushConstantsData = &bloomConsts;
 			fullScreenPassParams.m_PushConstantsBytes = sizeof(bloomConsts);
@@ -143,9 +143,9 @@ public:
 			Graphic::FullScreenPassParams fullScreenPassParams;
 			fullScreenPassParams.m_CommandList = commandList;
 			fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-			fullScreenPassParams.m_BindingSet = bindingSet;
-			fullScreenPassParams.m_BindingLayout = bindingLayout;
-			fullScreenPassParams.m_PixelShaderName = "bloom_PS_Upsample";
+			fullScreenPassParams.m_BindingSets = { bindingSet };
+			fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+			fullScreenPassParams.m_ShaderName = "bloom_PS_Upsample";
 			fullScreenPassParams.m_ViewPort = &viewPort;
 			fullScreenPassParams.m_PushConstantsData = &bloomConsts;
 			fullScreenPassParams.m_PushConstantsBytes = sizeof(bloomConsts);

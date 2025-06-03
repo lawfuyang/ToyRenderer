@@ -814,9 +814,6 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
 {
     nvrhi::CommandListHandle commandList = fullScreenPassParams.m_CommandList;
     const nvrhi::FramebufferDesc& frameBufferDesc = fullScreenPassParams.m_FrameBufferDesc;
-    nvrhi::BindingSetHandle bindingSet = fullScreenPassParams.m_BindingSet;
-    nvrhi::BindingLayoutHandle bindingLayout = fullScreenPassParams.m_BindingLayout;
-    std::string_view pixelShaderName = fullScreenPassParams.m_PixelShaderName;
     const nvrhi::BlendState::RenderTarget* blendStateIn = fullScreenPassParams.m_BlendState;
     const nvrhi::DepthStencilState* depthStencilStateIn = fullScreenPassParams.m_DepthStencilState;
     const nvrhi::Viewport* viewPortIn = fullScreenPassParams.m_ViewPort;
@@ -824,7 +821,7 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
     const size_t pushConstantsBytes = fullScreenPassParams.m_PushConstantsBytes;
 
     PROFILE_FUNCTION();
-    PROFILE_GPU_SCOPED(commandList, pixelShaderName.data());
+    PROFILE_GPU_SCOPED(commandList, fullScreenPassParams.m_ShaderName.data());
 
     nvrhi::BlendState blendState;
     blendState.targets[0] = blendStateIn ? *blendStateIn : g_CommonResources.BlendOpaque;
@@ -834,9 +831,9 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
     // PSO
     nvrhi::MeshletPipelineDesc PSODesc;
     PSODesc.MS = GetShader("fullscreen_MS_FullScreenTriangle");
-    PSODesc.PS = GetShader(pixelShaderName);
+    PSODesc.PS = GetShader(fullScreenPassParams.m_ShaderName);
     PSODesc.renderState = nvrhi::RenderState{ blendState, depthStencilState, g_CommonResources.CullNone };
-    PSODesc.bindingLayouts = { bindingLayout };
+    std::copy(fullScreenPassParams.m_BindingLayouts.begin(), fullScreenPassParams.m_BindingLayouts.end(), std::back_inserter(PSODesc.bindingLayouts));
 
     nvrhi::FramebufferHandle frameBuffer = m_NVRHIDevice->createFramebuffer(frameBufferDesc);
 
@@ -847,8 +844,9 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
     nvrhi::MeshletState meshletState;
     meshletState.framebuffer = frameBuffer;
     meshletState.viewport.addViewportAndScissorRect(viewPort);
-    meshletState.bindings = { bindingSet };
     meshletState.pipeline = GetOrCreatePSO(PSODesc, frameBuffer);
+
+    std::copy(fullScreenPassParams.m_BindingSets.begin(), fullScreenPassParams.m_BindingSets.end(), std::back_inserter(meshletState.bindings));
 
     commandList->setMeshletState(meshletState);
 

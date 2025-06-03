@@ -775,9 +775,9 @@ public:
             Graphic::FullScreenPassParams fullScreenPassParams;
             fullScreenPassParams.m_CommandList = commandList;
             fullScreenPassParams.m_FrameBufferDesc = frameBufferDescDepthBufferCopy;
-            fullScreenPassParams.m_BindingSet = bindingSet;
-            fullScreenPassParams.m_BindingLayout = bindingLayout;
-            fullScreenPassParams.m_PixelShaderName = "fullscreen_PS_Passthrough";
+            fullScreenPassParams.m_BindingSets = { bindingSet };
+            fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+            fullScreenPassParams.m_ShaderName = "fullscreen_PS_Passthrough";
             fullScreenPassParams.m_PushConstantsData = &resourcesIndices;
             fullScreenPassParams.m_PushConstantsBytes = sizeof(resourcesIndices);
 

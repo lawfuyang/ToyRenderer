@@ -9,6 +9,7 @@
 #include "MathUtilities.h"
 #include "Visual.h"
 #include "GraphicRHI.h"
+#include "SmallVector.h"
 
 class CommonResources;
 class DescriptorTableManager;
@@ -89,34 +90,31 @@ public:
     void ExecuteAllCommandLists();
     void QueueCommandList(nvrhi::CommandListHandle commandList) { AUTO_LOCK(m_PendingCommandListsLock); m_PendingCommandLists.push_back(commandList); }
 
-    struct FullScreenPassParams
+    struct AddPassParamsCommon
     {
         nvrhi::CommandListHandle m_CommandList;
-        nvrhi::FramebufferDesc m_FrameBufferDesc;
-        nvrhi::BindingSetHandle m_BindingSet;
-        nvrhi::BindingLayoutHandle m_BindingLayout;
-        std::string_view m_PixelShaderName;
-        const nvrhi::BlendState::RenderTarget* m_BlendState = nullptr;
-        const nvrhi::DepthStencilState* m_DepthStencilState = nullptr;
-        const nvrhi::Viewport* m_ViewPort = nullptr;
+        std::string m_ShaderName;
+        SmallVector<nvrhi::BindingSetHandle, 2> m_BindingSets;
+        SmallVector<nvrhi::BindingLayoutHandle, 2> m_BindingLayouts;
         const void* m_PushConstantsData = nullptr;
         size_t m_PushConstantsBytes = 0;
     };
 
+    struct FullScreenPassParams : public AddPassParamsCommon
+    {
+        nvrhi::FramebufferDesc m_FrameBufferDesc;
+        const nvrhi::BlendState::RenderTarget* m_BlendState = nullptr;
+        const nvrhi::DepthStencilState* m_DepthStencilState = nullptr;
+        const nvrhi::Viewport* m_ViewPort = nullptr;
+    };
+
     void AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams);
 
-    struct ComputePassParams
+    struct ComputePassParams : public AddPassParamsCommon
     {
-        nvrhi::CommandListHandle m_CommandList;
-        std::string_view m_ShaderName;
-        nvrhi::BindingSetDesc m_BindingSetDesc; // TODO: remove
-        std::vector<nvrhi::BindingSetHandle> m_BindingSets;
-        std::vector<nvrhi::BindingLayoutHandle> m_BindingLayouts;
         Vector3U m_DispatchGroupSize = Vector3U{ 0, 0, 0 };
         nvrhi::BufferHandle m_IndirectArgsBuffer;
         uint32_t m_IndirectArgsBufferOffsetBytes = 0;
-        const void* m_PushConstantsData = nullptr;
-        size_t m_PushConstantsBytes = 0;
     };
 
     void AddComputePass(const ComputePassParams& computePassParams);
