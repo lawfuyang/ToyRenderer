@@ -16,8 +16,9 @@
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\"; }
 
-CommandLineOption<bool> g_EnableGraphicRHIValidation{ "graphicrhivalidation", false };
-CommandLineOption<bool> g_EnableGPUValidation{ "enablegpuvalidation", false };
+CommandLineOption<bool> g_CVarUseVulkanRHI{ "usevulkanrhi", false };
+CommandLineOption<bool> g_CVarEnableGraphicRHIValidation{ "graphicrhivalidation", false };
+CommandLineOption<bool> g_CVarEnableGPUValidation{ "enablegpuvalidation", false };
 
 PRAGMA_OPTIMIZE_OFF;
 class NVRHIMessageCallback : public nvrhi::IMessageCallback
@@ -56,7 +57,7 @@ public:
         {
             PROFILE_SCOPED("CreateDXGIFactory");
 
-            const UINT factoryFlags = g_EnableGraphicRHIValidation.Get() ? DXGI_CREATE_FACTORY_DEBUG : 0;
+            const UINT factoryFlags = g_CVarEnableGraphicRHIValidation.Get() ? DXGI_CREATE_FACTORY_DEBUG : 0;
             HRESULT_CALL(CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&m_DXGIFactory)));
         }
 
@@ -83,7 +84,7 @@ public:
             g_DXGIAdapter = m_DXGIAdapter.Get();
         }
 
-        if (g_EnableGraphicRHIValidation.Get())
+        if (g_CVarEnableGraphicRHIValidation.Get())
         {
             ComPtr<ID3D12Debug6> debugInterface;
             HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
@@ -91,7 +92,7 @@ public:
             debugInterface->EnableDebugLayer();
             LOG_DEBUG("D3D12 Debug Layer enabled");
 
-            if (g_EnableGPUValidation.Get())
+            if (g_CVarEnableGPUValidation.Get())
             {
                 debugInterface->SetEnableGPUBasedValidation(true);
                 LOG_DEBUG("D3D12 GPU Based Validation enabled");
@@ -126,7 +127,7 @@ public:
             LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", dFeatureLevel.MaxSupportedFeatureLevel);
 
             // break on warnings/errors
-            if (g_EnableGPUValidation.Get())
+            if (g_CVarEnableGPUValidation.Get())
             {
                 ComPtr<ID3D12InfoQueue1> debugInfoQueue;
                 HRESULT_CALL(m_D3DDevice->QueryInterface(__uuidof(ID3D12InfoQueue1), (LPVOID *)&debugInfoQueue));
@@ -213,7 +214,7 @@ public:
 
         nvrhi::DeviceHandle device = nvrhi::d3d12::createDevice(deviceDesc);
 
-        if (g_EnableGraphicRHIValidation.Get())
+        if (g_CVarEnableGraphicRHIValidation.Get())
         {
             device = nvrhi::validation::createValidationLayer(device);
         }
@@ -339,17 +340,7 @@ public:
     void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override { assert(false && "Not Implemented!"); }
 };
 
-GraphicRHI* GraphicRHI::Create(nvrhi::GraphicsAPI api)
+GraphicRHI* GraphicRHI::Create()
 {
-    switch (api)
-    {
-    case nvrhi::GraphicsAPI::D3D12:
-        return new D3D12RHI;
-    case nvrhi::GraphicsAPI::VULKAN:
-        assert(false && "Not Implemented!");
-        return new VulkanRHI;
-    default:
-        assert(false && "Unsupported Graphics API");
-        return nullptr;
-    }
+    return g_CVarUseVulkanRHI.Get() ? static_cast<GraphicRHI*>(new VulkanRHI) : static_cast<GraphicRHI*>(new D3D12RHI);
 }

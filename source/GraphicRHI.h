@@ -7,7 +7,7 @@ class GraphicRHI
 public:
     virtual ~GraphicRHI() = default;
 
-    static GraphicRHI* Create(nvrhi::GraphicsAPI api);
+    static GraphicRHI* Create();
     
     virtual nvrhi::DeviceHandle CreateDevice() = 0;
     virtual void InitSwapChainTextureHandles() = 0;

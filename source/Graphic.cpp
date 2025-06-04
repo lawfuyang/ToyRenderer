@@ -13,7 +13,6 @@
 
 #include "shaders/ShaderInterop.h"
 
-CommandLineOption<bool> g_CVarUseVulkanRHI{ "usevulkanrhi", false };
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
 
 void Graphic::InitRenderDocAPI()
@@ -37,7 +36,7 @@ void Graphic::InitDevice()
 {
     PROFILE_FUNCTION();
 
-    m_GraphicRHI = std::unique_ptr<GraphicRHI>{ GraphicRHI::Create(nvrhi::GraphicsAPI::D3D12) };
+    m_GraphicRHI = std::unique_ptr<GraphicRHI>{ GraphicRHI::Create() };
 
     m_NVRHIDevice = m_GraphicRHI->CreateDevice();
 
