@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.20)
 
 set(AGILITY_SDK_VERSION "1.616.0")
 set(DXC_VERSION "v1.8.2505/dxc_2025_05_24")
@@ -43,35 +43,11 @@ CheckAndDownloadPackage("RenderDoc" ${RENDERDOC_VERSION} ${EXTERN_DIR}/renderdoc
 file(MAKE_DIRECTORY "${BIN_DIR}")
 
 # symlink dlls
-execute_process(
-COMMAND ${CMAKE_COMMAND} -E create_symlink
-        ${EXTERN_DIR}/agilitysdk/build/native/bin/x64/D3D12Core.dll
-        ${BIN_DIR}/D3D12Core.dll
-)
-
-execute_process(
-COMMAND ${CMAKE_COMMAND} -E create_symlink
-        ${EXTERN_DIR}/agilitysdk/build/native/bin/x64/d3d12SDKLayers.dll
-        ${BIN_DIR}/d3d12SDKLayers.dll
-)
-
-execute_process(
-COMMAND ${CMAKE_COMMAND} -E create_symlink
-        ${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.dll
-        ${BIN_DIR}/SDL3.dll
-)
-
-execute_process(
-COMMAND ${CMAKE_COMMAND} -E create_symlink
-        ${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc.dll
-        ${BIN_DIR}/renderdoc.dll
-)
-
-execute_process(
-COMMAND ${CMAKE_COMMAND} -E create_symlink
-        ${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc_app.h
-        ${EXTERN_DIR}/renderdoc/renderdoc_app.h
-)
+file(CREATE_LINK "${EXTERN_DIR}/agilitysdk/build/native/bin/x64/D3D12Core.dll" "${BIN_DIR}/D3D12Core.dll" SYMBOLIC)
+file(CREATE_LINK "${EXTERN_DIR}/agilitysdk/build/native/bin/x64/d3d12SDKLayers.dll" "${BIN_DIR}/d3d12SDKLayers.dll" SYMBOLIC)
+file(CREATE_LINK "${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.dll" "${BIN_DIR}/SDL3.dll" SYMBOLIC)
+file(CREATE_LINK "${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc.dll" "${BIN_DIR}/renderdoc.dll" SYMBOLIC)
+file(CREATE_LINK "${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc_app.h" "${EXTERN_DIR}/renderdoc/renderdoc_app.h" SYMBOLIC)
 
 # i need to do this because shadermake manually & retardedly sets 'CMAKE_MSVC_RUNTIME_LIBRARY'
 set(CMAKE_MSVC_RUNTIME_LIBRARY 
@@ -119,8 +95,9 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 # src files
 file(GLOB_RECURSE BASE_SRC "${SRC_DIR}/*.cpp" "${SRC_DIR}/*.h" "${SRC_DIR}/*.hpp" "${SRC_DIR}/*.inl")
 file(GLOB IMGUI_SRC "${EXTERN_DIR}/imgui/*.*" "${EXTERN_DIR}/imgui/backends/imgui_impl_sdl3.*")
+file(GLOB MICROPROFILE_SRC "${EXTERN_DIR}/microprofile/microprofile.h" "${EXTERN_DIR}/microprofile/microprofile.cpp")
 
-set(TOYRENDERER_SRC ${BASE_SRC} ${IMGUI_SRC})
+set(TOYRENDERER_SRC ${BASE_SRC} ${IMGUI_SRC} ${MICROPROFILE_SRC})
 
 set(NVRHI_WITH_DX12 ON)
 set(NVRHI_WITH_VULKAN ON)
@@ -141,7 +118,6 @@ set(SHADERMAKE_FIND_DXC OFF)
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/meshoptimizer)
-add_subdirectory(extern/microprofile)
 add_subdirectory(extern/nvrhi)
 add_subdirectory(extern/taskflow)
 add_subdirectory(extern/nvidia/NRD)
@@ -161,7 +137,6 @@ set(TOYRENDERER_LIBRARIES
 	d3d12 dxgi dxguid Ws2_32
 	ShaderMakeBlob
 	meshoptimizer
-	microprofile
 	nvrhi
 	nvrhi_d3d12
 	nvrhi_vk
@@ -193,7 +168,7 @@ target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 target_compile_definitions(ToyRenderer PUBLIC _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
 target_compile_definitions(ToyRenderer PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
 target_compile_definitions(ToyRenderer PUBLIC IMGUI_DEFINE_MATH_OPERATORS IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
-target_compile_definitions(microprofile PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
+target_compile_definitions(ToyRenderer PUBLIC MICROPROFILE_GPU_TIMERS MICROPROFILE_GPU_TIMERS_D3D12)
 
 ################################################################################
 
