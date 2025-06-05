@@ -18,6 +18,8 @@ static_assert(std::is_same_v<uint32_t, Graphic::IndexBufferFormat_t>);
 static_assert(_countof(Mesh::m_LODs) == Graphic::kMaxNumMeshLODs);
 static_assert(Graphic::kMaxNumMeshLODs == kMaxNumMeshLODs);
 
+CommandLineOption<bool> g_NoMeshLODs{ "nomeshlods", false };
+
 static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
 {
     return g_Graphic.m_InstancesBindlessResourcesDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
@@ -289,6 +291,11 @@ void Mesh::Initialize(
 
                 newMeshlet.m_ConeAxisAndCutoff = packedAxisX | (packedAxisY << 8) | (packedAxisZ << 16) | (packedCutoff << 24);
             }
+        }
+
+        if (g_NoMeshLODs.Get())
+        {
+            break;
         }
 
         {
