@@ -581,11 +581,6 @@ struct DDSFile
         const uint32_t fileSize = ftell(f);
         assert(fileSize >= 4);
 
-        if ((sizeof(uint32_t) + sizeof(Header)) >= fileSize)
-        {
-            assert(0);
-        }
-
         fseek(f, 0, SEEK_SET);
 
         uint32_t fileReadOffset = 0;
@@ -595,13 +590,15 @@ struct DDSFile
         {
             assert(0);
         }
+        assert(IsDDSImage(magic));
+        fileReadOffset += sizeof(kDDSMagic);
 
         Header header;
         if (fread(&header, sizeof(header), 1, f) != 1)
         {
             assert(0);
         }
-        fileReadOffset += sizeof(kDDSMagic) + sizeof(Header);
+        fileReadOffset += sizeof(Header);
 
         if (header.m_size != sizeof(Header) || header.m_pixelFormat.m_size != sizeof(PixelFormat))
         {
@@ -622,11 +619,8 @@ struct DDSFile
 
         const ptrdiff_t imageDataStartOffset = sizeof(uint32_t) + sizeof(Header) + (bIsDXT10Header ? sizeof(HeaderDXT10) : 0);
 
-        const uint32_t height = header.m_height;
-        const uint32_t width = header.m_width;
         DXGI_FORMAT dxgiFormat = DXGI_FORMAT_UNKNOWN;
-        const uint32_t mipCount = header.m_mipMapCount;
-        assert(mipCount != 0);
+        assert(header.m_mipMapCount != 0);
 
         if (bIsDXT10Header)
         {
@@ -669,27 +663,27 @@ struct DDSFile
             assert(!(header.m_caps2 & uint32_t(HeaderCaps2FlagBits::CubemapAllFaces)));
         }
 
-        uint32_t mipsToRead = mipCount;
+        uint32_t mipsToRead = header.m_mipMapCount;
         uint32_t startMipToRead = 0;
 
         if (g_LoadPackedMipsOnly.Get())
         {
             const uint32_t kPackedMipDimension = 256;
-            const uint32_t maxMipDimension = std::max<uint32_t>(width, height);
+            const uint32_t maxMipDimension = std::max<uint32_t>(header.m_width, header.m_height);
 
             if (maxMipDimension > kPackedMipDimension)
             {
                 uint32_t minMip = static_cast<uint32_t>(std::ceil(std::log2(static_cast<double>(maxMipDimension) / kPackedMipDimension)));
-                minMip = std::min(minMip, mipCount); // Clamp to mipCount
-                mipsToRead = mipCount - minMip;
+                minMip = std::min<uint32_t>(minMip, header.m_mipMapCount); // Clamp to mipCount
+                mipsToRead = header.m_mipMapCount - minMip;
                 startMipToRead = minMip;
             }
 
             // offset the file read position to the start of the first mip to read
             for (uint32_t i = 0; i < startMipToRead; ++i)
             {
-                const uint32_t mipWidth = std::max<uint32_t>(1, width >> i);
-                const uint32_t mipHeight = std::max<uint32_t>(1, height >> i);
+                const uint32_t mipWidth = std::max<uint32_t>(1, header.m_width >> i);
+                const uint32_t mipHeight = std::max<uint32_t>(1, header.m_height >> i);
 
                 uint32_t numBytes;
                 uint32_t rowBytes;
@@ -712,8 +706,8 @@ struct DDSFile
 
             const uint32_t mipToRead = startMipToRead + i;
 
-            const uint32_t mipWidth = std::max<uint32_t>(1, width >> mipToRead);
-            const uint32_t mipHeight = std::max<uint32_t>(1, height >> mipToRead);
+            const uint32_t mipWidth = std::max<uint32_t>(1, header.m_width >> mipToRead);
+            const uint32_t mipHeight = std::max<uint32_t>(1, header.m_height >> mipToRead);
 
             uint32_t numBytes;
             uint32_t rowBytes;
@@ -732,8 +726,8 @@ struct DDSFile
             assert(fileReadOffset <= fileSize);
         }
 
-        const uint32_t packedMipsWidth = std::max<uint32_t>(1, width >> startMipToRead);
-        const uint32_t packedMipsHeight = std::max<uint32_t>(1, height >> startMipToRead);
+        const uint32_t packedMipsWidth = std::max<uint32_t>(1, header.m_width >> startMipToRead);
+        const uint32_t packedMipsHeight = std::max<uint32_t>(1, header.m_height >> startMipToRead);
 
         nvrhi::TextureDesc textureDesc;
         textureDesc.format = ConvertFromDXGIFormat(dxgiFormat);
