@@ -235,13 +235,13 @@ public:
         SwapChainDesc.Width = g_Graphic.m_DisplayResolution.x;
         SwapChainDesc.Height = g_Graphic.m_DisplayResolution.y;
         SwapChainDesc.Format = nvrhi::d3d12::convertFormat(nvrhi::Format::RGBA8_UNORM); // TODO: HDR display support
-        SwapChainDesc.Stereo = false;                                                   // set to true for VR
+        SwapChainDesc.Stereo = false;
         SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         SwapChainDesc.BufferCount = _countof(m_SwapChainD3D12Resources);
-        SwapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+        SwapChainDesc.Scaling = DXGI_SCALING_NONE;
         SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        SwapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED; // TODO: Learn the differences
-        SwapChainDesc.SampleDesc.Count = 1;                    // >1 valid only with bit-block transfer (bitblt) model swap chains.
+        SwapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+        SwapChainDesc.SampleDesc.Count = 1;
         SwapChainDesc.Flags = m_bTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
         ::HWND hwnd = (::HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(g_Engine.m_SDLWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
