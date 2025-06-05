@@ -7,6 +7,8 @@
 #include "Graphic.h"
 #include "Utilities.h"
 
+CommandLineOption<bool> g_LoadPackedMipsOnly{ "loadpackedmipsonly", false };
+
 bool IsSTBImage(const void* data, uint32_t nbBytes)
 {
     return !!stbi_info_from_memory((const stbi_uc*)data, (int)nbBytes, nullptr, nullptr, nullptr);
@@ -198,16 +200,14 @@ struct DDSFile
     {
         uint32_t m_width;
         uint32_t m_height;
-        uint32_t m_depth;
-        const void* m_mem;
         uint32_t m_memPitch;
         uint32_t m_memSlicePitch;
+        std::vector<std::byte> m_data;
     };
 
-    uint32_t MakeFourCC(char ch0, char ch1, char ch2, char ch3)
+    constexpr static uint32_t MakeFourCC(char ch0, char ch1, char ch2, char ch3)
     {
-        return (uint32_t(uint8_t(ch0)) | (uint32_t(uint8_t(ch1)) << 8) |
-                (uint32_t(uint8_t(ch2)) << 16) | (uint32_t(uint8_t(ch3)) << 24));
+        return (uint32_t(uint8_t(ch0)) | (uint32_t(uint8_t(ch1)) << 8) | (uint32_t(uint8_t(ch2)) << 16) | (uint32_t(uint8_t(ch3)) << 24));
     }
 
     DXGI_FORMAT GetDXGIFormat(const PixelFormat& pf)
@@ -578,7 +578,7 @@ struct DDSFile
 
         fseek(f, 0, SEEK_END);
 
-        const long fileSize = ftell(f);
+        const uint32_t fileSize = ftell(f);
         assert(fileSize >= 4);
 
         if ((sizeof(uint32_t) + sizeof(Header)) >= fileSize)
@@ -587,6 +587,8 @@ struct DDSFile
         }
 
         fseek(f, 0, SEEK_SET);
+
+        uint32_t fileReadOffset = 0;
 
         char magic[4];
         if (fread(magic, sizeof(char), sizeof(kDDSMagic), f) != std::size(kDDSMagic))
@@ -599,14 +601,17 @@ struct DDSFile
         {
             assert(0);
         }
+        fileReadOffset += sizeof(kDDSMagic) + sizeof(Header);
 
         if (header.m_size != sizeof(Header) || header.m_pixelFormat.m_size != sizeof(PixelFormat))
         {
             assert(0);
         }
 
+        const uint32_t kDX10FourCC = MakeFourCC('D', 'X', '1', '0');
+
         bool bIsDXT10Header = false;
-        if ((header.m_pixelFormat.m_flags & uint32_t(PixelFormatFlagBits::FourCC)) && (MakeFourCC('D', 'X', '1', '0') == header.m_pixelFormat.m_fourCC))
+        if ((header.m_pixelFormat.m_flags & uint32_t(PixelFormatFlagBits::FourCC)) && (header.m_pixelFormat.m_fourCC == kDX10FourCC))
         {
             if ((sizeof(uint32_t) + sizeof(Header) + sizeof(HeaderDXT10)) >= fileSize)
             {
@@ -615,7 +620,7 @@ struct DDSFile
             bIsDXT10Header = true;
         }
 
-        const ptrdiff_t imageDataOffset = sizeof(uint32_t) + sizeof(Header) + (bIsDXT10Header ? sizeof(HeaderDXT10) : 0);
+        const ptrdiff_t imageDataStartOffset = sizeof(uint32_t) + sizeof(Header) + (bIsDXT10Header ? sizeof(HeaderDXT10) : 0);
 
         const uint32_t height = header.m_height;
         const uint32_t width = header.m_width;
@@ -630,6 +635,7 @@ struct DDSFile
             {
                 assert(0);
             }
+            fileReadOffset += sizeof(HeaderDXT10);
 
             assert(dxt10Header.m_arraySize == 1);
 
@@ -663,60 +669,86 @@ struct DDSFile
             assert(!(header.m_caps2 & uint32_t(HeaderCaps2FlagBits::CubemapAllFaces)));
         }
 
-        // reset file ptr to the beginning of the file, and read whole file into memory
-        // TODO: load only mips up to 256x256
-        fseek(f, 0, SEEK_SET);
-        std::vector<uint8_t> dds;
-        dds.resize(fileSize);
-        if (fread(dds.data(), sizeof(uint8_t), fileSize, f) != fileSize)
+        uint32_t mipsToRead = mipCount;
+        uint32_t startMipToRead = 0;
+
+        if (g_LoadPackedMipsOnly.Get())
         {
-            assert(0);
+            const uint32_t kPackedMipDimension = 256;
+            const uint32_t maxMipDimension = std::max<uint32_t>(width, height);
+
+            if (maxMipDimension > kPackedMipDimension)
+            {
+                uint32_t minMip = static_cast<uint32_t>(std::ceil(std::log2(static_cast<double>(maxMipDimension) / kPackedMipDimension)));
+                minMip = std::min(minMip, mipCount); // Clamp to mipCount
+                mipsToRead = mipCount - minMip;
+                startMipToRead = minMip;
+            }
+
+            // offset the file read position to the start of the first mip to read
+            for (uint32_t i = 0; i < startMipToRead; ++i)
+            {
+                const uint32_t mipWidth = std::max<uint32_t>(1, width >> i);
+                const uint32_t mipHeight = std::max<uint32_t>(1, height >> i);
+
+                uint32_t numBytes;
+                uint32_t rowBytes;
+                GetImageInfo(mipWidth, mipHeight, dxgiFormat, &numBytes, &rowBytes, nullptr);
+
+                const int seekResult = fseek(f, numBytes, SEEK_CUR);
+                assert(seekResult == 0);
+
+                fileReadOffset += numBytes;
+                assert(fileReadOffset <= fileSize);
+            }
         }
 
         std::vector<MipData> imageDatas;
-        imageDatas.resize(mipCount);
+        imageDatas.resize(mipsToRead);
 
-        const uint8_t* srcBits = dds.data() + imageDataOffset;
-        const uint8_t* endBits = dds.data() + dds.size();
-
-        uint32_t w = width;
-        uint32_t h = height;
-        for (uint32_t mip = 0; mip < mipCount; mip++)
+        for (uint32_t i = 0; i < imageDatas.size(); ++i)
         {
+            PROFILE_SCOPED("Read mip bytes from file");
+
+            const uint32_t mipToRead = startMipToRead + i;
+
+            const uint32_t mipWidth = std::max<uint32_t>(1, width >> mipToRead);
+            const uint32_t mipHeight = std::max<uint32_t>(1, height >> mipToRead);
+
             uint32_t numBytes;
             uint32_t rowBytes;
-            GetImageInfo(w, h, dxgiFormat, &numBytes, &rowBytes, nullptr);
+            GetImageInfo(mipWidth, mipHeight, dxgiFormat, &numBytes, &rowBytes, nullptr);
 
-            imageDatas[mip].m_width = w;
-            imageDatas[mip].m_height = h;
-            imageDatas[mip].m_depth = 1;
-            imageDatas[mip].m_mem = srcBits;
-            imageDatas[mip].m_memPitch = rowBytes;
-            imageDatas[mip].m_memSlicePitch = numBytes;
+            imageDatas[i].m_width = mipWidth;
+            imageDatas[i].m_height = mipHeight;
+            imageDatas[i].m_memPitch = rowBytes;
+            imageDatas[i].m_memSlicePitch = numBytes;
 
-            if (srcBits + numBytes > endBits)
-            {
-                assert(0);
-            }
+            imageDatas[i].m_data.resize(numBytes);
+            const uint32_t bytesRead = fread(imageDatas[i].m_data.data(), sizeof(std::byte), numBytes, f);
+            assert(bytesRead == numBytes);
 
-            srcBits += numBytes;
-            w = std::max<uint32_t>(1, w / 2);
-            h = std::max<uint32_t>(1, h / 2);
+            fileReadOffset += numBytes;
+            assert(fileReadOffset <= fileSize);
         }
+
+        const uint32_t packedMipsWidth = std::max<uint32_t>(1, width >> startMipToRead);
+        const uint32_t packedMipsHeight = std::max<uint32_t>(1, height >> startMipToRead);
 
         nvrhi::TextureDesc textureDesc;
         textureDesc.format = ConvertFromDXGIFormat(dxgiFormat);
-        textureDesc.width = width;
-        textureDesc.height = height;
-        textureDesc.mipLevels = mipCount;
+        textureDesc.width = packedMipsWidth;
+        textureDesc.height = packedMipsHeight;
+        textureDesc.mipLevels = imageDatas.size();
         textureDesc.debugName = debugName;
         textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
 
         nvrhi::TextureHandle newTexture = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
 
-        for (uint32_t mip = 0; mip < mipCount; ++mip)
+        for (uint32_t i = 0; i < imageDatas.size(); ++i)
         {
-            commandList->writeTexture(newTexture, 0, mip, imageDatas[mip].m_mem, imageDatas[mip].m_memPitch);
+            PROFILE_SCOPED("Write mip to texture");
+            commandList->writeTexture(newTexture, 0, i, imageDatas[i].m_data.data(), imageDatas[i].m_memPitch);
         }
 
         commandList->setPermanentTextureState(newTexture, nvrhi::ResourceStates::ShaderResource);
