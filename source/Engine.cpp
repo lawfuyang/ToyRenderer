@@ -83,24 +83,6 @@ static Vector2U GetBestWindowSize()
     return kSizes[std::size(kSizes) - 1];
 }
 
-static bool IsWindowsDeveloperModeEnaable()
-{
-    // Look in the Windows Registry to determine if Developer Mode is enabled
-    HKEY hKey;
-    LSTATUS result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", 0, KEY_READ, &hKey);
-    if (result != ERROR_SUCCESS)
-    {
-        return false;
-    }
-
-    DWORD keyValue, keySize = sizeof(DWORD);
-    result = RegQueryValueEx(hKey, "AllowDevelopmentWithoutDevLicense", 0, NULL, (byte*)&keyValue, &keySize);
-
-    RegCloseKey(hKey);
-
-    return (result == ERROR_SUCCESS) && (keyValue == 1);
-}
-
 std::string& Engine::GetDebugOutputStringForCurrentThread()
 {
     thread_local std::string tl_DebugOutputString;
@@ -119,9 +101,6 @@ void Engine::Initialize(int argc, char** argv)
     LOG_DEBUG("Application Directory: %s", GetApplicationDirectory());
 
     ParseCommandlineArguments(argc, argv);
-
-    m_bWindowsDeveloperMode = IsWindowsDeveloperModeEnaable();
-    LOG_DEBUG("Windows Developer Mode: %s", m_bWindowsDeveloperMode ? "Enabled" : "Disabled");
 
     SDL_CALL(SDL_Init(SDL_INIT_VIDEO));
 

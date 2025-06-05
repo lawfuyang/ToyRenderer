@@ -25,8 +25,6 @@ public:
 
     static std::string& GetDebugOutputStringForCurrentThread();
 
-    bool m_bWindowsDeveloperMode = false;
-
     uint32_t m_FPSLimit = 200;
 
     float m_CPUFrameTimeMs = 0.0f;
