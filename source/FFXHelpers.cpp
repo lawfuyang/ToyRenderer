@@ -83,7 +83,8 @@ namespace FFXHelpers
 		}
 
 		// bind dummy uav texture mip lvl beyond desTexDesc.mipLevels
-		for (; i < Graphic::kMaxTextureMipsToGenerate; ++i)
+		// NOTE: SPD only supports up to 12 mips. see: ffxSpdSetup
+		for (; i < 12; ++i)
 		{
 			bindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Texture_UAV(kStartUAVSlotForMips + i, g_CommonResources.DummyUAV2DTexture.m_NVRHITextureHandle));
 		}

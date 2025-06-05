@@ -22,7 +22,7 @@ class Graphic
 public:
     SingletonFunctionsSimple(Graphic);
 
-    static constexpr uint32_t kMaxTextureMipsToGenerate = 12;
+    static constexpr uint32_t kMaxTextureMips = 14; // max 8k textures, 14 mips is enough for 8k textures
     static constexpr uint32_t kMaxThreadGroupsPerDimension = 65535; // both d3d12 & vulkan have a limit of 65535 thread groups per dimension
     static constexpr uint32_t kMaxNumMeshLODs = 8;
 

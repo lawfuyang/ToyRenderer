@@ -17,6 +17,7 @@ static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletTriangles);
 static_assert(std::is_same_v<uint32_t, Graphic::IndexBufferFormat_t>);
 static_assert(_countof(Mesh::m_LODs) == Graphic::kMaxNumMeshLODs);
 static_assert(Graphic::kMaxNumMeshLODs == kMaxNumMeshLODs);
+static_assert(_countof(Texture::m_MipDataOffsets) == Graphic::kMaxTextureMips);
 
 CommandLineOption<bool> g_NoMeshLODs{ "nomeshlods", false };
 
@@ -107,7 +108,7 @@ void Texture::LoadFromFile(std::string_view filePath)
     }
     else if (IsDDSImage(fileStream))
     {
-        m_NVRHITextureHandle = CreateDDSTextureFromFile(commandList, fileStream, debugName.data());
+        m_NVRHITextureHandle = CreateDDSTextureFromFile(commandList, fileStream, m_MipDataOffsets, debugName.data());
     }
     else
     {

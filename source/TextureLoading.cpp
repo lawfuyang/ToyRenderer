@@ -572,7 +572,7 @@ struct DDSFile
         }
     }
 
-    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE* f, const char* debugName)
+    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE* f, uint32_t mipDataOffsets[Graphic::kMaxTextureMips], const char* debugName)
     {
         assert(f);
 
@@ -692,6 +692,8 @@ struct DDSFile
                 const int seekResult = fseek(f, numBytes, SEEK_CUR);
                 assert(seekResult == 0);
 
+                mipDataOffsets[i] = fileReadOffset;
+
                 fileReadOffset += numBytes;
                 assert(fileReadOffset <= fileSize);
             }
@@ -721,6 +723,8 @@ struct DDSFile
             imageDatas[i].m_data.resize(numBytes);
             const uint32_t bytesRead = fread(imageDatas[i].m_data.data(), sizeof(std::byte), numBytes, f);
             assert(bytesRead == numBytes);
+
+            mipDataOffsets[startMipToRead + i] = fileReadOffset;
 
             fileReadOffset += numBytes;
             assert(fileReadOffset <= fileSize);
@@ -879,10 +883,10 @@ struct DDSFile
     }
 };
 
-nvrhi::TextureHandle CreateDDSTextureFromFile(nvrhi::CommandListHandle commandList, FILE* file, const char* debugName)
+nvrhi::TextureHandle CreateDDSTextureFromFile(nvrhi::CommandListHandle commandList, FILE* file, uint32_t mipDataOffsets[Graphic::kMaxTextureMips], const char* debugName)
 {
     DDSFile ddsFile;
-    return ddsFile.Load(commandList, file, debugName);
+    return ddsFile.Load(commandList, file, mipDataOffsets, debugName);
 }
 
 nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB)

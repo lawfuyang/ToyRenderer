@@ -21,6 +21,8 @@ public:
 
     bool IsValid() const;
 
+    uint32_t m_MipDataOffsets[14] = { 0 };
+
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;
     nvrhi::SamplerAddressMode m_AddressMode = nvrhi::SamplerAddressMode::Wrap;
