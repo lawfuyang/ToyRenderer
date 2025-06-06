@@ -125,7 +125,7 @@ public:
             LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", dFeatureLevel.MaxSupportedFeatureLevel);
 
             // break on warnings/errors
-            if (g_CVarEnableGPUValidation.Get())
+            if (g_CVarEnableGraphicRHIValidation.Get())
             {
                 ComPtr<ID3D12InfoQueue1> debugInfoQueue;
                 HRESULT_CALL(m_D3DDevice->QueryInterface(__uuidof(ID3D12InfoQueue1), (LPVOID *)&debugInfoQueue));
