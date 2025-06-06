@@ -236,7 +236,7 @@ public:
 
 	bool Setup(RenderGraph& renderGraph) override
 	{
-		const uint32_t nbInstances = g_Graphic.m_Scene->m_Primitives.size();
+		const uint32_t nbInstances = g_Scene->m_Primitives.size();
         if (nbInstances == 0)
         {
             return true;

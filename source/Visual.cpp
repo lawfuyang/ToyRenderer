@@ -418,7 +418,7 @@ Matrix Node::MakeLocalToWorldMatrix() const
 
     if (m_ParentNodeID != UINT_MAX)
     {
-        worldMatrix *= g_Graphic.m_Scene->m_Nodes.at(m_ParentNodeID).MakeLocalToWorldMatrix();
+        worldMatrix *= g_Scene->m_Nodes.at(m_ParentNodeID).MakeLocalToWorldMatrix();
     }
 
     return worldMatrix;
