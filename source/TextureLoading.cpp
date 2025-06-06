@@ -97,18 +97,6 @@ static nvrhi::Format ConvertFromDXGIFormat(DXGI_FORMAT format)
 
 struct DDSFile
 {
-    enum class Result
-    {
-        Success,
-        ErrorFileOpen,
-        ErrorRead,
-        ErrorMagicWord,
-        ErrorSize,
-        ErrorVerify,
-        ErrorNotSupported,
-        ErrorInvalidData,
-    };
-
     enum class PixelFormatFlagBits : uint32_t
     {
         FourCC = 0x00000004,
@@ -573,7 +561,134 @@ struct DDSFile
         }
     }
 
-    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE* f, StreamingMipData* streamingMipDatas, const char* debugName)
+    void GetImageInfo(uint32_t w, uint32_t h, DXGI_FORMAT fmt,
+                      uint32_t *outNumBytes, uint32_t *outRowBytes,
+                      uint32_t *outNumRows)
+    {
+        uint32_t numBytes = 0;
+        uint32_t rowBytes = 0;
+        uint32_t numRows = 0;
+
+        bool bc = false;
+        bool packed = false;
+        bool planar = false;
+        uint32_t bpe = 0;
+        switch (fmt)
+        {
+        case DXGI_FORMAT_BC1_TYPELESS:
+        case DXGI_FORMAT_BC1_UNORM:
+        case DXGI_FORMAT_BC1_UNORM_SRGB:
+        case DXGI_FORMAT_BC4_TYPELESS:
+        case DXGI_FORMAT_BC4_UNORM:
+        case DXGI_FORMAT_BC4_SNORM:
+            bc = true;
+            bpe = 8;
+            break;
+
+        case DXGI_FORMAT_BC2_TYPELESS:
+        case DXGI_FORMAT_BC2_UNORM:
+        case DXGI_FORMAT_BC2_UNORM_SRGB:
+        case DXGI_FORMAT_BC3_TYPELESS:
+        case DXGI_FORMAT_BC3_UNORM:
+        case DXGI_FORMAT_BC3_UNORM_SRGB:
+        case DXGI_FORMAT_BC5_TYPELESS:
+        case DXGI_FORMAT_BC5_UNORM:
+        case DXGI_FORMAT_BC5_SNORM:
+        case DXGI_FORMAT_BC6H_TYPELESS:
+        case DXGI_FORMAT_BC6H_UF16:
+        case DXGI_FORMAT_BC6H_SF16:
+        case DXGI_FORMAT_BC7_TYPELESS:
+        case DXGI_FORMAT_BC7_UNORM:
+        case DXGI_FORMAT_BC7_UNORM_SRGB:
+            bc = true;
+            bpe = 16;
+            break;
+
+        case DXGI_FORMAT_R8G8_B8G8_UNORM:
+        case DXGI_FORMAT_G8R8_G8B8_UNORM:
+        case DXGI_FORMAT_YUY2:
+            packed = true;
+            bpe = 4;
+            break;
+
+        case DXGI_FORMAT_Y210:
+        case DXGI_FORMAT_Y216:
+            packed = true;
+            bpe = 8;
+            break;
+
+        case DXGI_FORMAT_NV12:
+        case DXGI_FORMAT_420_OPAQUE:
+            planar = true;
+            bpe = 2;
+            break;
+
+        case DXGI_FORMAT_P010:
+        case DXGI_FORMAT_P016:
+            planar = true;
+            bpe = 4;
+            break;
+        default:
+            break;
+        }
+
+        if (bc)
+        {
+            uint32_t numBlocksWide = 0;
+            if (w > 0)
+            {
+                numBlocksWide = std::max<uint32_t>(1, (w + 3) / 4);
+            }
+            uint32_t numBlocksHigh = 0;
+            if (h > 0)
+            {
+                numBlocksHigh = std::max<uint32_t>(1, (h + 3) / 4);
+            }
+            rowBytes = numBlocksWide * bpe;
+            numRows = numBlocksHigh;
+            numBytes = rowBytes * numBlocksHigh;
+        }
+        else if (packed)
+        {
+            rowBytes = ((w + 1) >> 1) * bpe;
+            numRows = h;
+            numBytes = rowBytes * h;
+        }
+        else if (fmt == DXGI_FORMAT_NV11)
+        {
+            rowBytes = ((w + 3) >> 2) * 4;
+            numRows = h * 2;
+            numBytes = rowBytes + numRows;
+        }
+        else if (planar)
+        {
+            rowBytes = ((w + 1) >> 1) * bpe;
+            numBytes = (rowBytes * h) + ((rowBytes * h + 1) >> 1);
+            numRows = h + ((h + 1) >> 1);
+        }
+        else
+        {
+            uint32_t bpp = GetBitsPerPixel(fmt);
+            rowBytes = (w * bpp + 7) / 8;
+            numRows = h;
+            numBytes = rowBytes * h;
+        }
+
+        if (outNumBytes)
+        {
+            *outNumBytes = numBytes;
+        }
+        if (outRowBytes)
+        {
+            *outRowBytes = rowBytes;
+        }
+        if (outNumRows)
+        {
+            *outNumRows = numRows;
+        }
+    }
+
+    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE *f, StreamingMipData *streamingMipDatas, const char *debugName)
     {
         assert(f);
 
@@ -756,133 +871,6 @@ struct DDSFile
         commandList->commitBarriers();
 
         return newTexture;
-    }
-
-    void GetImageInfo(uint32_t w, uint32_t h, DXGI_FORMAT fmt,
-                      uint32_t* outNumBytes, uint32_t* outRowBytes,
-                      uint32_t* outNumRows)
-    {
-        uint32_t numBytes = 0;
-        uint32_t rowBytes = 0;
-        uint32_t numRows = 0;
-
-        bool bc = false;
-        bool packed = false;
-        bool planar = false;
-        uint32_t bpe = 0;
-        switch (fmt)
-        {
-        case DXGI_FORMAT_BC1_TYPELESS:
-        case DXGI_FORMAT_BC1_UNORM:
-        case DXGI_FORMAT_BC1_UNORM_SRGB:
-        case DXGI_FORMAT_BC4_TYPELESS:
-        case DXGI_FORMAT_BC4_UNORM:
-        case DXGI_FORMAT_BC4_SNORM:
-            bc = true;
-            bpe = 8;
-            break;
-
-        case DXGI_FORMAT_BC2_TYPELESS:
-        case DXGI_FORMAT_BC2_UNORM:
-        case DXGI_FORMAT_BC2_UNORM_SRGB:
-        case DXGI_FORMAT_BC3_TYPELESS:
-        case DXGI_FORMAT_BC3_UNORM:
-        case DXGI_FORMAT_BC3_UNORM_SRGB:
-        case DXGI_FORMAT_BC5_TYPELESS:
-        case DXGI_FORMAT_BC5_UNORM:
-        case DXGI_FORMAT_BC5_SNORM:
-        case DXGI_FORMAT_BC6H_TYPELESS:
-        case DXGI_FORMAT_BC6H_UF16:
-        case DXGI_FORMAT_BC6H_SF16:
-        case DXGI_FORMAT_BC7_TYPELESS:
-        case DXGI_FORMAT_BC7_UNORM:
-        case DXGI_FORMAT_BC7_UNORM_SRGB:
-            bc = true;
-            bpe = 16;
-            break;
-
-        case DXGI_FORMAT_R8G8_B8G8_UNORM:
-        case DXGI_FORMAT_G8R8_G8B8_UNORM:
-        case DXGI_FORMAT_YUY2:
-            packed = true;
-            bpe = 4;
-            break;
-
-        case DXGI_FORMAT_Y210:
-        case DXGI_FORMAT_Y216:
-            packed = true;
-            bpe = 8;
-            break;
-
-        case DXGI_FORMAT_NV12:
-        case DXGI_FORMAT_420_OPAQUE:
-            planar = true;
-            bpe = 2;
-            break;
-
-        case DXGI_FORMAT_P010:
-        case DXGI_FORMAT_P016:
-            planar = true;
-            bpe = 4;
-            break;
-        default:
-            break;
-        }
-
-        if (bc)
-        {
-            uint32_t numBlocksWide = 0;
-            if (w > 0)
-            {
-                numBlocksWide = std::max<uint32_t>(1, (w + 3) / 4);
-            }
-            uint32_t numBlocksHigh = 0;
-            if (h > 0)
-            {
-                numBlocksHigh = std::max<uint32_t>(1, (h + 3) / 4);
-            }
-            rowBytes = numBlocksWide * bpe;
-            numRows = numBlocksHigh;
-            numBytes = rowBytes * numBlocksHigh;
-        }
-        else if (packed)
-        {
-            rowBytes = ((w + 1) >> 1) * bpe;
-            numRows = h;
-            numBytes = rowBytes * h;
-        }
-        else if (fmt == DXGI_FORMAT_NV11)
-        {
-            rowBytes = ((w + 3) >> 2) * 4;
-            numRows = h * 2;
-            numBytes = rowBytes + numRows;
-        }
-        else if (planar)
-        {
-            rowBytes = ((w + 1) >> 1) * bpe;
-            numBytes = (rowBytes * h) + ((rowBytes * h + 1) >> 1);
-            numRows = h + ((h + 1) >> 1);
-        }
-        else
-        {
-            uint32_t bpp = GetBitsPerPixel(fmt);
-            rowBytes = (w * bpp + 7) / 8;
-            numRows = h;
-            numBytes = rowBytes * h;
-        }
-
-        if (outNumBytes)
-        {
-            *outNumBytes = numBytes;
-        }
-        if (outRowBytes)
-        {
-            *outRowBytes = rowBytes;
-        }
-        if (outNumRows)
-        {
-            *outNumRows = numRows;
-        }
     }
 };
 
