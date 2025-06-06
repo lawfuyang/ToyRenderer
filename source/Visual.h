@@ -21,7 +21,6 @@ struct StreamingMipData
 class Texture
 {
 public:
-    void LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_view debugName);
     void LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc);
     void LoadFromFile(std::string_view filePath);
 

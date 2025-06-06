@@ -26,37 +26,6 @@ static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
     return g_Graphic.m_InstancesBindlessResourcesDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
 }
 
-void Texture::LoadFromMemory(const void* rawData, uint32_t nbBytes, std::string_view debugName)
-{
-    PROFILE_FUNCTION();
-
-    assert(!IsValid());
-
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Texture::LoadFromMemory");
-
-    if (IsSTBImage(rawData, nbBytes))
-    {
-        m_NVRHITextureHandle = CreateSTBITextureFromMemory(commandList, rawData, nbBytes, debugName.data());
-    }
-    else if (IsDDSImage(rawData))
-    {
-        // dds have mips, and we have texture mip streaming, so dont load the whole thing from memory
-        assert(0);
-    }
-    else
-    {
-        assert(0);
-    }
-
-    assert(m_NVRHITextureHandle);
-
-    m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
-
-    const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
-    LOG_DEBUG("New Texture: %s, %d x %d, %s", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
-}
-
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)
 {
     PROFILE_FUNCTION();
@@ -66,9 +35,8 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     // TODO: extend this function to accomodate the following asserts
     assert(textureDesc.depth == 1);
 
-    nvrhi::TextureHandle newTexture = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-    m_NVRHITextureHandle = newTexture;
-    m_DescriptorIndex = GetDescriptorIndexForTexture(newTexture);
+    m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
+    m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
@@ -77,10 +45,10 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     // NOTE: fills each array slice with the same exact src data bytes
     for (uint32_t arraySlice = 0; arraySlice < textureDesc.arraySize; arraySlice++)
     {
-        commandList->writeTexture(newTexture, arraySlice, 0, rawData, textureDesc.width * nvrhi::getFormatInfo(textureDesc.format).bytesPerBlock);
+        commandList->writeTexture(m_NVRHITextureHandle, arraySlice, 0, rawData, textureDesc.width * nvrhi::getFormatInfo(textureDesc.format).bytesPerBlock);
     }
 
-    commandList->setPermanentTextureState(newTexture, textureDesc.isUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource);
+    commandList->setPermanentTextureState(m_NVRHITextureHandle, textureDesc.isUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource);
     commandList->commitBarriers();
 }
 
@@ -104,7 +72,7 @@ void Texture::LoadFromFile(std::string_view filePath)
         assert(!imageBytes.empty());
 
         const std::string debugName = std::filesystem::path{filePath}.stem().string();
-        LoadFromMemory(imageBytes.data(), (uint32_t)imageBytes.size(), debugName);
+        m_NVRHITextureHandle = CreateSTBITextureFromMemory(commandList, imageBytes.data(), (uint32_t)imageBytes.size(), debugName.data());
     }
     else if (IsDDSImage(fileStream))
     {
