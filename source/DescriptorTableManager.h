@@ -56,7 +56,6 @@ protected:
         }
     };
 
-    nvrhi::DeviceHandle m_Device;
     nvrhi::DescriptorTableHandle m_DescriptorTable;
 
     std::vector<nvrhi::BindingSetItem> m_Descriptors;
@@ -66,7 +65,7 @@ protected:
     std::mutex m_Lock;
 
 public:
-    DescriptorTableManager(nvrhi::IDevice* device, nvrhi::IBindingLayout* layout);
+    DescriptorTableManager(nvrhi::IBindingLayout* layout);
     ~DescriptorTableManager();
 
     nvrhi::IDescriptorTable* GetDescriptorTable() const { return m_DescriptorTable; }

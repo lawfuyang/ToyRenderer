@@ -243,7 +243,7 @@ void Graphic::InitDescriptorTable()
     bindlessLayoutDesc.registerSpaces = { nvrhi::BindingLayoutItem::Texture_SRV(1) };
     m_InstancesBindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
 
-    m_InstancesBindlessResourcesDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_NVRHIDevice, m_InstancesBindlessLayout);
+    m_InstancesBindlessResourcesDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_InstancesBindlessLayout);
 }
 
 nvrhi::TextureHandle Graphic::GetCurrentBackBuffer()

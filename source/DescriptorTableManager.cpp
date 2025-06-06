@@ -23,11 +23,11 @@
 #include <DescriptorTableManager.h>
 
 #include "CriticalSection.h"
+#include "Graphic.h"
 
-DescriptorTableManager::DescriptorTableManager(nvrhi::IDevice* device, nvrhi::IBindingLayout* layout)
-    : m_Device(device)
+DescriptorTableManager::DescriptorTableManager(nvrhi::IBindingLayout* layout)
 {
-    m_DescriptorTable = m_Device->createDescriptorTable(layout);
+    m_DescriptorTable = g_Graphic.m_NVRHIDevice->createDescriptorTable(layout);
 
     const size_t capacity = m_DescriptorTable->getCapacity();
     m_AllocatedDescriptors.resize(capacity);
@@ -38,6 +38,8 @@ DescriptorTableManager::DescriptorTableManager(nvrhi::IDevice* device, nvrhi::IB
 uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem item)
 {
     assert(m_DescriptorTable);
+
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
     uint32_t index = 0;
 
@@ -62,7 +64,7 @@ uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem it
         if (!foundFreeSlot)
         {
             uint32_t newCapacity = std::max(64u, capacity * 2); // handle the initial case when capacity == 0
-            m_Device->resizeDescriptorTable(m_DescriptorTable, newCapacity);
+            device->resizeDescriptorTable(m_DescriptorTable, newCapacity);
             m_AllocatedDescriptors.resize(newCapacity);
             m_Descriptors.resize(newCapacity);
 
@@ -80,7 +82,7 @@ uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem it
         m_DescriptorIndexMap[item] = index;
     }
 
-    m_Device->writeDescriptorTable(m_DescriptorTable, item);
+    device->writeDescriptorTable(m_DescriptorTable, item);
 
     if (item.resourceHandle)
         item.resourceHandle->AddRef();
@@ -110,7 +112,7 @@ void DescriptorTableManager::ReleaseDescriptor(uint32_t index)
 
     descriptor = nvrhi::BindingSetItem::None(index);
 
-    m_Device->writeDescriptorTable(m_DescriptorTable, descriptor);
+    g_Graphic.m_NVRHIDevice->writeDescriptorTable(m_DescriptorTable, descriptor);
 
     m_AllocatedDescriptors[index] = false;
     m_SearchStart = std::min(m_SearchStart, index);
