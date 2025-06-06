@@ -1,4 +1,4 @@
-#include "MathUtilities.h"
+#include "Math.h"
 
 void ModifyPerspectiveMatrix(Matrix& mat, float nearPlane, float farPlane, bool bReverseZ, bool bInfiniteZ)
 {

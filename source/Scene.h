@@ -2,7 +2,7 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
-#include "MathUtilities.h"
+#include "Math.h"
 #include "Utilities.h"
 #include "Visual.h"
 

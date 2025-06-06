@@ -2,7 +2,7 @@
 #define _SHADER_INTEROP_H_
 
 #if defined(__cplusplus)
-    #include "MathUtilities.h"
+    #include "Math.h"
 #else
     // .cpp -> .hlsl types
 

@@ -6,7 +6,7 @@
 #include "extern/renderdoc/renderdoc_app.h"
 
 #include "CriticalSection.h"
-#include "MathUtilities.h"
+#include "Math.h"
 #include "Visual.h"
 #include "GraphicRHI.h"
 #include "SmallVector.h"

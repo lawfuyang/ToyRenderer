@@ -4,7 +4,7 @@
 #include "extern/taskflow/taskflow/taskflow.hpp"
 
 #include "CriticalSection.h"
-#include "MathUtilities.h"
+#include "Math.h"
 
 class Graphic;
 

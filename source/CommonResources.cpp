@@ -5,7 +5,7 @@
 
 #include "Engine.h"
 #include "Graphic.h"
-#include "MathUtilities.h"
+#include "Math.h"
 
 #include "shaders/ShaderInterop.h"
 

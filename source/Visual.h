@@ -2,7 +2,7 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
-#include "MathUtilities.h"
+#include "Math.h"
 
 // NOTE: keep the values in sync with cgltf_alpha_mode
 enum class AlphaMode
