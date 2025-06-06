@@ -12,6 +12,12 @@ enum class AlphaMode
     Blend
 };
 
+struct StreamingMipData
+{
+    uint32_t m_DataOffset = 0;
+    uint32_t m_NumBytes = 0;
+};
+
 class Texture
 {
 public:
@@ -21,7 +27,7 @@ public:
 
     bool IsValid() const;
 
-    uint32_t m_MipDataOffsets[14] = { 0 };
+    StreamingMipData m_StreamingMipDatas[14];
 
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;

@@ -6,6 +6,7 @@
 #include "Engine.h"
 #include "Graphic.h"
 #include "Utilities.h"
+#include "Visual.h"
 
 CommandLineOption<bool> g_LoadPackedMipsOnly{ "loadpackedmipsonly", false };
 
@@ -572,7 +573,7 @@ struct DDSFile
         }
     }
 
-    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE* f, uint32_t mipDataOffsets[Graphic::kMaxTextureMips], const char* debugName)
+    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE* f, StreamingMipData* streamingMipDatas, const char* debugName)
     {
         assert(f);
 
@@ -692,7 +693,8 @@ struct DDSFile
                 const int seekResult = fseek(f, numBytes, SEEK_CUR);
                 assert(seekResult == 0);
 
-                mipDataOffsets[i] = fileReadOffset;
+                streamingMipDatas[i].m_DataOffset = fileReadOffset;
+                streamingMipDatas[i].m_NumBytes = numBytes;
 
                 fileReadOffset += numBytes;
                 assert(fileReadOffset <= fileSize);
@@ -724,7 +726,8 @@ struct DDSFile
             const uint32_t bytesRead = fread(imageDatas[i].m_data.data(), sizeof(std::byte), numBytes, f);
             assert(bytesRead == numBytes);
 
-            mipDataOffsets[startMipToRead + i] = fileReadOffset;
+            streamingMipDatas[startMipToRead + i].m_DataOffset = fileReadOffset;
+            streamingMipDatas[startMipToRead + i].m_NumBytes = numBytes;
 
             fileReadOffset += numBytes;
             assert(fileReadOffset <= fileSize);
@@ -883,10 +886,10 @@ struct DDSFile
     }
 };
 
-nvrhi::TextureHandle CreateDDSTextureFromFile(nvrhi::CommandListHandle commandList, FILE* file, uint32_t mipDataOffsets[Graphic::kMaxTextureMips], const char* debugName)
+nvrhi::TextureHandle CreateDDSTextureFromFile(nvrhi::CommandListHandle commandList, FILE* file, StreamingMipData* streamingMipDatas, const char* debugName)
 {
     DDSFile ddsFile;
-    return ddsFile.Load(commandList, file, mipDataOffsets, debugName);
+    return ddsFile.Load(commandList, file, streamingMipDatas, debugName);
 }
 
 nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB)
