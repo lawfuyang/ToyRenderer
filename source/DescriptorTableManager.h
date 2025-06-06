@@ -24,6 +24,8 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
+#include "CriticalSection.h"
+
 class DescriptorTableManager
 {
 protected:
@@ -64,6 +66,8 @@ protected:
     uint32_t m_SearchStart = 0;
     std::mutex m_Lock;
 
+    MultithreadDetector m_MultithreadDetector;
+
 public:
     DescriptorTableManager(nvrhi::IBindingLayout* layout);
     ~DescriptorTableManager();
@@ -71,6 +75,6 @@ public:
     nvrhi::IDescriptorTable* GetDescriptorTable() const { return m_DescriptorTable; }
 
     uint32_t CreateDescriptorHandle(nvrhi::BindingSetItem item);
-    nvrhi::BindingSetItem GetDescriptor(uint32_t index);
+    void ReplaceDescriptor(uint32_t index, nvrhi::BindingSetItem item);
     void ReleaseDescriptor(uint32_t index);
 };
