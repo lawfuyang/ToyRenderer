@@ -534,9 +534,9 @@ void Scene::UpdateIMGUI()
         {
             std::system(StringFormat("\"%s/../compileallshaders\" NO_PAUSE", GetExecutableDirectory()));
             g_Graphic.m_bTriggerReloadShaders = true;
-
         }
-        ImGui::SliderInt("FPS Limit", (int*)&g_Engine.m_FPSLimit, 10, 240);
+
+        ImGui::SliderInt("FPS Limit", (int *)&g_Engine.m_FPSLimit, 10, 240);
 
         // keep in sync with 'kDeferredLightingDebugMode_*'
         static const char* kDebugModeNames[] =
@@ -565,6 +565,18 @@ void Scene::UpdateIMGUI()
         ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);
         ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
         ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, Graphic::kMaxNumMeshLODs - 1);
+
+        ImGui::Text("Texture Mip Bias");
+        ImGui::SameLine();
+        if (ImGui::Button("-"))
+        {
+
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("+"))
+        {
+            
+        }
 
         ImGui::TreePop();
     }
