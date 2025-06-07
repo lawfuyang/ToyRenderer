@@ -2,11 +2,15 @@
 
 #include "extern/microprofile/microprofile.h"
 #include "extern/taskflow/taskflow/taskflow.hpp"
+#include "SDL3/SDL.h"
+#include "SDL3/SDL_asyncio.h"
 
 #include "CriticalSection.h"
 #include "Math.h"
 
 class Graphic;
+
+#define SDL_CALL(x) if (!(x)) { LOG_DEBUG("SDL Error: %s", SDL_GetError()); assert(false); }
 
 // forward declare 'StringFormat' here so that logging macros can compile without including Utilities.h
 const char* StringFormat(const char* format, ...);
@@ -37,6 +41,8 @@ public:
     std::shared_ptr<tf::Executor> m_Executor;
 
     float m_MouseWheelY = 0.0f;
+
+    std::vector<SDL_AsyncIO*> m_StreamingAsyncIOs;
 private:
     void ParseCommandlineArguments(int argc, char** argv);
     void ConsumeCommands();
@@ -47,6 +53,8 @@ private:
 
     SpinLock m_CommandsLock;
     std::vector<std::function<void()>> m_PendingCommands;
+
+    SDL_AsyncIOQueue* m_AsyncIOQueue = nullptr;
 };
 #define g_Engine Engine::GetInstance()
 

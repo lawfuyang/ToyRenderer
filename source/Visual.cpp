@@ -26,22 +26,11 @@ static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
     return g_Graphic.m_InstancesBindlessResourcesDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
 }
 
-Texture::~Texture()
-{
-    if (m_FileHandle)
-    {
-        fclose(m_FileHandle);
-        m_FileHandle = nullptr;
-    }
-}
-
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)
 {
     PROFILE_FUNCTION();
 
     assert(!IsValid());
-
-    // TODO: extend this function to accomodate the following asserts
     assert(textureDesc.depth == 1);
 
     m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
@@ -59,6 +48,8 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
 
     commandList->setPermanentTextureState(m_NVRHITextureHandle, textureDesc.isUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource);
     commandList->commitBarriers();
+
+    m_Mip = 0;
 }
 
 void Texture::LoadFromFile(std::string_view filePath)
@@ -66,17 +57,16 @@ void Texture::LoadFromFile(std::string_view filePath)
     PROFILE_FUNCTION();
 
     assert(!IsValid());
-    assert(!m_FileHandle);
 
     const std::string debugName = std::filesystem::path{ filePath }.stem().string();
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
 
-    m_FileHandle = fopen(filePath.data(), "rb");
-    assert(m_FileHandle);
+    ScopedFile scopedFile{filePath.data(), "rb"};
+    assert(scopedFile);
 
-    if (IsSTBImage(m_FileHandle))
+    if (IsSTBImage(scopedFile))
     {
         std::vector<std::byte> imageBytes;
         ReadDataFromFile(filePath, imageBytes);
@@ -84,10 +74,16 @@ void Texture::LoadFromFile(std::string_view filePath)
 
         const std::string debugName = std::filesystem::path{filePath}.stem().string();
         m_NVRHITextureHandle = CreateSTBITextureFromMemory(commandList, imageBytes.data(), (uint32_t)imageBytes.size(), debugName.data());
+
+        m_Mip = 0;
     }
-    else if (IsDDSImage(m_FileHandle))
+    else if (IsDDSImage(scopedFile))
     {
-        m_NVRHITextureHandle = CreateDDSTextureFromFile(commandList, m_FileHandle, m_StreamingMipDatas, debugName.data());
+        m_NVRHITextureHandle = CreateDDSTextureFromFile(commandList, scopedFile, m_StreamingMipDatas, debugName.data());
+
+        const uint32_t currentMipWidth = m_NVRHITextureHandle->getDesc().width;
+        const uint32_t maxTextureWidth = m_StreamingMipDatas[0].m_Resolution.x;        
+        m_Mip = std::log2(maxTextureWidth/currentMipWidth);
     }
     else
     {
@@ -105,7 +101,8 @@ void Texture::LoadFromFile(std::string_view filePath)
 bool Texture::IsValid() const
 {
     return m_NVRHITextureHandle != nullptr
-        && m_DescriptorIndex != UINT_MAX;
+        && m_DescriptorIndex != UINT_MAX
+        && m_Mip != UINT_MAX;
 }
 
 bool Primitive::IsValid() const

@@ -808,6 +808,7 @@ struct DDSFile
                 const int seekResult = fseek(f, numBytes, SEEK_CUR);
                 assert(seekResult == 0);
 
+                streamingMipDatas[i].m_Resolution = { mipWidth, mipHeight };
                 streamingMipDatas[i].m_DataOffset = fileReadOffset;
                 streamingMipDatas[i].m_NumBytes = numBytes;
 
@@ -841,6 +842,7 @@ struct DDSFile
             const uint32_t bytesRead = fread(imageDatas[i].m_data.data(), sizeof(std::byte), numBytes, f);
             assert(bytesRead == numBytes);
 
+            streamingMipDatas[startMipToRead + i].m_Resolution = { mipWidth, mipHeight };
             streamingMipDatas[startMipToRead + i].m_DataOffset = fileReadOffset;
             streamingMipDatas[startMipToRead + i].m_NumBytes = numBytes;
 

@@ -14,6 +14,7 @@ enum class AlphaMode
 
 struct StreamingMipData
 {
+    Vector2U m_Resolution = { 0, 0 };
     uint32_t m_DataOffset = 0;
     uint32_t m_NumBytes = 0;
 };
@@ -21,15 +22,14 @@ struct StreamingMipData
 class Texture
 {
 public:
-    ~Texture();
-
     void LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc);
     void LoadFromFile(std::string_view filePath);
 
     bool IsValid() const;
 
     StreamingMipData m_StreamingMipDatas[14];
-    FILE* m_FileHandle = nullptr;
+    uint32_t m_AsyncIOIdx = UINT_MAX;
+    uint32_t m_Mip = UINT_MAX;
 
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;

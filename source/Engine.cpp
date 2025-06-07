@@ -6,15 +6,12 @@
 #include "extern/imgui/imgui.h"
 #include "extern/imgui/backends/imgui_impl_sdl3.h"
 
-#include "SDL3/SDL.h"
 #include "SDL3/SDL_main.h"
 #include "SDL3/SDL_keyboard.h"
 
 #include "Graphic.h"
 #include "Scene.h"
 #include "Utilities.h"
-
-#define SDL_CALL(x) if (!(x)) { LOG_DEBUG("SDL Error: %s", SDL_GetError()); assert(false); }
 
 CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", { 0, 0 } };
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
@@ -143,6 +140,9 @@ void Engine::Initialize(int argc, char** argv)
     {
         TriggerDumpProfilingCapture("EngineInit");
     }
+
+    m_AsyncIOQueue = SDL_CreateAsyncIOQueue();
+    SDL_CALL(m_AsyncIOQueue);
 }
 
 void Engine::ParseCommandlineArguments(int argc, char** argv)
@@ -200,10 +200,19 @@ void Engine::Shutdown()
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 
-	m_Graphic->Shutdown();
+    m_Graphic->Shutdown();
 	m_Graphic.reset();
 
-	MicroProfileShutdown();
+    MicroProfileShutdown();
+
+    assert(m_AsyncIOQueue);
+    for (SDL_AsyncIO *asyncIO : m_StreamingAsyncIOs)
+    {
+        SDL_CALL(SDL_CloseAsyncIO(asyncIO, true, m_AsyncIOQueue, nullptr));
+    }
+
+    SDL_DestroyAsyncIOQueue(m_AsyncIOQueue);
+    m_AsyncIOQueue = nullptr;
 
     SDL_DestroyWindow(m_SDLWindow);
     SDL_Quit();

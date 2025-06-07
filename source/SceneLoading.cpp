@@ -239,6 +239,8 @@ struct GLTFSceneLoader
 
         tf::Taskflow taskflow;
 
+        g_Engine.m_StreamingAsyncIOs.resize(m_GLTFData->textures_count);
+
         m_SceneImages.resize(m_GLTFData->textures_count);
         for (uint32_t i = 0; i < m_GLTFData->textures_count; ++i)
         {
@@ -254,9 +256,11 @@ struct GLTFSceneLoader
                     cgltf_decode_uri(filePath.data());
 
                     // ghetto hack to prioritize DDS files
-                    const std::string ddsFilePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
-                    if (std::filesystem::exists(ddsFilePath))
+                    bool bIsDDS = false;
+                    if (const std::string ddsFilePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
+                        std::filesystem::exists(ddsFilePath))
                     {
+                        bIsDDS = true;
                         filePath = ddsFilePath;
                     }
 
@@ -264,6 +268,16 @@ struct GLTFSceneLoader
                     assert(std::filesystem::exists(filePath));
 
                     m_SceneImages[i].LoadFromFile(filePath);
+
+                    if (bIsDDS)
+                    {
+                        m_SceneImages[i].m_AsyncIOIdx = i;
+
+                        SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(filePath.data(), "r");
+                        SDL_CALL(asyncIO);
+
+                        g_Engine.m_StreamingAsyncIOs[i] = asyncIO;
+                    }
                 });
         }
 
