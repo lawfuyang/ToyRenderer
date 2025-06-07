@@ -253,19 +253,11 @@ struct GLTFSceneLoader
                     std::string filePath = (std::filesystem::path{m_BaseFolderPath} / image->uri).string();
                     cgltf_decode_uri(filePath.data());
 
-                    // ghetto hack to handle "MSFT_texture_dds" extension with 2 image URIs
-                    for (uint32_t j = 0; j < texture.extensions_count; ++j)
+                    // ghetto hack to prioritize DDS files
+                    const std::string ddsFilePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
+                    if (std::filesystem::exists(ddsFilePath))
                     {
-                        if (strcmp(texture.extensions[j].name, "MSFT_texture_dds") == 0)
-                        {
-                            filePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
-                        }
-                    }
-
-                    // ghetto hack to handle if "MSFT_texture_dds" extension was stripped away by MeshOptimizer
-                    if (!std::filesystem::exists(filePath))
-                    {
-                        filePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
+                        filePath = ddsFilePath;
                     }
 
                     // final sanity check
