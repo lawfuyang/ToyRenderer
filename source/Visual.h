@@ -29,7 +29,7 @@ public:
 
     StreamingMipData m_StreamingMipDatas[14];
     uint32_t m_AsyncIOIdx = UINT_MAX;
-    uint32_t m_Mip = UINT_MAX;
+    uint32_t m_HighestStreamedMip = UINT_MAX;
 
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;

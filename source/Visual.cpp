@@ -49,7 +49,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     commandList->setPermanentTextureState(m_NVRHITextureHandle, textureDesc.isUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource);
     commandList->commitBarriers();
 
-    m_Mip = 0;
+    m_HighestStreamedMip = 0;
 }
 
 void Texture::LoadFromFile(std::string_view filePath)
@@ -75,7 +75,7 @@ void Texture::LoadFromFile(std::string_view filePath)
         const std::string debugName = std::filesystem::path{filePath}.stem().string();
         m_NVRHITextureHandle = CreateSTBITextureFromMemory(commandList, imageBytes.data(), (uint32_t)imageBytes.size(), debugName.data());
 
-        m_Mip = 0;
+        m_HighestStreamedMip = 0;
     }
     else if (IsDDSImage(scopedFile))
     {
@@ -83,7 +83,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 
         const uint32_t currentMipWidth = m_NVRHITextureHandle->getDesc().width;
         const uint32_t maxTextureWidth = m_StreamingMipDatas[0].m_Resolution.x;        
-        m_Mip = std::log2(maxTextureWidth/currentMipWidth);
+        m_HighestStreamedMip = std::log2(maxTextureWidth/currentMipWidth);
     }
     else
     {
@@ -102,7 +102,7 @@ bool Texture::IsValid() const
 {
     return m_NVRHITextureHandle != nullptr
         && m_DescriptorIndex != UINT_MAX
-        && m_Mip != UINT_MAX;
+        && m_HighestStreamedMip != UINT_MAX;
 }
 
 bool Primitive::IsValid() const
