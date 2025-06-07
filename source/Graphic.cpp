@@ -668,7 +668,6 @@ void Graphic::Shutdown()
     // wait for latest swap chain present to be done
     verify(m_NVRHIDevice->waitForIdle());
 
-
     m_Scene->Shutdown();
     m_Scene.reset();
 

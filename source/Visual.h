@@ -21,12 +21,15 @@ struct StreamingMipData
 class Texture
 {
 public:
+    ~Texture();
+
     void LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc);
     void LoadFromFile(std::string_view filePath);
 
     bool IsValid() const;
 
     StreamingMipData m_StreamingMipDatas[14];
+    FILE* m_FileHandle = nullptr;
 
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;
