@@ -66,6 +66,7 @@ void Texture::LoadFromFile(std::string_view filePath)
     PROFILE_FUNCTION();
 
     assert(!IsValid());
+    assert(!m_FileHandle);
 
     const std::string debugName = std::filesystem::path{ filePath }.stem().string();
 
