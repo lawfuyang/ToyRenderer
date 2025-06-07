@@ -283,7 +283,7 @@ public:
         volumeDesc.probeBrightnessThreshold = 0.1f;
 
         // make radiance delta faster. default: 0.97
-        volumeDesc.probeHysteresis = 0.90f;
+        volumeDesc.probeHysteresis = 0.50f;
 
         // leave these values as defaults?
         volumeDesc.probeDistanceExponent = 50.f;
