@@ -82,15 +82,13 @@ void Texture::LoadFromFile(std::string_view filePath)
         m_NVRHITextureHandle = CreateDDSTextureFromFile(commandList, scopedFile, m_StreamingMipDatas, debugName.data());
 
         const uint32_t currentMipWidth = m_NVRHITextureHandle->getDesc().width;
-        const uint32_t maxTextureWidth = m_StreamingMipDatas[0].m_Resolution.x;        
+        const uint32_t maxTextureWidth = m_StreamingMipDatas[0].m_Resolution.x;
         m_HighestStreamedMip = std::log2(maxTextureWidth/currentMipWidth);
     }
     else
     {
         assert(0);
     }
-
-    assert(m_NVRHITextureHandle);
 
     m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
 

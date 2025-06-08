@@ -67,6 +67,12 @@ public:
     Frustum m_Frustum;
 };
 
+struct TextureStreamingRequest
+{
+    Texture* m_Texture = nullptr;
+    uint32_t m_RequstedMip = UINT_MAX;
+};
+
 class Scene
 {
 public:
@@ -118,6 +124,7 @@ public:
 
     std::vector<Node> m_Nodes;
     std::vector<Primitive> m_Primitives;
+    std::vector<Texture> m_Textures;
     std::vector<uint32_t> m_OpaquePrimitiveIDs;
     std::vector<uint32_t> m_AlphaMaskPrimitiveIDs;
     std::vector<uint32_t> m_TransparentPrimitiveIDs;
@@ -153,5 +160,7 @@ private:
     Vector2 m_MouseLastPos;
     float m_Yaw = 0.0f;
     float m_Pitch = 0.0f;
+
+    std::vector<TextureStreamingRequest> m_TextureStreamingRequests;
 };
 #define g_Scene g_Graphic.m_Scene

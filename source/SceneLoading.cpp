@@ -700,6 +700,8 @@ struct GLTFSceneLoader
         {
             OBB::CreateFromPoints(g_Scene->m_OBB, AABBPointsForSceneOBB.size(), AABBPointsForSceneOBB.data(), sizeof(Vector3));
         }
+
+        g_Scene->m_Textures = std::move(m_SceneImages);
     }
     
     void LoadAnimations()

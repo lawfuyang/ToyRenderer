@@ -566,16 +566,48 @@ void Scene::UpdateIMGUI()
         ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
         ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, Graphic::kMaxNumMeshLODs - 1);
 
+        auto AddTextureStreamingRequests = [this](bool bLowerMip)
+        {
+            for (Texture& texture : g_Scene->m_Textures)
+            {
+                if (texture.m_AsyncIOIdx == UINT_MAX)
+                {
+                    continue; // texture is not streamed
+                }
+
+                if (texture.m_HighestStreamedMip == 0 && bLowerMip)
+                {
+                    continue; // no mip to lower
+                }
+
+                if (!bLowerMip)
+                {
+                    const Vector2U currentMipRes = texture.m_StreamingMipDatas[texture.m_HighestStreamedMip].m_Resolution;
+                    const uint32_t currentMipMaxSize = std::max(currentMipRes.x, currentMipRes.y);
+                    const bool bIsPackedMip = currentMipMaxSize <= 256;
+                    if (bIsPackedMip)
+                    {
+                        continue; // no mip to raise
+                    }
+                }
+
+                const uint32_t requestedMip = ((int)texture.m_HighestStreamedMip + (bLowerMip ? -1 : 1));
+                assert(texture.m_StreamingMipDatas[requestedMip].IsValid());
+
+                m_TextureStreamingRequests.push_back(TextureStreamingRequest{&texture, requestedMip});
+            }
+        };
+
         ImGui::Text("Texture Mip Bias");
         ImGui::SameLine();
         if (ImGui::Button("-"))
         {
-
+            AddTextureStreamingRequests(true);
         }
         ImGui::SameLine();
         if (ImGui::Button("+"))
         {
-            
+            AddTextureStreamingRequests(false);
         }
 
         ImGui::TreePop();

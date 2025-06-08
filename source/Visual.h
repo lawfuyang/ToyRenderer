@@ -17,6 +17,8 @@ struct StreamingMipData
     Vector2U m_Resolution = { 0, 0 };
     uint32_t m_DataOffset = 0;
     uint32_t m_NumBytes = 0;
+
+    bool IsValid() const { return m_Resolution.x > 0 && m_Resolution.y > 0 && m_NumBytes > 0; }
 };
 
 class Texture
