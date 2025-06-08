@@ -86,10 +86,10 @@ public:
 
     uint32_t m_MaterialFlags = 0;
 
-    Texture m_AlbedoTexture;
-    Texture m_NormalTexture;
-    Texture m_MetallicRoughnessTexture;
-    Texture m_EmissiveTexture;
+    uint32_t m_AlbedoTextureIdx = UINT_MAX;
+    uint32_t m_NormalTextureIdx = UINT_MAX;
+    uint32_t m_MetallicRoughnessTextureIdx = UINT_MAX;
+    uint32_t m_EmissiveTextureIdx = UINT_MAX;
 
     Vector4 m_ConstAlbedo = Vector4{ 1.0f, 0.078f, 0.576f, 1.0f };
     Vector3 m_ConstEmissive;

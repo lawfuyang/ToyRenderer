@@ -397,15 +397,15 @@ bool Material::IsValid() const
 
     if (m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
     {
-        bResult &= m_AlbedoTexture.IsValid();
+        bResult &= m_AlbedoTextureIdx != UINT_MAX;
     }
     if (m_MaterialFlags & MaterialFlag_UseNormalTexture)
     {
-        bResult &= m_NormalTexture.IsValid();
+        bResult &= m_NormalTextureIdx != UINT_MAX;
     }
     if (m_MaterialFlags & MaterialFlag_UseMetallicRoughnessTexture)
     {
-        bResult &= m_MetallicRoughnessTexture.IsValid();
+        bResult &= m_MetallicRoughnessTextureIdx != UINT_MAX;
     }
 
     bResult &= m_MaterialDataBufferIdx != UINT_MAX;
