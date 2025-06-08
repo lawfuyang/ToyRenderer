@@ -15,8 +15,6 @@
 #include "shaders/ShaderInterop.h"
 
 CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
-CommandLineOption<bool> g_SkipLoadingSceneTextures{ "skiploadingscenetextures", false };
-
 #define SCENE_LOAD_PROFILE(x) \
     PROFILE_SCOPED(x);        \
     SCOPED_TIMER_NAMED(x);
@@ -231,12 +229,6 @@ struct GLTFSceneLoader
             return;
         }
 
-        if (g_SkipLoadingSceneTextures.Get())
-        {
-			LOG_DEBUG("Skipping loading scene textures");
-			return;
-        }
-
         tf::Taskflow taskflow;
 
         g_Engine.m_StreamingAsyncIOs.resize(m_GLTFData->textures_count);
@@ -292,12 +284,6 @@ struct GLTFSceneLoader
             {
                 const cgltf_image* image = textureView.texture->image;
                 assert(image);
-
-                if (g_SkipLoadingSceneTextures.Get())
-                {
-                    texture = defaultTexture;
-                    return;
-                }
 
                 texture = m_SceneImages.at(cgltf_texture_index(m_GLTFData, textureView.texture));
 
