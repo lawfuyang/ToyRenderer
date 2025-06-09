@@ -41,6 +41,7 @@ public:
     static constexpr uint32_t kMaxTextureMips = 14; // max 8k textures, 14 mips is enough for 8k textures
     static constexpr uint32_t kMaxThreadGroupsPerDimension = 65535; // both d3d12 & vulkan have a limit of 65535 thread groups per dimension
     static constexpr uint32_t kMaxNumMeshLODs = 8;
+    static constexpr uint32_t kPackedMipResolution = 256;
 
     static constexpr uint32_t kStencilBit_Opaque = 0x0;
     static constexpr uint32_t kStencilBit_Sky = 0x1;
@@ -189,7 +190,7 @@ private:
     std::mutex m_PendingCommandListsLock;
     std::vector<nvrhi::CommandListHandle> m_PendingCommandLists;
 
-    nvrhi::TimerQueryHandle m_FrameTimerQuery;
+    nvrhi::TimerQueryHandle m_FrameTimerQuery[2];
 };
 #define g_Graphic Graphic::GetInstance()
 
@@ -250,7 +251,7 @@ public:
 
     float m_CPUFrameTime = 0.0f;
     float m_GPUFrameTime = 0.0f;
-    nvrhi::TimerQueryHandle m_FrameTimerQuery;
+    nvrhi::TimerQueryHandle m_FrameTimerQuery[2];
 
     inline static std::vector<IRenderer*> ms_AllRenderers;
 };

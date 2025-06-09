@@ -297,6 +297,7 @@ public:
             volumeDesc.probeCounts = rtxgi::int3{ 9, 9, 9 };
             volumeDesc.probeSpacing = rtxgi::float3{ 0.3f, 0.3f, 0.3f };
             volumeDesc.probeMaxRayDistance = 10.0f;
+            volumeDesc.probeHysteresis = 0.97f; // default value
         }
         else if (g_CVarUseDDGISponzaDDGIVolumeSettings.Get())
         {
@@ -304,6 +305,7 @@ public:
             volumeDesc.probeCounts = rtxgi::int3{ 22, 22, 22 };
             volumeDesc.probeSpacing = rtxgi::float3{ 1.02f, 0.5f, 0.45f };
             volumeDesc.probeMaxRayDistance = 10000.0f;
+            volumeDesc.probeHysteresis = 0.97f; // default value
         }
 
         m_GIVolume.Create();

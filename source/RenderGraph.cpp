@@ -269,19 +269,21 @@ void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
 
 			SCOPED_COMMAND_LIST(pass.m_CommandList, renderer->m_Name.c_str());
 
-			if (!renderer->m_FrameTimerQuery)
+			nvrhi::TimerQueryHandle& rendererTimerQuery = renderer->m_FrameTimerQuery[g_Graphic.m_FrameCounter % 2];
+
+			if (!rendererTimerQuery)
 			{
-				renderer->m_FrameTimerQuery = g_Graphic.m_NVRHIDevice->createTimerQuery();
+				rendererTimerQuery = g_Graphic.m_NVRHIDevice->createTimerQuery();
 			}
 
-			renderer->m_GPUFrameTime = Timer::SecondsToMilliSeconds(g_Graphic.m_NVRHIDevice->getTimerQueryTime(renderer->m_FrameTimerQuery));
+			renderer->m_GPUFrameTime = Timer::SecondsToMilliSeconds(g_Graphic.m_NVRHIDevice->getTimerQueryTime(rendererTimerQuery));
 			
-			g_Graphic.m_NVRHIDevice->resetTimerQuery(renderer->m_FrameTimerQuery);
-        	pass.m_CommandList->beginTimerQuery(renderer->m_FrameTimerQuery);
+			g_Graphic.m_NVRHIDevice->resetTimerQuery(rendererTimerQuery);
+        	pass.m_CommandList->beginTimerQuery(rendererTimerQuery);
 
 			renderer->Render(pass.m_CommandList, *this);
 
-			pass.m_CommandList->endTimerQuery(renderer->m_FrameTimerQuery);
+			pass.m_CommandList->endTimerQuery(rendererTimerQuery);
 
 			renderer->m_CPUFrameTime = Timer::SecondsToMilliSeconds(passTimer.GetElapsedSeconds());
 

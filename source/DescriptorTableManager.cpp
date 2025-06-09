@@ -90,29 +90,6 @@ uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem it
     return index;
 }
 
-void DescriptorTableManager::ReplaceDescriptor(uint32_t index, nvrhi::BindingSetItem item)
-{
-    SCOPED_MULTITHREAD_DETECTOR(m_MultithreadDetector);
-
-    assert(index < m_Descriptors.size());
-    assert(m_AllocatedDescriptors[index]);
-    assert(m_Descriptors[index].slot == index); // ensure that the slot matches the index
-
-    if (m_Descriptors[index].resourceHandle)
-    {
-        // Release the old resource handle before replacing it
-        m_Descriptors[index].resourceHandle->Release();
-    }
-
-    m_Descriptors[index] = item;
-    m_DescriptorIndexMap[item] = index;
-
-    g_Graphic.m_NVRHIDevice->writeDescriptorTable(m_DescriptorTable, item);
-
-    if (item.resourceHandle)
-        item.resourceHandle->AddRef();
-}
-
 void DescriptorTableManager::ReleaseDescriptor(uint32_t index)
 {
     SCOPED_MULTITHREAD_DETECTOR(m_MultithreadDetector);

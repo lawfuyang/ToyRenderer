@@ -784,12 +784,11 @@ struct DDSFile
 
         if (g_LoadPackedMipsOnly.Get())
         {
-            const uint32_t kPackedMipDimension = 256;
             const uint32_t maxMipDimension = std::max<uint32_t>(header.m_width, header.m_height);
 
-            if (maxMipDimension > kPackedMipDimension)
+            if (maxMipDimension > Graphic::kPackedMipResolution)
             {
-                uint32_t minMip = static_cast<uint32_t>(std::ceil(std::log2(static_cast<double>(maxMipDimension) / kPackedMipDimension)));
+                uint32_t minMip = static_cast<uint32_t>(std::ceil(std::log2(static_cast<double>(maxMipDimension) / Graphic::kPackedMipResolution)));
                 minMip = std::min<uint32_t>(minMip, header.m_mipMapCount); // Clamp to mipCount
                 mipsToRead = header.m_mipMapCount - minMip;
                 startMipToRead = minMip;
@@ -808,9 +807,11 @@ struct DDSFile
                 const int seekResult = fseek(f, numBytes, SEEK_CUR);
                 assert(seekResult == 0);
 
-                streamingMipDatas[i].m_Resolution = { mipWidth, mipHeight };
-                streamingMipDatas[i].m_DataOffset = fileReadOffset;
-                streamingMipDatas[i].m_NumBytes = numBytes;
+                StreamingMipData& streamingMipData = streamingMipDatas[i];
+                streamingMipData.m_Resolution = { mipWidth, mipHeight };
+                streamingMipData.m_DataOffset = fileReadOffset;
+                streamingMipData.m_NumBytes = numBytes;
+                streamingMipData.m_RowPitch = rowBytes;
 
                 fileReadOffset += numBytes;
                 assert(fileReadOffset <= fileSize);
@@ -842,9 +843,11 @@ struct DDSFile
             const uint32_t bytesRead = fread(imageDatas[i].m_data.data(), sizeof(std::byte), numBytes, f);
             assert(bytesRead == numBytes);
 
-            streamingMipDatas[startMipToRead + i].m_Resolution = { mipWidth, mipHeight };
-            streamingMipDatas[startMipToRead + i].m_DataOffset = fileReadOffset;
-            streamingMipDatas[startMipToRead + i].m_NumBytes = numBytes;
+            StreamingMipData& streamingMipData = streamingMipDatas[startMipToRead + i];
+            streamingMipData.m_Resolution = { mipWidth, mipHeight };
+            streamingMipData.m_DataOffset = fileReadOffset;
+            streamingMipData.m_NumBytes = numBytes;
+            streamingMipData.m_RowPitch = rowBytes;
 
             fileReadOffset += numBytes;
             assert(fileReadOffset <= fileSize);
@@ -868,9 +871,6 @@ struct DDSFile
             PROFILE_SCOPED("Write mip to texture");
             commandList->writeTexture(newTexture, 0, i, imageDatas[i].m_data.data(), imageDatas[i].m_memPitch);
         }
-
-        commandList->setPermanentTextureState(newTexture, nvrhi::ResourceStates::ShaderResource);
-        commandList->commitBarriers();
 
         return newTexture;
     }

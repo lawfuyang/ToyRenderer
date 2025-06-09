@@ -43,6 +43,7 @@ public:
     float m_MouseWheelY = 0.0f;
 
     std::vector<SDL_AsyncIO*> m_StreamingAsyncIOs;
+    SDL_AsyncIOQueue* m_AsyncIOQueue = nullptr;
 private:
     void ParseCommandlineArguments(int argc, char** argv);
     void ConsumeCommands();
@@ -52,9 +53,7 @@ private:
     std::shared_ptr<Graphic> m_Graphic;
 
     SpinLock m_CommandsLock;
-    std::vector<std::function<void()>> m_PendingCommands;
-
-    SDL_AsyncIOQueue* m_AsyncIOQueue = nullptr;
+    std::vector<std::function<void()>> m_PendingCommands;    
 };
 #define g_Engine Engine::GetInstance()
 

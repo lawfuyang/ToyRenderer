@@ -78,7 +78,10 @@ void Graphic::InitDevice()
         }
     }
 
-    m_FrameTimerQuery = m_NVRHIDevice->createTimerQuery();
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        m_FrameTimerQuery[i] = m_NVRHIDevice->createTimerQuery();
+    }
 
     m_GPUThreadLogs.reserve(g_Engine.m_Executor->num_workers() + 1); // +1 because main thread is index 0
 }
@@ -740,14 +743,17 @@ void Graphic::Update()
     // execute all cmd lists that may have been potentially added as engine commands
     ExecuteAllCommandLists();
 
-    g_Engine.m_GPUTimeMs = Timer::SecondsToMilliSeconds(m_NVRHIDevice->getTimerQueryTime(m_FrameTimerQuery));
+    {
+        PROFILE_SCOPED("getTimerQueryTime");
+        g_Engine.m_GPUTimeMs = Timer::SecondsToMilliSeconds(m_NVRHIDevice->getTimerQueryTime(m_FrameTimerQuery[m_FrameCounter % 2]));
+    }
 
     {
         nvrhi::CommandListHandle commandList = AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Begin Frame Timer Query");
 
-        g_Graphic.m_NVRHIDevice->resetTimerQuery(m_FrameTimerQuery);
-        commandList->beginTimerQuery(m_FrameTimerQuery);
+        g_Graphic.m_NVRHIDevice->resetTimerQuery(m_FrameTimerQuery[m_FrameCounter % 2]);
+        commandList->beginTimerQuery(m_FrameTimerQuery[m_FrameCounter % 2]);
     }
 
     tf::Taskflow tf;
@@ -767,7 +773,7 @@ void Graphic::Update()
     {
         nvrhi::CommandListHandle commandList = AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "End Frame Timer Query");
-        commandList->endTimerQuery(m_FrameTimerQuery);
+        commandList->endTimerQuery(m_FrameTimerQuery[m_FrameCounter % 2]);
     }
 
     // execute all cmd lists for this frame
@@ -779,6 +785,8 @@ void Graphic::Update()
 
 void Graphic::ExecuteAllCommandLists()
 {
+    PROFILE_FUNCTION();
+
     if (m_PendingCommandLists.size())
     {
         PROFILE_SCOPED("Execute CommandLists");

@@ -75,6 +75,5 @@ public:
     nvrhi::IDescriptorTable* GetDescriptorTable() const { return m_DescriptorTable; }
 
     uint32_t CreateDescriptorHandle(nvrhi::BindingSetItem item);
-    void ReplaceDescriptor(uint32_t index, nvrhi::BindingSetItem item);
     void ReleaseDescriptor(uint32_t index);
 };

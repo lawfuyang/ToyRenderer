@@ -69,8 +69,9 @@ public:
 
 struct TextureStreamingRequest
 {
-    Texture* m_Texture = nullptr;
-    uint32_t m_RequstedMip = UINT_MAX;
+    uint32_t m_TextureIdx = UINT_MAX;
+    uint32_t m_RequestedMip = UINT_MAX;
+    std::vector<std::byte> m_MipBytes;
 };
 
 class Scene
@@ -154,6 +155,7 @@ private:
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
     void CreateAccelerationStructures();
+    void ProcessTextureStreamingRequests();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;
@@ -162,5 +164,6 @@ private:
     float m_Pitch = 0.0f;
 
     std::vector<TextureStreamingRequest> m_TextureStreamingRequests;
+    std::vector<TextureStreamingRequest> m_InFlightTextureStreamingRequests;
 };
 #define g_Scene g_Graphic.m_Scene
