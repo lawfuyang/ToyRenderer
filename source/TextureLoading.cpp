@@ -816,6 +816,9 @@ struct DDSFile
             }
         }
 
+        const nvrhi::Format nvrhiFormat = ConvertFromDXGIFormat(dxgiFormat);
+        const bool bIsCompressedFormat = nvrhi::getFormatInfo(nvrhiFormat).blockSize != 1;
+
         std::vector<MipData> imageDatas;
         imageDatas.resize(mipsToRead);
 
@@ -825,8 +828,15 @@ struct DDSFile
 
             const uint32_t mipToRead = startMipToRead + i;
 
-            const uint32_t mipWidth = std::max<uint32_t>(1, header.m_width >> mipToRead);
-            const uint32_t mipHeight = std::max<uint32_t>(1, header.m_height >> mipToRead);
+            uint32_t mipWidth = std::max<uint32_t>(1, header.m_width >> mipToRead);
+            uint32_t mipHeight = std::max<uint32_t>(1, header.m_height >> mipToRead);
+
+            // pad dimensions to multiple of 4 for compressed formats
+            if (bIsCompressedFormat)
+            {
+                mipWidth = (mipWidth + 3) & ~3;
+                mipHeight = (mipHeight + 3) & ~3;
+            }
 
             uint32_t numBytes;
             uint32_t rowBytes;
@@ -855,7 +865,7 @@ struct DDSFile
         const uint32_t packedMipsHeight = std::max<uint32_t>(1, header.m_height >> startMipToRead);
 
         nvrhi::TextureDesc textureDesc;
-        textureDesc.format = ConvertFromDXGIFormat(dxgiFormat);
+        textureDesc.format = nvrhiFormat;
         textureDesc.width = packedMipsWidth;
         textureDesc.height = packedMipsHeight;
         textureDesc.mipLevels = imageDatas.size();
