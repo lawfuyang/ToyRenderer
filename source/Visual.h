@@ -2,7 +2,7 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
-#include "Math.h"
+#include "MathUtilities.h"
 
 // NOTE: keep the values in sync with cgltf_alpha_mode
 enum class AlphaMode
@@ -30,8 +30,8 @@ public:
 
     bool IsValid() const;
 
+    std::string m_StreamingFilePath;
     StreamingMipData m_StreamingMipDatas[14];
-    uint32_t m_AsyncIOIdx = UINT_MAX;
     uint32_t m_HighestStreamedMip = UINT_MAX;
 
     uint32_t m_DescriptorIndex = UINT_MAX;

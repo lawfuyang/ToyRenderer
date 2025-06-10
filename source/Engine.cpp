@@ -206,13 +206,6 @@ void Engine::Shutdown()
     MicroProfileShutdown();
 
     assert(m_AsyncIOQueue);
-
-    for (SDL_AsyncIO* asyncIO : m_StreamingAsyncIOs)
-    {
-        // wtf? how is this failing tons of times? just silently fail. it's only the shutdown phase, dont care for now
-        SDL_CloseAsyncIO(asyncIO, true, m_AsyncIOQueue, nullptr);
-    }
-
     SDL_DestroyAsyncIOQueue(m_AsyncIOQueue);
     m_AsyncIOQueue = nullptr;
 

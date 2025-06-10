@@ -22,7 +22,7 @@ SET DXC_PATH="%cd%/extern/dxc/bin/x64/dxc.exe"
 SET CONFIG_FILE="%cd%/shaderstocompile.txt"
 SET OUT="%cd%/bin/shaders/"
 
-SET RELAXED_INCLUDES=--relaxedInclude=Math.h
+SET RELAXED_INCLUDES=--relaxedInclude=MathUtilities.h
 SET RELAXED_INCLUDES=%RELAXED_INCLUDES% --relaxedInclude=vaShared.hlsl
 SET RELAXED_INCLUDES=%RELAXED_INCLUDES% --relaxedInclude=XeGTAO.h
 SET RELAXED_INCLUDES=%RELAXED_INCLUDES% --relaxedInclude=../Types.h

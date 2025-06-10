@@ -230,8 +230,6 @@ struct GLTFSceneLoader
 
         tf::Taskflow taskflow;
 
-        g_Engine.m_StreamingAsyncIOs.resize(m_GLTFData->textures_count);
-
         g_Scene->m_Textures.resize(m_GLTFData->textures_count);
         for (uint32_t i = 0; i < m_GLTFData->textures_count; ++i)
         {
@@ -262,12 +260,7 @@ struct GLTFSceneLoader
 
                     if (bIsDDS)
                     {
-                        g_Scene->m_Textures[i].m_AsyncIOIdx = i;
-
-                        SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(filePath.data(), "r");
-                        SDL_CALL(asyncIO);
-
-                        g_Engine.m_StreamingAsyncIOs[i] = asyncIO;
+                        g_Scene->m_Textures[i].m_StreamingFilePath = filePath;
                     }
                 });
         }

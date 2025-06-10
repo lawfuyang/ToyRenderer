@@ -8,7 +8,7 @@ namespace HosekData
 #include "extern/imgui/imgui.h"
 
 #include "CommonResources.h"
-#include "Math.h"
+#include "MathUtilities.h"
 #include "Scene.h"
 #include "RenderGraph.h"
 

@@ -733,8 +733,6 @@ struct DDSFile
             bIsDXT10Header = true;
         }
 
-        const ptrdiff_t imageDataStartOffset = sizeof(uint32_t) + sizeof(Header) + (bIsDXT10Header ? sizeof(HeaderDXT10) : 0);
-
         DXGI_FORMAT dxgiFormat = DXGI_FORMAT_UNKNOWN;
         assert(header.m_mipMapCount != 0);
 

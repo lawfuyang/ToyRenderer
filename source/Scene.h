@@ -2,7 +2,7 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
-#include "Math.h"
+#include "MathUtilities.h"
 #include "Utilities.h"
 #include "Visual.h"
 
@@ -156,6 +156,7 @@ private:
     void UpdateAnimations();
     void CreateAccelerationStructures();
     void ProcessTextureStreamingRequests();
+    void ProcessTextureStreamingRequestsAsyncIO();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;
@@ -165,5 +166,11 @@ private:
 
     std::vector<TextureStreamingRequest> m_TextureStreamingRequests;
     std::vector<TextureStreamingRequest> m_InFlightTextureStreamingRequests;
+
+    std::vector<TextureStreamingRequest> m_TextureStreamingRequestsToFinalize;
+    std::mutex m_TextureStreamingRequestsToFinalizeLock;
+
+    std::thread m_TextureStreamingAsyncIOProcessingThread;
+    bool m_bShutDownStreamingThread = false;
 };
 #define g_Scene g_Graphic.m_Scene

@@ -148,6 +148,8 @@ void View::UpdateVectors(float yaw, float pitch)
 
 void Scene::Initialize()
 {
+    m_TextureStreamingAsyncIOProcessingThread = std::thread{&Scene::ProcessTextureStreamingRequestsAsyncIO, this};
+
     m_View.m_ZNearP = Graphic::kDefaultCameraNearPlane;
     m_View.m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
     m_View.m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };
@@ -492,6 +494,9 @@ void Scene::Update()
 
 void Scene::Shutdown()
 {
+    m_bShutDownStreamingThread = true;
+    m_TextureStreamingAsyncIOProcessingThread.join();
+
     m_RenderGraph->Shutdown();
 }
 
@@ -575,7 +580,7 @@ void Scene::UpdateIMGUI()
             {
                 Texture& texture = g_Scene->m_Textures[i];
                 
-                if (texture.m_AsyncIOIdx == UINT_MAX)
+                if (texture.m_StreamingFilePath.empty())
                 {
                     continue; // texture is not streamed
                 }
@@ -695,42 +700,63 @@ void Scene::PostSceneLoad()
     CreateAccelerationStructures();
 }
 
+void Scene::ProcessTextureStreamingRequestsAsyncIO()
+{
+    while (!m_bShutDownStreamingThread)
+    {
+        SDL_AsyncIOOutcome asyncIOOutcome{};
+        while (SDL_GetAsyncIOResult(g_Engine.m_AsyncIOQueue, &asyncIOOutcome))
+        {
+            if (asyncIOOutcome.type == SDL_ASYNCIO_TASK_CLOSE)
+            {
+                // this is a close request, we can ignore it
+                continue;
+            }
+
+            PROFILE_SCOPED("Process Async IO Result");
+
+            assert(asyncIOOutcome.asyncio);
+            assert(asyncIOOutcome.type == SDL_ASYNCIO_TASK_READ);
+            assert(asyncIOOutcome.result == SDL_ASYNCIO_COMPLETE);
+            assert(asyncIOOutcome.buffer);
+
+            assert(asyncIOOutcome.userdata);
+            const uint32_t inFlightIdx = ((uintptr_t)asyncIOOutcome.userdata) & 0x7FFFFFFF; // clear the highest bit to get the original index
+            TextureStreamingRequest& request = m_InFlightTextureStreamingRequests.at(inFlightIdx);
+            assert(asyncIOOutcome.buffer == request.m_MipBytes.data());
+
+            Texture& texture = m_Textures.at(request.m_TextureIdx);
+            assert(texture.IsValid());
+
+            assert(request.m_RequestedMip != UINT_MAX);
+            assert(request.m_RequestedMip < std::size(texture.m_StreamingMipDatas));
+            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
+            assert(streamingMipData.IsValid());
+
+            assert(asyncIOOutcome.offset == streamingMipData.m_DataOffset);
+            assert(asyncIOOutcome.bytes_requested == streamingMipData.m_NumBytes);
+            assert(asyncIOOutcome.bytes_transferred == streamingMipData.m_NumBytes);
+
+            {
+                AUTO_LOCK(m_TextureStreamingRequestsToFinalizeLock);
+                m_TextureStreamingRequestsToFinalize.push_back(std::move(request));
+            }
+
+            // LOG_DEBUG("Texture Streaming Request Completed: Texture[%s] Mip[%u] Frame[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_RequestedMip, g_Graphic.m_FrameCounter);
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // yield to avoid busy waiting
+    }
+}
+
 void Scene::ProcessTextureStreamingRequests()
 {
     PROFILE_FUNCTION();
 
     std::vector<TextureStreamingRequest> textureStreamingRequestsToFinalize;
-
-    SDL_AsyncIOOutcome asyncIOOutcome{};
-    while (SDL_GetAsyncIOResult(g_Engine.m_AsyncIOQueue, &asyncIOOutcome))
     {
-        PROFILE_SCOPED("Process Async IO Result");
-
-        assert(asyncIOOutcome.asyncio);
-        assert(asyncIOOutcome.type == SDL_ASYNCIO_TASK_READ);
-        assert(asyncIOOutcome.result == SDL_ASYNCIO_COMPLETE);
-        assert(asyncIOOutcome.buffer);
-
-        assert(asyncIOOutcome.userdata);
-        const uint32_t inFlightIdx = ((uintptr_t)asyncIOOutcome.userdata) & 0x7FFFFFFF; // clear the highest bit to get the original index
-        TextureStreamingRequest& request = m_InFlightTextureStreamingRequests.at(inFlightIdx);
-        assert(asyncIOOutcome.buffer == request.m_MipBytes.data());
-
-        Texture &texture = m_Textures.at(request.m_TextureIdx);
-        assert(texture.IsValid());
-
-        assert(request.m_RequestedMip != UINT_MAX);
-        assert(request.m_RequestedMip < std::size(texture.m_StreamingMipDatas));
-        const StreamingMipData &streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
-        assert(streamingMipData.IsValid());
-
-        assert(asyncIOOutcome.offset == streamingMipData.m_DataOffset);
-        assert(asyncIOOutcome.bytes_requested == streamingMipData.m_NumBytes);
-        assert(asyncIOOutcome.bytes_transferred == streamingMipData.m_NumBytes);
-
-        textureStreamingRequestsToFinalize.push_back(std::move(request));
-
-        // LOG_DEBUG("Texture Streaming Request Completed: Texture[%s] Mip[%u] Frame[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_RequestedMip, g_Graphic.m_FrameCounter);
+        AUTO_LOCK(m_TextureStreamingRequestsToFinalizeLock);
+        textureStreamingRequestsToFinalize = std::move(m_TextureStreamingRequestsToFinalize);
     }
 
     if (!textureStreamingRequestsToFinalize.empty())
@@ -744,8 +770,8 @@ void Scene::ProcessTextureStreamingRequests()
         {
             PROFILE_SCOPED("Finalize Texture Streaming Request");
 
-            Texture &texture = m_Textures.at(request.m_TextureIdx);
-            const StreamingMipData &streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
+            Texture& texture = m_Textures.at(request.m_TextureIdx);
+            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
 
             assert(streamingMipData.m_NumBytes == request.m_MipBytes.size());
 
@@ -794,12 +820,13 @@ void Scene::ProcessTextureStreamingRequests()
         // TriggerDumpProfilingCapture("TextureStreamingRequestsCapture");
     }
 
-    for (TextureStreamingRequest &request : m_TextureStreamingRequests)
+    for (TextureStreamingRequest& request : m_TextureStreamingRequests)
     {
         assert(request.m_TextureIdx != UINT_MAX);
         Texture& texture = m_Textures.at(request.m_TextureIdx);
 
         assert(texture.IsValid());
+        assert(!texture.m_StreamingFilePath.empty());
         assert(request.m_RequestedMip != UINT_MAX);
         assert(request.m_RequestedMip < std::size(texture.m_StreamingMipDatas));
         
@@ -812,9 +839,6 @@ void Scene::ProcessTextureStreamingRequests()
         {
             const StreamingMipData &streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
             assert(streamingMipData.IsValid());
-
-            SDL_AsyncIO *asyncIO = g_Engine.m_StreamingAsyncIOs.at(texture.m_AsyncIOIdx);
-            assert(asyncIO);
 
             request.m_MipBytes.resize(streamingMipData.m_NumBytes);
 
@@ -834,6 +858,9 @@ void Scene::ProcessTextureStreamingRequests()
                 m_InFlightTextureStreamingRequests.push_back(TextureStreamingRequest{});
             }
 
+            SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_StreamingFilePath.c_str(), "r");
+            SDL_CALL(asyncIO);
+
             TextureStreamingRequest& inFlightRequest = m_InFlightTextureStreamingRequests[inFlightidx];
             inFlightRequest.m_TextureIdx = request.m_TextureIdx;
             inFlightRequest.m_RequestedMip = request.m_RequestedMip;
@@ -841,6 +868,9 @@ void Scene::ProcessTextureStreamingRequests()
 
             inFlightidx |= 0x80000000; // use the highest bit to mark as in-flight, mainly so that i can simply check for nullptr for userdata ptr
             SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest.m_MipBytes.data(), streamingMipData.m_DataOffset, streamingMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void *)(uintptr_t)inFlightidx));
+
+            // according to the doc, we can close the async IO handle after the read request is submitted
+            SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
 
             m_InFlightTextureStreamingRequests.push_back(std::move(request));
         }
