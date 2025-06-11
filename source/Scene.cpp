@@ -890,7 +890,7 @@ void Scene::ProcessTextureStreamingRequests()
             // LOG_DEBUG("Texture Streaming Request Finalized: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_RequestedMip);
         }
 
-        extern void TriggerDumpProfilingCapture(std::string_view fileName);
-        TriggerDumpProfilingCapture("TextureStreamingRequestsCapture");
+        // extern void TriggerDumpProfilingCapture(std::string_view fileName);
+        // TriggerDumpProfilingCapture("TextureStreamingRequestsCapture");
     }
 }
