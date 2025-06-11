@@ -574,7 +574,7 @@ void Scene::UpdateIMGUI()
         ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
         ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, Graphic::kMaxNumMeshLODs - 1);
 
-        auto AddTextureStreamingRequests = [this](bool bLowerMip)
+        auto AddTextureStreamingRequests = [this](bool bHigherDetailedMip)
         {
             for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
             {
@@ -585,12 +585,12 @@ void Scene::UpdateIMGUI()
                     continue; // texture is not streamed
                 }
 
-                if (texture.m_HighestStreamedMip == 0 && bLowerMip)
+                if (texture.m_HighestStreamedMip == 0 && bHigherDetailedMip)
                 {
                     continue; // no mip to lower
                 }
 
-                if (!bLowerMip)
+                if (!bHigherDetailedMip)
                 {
                     const Vector2U currentMipRes = texture.m_StreamingMipDatas[texture.m_HighestStreamedMip].m_Resolution;
                     const uint32_t currentMipMaxSize = std::max(currentMipRes.x, currentMipRes.y);
@@ -601,7 +601,7 @@ void Scene::UpdateIMGUI()
                     }
                 }
 
-                const uint32_t requestedMip = ((int)texture.m_HighestStreamedMip + (bLowerMip ? -1 : 1));
+                const uint32_t requestedMip = ((int)texture.m_HighestStreamedMip + (bHigherDetailedMip ? -1 : 1));
                 assert(texture.m_StreamingMipDatas[requestedMip].IsValid());
 
                 m_TextureStreamingRequests.push_back(TextureStreamingRequest{i, requestedMip});
@@ -775,8 +775,8 @@ void Scene::ProcessTextureStreamingRequests()
 
             assert(streamingMipData.m_NumBytes == request.m_MipBytes.size());
 
-            const bool bLowerMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
-            assert(bLowerMip);
+            const bool bHigherDetailedMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
+            assert(bHigherDetailedMip);
 
             const nvrhi::TextureDesc &originalDesc = texture.m_NVRHITextureHandle->getDesc();
 
@@ -833,9 +833,9 @@ void Scene::ProcessTextureStreamingRequests()
         // check that requested mip is only '1' diff from the highest streamed mip
         assert(std::abs((int)texture.m_HighestStreamedMip - (int)request.m_RequestedMip)== 1);
 
-        const bool bLowerMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
+        const bool bHigherDetailedMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
 
-        if (bLowerMip)
+        if (bHigherDetailedMip)
         {
             const StreamingMipData &streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
             assert(streamingMipData.IsValid());
