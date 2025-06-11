@@ -604,6 +604,7 @@ void Scene::UpdateIMGUI()
                 const uint32_t requestedMip = ((int)texture.m_HighestStreamedMip + (bHigherDetailedMip ? -1 : 1));
                 assert(texture.m_StreamingMipDatas[requestedMip].IsValid());
 
+                AUTO_LOCK(m_TextureStreamingRequestsLock);
                 m_TextureStreamingRequests.push_back(TextureStreamingRequest{i, requestedMip});
             }
         };
@@ -702,7 +703,7 @@ void Scene::PostSceneLoad()
 
 void Scene::ProcessTextureStreamingRequestsAsyncIO()
 {
-    while (!m_bShutDownStreamingThread)
+    auto ProcessAsyncIOResults = [this]()
     {
         SDL_AsyncIOOutcome asyncIOOutcome{};
         while (SDL_GetAsyncIOResult(g_Engine.m_AsyncIOQueue, &asyncIOOutcome))
@@ -743,6 +744,79 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             }
 
             // LOG_DEBUG("Texture Streaming Request Completed: Texture[%s] Mip[%u] Frame[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_RequestedMip, g_Graphic.m_FrameCounter);
+        }
+    };
+
+    while (!m_bShutDownStreamingThread)
+    {
+        ProcessAsyncIOResults();
+        
+        std::vector<TextureStreamingRequest> textureStreamingRequests;
+        {
+            AUTO_LOCK(m_TextureStreamingRequestsLock);
+            textureStreamingRequests = std::move(m_TextureStreamingRequests);
+        }
+
+        for (TextureStreamingRequest& request : textureStreamingRequests)
+        {
+            assert(request.m_TextureIdx != UINT_MAX);
+            Texture& texture = m_Textures.at(request.m_TextureIdx);
+
+            assert(texture.IsValid());
+            assert(!texture.m_StreamingFilePath.empty());
+            assert(request.m_RequestedMip != UINT_MAX);
+            assert(request.m_RequestedMip < std::size(texture.m_StreamingMipDatas));
+
+            // check that requested mip is only '1' diff from the highest streamed mip
+            assert(std::abs((int)texture.m_HighestStreamedMip - (int)request.m_RequestedMip) == 1);
+
+            const bool bHigherDetailedMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
+
+            if (bHigherDetailedMip)
+            {
+                const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
+                assert(streamingMipData.IsValid());
+
+                request.m_MipBytes.resize(streamingMipData.m_NumBytes);
+
+                uint32_t inFlightidx = UINT_MAX;
+                for (uint32_t i = 0; i < m_InFlightTextureStreamingRequests.size(); ++i)
+                {
+                    if (m_InFlightTextureStreamingRequests[i].m_MipBytes.empty())
+                    {
+                        inFlightidx = i;
+                        break;
+                    }
+                }
+                if (inFlightidx == UINT_MAX)
+                {
+                    // no in-flight request slot available, just push a new one
+                    inFlightidx = m_InFlightTextureStreamingRequests.size();
+                    m_InFlightTextureStreamingRequests.push_back(TextureStreamingRequest{});
+                }
+
+                SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_StreamingFilePath.c_str(), "r");
+                SDL_CALL(asyncIO);
+
+                TextureStreamingRequest& inFlightRequest = m_InFlightTextureStreamingRequests[inFlightidx];
+                inFlightRequest.m_TextureIdx = request.m_TextureIdx;
+                inFlightRequest.m_RequestedMip = request.m_RequestedMip;
+                inFlightRequest.m_MipBytes.resize(streamingMipData.m_NumBytes);
+
+                inFlightidx |= 0x80000000; // use the highest bit to mark as in-flight, mainly so that i can simply check for nullptr for userdata ptr
+                SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest.m_MipBytes.data(), streamingMipData.m_DataOffset, streamingMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)(uintptr_t)inFlightidx));
+
+                // according to the doc, we can close the async IO handle after the read request is submitted
+                SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
+
+                ProcessAsyncIOResults();
+
+                m_InFlightTextureStreamingRequests.push_back(std::move(request));
+            }
+            else
+            {
+                // TODO: higher mip. immediately create a new texture & finalize it
+            }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1)); // yield to avoid busy waiting
@@ -816,68 +890,7 @@ void Scene::ProcessTextureStreamingRequests()
             // LOG_DEBUG("Texture Streaming Request Finalized: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_RequestedMip);
         }
 
-        // extern void TriggerDumpProfilingCapture(std::string_view fileName);
-        // TriggerDumpProfilingCapture("TextureStreamingRequestsCapture");
+        extern void TriggerDumpProfilingCapture(std::string_view fileName);
+        TriggerDumpProfilingCapture("TextureStreamingRequestsCapture");
     }
-
-    for (TextureStreamingRequest& request : m_TextureStreamingRequests)
-    {
-        assert(request.m_TextureIdx != UINT_MAX);
-        Texture& texture = m_Textures.at(request.m_TextureIdx);
-
-        assert(texture.IsValid());
-        assert(!texture.m_StreamingFilePath.empty());
-        assert(request.m_RequestedMip != UINT_MAX);
-        assert(request.m_RequestedMip < std::size(texture.m_StreamingMipDatas));
-        
-        // check that requested mip is only '1' diff from the highest streamed mip
-        assert(std::abs((int)texture.m_HighestStreamedMip - (int)request.m_RequestedMip)== 1);
-
-        const bool bHigherDetailedMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
-
-        if (bHigherDetailedMip)
-        {
-            const StreamingMipData &streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
-            assert(streamingMipData.IsValid());
-
-            request.m_MipBytes.resize(streamingMipData.m_NumBytes);
-
-            uint32_t inFlightidx = UINT_MAX;
-            for (uint32_t i = 0; i < m_InFlightTextureStreamingRequests.size(); ++i)
-            {
-                if (m_InFlightTextureStreamingRequests[i].m_MipBytes.empty())
-                {
-                    inFlightidx = i;
-                    break;
-                }
-            }
-            if (inFlightidx == UINT_MAX)
-            {
-                // no in-flight request slot available, just push a new one
-                inFlightidx = m_InFlightTextureStreamingRequests.size();
-                m_InFlightTextureStreamingRequests.push_back(TextureStreamingRequest{});
-            }
-
-            SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_StreamingFilePath.c_str(), "r");
-            SDL_CALL(asyncIO);
-
-            TextureStreamingRequest& inFlightRequest = m_InFlightTextureStreamingRequests[inFlightidx];
-            inFlightRequest.m_TextureIdx = request.m_TextureIdx;
-            inFlightRequest.m_RequestedMip = request.m_RequestedMip;
-            inFlightRequest.m_MipBytes.resize(streamingMipData.m_NumBytes);
-
-            inFlightidx |= 0x80000000; // use the highest bit to mark as in-flight, mainly so that i can simply check for nullptr for userdata ptr
-            SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest.m_MipBytes.data(), streamingMipData.m_DataOffset, streamingMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void *)(uintptr_t)inFlightidx));
-
-            // according to the doc, we can close the async IO handle after the read request is submitted
-            SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
-
-            m_InFlightTextureStreamingRequests.push_back(std::move(request));
-        }
-        else
-        {
-            // TODO: higher mip. immediately create a new texture & finalize it
-        }
-    }
-    m_TextureStreamingRequests.clear();
 }

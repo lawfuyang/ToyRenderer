@@ -165,6 +165,8 @@ private:
     float m_Pitch = 0.0f;
 
     std::vector<TextureStreamingRequest> m_TextureStreamingRequests;
+    std::mutex m_TextureStreamingRequestsLock;
+
     std::vector<TextureStreamingRequest> m_InFlightTextureStreamingRequests;
 
     std::vector<TextureStreamingRequest> m_TextureStreamingRequestsToFinalize;
