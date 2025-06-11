@@ -33,6 +33,7 @@ public:
     std::string m_StreamingFilePath;
     StreamingMipData m_StreamingMipDatas[14];
     uint32_t m_HighestStreamedMip = UINT_MAX;
+    uint32_t m_InFlightStreamingMip = UINT_MAX; // index in the m_InFlightTextureStreamingRequests array
 
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;

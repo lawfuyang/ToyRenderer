@@ -72,6 +72,7 @@ struct TextureStreamingRequest
     uint32_t m_TextureIdx = UINT_MAX;
     uint32_t m_RequestedMip = UINT_MAX;
     std::vector<std::byte> m_MipBytes;
+    nvrhi::TextureHandle m_HigherDetailMipNewTexture;
 };
 
 class Scene
