@@ -742,7 +742,8 @@ struct GLTFSceneLoader
                 assert(nbComponents <= 4);
                 for (uint32_t i = 0; i < gltfSampler.output->count; ++i)
                 {
-                    verify(cgltf_accessor_read_float(gltfSampler.output, i, (cgltf_float*)&newChannel.m_Data[i], nbComponents) == 1);
+                    const cgltf_bool bResult = cgltf_accessor_read_float(gltfSampler.output, i, (cgltf_float*)&newChannel.m_Data[i], nbComponents);
+                    assert(bResult == 1);
                 }
 
                 newAnimation.m_TimeStart = std::min(newAnimation.m_TimeStart, newChannel.m_KeyFrames.front());

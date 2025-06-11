@@ -29,7 +29,8 @@ void Graphic::InitRenderDocAPI()
     assert(mod);
 
     pRENDERDOC_GetAPI RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
-    verify(RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_6_0, (void**)&m_RenderDocAPI) == 1);
+    const int result = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_6_0, (void**)&m_RenderDocAPI);
+    assert(result == 1);
 }
 
 void Graphic::InitDevice()
