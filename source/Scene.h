@@ -72,7 +72,7 @@ struct TextureStreamingRequest
     uint32_t m_TextureIdx = UINT_MAX;
     uint32_t m_RequestedMip = UINT_MAX;
     std::vector<std::byte> m_MipBytes;
-    nvrhi::TextureHandle m_HigherDetailMipNewTexture;
+    nvrhi::TextureHandle m_NewTextureHandle;
 };
 
 class Scene
@@ -156,7 +156,7 @@ private:
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
     void CreateAccelerationStructures();
-    void ProcessTextureStreamingRequests();
+    void FinalizeTextureStreamingRequests();
     void ProcessTextureStreamingRequestsAsyncIO();
 
     // TODO: move this shit to some sort of camera class
