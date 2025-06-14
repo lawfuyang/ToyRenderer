@@ -58,6 +58,8 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     assert(!IsValid());
 
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
     const std::string debugName = std::filesystem::path{ filePath }.stem().string();
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
@@ -84,6 +86,33 @@ void Texture::LoadFromFile(std::string_view filePath)
         const uint32_t currentMipWidth = m_NVRHITextureHandle->getDesc().width;
         const uint32_t maxTextureWidth = m_StreamingMipDatas[0].m_Resolution.x;
         m_HighestStreamedMip = std::log2(maxTextureWidth/currentMipWidth);
+
+        {
+            nvrhi::TextureDesc textureDesc = m_NVRHITextureHandle->getDesc();
+            textureDesc.width = m_StreamingMipDatas[0].m_Resolution.x;
+            textureDesc.height = m_StreamingMipDatas[0].m_Resolution.y;
+            textureDesc.isTiled = true;
+            textureDesc.debugName = debugName + "Reserved texture";
+            m_ReservedTextureHandle = device->createTexture(textureDesc);
+        }
+
+        // Get tiling info
+        uint32_t numTiles = 0;
+        nvrhi::PackedMipDesc packedMipDesc;
+        nvrhi::TileShape tileShape;
+        uint32_t subResourceTilingsNum = ComputeNbMips(m_StreamingMipDatas[0].m_Resolution.x, m_StreamingMipDatas[0].m_Resolution.y);
+        nvrhi::SubresourceTiling tilingsInfo[Graphic::kMaxTextureMips];
+        device->getTextureTiling(m_ReservedTextureHandle, &numTiles, &packedMipDesc, &tileShape, &subResourceTilingsNum, tilingsInfo);
+
+        nvrhi::SamplerFeedbackTextureDesc samplerFeedbackDesc;
+        samplerFeedbackDesc.samplerFeedbackFormat = nvrhi::SamplerFeedbackFormat::MinMipOpaque;
+        samplerFeedbackDesc.samplerFeedbackMipRegionX = 4;
+        samplerFeedbackDesc.samplerFeedbackMipRegionY = 4;
+        samplerFeedbackDesc.samplerFeedbackMipRegionZ = 1;
+        samplerFeedbackDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+        samplerFeedbackDesc.keepInitialState = true;
+
+        m_FeedbackTexture = device->createSamplerFeedbackTexture(m_ReservedTextureHandle, samplerFeedbackDesc);
     }
     else
     {

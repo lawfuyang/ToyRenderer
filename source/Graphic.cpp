@@ -59,6 +59,7 @@ void Graphic::InitDevice()
         EnsureFeatureSupport(nvrhi::Feature::RayTracingAccelStruct);
         EnsureFeatureSupport(nvrhi::Feature::RayTracingPipeline);
         EnsureFeatureSupport(nvrhi::Feature::RayQuery);
+        EnsureFeatureSupport(nvrhi::Feature::SamplerFeedback);
 
         // NOTE: RenderDoc <= 1.37 doesnt like this
         if (!m_RenderDocAPI)

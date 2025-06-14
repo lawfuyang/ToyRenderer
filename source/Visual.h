@@ -31,9 +31,14 @@ public:
     bool IsValid() const;
 
     std::string m_StreamingFilePath;
-    StreamingMipData m_StreamingMipDatas[14];
+    StreamingMipData m_StreamingMipDatas[16];
     uint32_t m_HighestStreamedMip = UINT_MAX;
     uint32_t m_InFlightStreamingMip = UINT_MAX; // index in the m_InFlightTextureStreamingRequests array
+
+    nvrhi::TextureHandle m_ReservedTextureHandle;
+    nvrhi::SamplerFeedbackTextureHandle m_FeedbackTexture;
+    nvrhi::TextureHandle m_MinMipTexture;
+    nvrhi::BufferHandle m_FeedbackResolveBuffers[2];
 
     uint32_t m_DescriptorIndex = UINT_MAX;
     nvrhi::TextureHandle m_NVRHITextureHandle;
