@@ -122,6 +122,7 @@ add_subdirectory(extern/nvrhi)
 add_subdirectory(extern/taskflow)
 add_subdirectory(extern/nvidia/NRD)
 add_subdirectory(extern/nvidia/RTXGI-DDGI)
+add_subdirectory(extern/nvidia/RTXTS-TTM)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
@@ -143,6 +144,7 @@ set(TOYRENDERER_LIBRARIES
 	Taskflow
 	NRD
 	RTXGI-D3D12
+    rtxts-ttm
 	"${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.lib"
 )
 

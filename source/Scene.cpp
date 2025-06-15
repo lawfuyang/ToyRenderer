@@ -158,6 +158,8 @@ void Scene::Initialize()
     m_RenderGraph = std::make_shared<RenderGraph>();
     m_RenderGraph->Initialize();
 
+    m_TiledTextureManager = std::unique_ptr<rtxts::TiledTextureManager>{ rtxts::CreateTiledTextureManager(rtxts::TiledTextureManagerDesc{}) };
+
     UpdateDirectionalLightVector();
 }
 

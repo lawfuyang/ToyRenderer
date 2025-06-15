@@ -1,6 +1,7 @@
 #pragma once
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
+#include "extern/nvidia/RTXTS-TTM/include/rtxts-ttm/TiledTextureManager.h"
 
 #include "MathUtilities.h"
 #include "Utilities.h"
@@ -175,5 +176,7 @@ private:
 
     std::thread m_TextureStreamingAsyncIOProcessingThread;
     bool m_bShutDownStreamingThread = false;
+
+    std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
 };
 #define g_Scene g_Graphic.m_Scene

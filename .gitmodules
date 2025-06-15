@@ -37,3 +37,6 @@
 [submodule "extern/nvidia/RTXGI-DDGI"]
 	path = extern/nvidia/RTXGI-DDGI
 	url = https://github.com/NVIDIAGameWorks/RTXGI-DDGI
+[submodule "extern/nvidia/RTXTS-TTM"]
+	path = extern/nvidia/RTXTS-TTM
+	url = https://github.com/NVIDIA-RTX/RTXTS-TTM
