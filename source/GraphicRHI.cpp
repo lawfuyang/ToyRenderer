@@ -111,20 +111,6 @@ public:
                 ComPtr<ID3D12InfoQueue1> debugInfoQueue;
                 HRESULT_CALL(m_D3DDevice->QueryInterface(__uuidof(ID3D12InfoQueue1), (LPVOID *)&debugInfoQueue));
 
-                debugInfoQueue->RegisterMessageCallback(
-                    [](D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR pDescription, void* pContext)
-                    {
-                        LOG_DEBUG("[%s][%s]: %s", EnumUtils::ToString(severity), EnumUtils::ToString(category), pDescription);
-
-                        if (severity >= D3D12_MESSAGE_SEVERITY_WARNING)
-                        {
-                            assert(false);
-                        }
-                    },
-                    D3D12_MESSAGE_CALLBACK_FLAG_NONE,
-                    nullptr,
-                    nullptr);
-
                 // NOTE: add whatever d3d12 filters here when needed
                 D3D12_INFO_QUEUE_FILTER newFilter{};
 
