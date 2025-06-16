@@ -21,6 +21,7 @@ CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
 
 struct GLTFSceneLoader
 {
+    std::string m_FileName;
     std::string m_BaseFolderPath;
     cgltf_data* m_GLTFData = nullptr;
 
@@ -103,6 +104,9 @@ struct GLTFSceneLoader
             }
         }
 
+        const std::string processedMeshesFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_ProcessedMeshesMetadata.bin")).string();
+        const bool bLoadProcessedMeshes = std::filesystem::exists(processedMeshesFilePath);
+
         {
             SCENE_LOAD_PROFILE("Decompress buffers");
 
@@ -110,12 +114,22 @@ struct GLTFSceneLoader
             assert(result == cgltf_result_success);
         }
 
+        m_FileName = std::filesystem::path{ filePath }.stem().string();
         m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
 
         LoadSamplers();
         LoadImages();
         LoadMaterials();
-        LoadMeshes();
+
+        if (bLoadProcessedMeshes)
+        {
+            LoadProcessedMeshesData();
+        }
+        else
+        {
+            LoadMeshes();
+        }
+
         LoadAnimations();
         LoadNodes();
         UploadGlobalBuffers();
@@ -566,6 +580,12 @@ struct GLTFSceneLoader
         m_GlobalIndices.resize(totalIndices);
 
         g_Engine.m_Executor->run(taskflow).wait();
+    }
+
+    void LoadProcessedMeshesData()
+    {
+        SCENE_LOAD_PROFILE("Load Processed Meshes Data");
+
     }
 
     void LoadNodes()
