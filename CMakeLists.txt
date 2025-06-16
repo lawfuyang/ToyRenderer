@@ -115,6 +115,7 @@ set(RTXGI_BUILD_SAMPLES OFF)
 set(RTXGI_STATIC_LIB ON)
 set(SHADERMAKE_FIND_FXC OFF)
 set(SHADERMAKE_FIND_DXC OFF)
+set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/meshoptimizer)
@@ -123,6 +124,7 @@ add_subdirectory(extern/taskflow)
 add_subdirectory(extern/nvidia/NRD)
 add_subdirectory(extern/nvidia/RTXGI-DDGI)
 add_subdirectory(extern/nvidia/RTXTS-TTM)
+add_subdirectory(extern/volk)
 
 add_executable(ToyRenderer WIN32 ${TOYRENDERER_SRC})
 
@@ -145,6 +147,7 @@ set(TOYRENDERER_LIBRARIES
 	NRD
 	RTXGI-D3D12
     rtxts-ttm
+    volk
 	"${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.lib"
 )
 

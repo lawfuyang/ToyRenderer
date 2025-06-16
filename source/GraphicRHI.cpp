@@ -1,7 +1,10 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
+#include "volk.h"
+
 #include "extern/nvrhi/include/nvrhi/d3d12.h"
+#include "extern/nvrhi/include/nvrhi/vulkan.h"
 #include "extern/nvrhi/include/nvrhi/validation.h"
 
 #include "SDL3/SDL.h"
@@ -43,6 +46,14 @@ class NVRHIMessageCallback : public nvrhi::IMessageCallback
 };
 static NVRHIMessageCallback g_NVRHIErrorCB;
 PRAGMA_OPTIMIZE_ON;
+
+inline thread_local HRESULT tl_HResult;
+#define HRESULT_CALL(call)           \
+    do                               \
+    {                                \
+        tl_HResult = (call);         \
+        assert(!FAILED(tl_HResult)); \
+    } while (0)
 
 // for D3D12MAAllocator creation in nvrhi d3d12 device ctor
 IDXGIAdapter1* g_DXGIAdapter;
@@ -292,10 +303,118 @@ public:
     ComPtr<IDXGISwapChain3> m_SwapChain;
 };
 
+inline thread_local VkResult tl_VkResult;
+#define VK_CHECK(call)                     \
+    do                                     \
+    {                                      \
+        tl_VkResult = (call);              \
+        assert(tl_VkResult == VK_SUCCESS); \
+    } while (0)
+
+static VkBool32 VKAPI_CALL VulkanDebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
+{
+	// This silences warnings like "For optimal performance image layout should be VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL instead of GENERAL."
+	// We'll assume other performance warnings are also not useful.
+	if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
+		return VK_FALSE;
+
+	const char* type =
+	    (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+	        ? "ERROR"
+	    : (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
+	        ? "WARNING"
+	        : "INFO";
+
+    std::string message = type;
+    message += ": ";
+    message += pMessage;
+
+    LOG_DEBUG("[Vulkan]: %s", message.c_str());
+    assert(false);
+
+	return VK_FALSE;
+}
+
 class VulkanRHI : public GraphicRHI
 {
+    VkInstance m_Instance = VK_NULL_HANDLE;
+    VkDebugReportCallbackEXT m_DebugReportCallback = VK_NULL_HANDLE;
+    VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
+    VkDevice m_Device = VK_NULL_HANDLE;
+
 public:
-    nvrhi::DeviceHandle CreateDevice() override { assert(false && "Not Implemented!"); return {}; }
+    ~VulkanRHI()
+    {
+        if (m_Device != VK_NULL_HANDLE)
+        {
+            vkDestroyDevice(m_Device, nullptr);
+        }
+
+        if (m_DebugReportCallback)
+        {
+            vkDestroyDebugReportCallbackEXT(m_Instance, m_DebugReportCallback, 0);
+        }
+
+        if (m_Instance)
+        {
+            vkDestroyInstance(m_Instance, nullptr);
+        }
+    }
+
+    nvrhi::DeviceHandle CreateDevice() override
+    {
+        VK_CHECK(volkInitialize());
+
+        const bool bEnableValidation = g_CVarEnableGraphicRHIValidation.Get();
+
+        std::vector<const char*> enabledLayers;
+        if (bEnableValidation)
+        {
+            enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
+        }
+
+        std::vector<const char*> enabledExtensions{ VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+        if (bEnableValidation)
+        {
+            enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        }
+
+        VkInstanceCreateInfo instanceInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+        instanceInfo.enabledLayerCount = static_cast<uint32_t>(enabledLayers.size());
+        instanceInfo.ppEnabledLayerNames = enabledLayers.data();
+        instanceInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
+        instanceInfo.ppEnabledExtensionNames = enabledExtensions.data();
+
+        VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &m_Instance));
+        volkLoadInstanceOnly(m_Instance);
+
+        if (bEnableValidation)
+        {
+            VkDebugReportCallbackCreateInfoEXT createInfo = { VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT };
+            createInfo.flags = VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT;
+            createInfo.pfnCallback = VulkanDebugReportCallback;
+
+            VkDebugReportCallbackEXT callback = 0;
+            VK_CHECK(vkCreateDebugReportCallbackEXT(m_Instance, &createInfo, 0, &callback));
+            m_DebugReportCallback = callback;
+        }
+
+        nvrhi::vulkan::DeviceDesc deviceDesc;
+        deviceDesc.errorCB = &g_NVRHIErrorCB;
+        deviceDesc.instance = m_Instance;
+        deviceDesc.physicalDevice;
+        deviceDesc.device;
+
+        // nvrhi::DeviceHandle device = nvrhi::vulkan::createDevice(deviceDesc);
+        // if (bEnableValidation)
+        // {
+        //     device = nvrhi::validation::createValidationLayer(device);
+        // }
+
+        // return device;
+        return {};
+    }
+
     void InitSwapChainTextureHandles() override { assert(false && "Not Implemented!"); }
     uint32_t GetCurrentBackBufferIndex() override { assert(false && "Not Implemented!"); return UINT32_MAX; }
     void SwapChainPresent() override { assert(false && "Not Implemented!"); }

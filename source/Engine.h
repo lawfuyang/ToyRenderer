@@ -56,13 +56,6 @@ private:
 };
 #define g_Engine Engine::GetInstance()
 
-inline thread_local HRESULT tl_HResult;
-#define HRESULT_CALL(call)           \
-    {                                \
-        tl_HResult = (call);         \
-        assert(!FAILED(tl_HResult)); \
-    }
-
 // note: DON'T input formatted strings from 'StringFormat'!!! It will cock up the profiling dump if the internal ring buffer of strings gets overwritten
 #define PROFILE_SCOPED(NAME) MICROPROFILE_SCOPE_CSTR(NAME)
 
