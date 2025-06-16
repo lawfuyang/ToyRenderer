@@ -19,8 +19,6 @@ static_assert(_countof(Mesh::m_LODs) == Graphic::kMaxNumMeshLODs);
 static_assert(Graphic::kMaxNumMeshLODs == kMaxNumMeshLODs);
 static_assert(_countof(Texture::m_StreamingMipDatas) == Graphic::kMaxTextureMips);
 
-CommandLineOption<bool> g_NoMeshLODs{ "nomeshlods", false };
-
 static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
 {
     return g_Graphic.m_InstancesBindlessResourcesDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
@@ -189,6 +187,7 @@ void Mesh::Initialize(
 
     std::vector<uint32_t> LODIndices = indices;
     float LODError = 0.0f;
+    bool bSimplifySloppy = false;
 
     for (uint32_t lodIdx = 0; lodIdx < Graphic::kMaxNumMeshLODs; ++lodIdx)
     {
@@ -296,11 +295,6 @@ void Mesh::Initialize(
             }
         }
 
-        if (g_NoMeshLODs.Get())
-        {
-            break;
-        }
-
         {
             PROFILE_SCOPED("Simplify Mesh");
 
@@ -319,38 +313,51 @@ void Mesh::Initialize(
                 unpackedNormal = (unpackedNormal * 2.0f) - Vector3::One;
             }
 
-            const size_t targetIndexCount = (size_t(double(LODIndices.size()) * kTargetIndexCountPercentage) / 3) * 3;
             float resultError = 0.0f;
-            const size_t numSimplifiedIndices = meshopt_simplifyWithAttributes(
-                LODIndices.data(),
-                LODIndices.data(),
-                LODIndices.size(),
-                (const float*)vertices.data(),
-                vertices.size(),
-                sizeof(RawVertexFormat),
-                (const float*)unpackedNormals.data(),
-                sizeof(Vector3),
-                &kAttributeWeights.x,
-                sizeof(Vector3) / sizeof(float),
-                kVertexLock,
-                targetIndexCount,
-                kTargetError,
-                kSimplifyOptions,
-                &resultError);
+
+            size_t numSimplifiedIndices = 0;
+            const size_t targetIndexCount = (size_t(double(LODIndices.size()) * kTargetIndexCountPercentage) / 3) * 3;
+            if (bSimplifySloppy)
+            {
+                numSimplifiedIndices = meshopt_simplifySloppy(
+                    LODIndices.data(),
+                    LODIndices.data(),
+                    LODIndices.size(),
+                    (const float*)vertices.data(),
+                    vertices.size(),
+                    sizeof(RawVertexFormat),
+                    targetIndexCount,
+                    kTargetError,
+                    &resultError);
+            }
+            else
+            {
+                numSimplifiedIndices = meshopt_simplifyWithAttributes(
+                    LODIndices.data(),
+                    LODIndices.data(),
+                    LODIndices.size(),
+                    (const float*)vertices.data(),
+                    vertices.size(),
+                    sizeof(RawVertexFormat),
+                    (const float*)unpackedNormals.data(),
+                    sizeof(Vector3),
+                    &kAttributeWeights.x,
+                    sizeof(Vector3) / sizeof(float),
+                    kVertexLock,
+                    targetIndexCount,
+                    kTargetError,
+                    kSimplifyOptions,
+                    &resultError);
+            }
+
             assert(numSimplifiedIndices <= LODIndices.size());
 
-            // we've reached the error bound
-            if (numSimplifiedIndices == LODIndices.size() || numSimplifiedIndices == 0)
+            // we've reached the error bound, next LOD onwards will use sloppy simplification
+            if (numSimplifiedIndices == LODIndices.size() || numSimplifiedIndices == 0 || (numSimplifiedIndices >= size_t(double(LODIndices.size()) * kMinIndexReductionPercentage)))
             {
-                break;
+                bSimplifySloppy = true;
             }
-
-            // while we could keep this LOD, it's too close to the last one (and it can't go below that due to constant error bound above)
-            if (numSimplifiedIndices >= size_t(double(LODIndices.size()) * kMinIndexReductionPercentage))
-            {
-                break;
-            }
-
+            
             LODIndices.resize(numSimplifiedIndices);
             LODError = std::max(LODError, resultError); // important! since we start from last LOD, we need to accumulate the error
         }
