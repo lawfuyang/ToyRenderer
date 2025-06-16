@@ -15,6 +15,8 @@
 #include "shaders/ShaderInterop.h"
 
 CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
+CommandLineOption<bool> g_ForceInvalidCachedMeshData{"forceinvalidcachedmeshdata", true };
+
 #define SCENE_LOAD_PROFILE(x) \
     PROFILE_SCOPED(x);        \
     SCOPED_TIMER_NAMED(x);
@@ -23,6 +25,10 @@ struct GLTFSceneLoader
 {
     std::string m_FileName;
     std::string m_BaseFolderPath;
+    std::string m_CachedMeshesDataFilePath;
+
+    bool m_bInvalidCachedMeshData = true;
+
     cgltf_data* m_GLTFData = nullptr;
 
     std::vector<nvrhi::SamplerAddressMode> m_AddressModes;
@@ -42,6 +48,13 @@ struct GLTFSceneLoader
         std::vector<MeshletData> m_Meshlets;
     };
 	std::vector<GlobalMeshletDataEntry> m_MeshletDataEntries;
+
+    struct CachedMeshDataHeader
+    {
+        uint32_t m_Version = 1;
+        uint32_t m_NumVertices = 0;
+        uint32_t m_NumIndices = 0;
+    };
 
     void LoadScene(std::string_view filePath)
     {
@@ -104,9 +117,12 @@ struct GLTFSceneLoader
             }
         }
 
-        const std::string processedMeshesFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_ProcessedMeshesMetadata.bin")).string();
-        const bool bLoadProcessedMeshes = std::filesystem::exists(processedMeshesFilePath);
+        m_FileName = std::filesystem::path{ filePath }.stem().string();
+        m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
+        m_CachedMeshesDataFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_CachedMeshesData.bin")).string();
+        m_bInvalidCachedMeshData = !std::filesystem::exists(m_CachedMeshesDataFilePath) || g_ForceInvalidCachedMeshData.Get();
 
+        if (m_bInvalidCachedMeshData)
         {
             SCENE_LOAD_PROFILE("Decompress buffers");
 
@@ -114,16 +130,13 @@ struct GLTFSceneLoader
             assert(result == cgltf_result_success);
         }
 
-        m_FileName = std::filesystem::path{ filePath }.stem().string();
-        m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
-
         LoadSamplers();
         LoadImages();
         LoadMaterials();
 
-        if (bLoadProcessedMeshes)
+        if (!m_bInvalidCachedMeshData)
         {
-            LoadProcessedMeshesData();
+            LoadCachedMeshesData();
         }
         else
         {
@@ -582,10 +595,11 @@ struct GLTFSceneLoader
         g_Engine.m_Executor->run(taskflow).wait();
     }
 
-    void LoadProcessedMeshesData()
+    void LoadCachedMeshesData()
     {
         SCENE_LOAD_PROFILE("Load Processed Meshes Data");
 
+        ScopedFile cachedMeshDataFile{ m_CachedMeshesDataFilePath, "rb" };
     }
 
     void LoadNodes()
@@ -882,12 +896,32 @@ struct GLTFSceneLoader
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload Global Buffers");
 
 		commandList->writeBuffer(g_Graphic.m_GlobalVertexBuffer, m_GlobalVertices.data(), g_Graphic.m_GlobalVertexBuffer->getDesc().byteSize);
-		commandList->writeBuffer(g_Graphic.m_GlobalIndexBuffer, m_GlobalIndices.data(), g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize);
-		commandList->writeBuffer(g_Graphic.m_GlobalMeshDataBuffer, m_GlobalMeshData.data(), g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize);
-		commandList->writeBuffer(g_Graphic.m_GlobalMaterialDataBuffer, m_GlobalMaterialData.data(), g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize);
-		commandList->writeBuffer(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer, globalMeshletVertexIdxOffsets.data(), g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize);
-		commandList->writeBuffer(g_Graphic.m_GlobalMeshletIndicesBuffer, globalMeshletIndices.data(), g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize);
-		commandList->writeBuffer(g_Graphic.m_GlobalMeshletDataBuffer, globalMeshletDatas.data(), g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalIndexBuffer, m_GlobalIndices.data(), g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalMeshDataBuffer, m_GlobalMeshData.data(), g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalMaterialDataBuffer, m_GlobalMaterialData.data(), g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer, globalMeshletVertexIdxOffsets.data(), g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalMeshletIndicesBuffer, globalMeshletIndices.data(), g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalMeshletDataBuffer, globalMeshletDatas.data(), g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize);
+
+        WriteCachedMeshData();
+    }
+
+    void WriteCachedMeshData()
+    {
+        if (!m_bInvalidCachedMeshData)
+        {
+            return;
+        }
+
+        ScopedFile cachedMeshDataFile{ m_CachedMeshesDataFilePath, "wb" };
+
+        CachedMeshDataHeader header;
+        header.m_NumVertices = m_GlobalVertices.size();
+        header.m_NumIndices = m_GlobalIndices.size();
+
+        fwrite(&header, sizeof(header), 1, cachedMeshDataFile);
+        fwrite(m_GlobalVertices.data(), sizeof(RawVertexFormat), m_GlobalVertices.size(), cachedMeshDataFile);
+        fwrite(m_GlobalIndices.data(), sizeof(Graphic::IndexBufferFormat_t), m_GlobalIndices.size(), cachedMeshDataFile);
     }
 };
 
