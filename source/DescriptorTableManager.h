@@ -77,3 +77,29 @@ public:
     uint32_t CreateDescriptorHandle(nvrhi::BindingSetItem item);
     void ReleaseDescriptor(uint32_t index);
 };
+
+// Stores a descriptor index in a descriptor table. Releases the descriptor when destroyed.
+class DescriptorHandle
+{
+public:
+    ~DescriptorHandle() { if (IsValid()) { m_Manager->ReleaseDescriptor(m_DescriptorIndex); Reset(); } }
+
+    [[nodiscard]] bool IsValid() const { return m_DescriptorIndex != UINT_MAX && !!m_Manager; }
+    [[nodiscard]] uint32_t Get() const { if (m_DescriptorIndex != UINT_MAX) assert(!!m_Manager); return m_DescriptorIndex; }
+
+    // For ResourceDescriptorHeap Index instead of a table relative index
+    // This value is volatile if the descriptor table resizes and needs to be refetched
+    [[nodiscard]] uint32_t GetIndexInHeap() const { assert(IsValid()); return m_Manager->GetDescriptorTable()->getFirstDescriptorIndexInHeap() + m_DescriptorIndex; }
+
+    void Reset() { m_DescriptorIndex = UINT_MAX; m_Manager = nullptr; }
+
+    // Movable but non-copyable
+    DescriptorHandle(const DescriptorHandle&) = delete;
+    DescriptorHandle(DescriptorHandle&&) = default;
+    DescriptorHandle& operator=(const DescriptorHandle&) = delete;
+    DescriptorHandle& operator=(DescriptorHandle&&) = default;
+
+private:
+    DescriptorTableManager* m_Manager = nullptr;
+    uint32_t m_DescriptorIndex = UINT_MAX;
+};
