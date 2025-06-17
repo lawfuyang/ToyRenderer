@@ -1063,11 +1063,11 @@ struct GLTFSceneLoader
     }
 };
 
-static GLTFSceneLoader* gs_GLTFLoader = nullptr;
+std::unique_ptr<GLTFSceneLoader> gs_GLTFLoader;
 
 void PreloadScene()
 {
-    gs_GLTFLoader = new GLTFSceneLoader();
+    gs_GLTFLoader = std::make_unique<GLTFSceneLoader>();
     gs_GLTFLoader->PreloadScene();
 }
 
@@ -1076,8 +1076,7 @@ void LoadScene()
     assert(gs_GLTFLoader);
     gs_GLTFLoader->LoadScene();
 
-    delete gs_GLTFLoader;
-    gs_GLTFLoader = nullptr;
+    gs_GLTFLoader.reset();
 }
 
 #undef SCENE_LOAD_PROFILE
