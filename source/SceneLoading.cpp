@@ -169,7 +169,7 @@ struct GLTFSceneLoader
             taskflow.emplace([this] { LoadCachedMeshesData(); });
         }
         
-        g_Engine.m_Executor->run(taskflow).wait();
+        g_Engine.m_Executor->corun(taskflow);
     }
 
     void LoadScene()
@@ -372,7 +372,7 @@ struct GLTFSceneLoader
                 });
         }
 
-        g_Engine.m_Executor->run(taskflow).wait();
+        g_Engine.m_Executor->corun(taskflow);
     }
 
     void LoadMaterials()
@@ -657,7 +657,7 @@ struct GLTFSceneLoader
         m_GlobalVertices.resize(totalVertices);
         m_GlobalIndices.resize(totalIndices);
 
-        g_Engine.m_Executor->run(taskflow).wait();
+        g_Engine.m_Executor->corun(taskflow);
     }
 
     void PrePopulateSceneMeshPrimitives()
