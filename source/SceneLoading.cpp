@@ -16,7 +16,6 @@
 
 CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
 CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
-CommandLineOption<bool> g_ForceInvalidCachedMeshData{"forceinvalidcachedmeshdata", false };
 
 #define SCENE_LOAD_PROFILE(x) \
     PROFILE_SCOPED(x);        \
@@ -56,8 +55,11 @@ struct GLTFSceneLoader
 
     struct CachedMeshData
     {
+        static const uint32_t kCurrentVersion = 1; // increment this if the cached mesh data format changes
+
         struct Header
         {
+            uint32_t m_Version = kCurrentVersion;
             uint32_t m_NumVertices = 0;
             uint32_t m_NumIndices = 0;
             uint32_t m_NumMeshes = 0;
@@ -84,7 +86,18 @@ struct GLTFSceneLoader
         m_FileName = std::filesystem::path{ sceneToLoad }.stem().string();
         m_BaseFolderPath = std::filesystem::path{ sceneToLoad }.parent_path().string();
         m_CachedMeshesDataFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_CachedMeshesData.bin")).string();
-        m_bInvalidCachedMeshData = !std::filesystem::exists(m_CachedMeshesDataFilePath) || g_ForceInvalidCachedMeshData.Get();
+        m_bInvalidCachedMeshData = !std::filesystem::exists(m_CachedMeshesDataFilePath);
+
+        if (!m_bInvalidCachedMeshData)
+        {
+            ScopedFile cachedMeshDataFile{ m_CachedMeshesDataFilePath, "rb" };
+
+            CachedMeshData::Header header;
+            size_t objectsRead = fread(&header, sizeof(header), 1, cachedMeshDataFile);
+            assert(objectsRead == 1);
+
+            m_bInvalidCachedMeshData == (header.m_Version != CachedMeshData::kCurrentVersion);
+        }
 
         cgltf_options options{};
 
@@ -141,12 +154,22 @@ struct GLTFSceneLoader
             }
         }
 
+        tf::Taskflow taskflow;
+
+        taskflow.emplace([this]
         {
             SCENE_LOAD_PROFILE("Decompress buffers");
 
             const cgltf_result result = decompressMeshopt(m_GLTFData);
             assert(result == cgltf_result_success);
+        });
+        
+        if (!m_bInvalidCachedMeshData)
+        {
+            taskflow.emplace([this] { LoadCachedMeshesData(); });
         }
+        
+        g_Engine.m_Executor->run(taskflow).wait();
     }
 
     void LoadScene()
@@ -162,9 +185,8 @@ struct GLTFSceneLoader
 
         if (!m_bInvalidCachedMeshData)
         {
-            LoadCachedMeshesData();
+            PrePopulateSceneMeshPrimitives();
         }
-
         else
         {
             LoadMeshes();
@@ -474,20 +496,18 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Load Meshes");
 
+        PrePopulateSceneMeshPrimitives();
+
         tf::Taskflow taskflow;
 
         uint32_t totalVertices = 0;
         uint32_t totalIndices = 0;
 
-        m_SceneMeshPrimitives.resize(m_GLTFData->meshes_count);
-
         for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_GLTFData->meshes_count; ++modelMeshIdx)
         {
-            const cgltf_mesh& mesh = m_GLTFData->meshes[modelMeshIdx];
+            const cgltf_mesh& gltfMesh = m_GLTFData->meshes[modelMeshIdx];
 
-            m_SceneMeshPrimitives[modelMeshIdx].resize(mesh.primitives_count);
-
-            for (uint32_t primitiveIdx = 0; primitiveIdx < mesh.primitives_count; ++primitiveIdx)
+            for (uint32_t primitiveIdx = 0; primitiveIdx < gltfMesh.primitives_count; ++primitiveIdx)
             {
                 // pre-create empty Mesh objects here due to MT init
                 const uint32_t sceneMeshIdx = g_Graphic.m_Meshes.size();
@@ -498,7 +518,7 @@ struct GLTFSceneLoader
                 m_MeshletDataEntries.emplace_back();
                 m_MeshletDataEntries.back().m_SceneMeshIdx = sceneMeshIdx;
 
-                const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
+                const cgltf_primitive& gltfPrimitive = gltfMesh.primitives[primitiveIdx];
 
                 const cgltf_accessor* positionAccessor = cgltf_find_accessor(&gltfPrimitive, cgltf_attribute_type_position, 0);
                 assert(positionAccessor);
@@ -515,7 +535,7 @@ struct GLTFSceneLoader
                     {
                         PROFILE_SCOPED("Load Primitive");
 
-                        const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
+                        const cgltf_primitive& gltfPrimitive = gltfMesh.primitives[primitiveIdx];
                         assert(gltfPrimitive.type == cgltf_primitive_type_triangles);
 
                         std::vector<Graphic::IndexBufferFormat_t> indices;
@@ -599,17 +619,6 @@ struct GLTFSceneLoader
                             meshLODData.m_NumMeshlets = meshLOD.m_NumMeshlets;
                             meshLODData.m_Error = meshLOD.m_Error;
                         }
-
-                        Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
-                        if (gltfPrimitive.material)
-                        {
-                            primitive.m_Material = m_SceneMaterials.at(cgltf_material_index(m_GLTFData, gltfPrimitive.material));
-                        }
-                        else
-                        {
-                            primitive.m_Material = g_CommonResources.DefaultMaterial;
-                        }
-                        primitive.m_MeshIdx = sceneMeshIdx;
                     });
             }
         }
@@ -620,13 +629,13 @@ struct GLTFSceneLoader
         g_Engine.m_Executor->run(taskflow).wait();
     }
 
-    void LoadCachedMeshesData()
+    void PrePopulateSceneMeshPrimitives()
     {
-        SCENE_LOAD_PROFILE("Load Cached Meshes Data");
+        SCENE_LOAD_PROFILE("Pre-populate Scene Mesh Primitives");
 
         m_SceneMeshPrimitives.resize(m_GLTFData->meshes_count);
 
-        // still need to set up individual Mesh objects based on gltf mesh & primitive inptu
+        uint32_t sceneMeshIdx = 0;
         for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_GLTFData->meshes_count; ++modelMeshIdx)
         {
             const cgltf_mesh& mesh = m_GLTFData->meshes[modelMeshIdx];
@@ -634,9 +643,6 @@ struct GLTFSceneLoader
 
             for (uint32_t primitiveIdx = 0; primitiveIdx < mesh.primitives_count; ++primitiveIdx)
             {
-                const uint32_t sceneMeshIdx = g_Graphic.m_Meshes.size();
-                g_Graphic.m_Meshes.emplace_back();
-
                 const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
 
                 Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
@@ -648,9 +654,21 @@ struct GLTFSceneLoader
                 {
                     primitive.m_Material = g_CommonResources.DefaultMaterial;
                 }
-                primitive.m_MeshIdx = sceneMeshIdx;
+                primitive.m_MeshIdx = sceneMeshIdx++;
             }
         }
+    }
+
+    void LoadCachedMeshesData()
+    {
+        SCENE_LOAD_PROFILE("Load Cached Meshes Data");
+
+        uint32_t totalMeshes = 0;
+        for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_GLTFData->meshes_count; ++modelMeshIdx)
+        {
+            totalMeshes += m_GLTFData->meshes[modelMeshIdx].primitives_count;
+        }
+        g_Graphic.m_Meshes.resize(totalMeshes);
 
         ScopedFile cachedMeshDataFile{ m_CachedMeshesDataFilePath, "rb" };
 
@@ -658,7 +676,7 @@ struct GLTFSceneLoader
         size_t objectsRead = fread(&header, sizeof(header), 1, cachedMeshDataFile);
         assert(objectsRead == 1);
 
-        assert(g_Graphic.m_Meshes.size() == header.m_NumMeshes);
+        assert(totalMeshes == header.m_NumMeshes);
 
         m_GlobalVertices.resize(header.m_NumVertices);
         m_GlobalIndices.resize(header.m_NumIndices);
@@ -691,7 +709,7 @@ struct GLTFSceneLoader
         objectsRead = fread(meshSpecificDataArray.data(), sizeof(CachedMeshData::MeshSpecificData), header.m_NumMeshes, cachedMeshDataFile);
         assert(objectsRead == header.m_NumMeshes);
 
-        for (uint32_t i = 0; i < g_Graphic.m_Meshes.size(); ++i)
+        for (uint32_t i = 0; i < totalMeshes; ++i)
         {
             Mesh& mesh = g_Graphic.m_Meshes[i];
 
