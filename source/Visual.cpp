@@ -382,6 +382,12 @@ void Mesh::Initialize(
 
 void Mesh::BuildBLAS(nvrhi::CommandListHandle commandList)
 {
+    // if we already have BLAS, this means that we already have cached mesh data, and we already loaded the BLAS earlier
+    if (m_BLAS)
+    {
+        return;
+    }
+
     PROFILE_FUNCTION();
 
     nvrhi::rt::GeometryDesc geometryDesc;
