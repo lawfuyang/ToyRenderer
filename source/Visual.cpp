@@ -133,7 +133,7 @@ bool Texture::IsValid() const
 bool Primitive::IsValid() const
 {
     return m_NodeID != UINT_MAX
-        && m_MeshIdx != UINT_MAX
+        && g_Graphic.m_Meshes.at(m_MeshIdx).IsValid()
         && m_Material.IsValid();
 }
 

@@ -15,7 +15,7 @@
 #include "shaders/ShaderInterop.h"
 
 CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
-CommandLineOption<bool> g_ForceInvalidCachedMeshData{"forceinvalidcachedmeshdata", true };
+CommandLineOption<bool> g_ForceInvalidCachedMeshData{"forceinvalidcachedmeshdata", false };
 
 #define SCENE_LOAD_PROFILE(x) \
     PROFILE_SCOPED(x);        \
@@ -49,11 +49,28 @@ struct GLTFSceneLoader
     };
 	std::vector<GlobalMeshletDataEntry> m_MeshletDataEntries;
 
-    struct CachedMeshDataHeader
+    std::vector<uint32_t> m_GlobalMeshletVertexIdxOffsets;
+    std::vector<uint32_t> m_GlobalMeshletIndices;
+    std::vector<MeshletData> m_GlobalMeshletDatas;
+
+    struct CachedMeshData
     {
-        uint32_t m_Version = 1;
-        uint32_t m_NumVertices = 0;
-        uint32_t m_NumIndices = 0;
+        struct Header
+        {
+            uint32_t m_NumVertices = 0;
+            uint32_t m_NumIndices = 0;
+            uint32_t m_NumMeshes = 0;
+            uint32_t m_NumMeshletVertexIdxOffsets = 0;
+            uint32_t m_NumMeshletIndices = 0;
+            uint32_t m_NumMeshletDatas = 0;
+        };
+
+        struct MeshSpecificData
+        {
+            uint32_t m_NumIndices = 0;
+            uint32_t m_NumVertices = 0;
+            AABB m_AABB = { Vector3::Zero, Vector3::Zero };
+        };
     };
 
     void LoadScene(std::string_view filePath)
@@ -95,6 +112,11 @@ struct GLTFSceneLoader
             }
         }
 
+        m_FileName = std::filesystem::path{ filePath }.stem().string();
+        m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
+        m_CachedMeshesDataFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_CachedMeshesData.bin")).string();
+        m_bInvalidCachedMeshData = !std::filesystem::exists(m_CachedMeshesDataFilePath) || g_ForceInvalidCachedMeshData.Get();
+
         {
             SCENE_LOAD_PROFILE("Validate gltf data");
 
@@ -117,28 +139,31 @@ struct GLTFSceneLoader
             }
         }
 
-        m_FileName = std::filesystem::path{ filePath }.stem().string();
-        m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
-        m_CachedMeshesDataFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_CachedMeshesData.bin")).string();
-        m_bInvalidCachedMeshData = !std::filesystem::exists(m_CachedMeshesDataFilePath) || g_ForceInvalidCachedMeshData.Get();
+        tf::Taskflow taskflow;
+
+        taskflow.emplace([this]
+            {
+                SCENE_LOAD_PROFILE("Decompress buffers");
+
+                const cgltf_result result = decompressMeshopt(m_GLTFData);
+                assert(result == cgltf_result_success);
+            });
+
+        taskflow.emplace([this]
+            {
+                LoadSamplers();
+                LoadImages();
+                LoadMaterials();
+
+                if (!m_bInvalidCachedMeshData)
+                {
+                    LoadCachedMeshesData();
+                }
+            });
+
+        g_Engine.m_Executor->run(taskflow).wait();
 
         if (m_bInvalidCachedMeshData)
-        {
-            SCENE_LOAD_PROFILE("Decompress buffers");
-
-            const cgltf_result result = decompressMeshopt(m_GLTFData);
-            assert(result == cgltf_result_success);
-        }
-
-        LoadSamplers();
-        LoadImages();
-        LoadMaterials();
-
-        if (!m_bInvalidCachedMeshData)
-        {
-            LoadCachedMeshesData();
-        }
-        else
         {
             LoadMeshes();
         }
@@ -465,8 +490,6 @@ struct GLTFSceneLoader
                 // pre-create empty Mesh objects here due to MT init
                 const uint32_t sceneMeshIdx = g_Graphic.m_Meshes.size();
                 Mesh* newSceneMesh = &g_Graphic.m_Meshes.emplace_back();
-
-                const uint32_t globalMeshDataIdx = m_GlobalMeshData.size();
                 m_GlobalMeshData.emplace_back();
 
 				const uint32_t meshletDataEntryIdx = m_MeshletDataEntries.size();
@@ -486,7 +509,7 @@ struct GLTFSceneLoader
                 totalVertices += nbVertices;
                 totalIndices += gltfPrimitive.indices->count;
 
-                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, globalMeshDataIdx, meshletDataEntryIdx, globalVertexBufferIdxOffset, globalIndexBufferIdxOffset, nbVertices]
+                taskflow.emplace([&, modelMeshIdx, primitiveIdx, sceneMeshIdx, meshletDataEntryIdx, globalVertexBufferIdxOffset, globalIndexBufferIdxOffset, nbVertices]
                     {
                         PROFILE_SCOPED("Load Primitive");
 
@@ -554,12 +577,12 @@ struct GLTFSceneLoader
                             m_MeshletDataEntries[meshletDataEntryIdx].m_Meshlets,
                             m_GLTFData->meshes[modelMeshIdx].name ? m_GLTFData->meshes[modelMeshIdx].name : "Un-named Mesh");
 
-                        newSceneMesh->m_MeshDataBufferIdx = globalMeshDataIdx;
+                        newSceneMesh->m_MeshDataBufferIdx = sceneMeshIdx;
 
                         memcpy(&m_GlobalVertices[globalVertexBufferIdxOffset], vertices.data(), vertices.size() * sizeof(RawVertexFormat));
                         memcpy(&m_GlobalIndices[globalIndexBufferIdxOffset], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
 
-                        MeshData& meshData = m_GlobalMeshData[globalMeshDataIdx];
+                        MeshData& meshData = m_GlobalMeshData[sceneMeshIdx];
                         meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
                         meshData.m_NumLODs = newSceneMesh->m_NumLODs;
                         meshData.m_GlobalVertexBufferIdx = globalVertexBufferIdxOffset;
@@ -597,9 +620,101 @@ struct GLTFSceneLoader
 
     void LoadCachedMeshesData()
     {
-        SCENE_LOAD_PROFILE("Load Processed Meshes Data");
+        SCENE_LOAD_PROFILE("Load Cached Meshes Data");
+
+        m_SceneMeshPrimitives.resize(m_GLTFData->meshes_count);
+
+        // still need to set up individual Mesh objects based on gltf mesh & primitive inptu
+        for (uint32_t modelMeshIdx = 0; modelMeshIdx < m_GLTFData->meshes_count; ++modelMeshIdx)
+        {
+            const cgltf_mesh& mesh = m_GLTFData->meshes[modelMeshIdx];
+            m_SceneMeshPrimitives[modelMeshIdx].resize(mesh.primitives_count);
+
+            for (uint32_t primitiveIdx = 0; primitiveIdx < mesh.primitives_count; ++primitiveIdx)
+            {
+                const uint32_t sceneMeshIdx = g_Graphic.m_Meshes.size();
+                g_Graphic.m_Meshes.emplace_back();
+
+                const cgltf_primitive& gltfPrimitive = mesh.primitives[primitiveIdx];
+
+                Primitive& primitive = m_SceneMeshPrimitives[modelMeshIdx][primitiveIdx];
+                if (gltfPrimitive.material)
+                {
+                    primitive.m_Material = m_SceneMaterials.at(cgltf_material_index(m_GLTFData, gltfPrimitive.material));
+                }
+                else
+                {
+                    primitive.m_Material = g_CommonResources.DefaultMaterial;
+                }
+                primitive.m_MeshIdx = sceneMeshIdx;
+            }
+        }
 
         ScopedFile cachedMeshDataFile{ m_CachedMeshesDataFilePath, "rb" };
+
+        CachedMeshData::Header header;
+        size_t objectsRead = fread(&header, sizeof(header), 1, cachedMeshDataFile);
+        assert(objectsRead == 1);
+
+        assert(g_Graphic.m_Meshes.size() == header.m_NumMeshes);
+
+        m_GlobalVertices.resize(header.m_NumVertices);
+        m_GlobalIndices.resize(header.m_NumIndices);
+        m_GlobalMeshData.resize(header.m_NumMeshes);
+        m_GlobalMeshletVertexIdxOffsets.resize(header.m_NumMeshletVertexIdxOffsets);
+        m_GlobalMeshletIndices.resize(header.m_NumMeshletIndices);
+        m_GlobalMeshletDatas.resize(header.m_NumMeshletDatas);
+        
+        std::vector<CachedMeshData::MeshSpecificData> meshSpecificDataArray;
+        meshSpecificDataArray.resize(header.m_NumMeshes);
+
+        objectsRead = fread(m_GlobalVertices.data(), sizeof(RawVertexFormat), header.m_NumVertices, cachedMeshDataFile);
+        assert(objectsRead == header.m_NumVertices);
+
+        objectsRead = fread(m_GlobalIndices.data(), sizeof(Graphic::IndexBufferFormat_t), header.m_NumIndices, cachedMeshDataFile);
+        assert(objectsRead == header.m_NumIndices);
+
+        objectsRead = fread(m_GlobalMeshData.data(), sizeof(MeshData), header.m_NumMeshes, cachedMeshDataFile);
+        assert(objectsRead == header.m_NumMeshes);
+
+        objectsRead = fread(m_GlobalMeshletVertexIdxOffsets.data(), sizeof(uint32_t), header.m_NumMeshletVertexIdxOffsets, cachedMeshDataFile);
+        assert(objectsRead == header.m_NumMeshletVertexIdxOffsets);
+
+        objectsRead = fread(m_GlobalMeshletIndices.data(), sizeof(uint32_t), header.m_NumMeshletIndices, cachedMeshDataFile);
+        assert(objectsRead == header.m_NumMeshletIndices);
+
+        objectsRead = fread(m_GlobalMeshletDatas.data(), sizeof(MeshletData), header.m_NumMeshletDatas, cachedMeshDataFile);
+        assert(objectsRead == header.m_NumMeshletDatas);
+
+        objectsRead = fread(meshSpecificDataArray.data(), sizeof(CachedMeshData::MeshSpecificData), header.m_NumMeshes, cachedMeshDataFile);
+        assert(objectsRead == header.m_NumMeshes);
+
+        for (uint32_t i = 0; i < g_Graphic.m_Meshes.size(); ++i)
+        {
+            Mesh& mesh = g_Graphic.m_Meshes[i];
+
+            mesh.m_GlobalVertexBufferIdx = m_GlobalMeshData[i].m_GlobalVertexBufferIdx;
+            mesh.m_GlobalIndexBufferIdx = m_GlobalMeshData[i].m_GlobalIndexBufferIdx;
+            mesh.m_NumIndices = meshSpecificDataArray[i].m_NumIndices;
+            mesh.m_NumVertices = meshSpecificDataArray[i].m_NumVertices;
+
+            for (uint32_t meshLODIdx = 0; meshLODIdx < m_GlobalMeshData[i].m_NumLODs; ++meshLODIdx)
+            {
+                MeshLOD& meshLOD = mesh.m_LODs[meshLODIdx];
+                MeshLODData& meshLODData = m_GlobalMeshData[i].m_MeshLODDatas[meshLODIdx];
+
+                meshLOD.m_MeshletDataBufferIdx = meshLODData.m_MeshletDataBufferIdx;
+                meshLOD.m_NumMeshlets = meshLODData.m_NumMeshlets;
+                meshLOD.m_Error = meshLODData.m_Error;
+            }
+
+            mesh.m_NumLODs = m_GlobalMeshData[i].m_NumLODs;
+            mesh.m_MeshDataBufferIdx = i;
+
+            mesh.m_BoundingSphere.Center = Vector3{ m_GlobalMeshData[i].m_BoundingSphere.x, m_GlobalMeshData[i].m_BoundingSphere.y, m_GlobalMeshData[i].m_BoundingSphere.z };
+            mesh.m_BoundingSphere.Radius = m_GlobalMeshData[i].m_BoundingSphere.w;
+            mesh.m_AABB = meshSpecificDataArray[i].m_AABB;
+        }
     }
 
     void LoadNodes()
@@ -790,34 +905,33 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Upload Global Buffers");
 
-        std::vector<uint32_t> globalMeshletVertexIdxOffsets;
-        std::vector<uint32_t> globalMeshletIndices;
-        std::vector<MeshletData> globalMeshletDatas;
+        if (m_bInvalidCachedMeshData)
+        {
+            assert(m_MeshletDataEntries.size() == m_GlobalMeshData.size());
 
-        assert(m_MeshletDataEntries.size() == m_GlobalMeshData.size());
-
-        // flatten per-primitive meshlet buffers into global buffers
-        for (uint32_t i = 0; i < m_MeshletDataEntries.size(); ++i)
-		{
-            GlobalMeshletDataEntry& meshletDataEntry = m_MeshletDataEntries.at(i);
-            Mesh& sceneMesh = g_Graphic.m_Meshes.at(meshletDataEntry.m_SceneMeshIdx);
-
-            for (MeshletData& meshletData : meshletDataEntry.m_Meshlets)
+            // flatten per-primitive meshlet buffers into global buffers
+            for (uint32_t i = 0; i < m_MeshletDataEntries.size(); ++i)
             {
-				meshletData.m_MeshletVertexIDsBufferIdx += globalMeshletVertexIdxOffsets.size();
-				meshletData.m_MeshletIndexIDsBufferIdx += globalMeshletIndices.size();
-            }
+                GlobalMeshletDataEntry& meshletDataEntry = m_MeshletDataEntries.at(i);
+                Mesh& sceneMesh = g_Graphic.m_Meshes.at(meshletDataEntry.m_SceneMeshIdx);
 
-            for (uint32_t lodIdx = 0; lodIdx < kMaxNumMeshLODs; ++lodIdx)
-            {
-                MeshLODData& meshLODData = m_GlobalMeshData.at(i).m_MeshLODDatas[lodIdx];
-                meshLODData.m_MeshletDataBufferIdx += globalMeshletDatas.size();
-            }
+                for (MeshletData& meshletData : meshletDataEntry.m_Meshlets)
+                {
+                    meshletData.m_MeshletVertexIDsBufferIdx += m_GlobalMeshletVertexIdxOffsets.size();
+                    meshletData.m_MeshletIndexIDsBufferIdx += m_GlobalMeshletIndices.size();
+                }
 
-			globalMeshletVertexIdxOffsets.insert(globalMeshletVertexIdxOffsets.end(), meshletDataEntry.m_VertexIdxOffsets.begin(), meshletDataEntry.m_VertexIdxOffsets.end());
-			globalMeshletIndices.insert(globalMeshletIndices.end(), meshletDataEntry.m_Indices.begin(), meshletDataEntry.m_Indices.end());
-            globalMeshletDatas.insert(globalMeshletDatas.end(), meshletDataEntry.m_Meshlets.begin(), meshletDataEntry.m_Meshlets.end());
-		}
+                for (uint32_t lodIdx = 0; lodIdx < kMaxNumMeshLODs; ++lodIdx)
+                {
+                    MeshLODData& meshLODData = m_GlobalMeshData.at(i).m_MeshLODDatas[lodIdx];
+                    meshLODData.m_MeshletDataBufferIdx += m_GlobalMeshletDatas.size();
+                }
+
+                m_GlobalMeshletVertexIdxOffsets.insert(m_GlobalMeshletVertexIdxOffsets.end(), meshletDataEntry.m_VertexIdxOffsets.begin(), meshletDataEntry.m_VertexIdxOffsets.end());
+                m_GlobalMeshletIndices.insert(m_GlobalMeshletIndices.end(), meshletDataEntry.m_Indices.begin(), meshletDataEntry.m_Indices.end());
+                m_GlobalMeshletDatas.insert(m_GlobalMeshletDatas.end(), meshletDataEntry.m_Meshlets.begin(), meshletDataEntry.m_Meshlets.end());
+            }
+        }
 
         {
             nvrhi::BufferDesc desc;
@@ -859,7 +973,7 @@ struct GLTFSceneLoader
 
         {
 			nvrhi::BufferDesc desc;
-			desc.byteSize = globalMeshletVertexIdxOffsets.size() * sizeof(uint32_t);
+			desc.byteSize = m_GlobalMeshletVertexIdxOffsets.size() * sizeof(uint32_t);
 			desc.structStride = sizeof(uint32_t);
 			desc.debugName = "Global Meshlet Vertex Index Offsets Buffer";
 			desc.initialState = nvrhi::ResourceStates::ShaderResource;
@@ -868,7 +982,7 @@ struct GLTFSceneLoader
 
 		{
 			nvrhi::BufferDesc desc;
-			desc.byteSize = globalMeshletIndices.size() * sizeof(uint32_t);
+			desc.byteSize = m_GlobalMeshletIndices.size() * sizeof(uint32_t);
 			desc.structStride = sizeof(uint32_t);
 			desc.debugName = "Global Meshlet Indices Buffer";
 			desc.initialState = nvrhi::ResourceStates::ShaderResource;
@@ -877,7 +991,7 @@ struct GLTFSceneLoader
 
         {
 			nvrhi::BufferDesc desc;
-			desc.byteSize = globalMeshletDatas.size() * sizeof(MeshletData);
+			desc.byteSize = m_GlobalMeshletDatas.size() * sizeof(MeshletData);
 			desc.structStride = sizeof(MeshletData);
 			desc.debugName = "Global Meshlet Data Buffer";
 			desc.initialState = nvrhi::ResourceStates::ShaderResource;
@@ -888,9 +1002,9 @@ struct GLTFSceneLoader
 		LOG_DEBUG("Global indices = [%d] indices, [%f] MB", m_GlobalIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize));
 		LOG_DEBUG("Global mesh data = [%d] entries, [%f] MB", m_GlobalMeshData.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize));
 		LOG_DEBUG("Global material data = [%d] entries, [%f] MB", m_GlobalMaterialData.size(), BYTES_TO_MB(g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize));
-		LOG_DEBUG("Global meshlet vertex idx offsets = [%d] entries, [%f] MB", globalMeshletVertexIdxOffsets.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize));
-		LOG_DEBUG("Global meshlet indices = [%d] entries, [%f] MB", globalMeshletIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize));
-		LOG_DEBUG("Global meshlet data = [%d] entries, [%f] MB", globalMeshletDatas.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global meshlet vertex idx offsets = [%d] entries, [%f] MB", m_GlobalMeshletVertexIdxOffsets.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global meshlet indices = [%d] entries, [%f] MB", m_GlobalMeshletIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize));
+		LOG_DEBUG("Global meshlet data = [%d] entries, [%f] MB", m_GlobalMeshletDatas.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize));
 
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload Global Buffers");
@@ -899,9 +1013,9 @@ struct GLTFSceneLoader
         commandList->writeBuffer(g_Graphic.m_GlobalIndexBuffer, m_GlobalIndices.data(), g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize);
         commandList->writeBuffer(g_Graphic.m_GlobalMeshDataBuffer, m_GlobalMeshData.data(), g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize);
         commandList->writeBuffer(g_Graphic.m_GlobalMaterialDataBuffer, m_GlobalMaterialData.data(), g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize);
-        commandList->writeBuffer(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer, globalMeshletVertexIdxOffsets.data(), g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize);
-        commandList->writeBuffer(g_Graphic.m_GlobalMeshletIndicesBuffer, globalMeshletIndices.data(), g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize);
-        commandList->writeBuffer(g_Graphic.m_GlobalMeshletDataBuffer, globalMeshletDatas.data(), g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer, m_GlobalMeshletVertexIdxOffsets.data(), g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalMeshletIndicesBuffer, m_GlobalMeshletIndices.data(), g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize);
+        commandList->writeBuffer(g_Graphic.m_GlobalMeshletDataBuffer, m_GlobalMeshletDatas.data(), g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize);
 
         WriteCachedMeshData();
     }
@@ -915,13 +1029,35 @@ struct GLTFSceneLoader
 
         ScopedFile cachedMeshDataFile{ m_CachedMeshesDataFilePath, "wb" };
 
-        CachedMeshDataHeader header;
+        CachedMeshData::Header header;
         header.m_NumVertices = m_GlobalVertices.size();
         header.m_NumIndices = m_GlobalIndices.size();
+        header.m_NumMeshes = m_GlobalMeshData.size();
+        header.m_NumMeshletVertexIdxOffsets = m_GlobalMeshletVertexIdxOffsets.size();
+        header.m_NumMeshletIndices = m_GlobalMeshletIndices.size();
+        header.m_NumMeshletDatas = m_GlobalMeshletDatas.size();
 
         fwrite(&header, sizeof(header), 1, cachedMeshDataFile);
         fwrite(m_GlobalVertices.data(), sizeof(RawVertexFormat), m_GlobalVertices.size(), cachedMeshDataFile);
         fwrite(m_GlobalIndices.data(), sizeof(Graphic::IndexBufferFormat_t), m_GlobalIndices.size(), cachedMeshDataFile);
+        fwrite(m_GlobalMeshData.data(), sizeof(MeshData), m_GlobalMeshData.size(), cachedMeshDataFile);
+        fwrite(m_GlobalMeshletVertexIdxOffsets.data(), sizeof(uint32_t), m_GlobalMeshletVertexIdxOffsets.size(), cachedMeshDataFile);
+        fwrite(m_GlobalMeshletIndices.data(), sizeof(uint32_t), m_GlobalMeshletIndices.size(), cachedMeshDataFile);
+        fwrite(m_GlobalMeshletDatas.data(), sizeof(MeshletData), m_GlobalMeshletDatas.size(), cachedMeshDataFile);
+
+        std::vector<CachedMeshData::MeshSpecificData> meshSpecificDataArray;
+        meshSpecificDataArray.resize(m_GlobalMeshData.size());
+        for (uint32_t i = 0; i < meshSpecificDataArray.size(); ++i)
+        {
+            CachedMeshData::MeshSpecificData& meshSpecificData = meshSpecificDataArray[i];
+            const Mesh& mesh = g_Graphic.m_Meshes.at(i);
+
+            meshSpecificData.m_NumIndices = mesh.m_NumIndices;
+            meshSpecificData.m_NumVertices = mesh.m_NumVertices;
+            meshSpecificData.m_AABB = mesh.m_AABB;
+        }
+
+        fwrite(meshSpecificDataArray.data(), sizeof(CachedMeshData::MeshSpecificData), meshSpecificDataArray.size(), cachedMeshDataFile);
     }
 };
 
