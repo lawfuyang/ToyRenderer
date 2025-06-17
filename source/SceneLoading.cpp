@@ -96,7 +96,7 @@ struct GLTFSceneLoader
             size_t objectsRead = fread(&header, sizeof(header), 1, cachedMeshDataFile);
             assert(objectsRead == 1);
 
-            m_bInvalidCachedMeshData == (header.m_Version != CachedMeshData::kCurrentVersion);
+            m_bInvalidCachedMeshData = (header.m_Version != CachedMeshData::kCurrentVersion);
         }
 
         cgltf_options options{};
