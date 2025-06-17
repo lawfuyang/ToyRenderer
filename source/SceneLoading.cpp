@@ -14,6 +14,7 @@
 
 #include "shaders/ShaderInterop.h"
 
+CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
 CommandLineOption<float> g_CustomSceneScale{ "customscenescale", 0.0f };
 CommandLineOption<bool> g_ForceInvalidCachedMeshData{"forceinvalidcachedmeshdata", false };
 
@@ -73,30 +74,36 @@ struct GLTFSceneLoader
         };
     };
 
-    void LoadScene(std::string_view filePath)
+    void PreloadScene()
     {
-        SCENE_LOAD_PROFILE("Load Scene");
+        SCENE_LOAD_PROFILE("Preload Scene");
 
-        ON_EXIT_SCOPE_LAMBDA([this] { cgltf_free(m_GLTFData); });
+        std::string_view sceneToLoad = g_SceneToLoad.Get();
+        assert(!sceneToLoad.empty());
+
+        m_FileName = std::filesystem::path{ sceneToLoad }.stem().string();
+        m_BaseFolderPath = std::filesystem::path{ sceneToLoad }.parent_path().string();
+        m_CachedMeshesDataFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_CachedMeshesData.bin")).string();
+        m_bInvalidCachedMeshData = !std::filesystem::exists(m_CachedMeshesDataFilePath) || g_ForceInvalidCachedMeshData.Get();
 
         cgltf_options options{};
-        
+
         {
             SCENE_LOAD_PROFILE("Load gltf file");
 
-            cgltf_result result = cgltf_parse_file(&options, filePath.data(), &m_GLTFData);
+            cgltf_result result = cgltf_parse_file(&options, sceneToLoad.data(), &m_GLTFData);
 
             if (result != cgltf_result_success)
             {
-                LOG_DEBUG("GLTF - Failed to load '%s': [%s]", filePath.data(), EnumUtils::ToString(result));
+                LOG_DEBUG("GLTF - Failed to load '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
                 return;
             }
-            LOG_DEBUG("GLTF - Loaded '%s'", filePath.data());
+            LOG_DEBUG("GLTF - Loaded '%s'", sceneToLoad.data());
 
             LOG_DEBUG("Extensions used: ");
             for (uint32_t i = 0; i < m_GLTFData->extensions_used_count; ++i)
             {
-				LOG_DEBUG("\t %s", m_GLTFData->extensions_used[i]);
+                LOG_DEBUG("\t %s", m_GLTFData->extensions_used[i]);
 
                 static const char* kUnsupportedExtensions[]
                 {
@@ -112,18 +119,13 @@ struct GLTFSceneLoader
             }
         }
 
-        m_FileName = std::filesystem::path{ filePath }.stem().string();
-        m_BaseFolderPath = std::filesystem::path{ filePath }.parent_path().string();
-        m_CachedMeshesDataFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_CachedMeshesData.bin")).string();
-        m_bInvalidCachedMeshData = !std::filesystem::exists(m_CachedMeshesDataFilePath) || g_ForceInvalidCachedMeshData.Get();
-
         {
             SCENE_LOAD_PROFILE("Validate gltf data");
 
             cgltf_result result = cgltf_validate(m_GLTFData);
             if (result != cgltf_result_success)
             {
-                LOG_DEBUG("GLTF - Failed to validate '%s': [%s]", filePath.data(), EnumUtils::ToString(result));
+                LOG_DEBUG("GLTF - Failed to validate '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
                 return;
             }
         }
@@ -131,39 +133,39 @@ struct GLTFSceneLoader
         {
             SCENE_LOAD_PROFILE("Load gltf buffers");
 
-            cgltf_result result = cgltf_load_buffers(&options, m_GLTFData, filePath.data());
+            cgltf_result result = cgltf_load_buffers(&options, m_GLTFData, sceneToLoad.data());
             if (result != cgltf_result_success)
             {
-                LOG_DEBUG("GLTF - Failed to load buffers '%s': [%s]", filePath.data(), EnumUtils::ToString(result));
+                LOG_DEBUG("GLTF - Failed to load buffers '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
                 return;
             }
         }
 
-        tf::Taskflow taskflow;
+        {
+            SCENE_LOAD_PROFILE("Decompress buffers");
 
-        taskflow.emplace([this]
-            {
-                SCENE_LOAD_PROFILE("Decompress buffers");
+            const cgltf_result result = decompressMeshopt(m_GLTFData);
+            assert(result == cgltf_result_success);
+        }
+    }
 
-                const cgltf_result result = decompressMeshopt(m_GLTFData);
-                assert(result == cgltf_result_success);
-            });
+    void LoadScene()
+    {
+        SCENE_LOAD_PROFILE("Load Scene");
 
-        taskflow.emplace([this]
-            {
-                LoadSamplers();
-                LoadImages();
-                LoadMaterials();
+        assert(m_GLTFData);
+        ON_EXIT_SCOPE_LAMBDA([this] { cgltf_free(m_GLTFData); });
 
-                if (!m_bInvalidCachedMeshData)
-                {
-                    LoadCachedMeshesData();
-                }
-            });
+        LoadSamplers();
+        LoadImages();
+        LoadMaterials();
 
-        g_Engine.m_Executor->run(taskflow).wait();
+        if (!m_bInvalidCachedMeshData)
+        {
+            LoadCachedMeshesData();
+        }
 
-        if (m_bInvalidCachedMeshData)
+        else
         {
             LoadMeshes();
         }
@@ -1061,10 +1063,21 @@ struct GLTFSceneLoader
     }
 };
 
-void LoadScene(std::string_view filePath)
+static GLTFSceneLoader* gs_GLTFLoader = nullptr;
+
+void PreloadScene()
 {
-    GLTFSceneLoader loader;
-    loader.LoadScene(filePath);
+    gs_GLTFLoader = new GLTFSceneLoader();
+    gs_GLTFLoader->PreloadScene();
+}
+
+void LoadScene()
+{
+    assert(gs_GLTFLoader);
+    gs_GLTFLoader->LoadScene();
+
+    delete gs_GLTFLoader;
+    gs_GLTFLoader = nullptr;
 }
 
 #undef SCENE_LOAD_PROFILE

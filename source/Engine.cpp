@@ -16,7 +16,6 @@
 CommandLineOption<std::vector<int>> g_DisplayResolution{ "displayresolution", { 0, 0 } };
 CommandLineOption<bool> g_ProfileStartup{ "profilestartup", false };
 CommandLineOption<int> g_MaxWorkerThreads{ "maxworkerthreads", 12 };
-CommandLineOption<std::string> g_SceneToLoad{ "scene", "" };
 
 static bool gs_TriggerDumpProfilingCapture = false;
 static std::string gs_DumpProfilingCaptureFileName;
@@ -124,15 +123,15 @@ void Engine::Initialize(int argc, char** argv)
     ImGui::CreateContext();
     verify(ImGui_ImplSDL3_InitForD3D(m_SDLWindow));
 
+    extern void PreloadScene();
+    extern void LoadScene();
+
     tf::Taskflow tf;
     tf.emplace([this] { m_Graphic = std::make_shared<Graphic>(); m_Graphic->Initialize(); });
+    tf.emplace([this] { PreloadScene(); });
     m_Executor->run(tf).wait();
 
-    std::string_view sceneToLoad = g_SceneToLoad.Get();
-    assert(!sceneToLoad.empty());
-
-    extern void LoadScene(std::string_view filePath);
-    LoadScene(sceneToLoad);
+    LoadScene();
 
     m_Graphic->PostSceneLoad();
 
