@@ -101,6 +101,11 @@ public:
 
     void Initialize() override
     {
+        if (!g_Graphic.m_Scene->IsRTGIEnabled())
+        {
+            return;
+        }
+
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
         const nrd::LibraryDesc& libraryDesc = nrd::GetLibraryDesc();
@@ -184,6 +189,11 @@ public:
     bool Setup(RenderGraph& renderGraph) override
     {
         if (!g_Scene->IsShadowsEnabled())
+        {
+            return false;
+        }
+
+        if (!g_Scene->IsRTGIEnabled())
         {
             return false;
         }

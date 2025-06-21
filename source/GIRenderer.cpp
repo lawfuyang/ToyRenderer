@@ -15,6 +15,7 @@
 
 CommandLineOption<bool> g_CVarUseDDGICornellDDGIVolumeSettings{ "UseDDGICornellDDGIVolumeSettings", false };
 CommandLineOption<bool> g_CVarUseDDGISponzaDDGIVolumeSettings{ "UseDDGISponzaDDGIVolumeSettings", false };
+extern CommandLineOption<bool> g_DisableRayTracing;
 
 static_assert(RTXGI_DDGI_WAVE_LANE_COUNT == kNumThreadsPerWave);
 static_assert(RTXGI_DDGI_BLEND_RAYS_PER_PROBE % kNumThreadsPerWave == 0);
@@ -50,17 +51,17 @@ class GIVolume
 public:
     nvrhi::TextureHandle GetProbeDataTexture() const override
     {
-        return g_Scene->m_bEnableGI ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsRTGIEnabled() ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeIrradianceTexture() const override
     {
-        return g_Scene->m_bEnableGI ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsRTGIEnabled() ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeDistanceTexture() const override
     {
-        return g_Scene->m_bEnableGI ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsRTGIEnabled() ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     void Setup(RenderGraph& renderGraph)
@@ -219,6 +220,11 @@ public:
     {
         g_Scene->m_GIVolume = &m_GIVolume;
 
+        if (g_DisableRayTracing.Get())
+        {
+            return;
+        }
+
         // enforce minimum of 10x10x10 probes
         m_ProbeSpacing.x = std::min(m_ProbeSpacing.x, g_Scene->m_AABB.Extents.x * 0.2f);
         m_ProbeSpacing.y = std::min(m_ProbeSpacing.y, g_Scene->m_AABB.Extents.y * 0.2f);
@@ -314,7 +320,7 @@ public:
     void UpdateImgui() override
     {
         ImGui::Checkbox("Enabled", &g_Scene->m_bEnableGI);
-        if (!g_Scene->m_bEnableGI)
+        if (!g_Scene->IsRTGIEnabled())
         {
             return;
         }
@@ -343,7 +349,7 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        if (!g_Scene->m_bEnableGI)
+        if (!g_Scene->IsRTGIEnabled())
         {
             return false;
         }

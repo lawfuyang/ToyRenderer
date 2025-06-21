@@ -15,6 +15,8 @@
 
 static_assert(sizeof(Scene::NodeLocalTransformBytes) == sizeof(NodeLocalTransform));
 
+CommandLineOption<bool> g_DisableRayTracing{ "disableraytracing", false };
+
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
@@ -179,8 +181,28 @@ void Scene::SetCamera(uint32_t idx)
     m_View.UpdateVectors(m_Yaw, m_Pitch);
 }
 
+bool Scene::IsRTGIEnabled() const
+{
+    if (g_DisableRayTracing.Get())
+    {
+        return false;
+    }
+    
+    if (!m_bEnableGI)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 bool Scene::IsShadowsEnabled() const
 {
+    if (g_DisableRayTracing.Get())
+    {
+        return false;
+    }
+
     return !!m_TLAS && m_bEnableShadows;
 }
 

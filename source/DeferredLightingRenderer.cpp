@@ -48,7 +48,7 @@ public:
 			renderGraph.AddReadDependency(g_ShadowMaskRDGTextureHandle);
 		}
 
-		if (g_Scene->m_bEnableGI)
+		if (g_Scene->IsRTGIEnabled())
 		{
 			renderGraph.AddReadDependency(g_GIVolumeDescsBuffer);
 		}
@@ -71,7 +71,7 @@ public:
 		passConstants.m_SSAOEnabled = g_Scene->m_bEnableAO;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
 		passConstants.m_DebugMode = g_Scene->m_DebugViewMode;
-        passConstants.m_GIEnabled = g_Scene->m_bEnableGI;
+        passConstants.m_GIEnabled = g_Scene->IsRTGIEnabled();
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
@@ -81,7 +81,7 @@ public:
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
-        nvrhi::BufferHandle GIVolumeDescsBuffer = g_Scene->m_bEnableGI ? renderGraph.GetBuffer(g_GIVolumeDescsBuffer) : g_CommonResources.DummyUIntStructuredBuffer;
+        nvrhi::BufferHandle GIVolumeDescsBuffer = g_Scene->IsRTGIEnabled() ? renderGraph.GetBuffer(g_GIVolumeDescsBuffer) : g_CommonResources.DummyUIntStructuredBuffer;
 
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {

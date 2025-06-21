@@ -93,6 +93,7 @@ public:
     void PostSceneLoad();
     void SetCamera(uint32_t idx);
 
+    bool IsRTGIEnabled() const;
     bool IsShadowsEnabled() const;
 
     std::shared_ptr<RenderGraph> m_RenderGraph;
