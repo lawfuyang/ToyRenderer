@@ -245,10 +245,14 @@ void Graphic::InitDescriptorTable()
     nvrhi::BindlessLayoutDesc bindlessLayoutDesc;
     bindlessLayoutDesc.visibility = nvrhi::ShaderType::All;
     bindlessLayoutDesc.maxCapacity = kBindlessLayoutCapacity;
-    bindlessLayoutDesc.registerSpaces = { nvrhi::BindingLayoutItem::Texture_SRV(1) };
-    m_InstancesBindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
+    bindlessLayoutDesc.registerSpaces =
+    {
+        nvrhi::BindingLayoutItem::Texture_SRV(1),
+        nvrhi::BindingLayoutItem::StructuredBuffer_SRV(2),
+    };
+    m_BindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
 
-    m_InstancesBindlessResourcesDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_InstancesBindlessLayout);
+    m_DescriptorTableManager = std::make_shared<DescriptorTableManager>(m_BindlessLayout);
 }
 
 nvrhi::TextureHandle Graphic::GetCurrentBackBuffer()
@@ -499,9 +503,9 @@ nvrhi::rt::PipelineHandle Graphic::GetOrCreatePSO(const nvrhi::rt::PipelineDesc&
     return pipeline;
 }
 
-nvrhi::IDescriptorTable* Graphic::GetInstancesBindingSet()
+nvrhi::IDescriptorTable* Graphic::GetBindlessDescriptorTable()
 {
-    return m_InstancesBindlessResourcesDescriptorTableManager->GetDescriptorTable();
+    return m_DescriptorTableManager->GetDescriptorTable();
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace)

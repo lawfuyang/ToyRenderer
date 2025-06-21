@@ -21,7 +21,7 @@ static_assert(_countof(Texture::m_StreamingMipDatas) == Graphic::kMaxTextureMips
 
 static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
 {
-    return g_Graphic.m_InstancesBindlessResourcesDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
+    return g_Graphic.m_DescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
 }
 
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)

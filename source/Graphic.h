@@ -83,7 +83,7 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
     [[nodiscard]] nvrhi::rt::PipelineHandle GetOrCreatePSO(const nvrhi::rt::PipelineDesc& psoDesc);
 
-    nvrhi::IDescriptorTable* GetInstancesBindingSet();
+    nvrhi::IDescriptorTable* GetBindlessDescriptorTable();
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
     {
@@ -146,10 +146,9 @@ public:
 
     nvrhi::TextureHandle m_SwapChainTextureHandles[2];
 
-    // simple bindless layout that can store up to 1024 SRVs in (t0,space1)
-    static const uint32_t kBindlessLayoutCapacity = 1024;
-    nvrhi::BindingLayoutHandle m_InstancesBindlessLayout;
-    std::shared_ptr<DescriptorTableManager> m_InstancesBindlessResourcesDescriptorTableManager;
+    static const uint32_t kBindlessLayoutCapacity = 1024; // NOTE: increase if needed
+    nvrhi::BindingLayoutHandle m_BindlessLayout;
+    std::shared_ptr<DescriptorTableManager> m_DescriptorTableManager;
 
     std::vector<Mesh> m_Meshes;
 

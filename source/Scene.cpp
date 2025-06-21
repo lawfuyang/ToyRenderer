@@ -931,7 +931,7 @@ void Scene::FinalizeTextureStreamingRequests()
             texture.m_HighestStreamedMip = request.m_RequestedMip;
 
             // update texture descriptor index
-            DescriptorTableManager* descriptorTableManager = g_Graphic.m_InstancesBindlessResourcesDescriptorTableManager.get();
+            DescriptorTableManager* descriptorTableManager = g_Graphic.m_DescriptorTableManager.get();
             descriptorTableManager->ReleaseDescriptor(texture.m_DescriptorIndex);
             const uint32_t descriptorTableIndex = descriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle));
 
