@@ -2,9 +2,10 @@
 
 ## Building
 
-- Run `generateprojects.bat` to download required binaries & generate VS project files
+- Run `git pull.bat` to get latest files from this repo, including submodules, and properly init everything
+- Run `generateprojects.bat` to download required binaries & generate project files
 - Run `cmake compile.bat` to compile ShaderMake & ToyRenderer
-- Open `ToyRenderer.sln` and Compile/Run
+- Open `ToyRenderer.sln` and Compile/Run. Shader binaries should be built as a pre-requisite step before compiling the main app
 
 ## Running
 
@@ -12,12 +13,12 @@ Use "**--scene**" commandline argument to load a scene. Example:
 
     --scene "C:\Workspace\Sponza.gltf"
 
-- Only gltf & glb. The following extensions will assert:
+- Only gltf. No glb. The following extensions will assert:
     - EXT_mesh_gpu_instancing
     - KHR_texture_transform
     - KHR_texture_basisu
 - No alpha blending, only opaque materials with Alpha Mask
-- Only textures supported by [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h), or DDS
+- jpeg, png, or dds images only
 
 ## Images
 ### Meshlet Rendering Pipeline
@@ -62,7 +63,6 @@ Use "**--scene**" commandline argument to load a scene. Example:
         - [D3D12 Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator)
         - [DispatchMesh Indirect](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html#executeindirect)
         - [Pipeline Statistics](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html#pipeline-statistics)
-        - [HLSL Dynamic Resources](https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_DynamicResources.html)
 - **Offline Shader compilation & Hot Reloading using [ShaderMake](https://github.com/NVIDIA-RTX/ShaderMake)**
 - **Multi-threaded Commandlist recording using [Taskflow](https://github.com/taskflow/taskflow)**
 - **Render Graph**
