@@ -628,6 +628,9 @@ void Graphic::Initialize()
     // TODO: upscaling stuff
     m_RenderResolution = m_DisplayResolution;
 
+    m_CommonResources = std::make_shared<CommonResources>();
+    m_Scene = std::make_shared<Scene>();
+
     InitRenderDocAPI();
     InitDevice();
 
@@ -635,8 +638,8 @@ void Graphic::Initialize()
     tf.emplace([this] { m_GraphicRHI->InitSwapChainTextureHandles(); });
     tf.emplace([this] { InitShaders(); });
     tf::Task initDescriptorTable = tf.emplace([this] { InitDescriptorTable(); });
-    tf::Task initCommonResources = tf.emplace([this] { m_CommonResources = std::make_shared<CommonResources>(); g_CommonResources.Initialize(); });
-    tf.emplace([this] { m_Scene = std::make_shared<Scene>(); m_Scene->Initialize(); });
+    tf::Task initCommonResources = tf.emplace([this] { m_CommonResources->Initialize(); });
+    tf.emplace([this] { m_Scene->Initialize(); });
 
     for (IRenderer* renderer : IRenderer::ms_AllRenderers)
     {
