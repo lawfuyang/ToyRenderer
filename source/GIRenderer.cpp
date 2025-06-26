@@ -97,7 +97,11 @@ public:
 
     void SetVariabilityForCurrentFrame(float v)
     {
-        assert(v == 0.0f || std::isnormal(v));
+        if (!std::isnormal(v))
+        {
+            v = 0;
+        }
+        
         m_Variabilities[m_VariabilitiesCursor] = v;
     }
 
@@ -577,40 +581,11 @@ public:
                 const uint32_t outputTexelsY = (uint32_t)ceil((float)inputTexelsY / (kNumThreadsInGroup.y * kThreadSampleFootprint.y));
                 const uint32_t outputTexelsZ = (uint32_t)ceil((float)inputTexelsZ / kNumThreadsInGroup.z);
 
-                if (bIsFirstPass)
-                {
-                    rootConsts.reductionInputSizeX = inputTexelsX;
-                    rootConsts.reductionInputSizeY = inputTexelsY;
-                    rootConsts.reductionInputSizeZ = inputTexelsZ;
+                rootConsts.reductionInputSizeX = inputTexelsX;
+                rootConsts.reductionInputSizeY = inputTexelsY;
+                rootConsts.reductionInputSizeZ = inputTexelsZ;
 
-                    computePassParams.m_ShaderName = "ReductionCS_DDGIReductionCS REDUCTION=1";
-                }
-
-                // NOTE: supposed to call 'ReductionCS_DDGIExtraReductionCS', but there's a nan bug in the shader
-                else
-                {
-                    GIProbeExtraReductionConsts passParameters;
-                    passParameters.m_ReductionInputSize = Vector3U{ inputTexelsX, inputTexelsY, inputTexelsZ };
-
-                    bindingSetDesc.bindings =
-                    {
-                        nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
-                        nvrhi::BindingSetItem::StructuredBuffer_SRV(0, GIVolumeDescsBuffer),
-                        nvrhi::BindingSetItem::Texture_UAV(0, probeVariabilityAverageTexture),
-                    };
-
-                    g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-                    passParameters.m_DDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-                    passParameters.m_ProbeVariabilityAverageIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-
-                    computePassParams.m_ShaderName = "giprobeextrareduction_CS_DDGIExtraReduction";
-                    computePassParams.m_BindingSets = { bindingSet };
-                    computePassParams.m_BindingLayouts = { bindingLayout };
-                    computePassParams.m_PushConstantsData = &passParameters;
-                    computePassParams.m_PushConstantsBytes = sizeof(passParameters);
-                }
-
+                computePassParams.m_ShaderName = bIsFirstPass ? "ReductionCS_DDGIReductionCS REDUCTION=1" : "ReductionCS_DDGIExtraReductionCS";
                 computePassParams.m_DispatchGroupSize = Vector3U{ outputTexelsX, outputTexelsY, outputTexelsZ };
                 g_Graphic.AddComputePass(computePassParams);
 
