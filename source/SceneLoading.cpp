@@ -28,6 +28,7 @@ struct GLTFSceneLoader
     std::string m_CachedDataFilePath;
 
     bool m_bHasValidCachedData = true;
+    bool m_bIsDefaultScene = false;
 
     cgltf_data* m_GLTFData = nullptr;
 
@@ -81,13 +82,20 @@ struct GLTFSceneLoader
         SCENE_LOAD_PROFILE("Preload Scene");
 
         std::string_view sceneToLoad = g_SceneToLoad.Get();
-        assert(!sceneToLoad.empty());
+
+        if (sceneToLoad.empty())
+        {
+            const char* kDefaultScene = "cornell.gltf";
+            static std::string defaultScenePath = (std::filesystem::path{ GetRootDirectory() } / "resources" / kDefaultScene).string();
+            sceneToLoad = defaultScenePath;
+            m_bIsDefaultScene = true;
+        }
 
         m_FileName = std::filesystem::path{ sceneToLoad }.stem().string();
         m_BaseFolderPath = std::filesystem::path{ sceneToLoad }.parent_path().string();
         m_CachedDataFilePath = (std::filesystem::path{ m_BaseFolderPath } / (m_FileName + "_CachedData.bin")).string();
 
-        m_bHasValidCachedData = std::filesystem::exists(m_CachedDataFilePath);
+        m_bHasValidCachedData = std::filesystem::exists(m_CachedDataFilePath) && !m_bIsDefaultScene;
         if (m_bHasValidCachedData)
         {
             ScopedFile cachedDataFile{ m_CachedDataFilePath, "rb" };
@@ -109,7 +117,7 @@ struct GLTFSceneLoader
             if (result != cgltf_result_success)
             {
                 LOG_DEBUG("GLTF - Failed to load '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
-                return;
+                assert(0);
             }
             LOG_DEBUG("GLTF - Loaded '%s'", sceneToLoad.data());
 
@@ -139,7 +147,7 @@ struct GLTFSceneLoader
             if (result != cgltf_result_success)
             {
                 LOG_DEBUG("GLTF - Failed to validate '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
-                return;
+                assert(0);
             }
         }
 
@@ -152,7 +160,7 @@ struct GLTFSceneLoader
                 if (result != cgltf_result_success)
                 {
                     LOG_DEBUG("GLTF - Failed to load buffers '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
-                    return;
+                    assert(0);
                 }
             }
 
@@ -1086,7 +1094,7 @@ struct GLTFSceneLoader
 
     void WriteCachedData()
     {
-        if (m_bHasValidCachedData)
+        if (m_bHasValidCachedData || m_bIsDefaultScene)
         {
             return;
         }
@@ -1167,7 +1175,7 @@ void LoadScene()
             });
     }
 
-    taskflow.emplace([] {gs_GLTFLoader->LoadScene();});
+    taskflow.emplace([] { gs_GLTFLoader->LoadScene();});
 
     g_Engine.m_Executor->run(taskflow).wait();
     
