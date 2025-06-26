@@ -17,7 +17,6 @@ StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
 StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
 StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
 Texture2D g_HZB : register(t8);
-Texture2D g_Textures[] : register(t0, space1);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
 SamplerState g_LinearClampMinReductionSampler : register(s4);
 
@@ -197,7 +196,7 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     getCommonGBufferParamsArguments.m_MaterialData = materialData;
     getCommonGBufferParamsArguments.m_Samplers = g_Samplers;
     
-    GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments, g_Textures);
+    GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments);
     
 #if ALPHA_MASK_MODE
     if (result.m_Albedo.a < materialData.m_AlphaCutoff)

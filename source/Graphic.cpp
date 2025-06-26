@@ -59,7 +59,6 @@ void Graphic::InitDevice()
         EnsureFeatureSupport(nvrhi::Feature::RayTracingAccelStruct);
         EnsureFeatureSupport(nvrhi::Feature::RayTracingPipeline);
         EnsureFeatureSupport(nvrhi::Feature::RayQuery);
-        EnsureFeatureSupport(nvrhi::Feature::SamplerFeedback);
 
         // NOTE: RenderDoc <= 1.37 doesnt like this
         if (!m_RenderDocAPI)
@@ -245,11 +244,7 @@ void Graphic::InitDescriptorTable()
     nvrhi::BindlessLayoutDesc bindlessLayoutDesc;
     bindlessLayoutDesc.visibility = nvrhi::ShaderType::All;
     bindlessLayoutDesc.maxCapacity = kBindlessLayoutCapacity;
-    bindlessLayoutDesc.registerSpaces =
-    {
-        nvrhi::BindingLayoutItem::Texture_SRV(1),
-        nvrhi::BindingLayoutItem::StructuredBuffer_SRV(2),
-    };
+    bindlessLayoutDesc.layoutType = nvrhi::BindlessLayoutDesc::LayoutType::MutableSrvUavCbv;
     m_BindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
 
     m_DescriptorTableManager = std::make_shared<DescriptorTableManager>(m_BindlessLayout);
@@ -290,6 +285,8 @@ static size_t HashBindingLayoutDesc(const nvrhi::BindlessLayoutDesc& layoutDesc)
         // just hash each layout item as a whole. it only contains PODs
         HashCombine(layoutHash, HashRawMem(layoutItem));
     }
+
+    HashCombine(layoutHash, layoutDesc.layoutType);
 
     return layoutHash;
 }
@@ -343,9 +340,6 @@ static void HashBindingLayout(size_t& psoHash, std::span<const nvrhi::BindingLay
         }
     }
 }
- 
-static void HashShaderHandle(size_t& hash, nvrhi::ShaderHandle shader) { if (shader) { HashCombine(hash, shader->getDesc().debugName); } };
-static void HashBindingLayout(size_t& hash, nvrhi::BindingLayoutHandle layout) { if (layout) { HashBindingLayout(hash, std::array{ layout }); } };
 
 static std::size_t HashCommonGraphicStates(
     nvrhi::PrimitiveType primType,
@@ -460,47 +454,6 @@ nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelin
         computePipeline = m_NVRHIDevice->createComputePipeline(psoDesc);
     }
     return computePipeline;
-}
-
-nvrhi::rt::PipelineHandle Graphic::GetOrCreatePSO(const nvrhi::rt::PipelineDesc& psoDesc)
-{
-    size_t hash = 0;
-
-    for (const nvrhi::rt::PipelineShaderDesc& shaderDesc : psoDesc.shaders)
-    {
-        HashCombine(hash, shaderDesc.exportName);
-        HashShaderHandle(hash, shaderDesc.shader);
-        HashBindingLayout(hash, shaderDesc.bindingLayout);
-    }
-
-    for (const nvrhi::rt::PipelineHitGroupDesc& hitGroupDesc : psoDesc.hitGroups)
-    {
-        HashCombine(hash, hitGroupDesc.exportName);
-        HashShaderHandle(hash, hitGroupDesc.closestHitShader);
-        HashShaderHandle(hash, hitGroupDesc.anyHitShader);
-        HashShaderHandle(hash, hitGroupDesc.intersectionShader);
-        HashBindingLayout(hash, hitGroupDesc.bindingLayout);
-        HashCombine(hash, hitGroupDesc.isProceduralPrimitive);
-    }
-
-    HashBindingLayout(hash, psoDesc.globalBindingLayouts);
-    HashCombine(hash, psoDesc.maxPayloadSize);
-    HashCombine(hash, psoDesc.maxAttributeSize);
-    HashCombine(hash, psoDesc.maxRecursionDepth);
-    HashCombine(hash, psoDesc.hlslExtensionsUAV);
-
-    static std::mutex s_CachedRTPSOsLock;
-    AUTO_LOCK(s_CachedRTPSOsLock);
-
-    nvrhi::rt::PipelineHandle& pipeline = m_CachedRTPSOs[hash];
-    if (!pipeline)
-    {
-        PROFILE_SCOPED("createRTPipeline");
-        //LOG_DEBUG("New RT PSO: [%zx]", hash);
-        pipeline = m_NVRHIDevice->createRayTracingPipeline(psoDesc);
-    }
-
-    return pipeline;
 }
 
 nvrhi::IDescriptorTable* Graphic::GetBindlessDescriptorTable()

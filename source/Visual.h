@@ -3,6 +3,7 @@
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
 #include "MathUtilities.h"
+#include "DescriptorTableManager.h"
 
 // NOTE: keep the values in sync with cgltf_alpha_mode
 enum class AlphaMode
@@ -40,7 +41,7 @@ public:
     nvrhi::TextureHandle m_MinMipTexture;
     nvrhi::BufferHandle m_FeedbackResolveBuffers[2];
 
-    uint32_t m_DescriptorIndex = UINT_MAX;
+    DescriptorHandle m_DescriptorHandle;
     nvrhi::TextureHandle m_NVRHITextureHandle;
     nvrhi::SamplerAddressMode m_AddressMode = nvrhi::SamplerAddressMode::Wrap;
 };

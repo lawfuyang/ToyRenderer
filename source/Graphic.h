@@ -81,7 +81,6 @@ public:
     [[nodiscard]] nvrhi::GraphicsPipelineHandle GetOrCreatePSO(const nvrhi::GraphicsPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer);
     [[nodiscard]] nvrhi::MeshletPipelineHandle GetOrCreatePSO(const nvrhi::MeshletPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer);
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
-    [[nodiscard]] nvrhi::rt::PipelineHandle GetOrCreatePSO(const nvrhi::rt::PipelineDesc& psoDesc);
 
     nvrhi::IDescriptorTable* GetBindlessDescriptorTable();
 

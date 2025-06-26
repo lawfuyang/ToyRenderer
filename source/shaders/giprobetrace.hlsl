@@ -5,7 +5,6 @@
 #include "ShaderInterop.h"
 
 cbuffer GIProbeTraceConstsBuffer : register(b0) { GIProbeTraceConsts g_GIProbeTraceConsts; }
-Texture2D g_InstanceTextures[] : register(t0, space1);
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
 void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
@@ -107,7 +106,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     args.m_Samplers = anisotropicSamplers;
     
     float3 rayHitWorldPosition;
-    GBufferParams rayHitGBufferParams = GetRayHitInstanceGBufferParams(args, g_InstanceTextures, rayHitWorldPosition);
+    GBufferParams rayHitGBufferParams = GetRayHitInstanceGBufferParams(args, rayHitWorldPosition);
     
     float3 radiance = float3(0, 0, 0);
     

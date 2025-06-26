@@ -8,7 +8,6 @@
 
 cbuffer g_PassConstantsBuffer : register(b0) { ShadowMaskConsts g_ShadowMaskConsts; }
 cbuffer g_ShadowMaskResourceIndicesBuffer : register(b1) { ShadowMaskResourceIndices g_ShadowMaskResourceIndices; }
-Texture2D g_InstanceTextures[] : register(t0, space1);
 
 float2x3 CreateTangentVectors(float3 normal)
 {
@@ -128,7 +127,7 @@ void CS_ShadowMask(
             args.m_GlobalVertexBuffer = globalVertexBuffer;
             args.m_Samplers = samplers;
             
-            GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(args, g_InstanceTextures);
+            GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(args);
             
             if (gbufferParams.m_Albedo.a >= gbufferParams.m_AlphaCutoff)
             {

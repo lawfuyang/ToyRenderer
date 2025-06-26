@@ -147,7 +147,7 @@ struct GetRayHitInstanceGBufferParamsArguments
     sampler m_Samplers[SamplerIdx_Count];
 };
 
-GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArguments inArgs, Texture2D bindlessTextures[], out float3 rayHitWorldPosition)
+GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArguments inArgs, out float3 rayHitWorldPosition)
 {
     uint instanceID = inArgs.m_InstanceID;
     uint primitiveIndex = inArgs.m_PrimitiveIndex;
@@ -192,11 +192,11 @@ GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArgum
     getCommonGBufferParamsArguments.m_MaterialData = materialData;
     getCommonGBufferParamsArguments.m_Samplers = samplers;
     
-    return GetCommonGBufferParams(getCommonGBufferParamsArguments, bindlessTextures);
+    return GetCommonGBufferParams(getCommonGBufferParamsArguments);
 }
 
-GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArguments inArgs, Texture2D bindlessTextures[])
+GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArguments inArgs)
 {
     float3 rayHitWorldPosition;
-    return GetRayHitInstanceGBufferParams(inArgs, bindlessTextures, rayHitWorldPosition);
+    return GetRayHitInstanceGBufferParams(inArgs, rayHitWorldPosition);
 }

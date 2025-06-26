@@ -209,7 +209,7 @@ struct SampleMaterialValueArguments
     float m_OveriddenSampleLevel; // preferably compile-time const. Set to a negative value to use hardware mip level
 };
 
-float4 SampleMaterialValue(SampleMaterialValueArguments inArgs, Texture2D bindlessTextures[])
+float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
 {
     float2 texCoord = inArgs.m_TexCoord;
     uint materialFlag = inArgs.m_MaterialFlag;
@@ -241,16 +241,19 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs, Texture2D bindle
     }
         
     uint texIdx = NonUniformResourceIndex(textureSamplerAndDescriptorIndex & 0x3FFFFFFF);
+    Texture2D materialTexture = ResourceDescriptorHeap[texIdx];
+
     uint samplerIdx = textureSamplerAndDescriptorIndex >> 30;
+    sampler materialSampler = samplers[samplerIdx];
         
     // TODO: use 'SampleGrad' for appropriate mip level
     if (overridenSampleLevel >= 0.0f)
     {
-        return bindlessTextures[texIdx].SampleLevel(samplers[samplerIdx], texCoord, overridenSampleLevel);
+        return materialTexture.SampleLevel(materialSampler, texCoord, overridenSampleLevel);
     }
     else
     {
-        return bindlessTextures[texIdx].Sample(samplers[samplerIdx], texCoord);
+        return materialTexture.Sample(materialSampler, texCoord);
     }
 }
 
@@ -263,7 +266,7 @@ struct GetCommonGBufferParamsArguments
     sampler m_Samplers[SamplerIdx_Count];
 };
 
-GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs, Texture2D bindlessTextures[])
+GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs)
 {
     float2 texCoord = inArgs.m_TexCoord;
     float3 worldPosition = inArgs.m_WorldPosition;
@@ -281,20 +284,20 @@ GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs, Tex
     
     sampleArgs.m_MaterialFlag = MaterialFlag_UseDiffuseTexture;
     sampleArgs.m_DefaultValue = float4(1, 1, 1, 1);
-    float4 albedoSample = SampleMaterialValue(sampleArgs, bindlessTextures);
+    float4 albedoSample = SampleMaterialValue(sampleArgs);
     result.m_Albedo = materialData.m_ConstAlbedo * albedoSample;
     
     sampleArgs.m_MaterialFlag = MaterialFlag_UseNormalTexture;
     sampleArgs.m_DefaultValue = float4(0.5f, 0.5f, 1.0f, 0.0f);
-    float4 normalSample = SampleMaterialValue(sampleArgs, bindlessTextures);
+    float4 normalSample = SampleMaterialValue(sampleArgs);
     
     sampleArgs.m_MaterialFlag = MaterialFlag_UseMetallicRoughnessTexture;
     sampleArgs.m_DefaultValue = float4(0.0f, 1.0f, 0.0f, 0.0f);
-    float4 metalRoughnessSample = SampleMaterialValue(sampleArgs, bindlessTextures);
+    float4 metalRoughnessSample = SampleMaterialValue(sampleArgs);
     
     sampleArgs.m_MaterialFlag = MaterialFlag_UseEmissiveTexture;
     sampleArgs.m_DefaultValue = float4(1, 1, 1, 0);
-    float4 emissiveSample = SampleMaterialValue(sampleArgs, bindlessTextures);
+    float4 emissiveSample = SampleMaterialValue(sampleArgs);
     
     result.m_Roughness = metalRoughnessSample.g;
     result.m_Metallic = metalRoughnessSample.b;

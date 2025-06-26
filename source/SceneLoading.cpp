@@ -503,7 +503,7 @@ struct GLTFSceneLoader
                 }
 
                 Texture& tex = g_Scene->m_Textures.at(idx);
-                return tex.m_DescriptorIndex | (((uint32_t)tex.m_AddressMode) << 30);
+                return tex.m_DescriptorHandle.GetIndexInHeap() | (((uint32_t)tex.m_AddressMode) << 30);
             };
 
             MaterialData& materialData = m_GlobalMaterialData[i];

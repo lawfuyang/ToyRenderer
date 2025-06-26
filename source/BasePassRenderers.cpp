@@ -194,7 +194,7 @@ class BasePassRenderer : public IRenderer
     RenderGraph::ResourceHandle m_MeshletAmplificationDataBufferRDGBufferHandle;
     RenderGraph::ResourceHandle m_MeshletDispatchArgumentsBufferRDGBufferHandle;
 
-    nvrhi::PipelineStatisticsQueryHandle m_PipelineStatisticsQuery;
+    nvrhi::PipelineStatisticsQueryHandle m_PipelineStatisticsQuery[2];
     nvrhi::PipelineStatistics m_LastPipelineStatistics;
 
     bool m_DoFrustumCulling = true;
@@ -220,7 +220,10 @@ public:
 
 	void Initialize() override
 	{
-        m_PipelineStatisticsQuery = g_Graphic.m_NVRHIDevice->createPipelineStatisticsQuery();
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            m_PipelineStatisticsQuery[i] = g_Graphic.m_NVRHIDevice->createPipelineStatisticsQuery();
+        }
 	}
 
     void UpdateImgui() override
@@ -598,8 +601,8 @@ public:
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-        m_LastPipelineStatistics = device->getPipelineStatistics(m_PipelineStatisticsQuery);
-        AUTO_SCOPE([&]{ commandList->beginPipelineStatisticsQuery(m_PipelineStatisticsQuery); }, [&]{ commandList->endPipelineStatisticsQuery(m_PipelineStatisticsQuery); });
+        m_LastPipelineStatistics = device->getPipelineStatistics(m_PipelineStatisticsQuery[g_Graphic.m_FrameCounter % 2]);
+        AUTO_SCOPE([&]{ commandList->beginPipelineStatisticsQuery(m_PipelineStatisticsQuery[g_Graphic.m_FrameCounter % 2]); }, [&]{ commandList->endPipelineStatisticsQuery(m_PipelineStatisticsQuery[g_Graphic.m_FrameCounter % 2]); });
 
         m_CullingFlags = m_DoFrustumCulling ? kCullingFlagFrustumCullingEnable : 0;
         m_CullingFlags |= m_bDoOcclusionCulling ? kCullingFlagOcclusionCullingEnable : 0;

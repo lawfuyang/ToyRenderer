@@ -25,6 +25,26 @@
 #include "CriticalSection.h"
 #include "Graphic.h"
 
+DescriptorHandle::DescriptorHandle(DescriptorTableManager* managerPtr, uint32_t index)
+    : m_Manager(managerPtr), m_DescriptorIndex(index)
+{
+}
+
+DescriptorHandle::~DescriptorHandle()
+{
+    if (IsValid())
+    {
+        m_Manager->ReleaseDescriptor(*this);
+        Reset();
+    }
+}
+
+uint32_t DescriptorHandle::GetIndexInHeap() const
+{
+    assert(IsValid());
+    return m_Manager->GetDescriptorTable()->getFirstDescriptorIndexInHeap() + m_DescriptorIndex;
+}
+
 DescriptorTableManager::DescriptorTableManager(nvrhi::IBindingLayout* layout)
 {
     m_DescriptorTable = g_Graphic.m_NVRHIDevice->createDescriptorTable(layout);
@@ -35,7 +55,7 @@ DescriptorTableManager::DescriptorTableManager(nvrhi::IBindingLayout* layout)
     memset(m_Descriptors.data(), 0, sizeof(nvrhi::BindingSetItem) * capacity);
 }
 
-uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem item)
+DescriptorHandle DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem item)
 {
     assert(m_DescriptorTable);
 
@@ -47,7 +67,7 @@ uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem it
         AUTO_LOCK(m_Lock);
         const auto& found = m_DescriptorIndexMap.find(item);
         if (found != m_DescriptorIndexMap.end())
-            return found->second;
+            return DescriptorHandle{ this, found->second };
 
         uint32_t capacity = m_DescriptorTable->getCapacity();
         bool foundFreeSlot = false;
@@ -87,12 +107,15 @@ uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem it
     if (item.resourceHandle)
         item.resourceHandle->AddRef();
 
-    return index;
+    return DescriptorHandle{ this, index };
 }
 
-void DescriptorTableManager::ReleaseDescriptor(uint32_t index)
+void DescriptorTableManager::ReleaseDescriptor(const DescriptorHandle& descriptorHandle)
 {
-    SCOPED_MULTITHREAD_DETECTOR(m_MultithreadDetector);
+    assert(descriptorHandle.m_Manager == this);
+    AUTO_LOCK(m_Lock);
+
+    const uint32_t index = descriptorHandle.Get();
 
     nvrhi::BindingSetItem& descriptor = m_Descriptors[index];
 

@@ -19,7 +19,7 @@ static_assert(_countof(Mesh::m_LODs) == Graphic::kMaxNumMeshLODs);
 static_assert(Graphic::kMaxNumMeshLODs == kMaxNumMeshLODs);
 static_assert(_countof(Texture::m_StreamingMipDatas) == Graphic::kMaxTextureMips);
 
-static uint32_t GetDescriptorIndexForTexture(nvrhi::TextureHandle texture)
+static DescriptorHandle GetDescriptorHandleForTexture(nvrhi::TextureHandle texture)
 {
     return g_Graphic.m_DescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
 }
@@ -32,7 +32,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     assert(textureDesc.depth == 1);
 
     m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-    m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
+    m_DescriptorHandle = GetDescriptorHandleForTexture(m_NVRHITextureHandle);
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
@@ -117,7 +117,7 @@ void Texture::LoadFromFile(std::string_view filePath)
         assert(0);
     }
 
-    m_DescriptorIndex = GetDescriptorIndexForTexture(m_NVRHITextureHandle);
+    m_DescriptorHandle = GetDescriptorHandleForTexture(m_NVRHITextureHandle);
 
     const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
     LOG_DEBUG("New Texture: %s, %d x %d, %s", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
@@ -126,7 +126,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 bool Texture::IsValid() const
 {
     return m_NVRHITextureHandle != nullptr
-        && m_DescriptorIndex != UINT_MAX
+        && m_DescriptorHandle.IsValid()
         && m_HighestStreamedMip != UINT_MAX;
 }
 
