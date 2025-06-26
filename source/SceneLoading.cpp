@@ -143,23 +143,25 @@ struct GLTFSceneLoader
             }
         }
 
-        {
-            SCENE_LOAD_PROFILE("Load gltf buffers");
-
-            cgltf_result result = cgltf_load_buffers(&options, m_GLTFData, sceneToLoad.data());
-            if (result != cgltf_result_success)
-            {
-                LOG_DEBUG("GLTF - Failed to load buffers '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
-                return;
-            }
-        }
-
         if (!m_bHasValidCachedData)
         {
-            SCENE_LOAD_PROFILE("Decompress buffers");
+            {
+                SCENE_LOAD_PROFILE("Load gltf buffers");
 
-            const cgltf_result result = decompressMeshopt(m_GLTFData);
-            assert(result == cgltf_result_success);
+                cgltf_result result = cgltf_load_buffers(&options, m_GLTFData, sceneToLoad.data());
+                if (result != cgltf_result_success)
+                {
+                    LOG_DEBUG("GLTF - Failed to load buffers '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
+                    return;
+                }
+            }
+
+            {
+                SCENE_LOAD_PROFILE("Decompress buffers");
+
+                const cgltf_result result = decompressMeshopt(m_GLTFData);
+                assert(result == cgltf_result_success);
+            }
         }
         else
         {
