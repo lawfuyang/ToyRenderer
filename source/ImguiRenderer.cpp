@@ -16,8 +16,8 @@ class IMGUIRenderer : public IRenderer
 
     std::vector<ImDrawVert> m_Vertices;
     std::vector<ImDrawIdx> m_Indices;
+    std::vector<nvrhi::TextureHandle> m_Textures;
 
-    nvrhi::TextureHandle m_FontTexture;
     nvrhi::BufferHandle m_VertexBuffer;
     nvrhi::BufferHandle m_IndexBuffer;
 
@@ -36,28 +36,86 @@ public:
 	        { "COLOR",    nvrhi::Format::RGBA8_UNORM, 1, 0, offsetof(ImDrawVert,col), sizeof(ImDrawVert), false },
 		};
 		m_InputLayout = device->createInputLayout(kLayout, (uint32_t)std::size(kLayout), nullptr);
+    }
 
-        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "init IMGUI Font Texture");
+    void UpdateTexture(nvrhi::CommandListHandle commandList, ImTextureData* tex)
+    {
+        if (tex->Status == ImTextureStatus_OK)
+        {
+            return;
+        }
 
-        unsigned char* pixels;
-        int width, height, bytesPerPixel;
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height, &bytesPerPixel);
+        switch (tex->Status)
+        {
+        case ImTextureStatus::ImTextureStatus_WantCreate:
+        {
+            assert(tex->TexID == 0 && tex->BackendUserData == nullptr);
+            assert(tex->Format == ImTextureFormat_RGBA32);
 
-        nvrhi::TextureDesc fontTextureDesc;
-        fontTextureDesc.width = width;
-        fontTextureDesc.height = height;
-        fontTextureDesc.format = nvrhi::Format::RGBA8_UNORM;
-        fontTextureDesc.debugName = "ImGui font texture";
-        fontTextureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-        m_FontTexture = device->createTexture(fontTextureDesc);
+            LOG_DEBUG("Create IMGUI Texture: %dx%d", tex->Width, tex->Height);
 
-        commandList->writeTexture(m_FontTexture, 0, 0, pixels, width * bytesPerPixel);
-        commandList->setPermanentTextureState(m_FontTexture, nvrhi::ResourceStates::ShaderResource);
-        commandList->commitBarriers();
+            const uint32_t textureIdx = m_Textures.size();
 
-        io.Fonts->TexID = (ImTextureID)m_FontTexture.Get();
+            nvrhi::TextureDesc fontTextureDesc;
+            fontTextureDesc.width = tex->Width;
+            fontTextureDesc.height = tex->Height;
+            fontTextureDesc.format = nvrhi::Format::RGBA8_UNORM;
+            fontTextureDesc.debugName = StringFormat("ImGui texture : %d", textureIdx);
+            fontTextureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+            // just maintain an ever-growing list of textures. dont care about re-using them
+            nvrhi::TextureHandle& newTexture = m_Textures.emplace_back();
+            newTexture = device->createTexture(fontTextureDesc);
+
+            commandList->writeTexture(newTexture, 0, 0, tex->GetPixels(), tex->GetPitch());
+
+            tex->SetTexID(textureIdx);
+
+            break;
+        }
+        case ImTextureStatus::ImTextureStatus_WantUpdates:
+        {
+            nvrhi::TextureHandle textureHandle = m_Textures.at(tex->TexID);
+
+            LOG_DEBUG("Update IMGUI Texture %d: [x:%d, y:%d, w:%d, h:%d]", tex->GetTexID(), tex->UpdateRect.x, tex->UpdateRect.y, tex->UpdateRect.w, tex->UpdateRect.h);
+
+            nvrhi::TextureDesc textureDesc;
+            textureDesc.width = tex->UpdateRect.w;
+            textureDesc.height = tex->UpdateRect.h;
+            textureDesc.format = textureHandle->getDesc().format;
+
+            nvrhi::StagingTextureHandle stagingTexture = device->createStagingTexture(textureDesc, nvrhi::CpuAccessMode::Write);
+            assert(stagingTexture);
+
+            size_t rowPitch;
+            void* mappedPtr = device->mapStagingTexture(stagingTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Write, &rowPitch);
+
+            for (uint32_t y = 0; y < tex->UpdateRect.h; y++)
+            {
+                memcpy((void*)((uintptr_t)mappedPtr + y * rowPitch), tex->GetPixelsAt(tex->UpdateRect.x, tex->UpdateRect.y + y), rowPitch);
+            }
+
+            device->unmapStagingTexture(stagingTexture);
+
+            commandList->copyTexture(
+                textureHandle,
+                nvrhi::TextureSlice{ tex->UpdateRect.x, tex->UpdateRect.y, 0, tex->UpdateRect.w, tex->UpdateRect.h, 1 },
+                stagingTexture,
+                nvrhi::TextureSlice{});
+
+            break;
+        }
+        case ImTextureStatus::ImTextureStatus_WantDestroy:
+        {
+            LOG_DEBUG("Destroy IMGUI Texture %d", tex->GetTexID());
+            assert(0); // TODO
+            break;
+        }
+        };
+
+        tex->SetStatus(tex->Status == ImTextureStatus_WantDestroy ? ImTextureStatus_Destroyed : ImTextureStatus_OK);
     }
 
     void UploadVertexAndIndexBuffers(nvrhi::CommandListHandle commandList, ImDrawData* drawData)
@@ -130,6 +188,14 @@ public:
         }
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+        if (drawData->Textures)
+        {
+            for (ImTextureData* tex : *drawData->Textures)
+            {
+                UpdateTexture(commandList, tex);
+            }
+        }
 
         // re-alloc & upload imgui vtx/idx data if needed
         UploadVertexAndIndexBuffers(commandList, drawData);
@@ -214,7 +280,7 @@ public:
                 nvrhi::BindingSetDesc bindingSetDesc;
                 bindingSetDesc.bindings = {
                     nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
-                    nvrhi::BindingSetItem::Texture_SRV(0, (nvrhi::ITexture*)cmd.TextureId),
+                    nvrhi::BindingSetItem::Texture_SRV(0, m_Textures.at(cmd.TexRef.GetTexID())),
                     nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearWrapSampler)
                 };
                 nvrhi::BindingSetHandle bindingSet;

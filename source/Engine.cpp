@@ -121,6 +121,10 @@ void Engine::Initialize(int argc, char** argv)
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
+    
     verify(ImGui_ImplSDL3_InitForD3D(m_SDLWindow));
 
     extern void PreloadScene();
