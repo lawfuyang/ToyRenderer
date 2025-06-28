@@ -2,7 +2,6 @@
 
 #include "Engine.h"
 #include "Graphic.h"
-#include "DescriptorTableManager.h"
 
 void Scene::AddTextureStreamingRequest(Texture& texture, bool bHigherDetailedMip)
 {

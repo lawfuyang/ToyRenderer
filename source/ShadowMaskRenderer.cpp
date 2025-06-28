@@ -279,6 +279,9 @@ public:
         passConstants.m_CameraPosition = g_Scene->m_View.m_Eye;
         passConstants.m_bDoDenoising = m_bEnableShadowDenoising;
         passConstants.m_RayStartOffset = (g_Scene->m_BoundingSphere.Radius < 3.0f) ? 0.01f : 0.1f;
+        passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.m_GlobalVertexBuffer->indexInHeap;
+        passConstants.m_GlobalIndexBufferIdxInHeap = g_Graphic.m_GlobalIndexBuffer->indexInHeap;
+        passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
@@ -290,10 +293,10 @@ public:
             nvrhi::BindingSetItem::RayTracingAccelStruct(1, g_Scene->m_TLAS),
             nvrhi::BindingSetItem::Texture_SRV(2, GBufferATexture),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalVertexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalVertexBuffer), // TODO: remove after bindless refactoring
             nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMaterialDataBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalIndexBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMeshDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalIndexBuffer), // TODO: remove after bindless refactoring
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMeshDataBuffer), // TODO: remove after bindless refactoring
             nvrhi::BindingSetItem::Texture_SRV(8, g_CommonResources.BlueNoise.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::Texture_UAV(0, shadowDataTexture),
             nvrhi::BindingSetItem::Texture_UAV(1, linearViewDepthTexture),
@@ -312,10 +315,7 @@ public:
         resourceIndices.m_SceneTLASIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
         resourceIndices.m_GBufferAIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
         resourceIndices.m_BasePassInstanceConstsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-        resourceIndices.m_GlobalVertexBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
         resourceIndices.m_MaterialDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-        resourceIndices.m_GlobalIndexIDsBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 6;
-        resourceIndices.m_MeshDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 7;
         resourceIndices.m_BlueNoiseIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 8;
         resourceIndices.m_ShadowDataOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 9;
         resourceIndices.m_LinearViewDepthOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 10;

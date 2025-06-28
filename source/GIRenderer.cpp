@@ -396,6 +396,9 @@ public:
         GIProbeTraceConsts passConstants;
         passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
         passConstants.m_DirectionalLightStrength = g_Scene->m_DirLightStrength;
+        passConstants.m_GlobalIndexBufferIdxInHeap = g_Graphic.m_GlobalIndexBuffer->indexInHeap;
+        passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
+        passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.m_GlobalVertexBuffer->indexInHeap;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
@@ -407,10 +410,10 @@ public:
             nvrhi::BindingSetItem::Texture_SRV(3, m_GIVolume.m_ProbeDistance),
             nvrhi::BindingSetItem::RayTracingAccelStruct(4, g_Scene->m_TLAS),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalVertexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalVertexBuffer), // TODO: remove after bindless refactoring
             nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMaterialDataBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(8, g_Graphic.m_GlobalIndexBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(9, g_Graphic.m_GlobalMeshDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(8, g_Graphic.m_GlobalIndexBuffer), // TODO: remove after bindless refactoring
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(9, g_Graphic.m_GlobalMeshDataBuffer), // TODO: remove after bindless refactoring
             nvrhi::BindingSetItem::Texture_UAV(0, probeRayDataTexture),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
@@ -429,10 +432,7 @@ public:
         passConstants.m_ProbeDistanceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
         passConstants.m_SceneTLASIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
         passConstants.m_BasePassInstanceConstsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-        passConstants.m_GlobalVertexBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 6;
         passConstants.m_MaterialDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 7;
-        passConstants.m_GlobalIndexIDsBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 8;
-        passConstants.m_MeshDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 9;
         passConstants.m_OutRayDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 10;
         passConstants.m_SamplersIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 

@@ -5,7 +5,6 @@
 #include "SDL3/SDL_mouse.h"
 
 #include "CommonResources.h"
-#include "DescriptorTableManager.h"
 #include "Engine.h"
 #include "Graphic.h"
 #include "RenderGraph.h"

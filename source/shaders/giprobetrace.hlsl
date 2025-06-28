@@ -15,10 +15,10 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     Texture2DArray<float4> g_ProbeDistance = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_ProbeDistanceIdx];
     RaytracingAccelerationStructure g_SceneTLAS = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_SceneTLASIdx];
     StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_BasePassInstanceConstsIdx];
-    StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalVertexBufferIdx];
+    StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalVertexBufferIdxInHeap];
     StructuredBuffer<MaterialData> g_MaterialDataBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_MaterialDataBufferIdx];
-    StructuredBuffer<uint> g_GlobalIndexIDsBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalIndexIDsBufferIdx];
-    StructuredBuffer<MeshData> g_MeshDataBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_MeshDataBufferIdx];
+    StructuredBuffer<uint> g_GlobalIndexIDsBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalIndexBufferIdxInHeap];
+    StructuredBuffer<MeshData> g_MeshDataBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalMeshDataBufferIdxInHeap];
     RWTexture2DArray<float4> g_OutRayData = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_OutRayDataIdx];
     
     sampler anisotropicSamplers[SamplerIdx_Count] =

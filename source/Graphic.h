@@ -6,12 +6,12 @@
 #include "extern/renderdoc/renderdoc_app.h"
 
 #include "CriticalSection.h"
+#include "DescriptorTableManager.h"
 #include "MathUtilities.h"
 #include "Visual.h"
 #include "SmallVector.h"
 
 class CommonResources;
-class DescriptorTableManager;
 class RenderGraph;
 class Scene;
 struct MaterialData;
@@ -83,6 +83,8 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
 
     nvrhi::IDescriptorTable* GetSrvUavCbvDescriptorTable();
+    DescriptorHandle RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::ResourceType resourceType);
+    DescriptorHandle RegisterInSrvUavCbvDescriptorTable(nvrhi::BufferHandle buffer, nvrhi::ResourceType resourceType);
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
     {

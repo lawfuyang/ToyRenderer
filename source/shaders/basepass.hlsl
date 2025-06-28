@@ -8,9 +8,9 @@
 #include "ShaderInterop.h"
 
 cbuffer g_PassConstantsBuffer : register(b0) { BasePassConstants g_BasePassConsts; }
+static StructuredBuffer<RawVertexFormat> g_VirtualVertexBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalVertexBufferIdxInHeap];
+static StructuredBuffer<MeshData> g_MeshDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshDataBufferIdxInHeap];
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
-StructuredBuffer<RawVertexFormat> g_VirtualVertexBuffer : register(t1);
-StructuredBuffer<MeshData> g_MeshDataBuffer : register(t2);
 StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t3);
 StructuredBuffer<MeshletData> g_MeshletDataBuffer : register(t4);
 StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);

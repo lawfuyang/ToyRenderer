@@ -6,7 +6,6 @@
 #include "SDL3/SDL.h"
 
 #include "CommonResources.h"
-#include "DescriptorTableManager.h"
 #include "Engine.h"
 #include "Scene.h"
 #include "Utilities.h"
@@ -460,6 +459,42 @@ nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelin
 nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
 {
     return m_SrvUavCbvDescriptorTableManager->GetDescriptorTable();
+}
+
+DescriptorHandle Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::ResourceType resourceType)
+{
+    assert(resourceType == nvrhi::ResourceType::Texture_SRV || resourceType == nvrhi::ResourceType::Texture_UAV);
+    if (resourceType == nvrhi::ResourceType::Texture_SRV)
+    {
+        return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
+    }
+    return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_UAV(0, texture));
+}
+
+DescriptorHandle Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::BufferHandle buffer, nvrhi::ResourceType resourceType)
+{
+    assert(resourceType == nvrhi::ResourceType::TypedBuffer_SRV || resourceType == nvrhi::ResourceType::TypedBuffer_UAV ||
+           resourceType == nvrhi::ResourceType::StructuredBuffer_SRV || resourceType == nvrhi::ResourceType::StructuredBuffer_UAV ||
+           resourceType == nvrhi::ResourceType::RawBuffer_SRV || resourceType == nvrhi::ResourceType::RawBuffer_UAV);
+
+    switch (resourceType)
+    {
+        case nvrhi::ResourceType::TypedBuffer_SRV:
+            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_SRV(0, buffer));
+        case nvrhi::ResourceType::TypedBuffer_UAV:
+            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_UAV(0, buffer));
+        case nvrhi::ResourceType::StructuredBuffer_SRV:
+            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_SRV(0, buffer));
+        case nvrhi::ResourceType::StructuredBuffer_UAV:
+            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_UAV(0, buffer));
+        case nvrhi::ResourceType::RawBuffer_SRV:
+            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_SRV(0, buffer));
+        case nvrhi::ResourceType::RawBuffer_UAV:
+            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_UAV(0, buffer));
+    }
+
+    assert(false);
+    return {};
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace)

@@ -90,6 +90,7 @@ protected:
     std::vector<bool> m_AllocatedDescriptors;
     uint32_t m_SearchStart = 0;
     std::mutex m_Lock;
+    uint32_t m_MaxCapacity;
 
 public:
     DescriptorTableManager(nvrhi::IBindingLayout* layout);

@@ -62,17 +62,17 @@ void CS_ShadowMask(
         return;
     }
     
-    Texture2D                                   depthBuffer                = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_DepthBufferIdx];
-    RaytracingAccelerationStructure             sceneTLAS                  = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_SceneTLASIdx];
-    Texture2D<uint4>                            GBufferA                   = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_GBufferAIdx];
-    StructuredBuffer<BasePassInstanceConstants> basePassInstanceConsts     = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_BasePassInstanceConstsIdx];
-    StructuredBuffer<RawVertexFormat>           globalVertexBuffer         = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_GlobalVertexBufferIdx];
-    StructuredBuffer<MaterialData>              materialDataBuffer         = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_MaterialDataBufferIdx];
-    StructuredBuffer<uint>                      globalIndexIDsBuffer       = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_GlobalIndexIDsBufferIdx];
-    StructuredBuffer<MeshData>                  meshDataBuffer             = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_MeshDataBufferIdx];
-    Texture2D                                   blueNoise                  = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_BlueNoiseIdx];
-    RWTexture2D<float>                          shadowDataOutput           = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_ShadowDataOutputIdx];
-    RWTexture2D<float>                          linearViewDepthOutput      = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_LinearViewDepthOutputIdx];
+    Texture2D                                   depthBuffer            = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_DepthBufferIdx];
+    RaytracingAccelerationStructure             sceneTLAS              = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_SceneTLASIdx];
+    Texture2D<uint4>                            GBufferA               = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_GBufferAIdx];
+    StructuredBuffer<BasePassInstanceConstants> basePassInstanceConsts = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_BasePassInstanceConstsIdx];
+    StructuredBuffer<RawVertexFormat>           globalVertexBuffer     = ResourceDescriptorHeap[g_ShadowMaskConsts.m_GlobalVertexBufferIdxInHeap];
+    StructuredBuffer<MaterialData>              materialDataBuffer     = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_MaterialDataBufferIdx];
+    StructuredBuffer<uint>                      globalIndexIDsBuffer   = ResourceDescriptorHeap[g_ShadowMaskConsts.m_GlobalIndexBufferIdxInHeap];
+    StructuredBuffer<MeshData>                  meshDataBuffer         = ResourceDescriptorHeap[g_ShadowMaskConsts.m_GlobalMeshDataBufferIdxInHeap];
+    Texture2D                                   blueNoise              = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_BlueNoiseIdx];
+    RWTexture2D<float>                          shadowDataOutput       = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_ShadowDataOutputIdx];
+    RWTexture2D<float>                          linearViewDepthOutput  = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_LinearViewDepthOutputIdx];
     
     sampler anisotropicClampSampler = SamplerDescriptorHeap[g_ShadowMaskResourceIndices.m_SamplersIdx + 0];
     sampler anisotropicWrapSampler = SamplerDescriptorHeap[g_ShadowMaskResourceIndices.m_SamplersIdx + 1];

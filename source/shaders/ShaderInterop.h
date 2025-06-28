@@ -91,6 +91,8 @@ struct BasePassConstants
     uint32_t m_DebugMode;
     uint32_t PAD0;
     Vector2U m_OutputResolution;
+    uint32_t m_GlobalVertexBufferIdxInHeap;
+    uint32_t m_GlobalMeshDataBufferIdxInHeap;
 };
 
 struct BasePassInstanceConstants
@@ -186,6 +188,7 @@ struct GPUCullingPassConstants
     float m_P11;
     uint32_t m_ForcedMeshLOD;
     float m_MeshLODTarget;
+    uint32_t m_GlobalMeshDataBufferIdxInHeap;
 };
 
 struct GPUCullingPassResourceIndices
@@ -319,16 +322,17 @@ struct GIProbeTraceConsts
 {
     Vector3 m_DirectionalLightVector;
     float m_DirectionalLightStrength;
+    uint32_t m_GlobalIndexBufferIdxInHeap;
+    uint32_t m_GlobalMeshDataBufferIdxInHeap;
+    uint32_t m_GlobalVertexBufferIdxInHeap;
+
     uint32_t m_DDGIVolumesIdx;
     uint32_t m_ProbeDataIdx;
     uint32_t m_ProbeIrradianceIdx;
     uint32_t m_ProbeDistanceIdx;
     uint32_t m_SceneTLASIdx;
     uint32_t m_BasePassInstanceConstsIdx;
-    uint32_t m_GlobalVertexBufferIdx;
     uint32_t m_MaterialDataBufferIdx;
-    uint32_t m_GlobalIndexIDsBufferIdx;
-    uint32_t m_MeshDataBufferIdx;
     uint32_t m_OutRayDataIdx;
     uint32_t m_SamplersIdx;
 };
@@ -396,6 +400,10 @@ struct ShadowMaskConsts
     Vector2U m_OutputResolution;
     uint32_t m_bDoDenoising;
     float m_RayStartOffset;
+    
+    uint32_t m_GlobalVertexBufferIdxInHeap;
+    uint32_t m_GlobalIndexBufferIdxInHeap;
+    uint32_t m_GlobalMeshDataBufferIdxInHeap;
 };
 
 struct ShadowMaskResourceIndices
@@ -404,10 +412,7 @@ struct ShadowMaskResourceIndices
     uint32_t m_SceneTLASIdx;
     uint32_t m_GBufferAIdx;
     uint32_t m_BasePassInstanceConstsIdx;
-    uint32_t m_GlobalVertexBufferIdx;
     uint32_t m_MaterialDataBufferIdx;
-    uint32_t m_GlobalIndexIDsBufferIdx;
-    uint32_t m_MeshDataBufferIdx;
     uint32_t m_BlueNoiseIdx;
     uint32_t m_ShadowDataOutputIdx;
     uint32_t m_LinearViewDepthOutputIdx;

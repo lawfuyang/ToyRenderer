@@ -35,10 +35,12 @@ DescriptorTableManager::DescriptorTableManager(nvrhi::IBindingLayout* layout)
 {
     m_DescriptorTable = g_Graphic.m_NVRHIDevice->createDescriptorTable(layout);
 
-    const size_t capacity = m_DescriptorTable->getCapacity();
-    m_AllocatedDescriptors.resize(capacity);
-    m_Descriptors.resize(capacity);
-    memset(m_Descriptors.data(), 0, sizeof(nvrhi::BindingSetItem) * capacity);
+    m_MaxCapacity = layout->getBindlessDesc()->maxCapacity;
+
+    g_Graphic.m_NVRHIDevice->resizeDescriptorTable(m_DescriptorTable, m_MaxCapacity);
+    m_AllocatedDescriptors.resize(m_MaxCapacity);
+    m_Descriptors.resize(m_MaxCapacity);
+    memset(m_Descriptors.data(), 0, sizeof(nvrhi::BindingSetItem) * m_MaxCapacity);
 }
 
 DescriptorHandle DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem item)
@@ -55,10 +57,9 @@ DescriptorHandle DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSe
         if (found != m_DescriptorIndexMap.end())
             return DescriptorHandle{ this, found->second };
 
-        uint32_t capacity = m_DescriptorTable->getCapacity();
         bool foundFreeSlot = false;
 
-        for (index = m_SearchStart; index < capacity; index++)
+        for (index = m_SearchStart; index < m_MaxCapacity; index++)
         {
             if (!m_AllocatedDescriptors[index])
             {
@@ -66,20 +67,7 @@ DescriptorHandle DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSe
                 break;
             }
         }
-
-        if (!foundFreeSlot)
-        {
-            uint32_t newCapacity = std::max(64u, capacity * 2); // handle the initial case when capacity == 0
-            device->resizeDescriptorTable(m_DescriptorTable, newCapacity);
-            m_AllocatedDescriptors.resize(newCapacity);
-            m_Descriptors.resize(newCapacity);
-
-            // zero-fill the new descriptors
-            memset(&m_Descriptors[capacity], 0, sizeof(nvrhi::BindingSetItem) * (newCapacity - capacity));
-
-            index = capacity;
-            capacity = newCapacity;
-        }
+        assert(foundFreeSlot);
 
         item.slot = index;
         m_SearchStart = index + 1;

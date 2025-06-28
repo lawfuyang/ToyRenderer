@@ -6,6 +6,7 @@
 
 #include "CommonResources.h"
 #include "Engine.h"
+#include "DescriptorTableManager.h"
 #include "Graphic.h"
 #include "Scene.h"
 #include "SmallVector.h"
@@ -504,13 +505,12 @@ struct GLTFSceneLoader
 
                 Texture& tex = g_Scene->m_Textures.at(sceneTextureView.m_TextureIdx);
 
-                const uint32_t textureHeapIdx = tex.m_SRVDescriptorHandle.GetIndexInHeap();
-                assert(textureHeapIdx < 0x3FFFFFFF);
+                assert(tex.m_NVRHITextureHandle->indexInHeap < 0x3FFFFFFF);
 
                 const uint32_t samplerHeapIdx = (uint32_t)sceneTextureView.m_AddressMode;
                 assert(samplerHeapIdx < 0x4);
 
-                return (textureHeapIdx) | (samplerHeapIdx << 30);
+                return (tex.m_NVRHITextureHandle->indexInHeap) | (samplerHeapIdx << 30);
             };
 
             MaterialData& materialData = m_GlobalMaterialData[i];
@@ -1037,6 +1037,7 @@ struct GLTFSceneLoader
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             desc.isAccelStructBuildInput = true;
             g_Graphic.m_GlobalVertexBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Graphic.m_GlobalVertexBuffer->indexInHeap = g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Graphic.m_GlobalVertexBuffer, nvrhi::ResourceType::StructuredBuffer_SRV).GetIndexInHeap();
         }
 
         {
@@ -1047,6 +1048,7 @@ struct GLTFSceneLoader
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             desc.isAccelStructBuildInput = true;
             g_Graphic.m_GlobalIndexBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Graphic.m_GlobalIndexBuffer->indexInHeap = g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Graphic.m_GlobalIndexBuffer, nvrhi::ResourceType::StructuredBuffer_SRV).GetIndexInHeap();
         }
 
         {
@@ -1056,6 +1058,7 @@ struct GLTFSceneLoader
             desc.debugName = "Global Mesh Data Buffer";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             g_Graphic.m_GlobalMeshDataBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Graphic.m_GlobalMeshDataBuffer->indexInHeap = g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Graphic.m_GlobalMeshDataBuffer, nvrhi::ResourceType::StructuredBuffer_SRV).GetIndexInHeap();
         }
 
         {
@@ -1065,6 +1068,7 @@ struct GLTFSceneLoader
             desc.debugName = "Global Meshlet Vertex Index Offsets Buffer";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             g_Graphic.m_GlobalMeshletVertexOffsetsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->indexInHeap = g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer, nvrhi::ResourceType::StructuredBuffer_SRV).GetIndexInHeap();
         }
 
         {
@@ -1074,6 +1078,7 @@ struct GLTFSceneLoader
             desc.debugName = "Global Meshlet Indices Buffer";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             g_Graphic.m_GlobalMeshletIndicesBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Graphic.m_GlobalMeshletIndicesBuffer->indexInHeap = g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Graphic.m_GlobalMeshletIndicesBuffer, nvrhi::ResourceType::StructuredBuffer_SRV).GetIndexInHeap();
         }
 
         {
@@ -1083,6 +1088,7 @@ struct GLTFSceneLoader
             desc.debugName = "Global Meshlet Data Buffer";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             g_Graphic.m_GlobalMeshletDataBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Graphic.m_GlobalMeshletDataBuffer->indexInHeap = g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Graphic.m_GlobalMeshletDataBuffer, nvrhi::ResourceType::StructuredBuffer_SRV).GetIndexInHeap();
         }
 
         LOG_DEBUG("Global vertices = [%d] vertices, [%f] MB", m_GlobalVertices.size(), BYTES_TO_MB(g_Graphic.m_GlobalVertexBuffer->getDesc().byteSize));
