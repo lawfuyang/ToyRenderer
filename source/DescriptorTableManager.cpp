@@ -30,15 +30,6 @@ DescriptorHandle::DescriptorHandle(DescriptorTableManager* managerPtr, uint32_t 
 {
 }
 
-DescriptorHandle::~DescriptorHandle()
-{
-    if (IsValid())
-    {
-        m_Manager->ReleaseDescriptor(*this);
-        Reset();
-    }
-}
-
 uint32_t DescriptorHandle::GetIndexInHeap() const
 {
     assert(IsValid());

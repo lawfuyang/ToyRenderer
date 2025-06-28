@@ -31,7 +31,6 @@ class DescriptorHandle
 {
 public:
     DescriptorHandle(class DescriptorTableManager* managerPtr, uint32_t index);
-    ~DescriptorHandle();
 
     [[nodiscard]] bool IsValid() const { return m_DescriptorIndex != UINT_MAX && !!m_Manager; }
     [[nodiscard]] uint32_t Get() const { if (m_DescriptorIndex != UINT_MAX) assert(!!m_Manager); return m_DescriptorIndex; }
