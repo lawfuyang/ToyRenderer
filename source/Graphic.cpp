@@ -31,6 +31,8 @@ void Graphic::InitRenderDocAPI()
     pRENDERDOC_GetAPI RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
     const int result = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_6_0, (void**)&m_RenderDocAPI);
     assert(result == 1);
+
+    m_RenderDocAPI->SetCaptureFilePathTemplate((std::filesystem::path{ GetExecutableDirectory() } / "RenderDocCapture").string().c_str());
 }
 
 void Graphic::InitDevice()
