@@ -599,6 +599,11 @@ void Scene::UpdateIMGUI()
 
         ImGui::Text("Texture Mip Bias");
         ImGui::SameLine();
+        if (ImGui::Button("- -"))
+        {
+            // TODO
+        }
+        ImGui::SameLine();
         if (ImGui::Button("-"))
         {
             for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
@@ -613,6 +618,11 @@ void Scene::UpdateIMGUI()
             {
                 AddTextureStreamingRequest(g_Scene->m_Textures[i], false);
             }
+        }
+        ImGui::SameLine();
+        if  (ImGui::Button("+ +"))
+        {
+            // TODO
         }
 
         ImGui::TreePop();
