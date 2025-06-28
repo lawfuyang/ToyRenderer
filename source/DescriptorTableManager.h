@@ -30,6 +30,7 @@
 class DescriptorHandle
 {
 public:
+    DescriptorHandle() = default;
     DescriptorHandle(class DescriptorTableManager* managerPtr, uint32_t index);
 
     [[nodiscard]] bool IsValid() const { return m_DescriptorIndex != UINT_MAX && !!m_Manager; }
@@ -40,13 +41,6 @@ public:
     [[nodiscard]] uint32_t GetIndexInHeap() const;
 
     void Reset() { m_DescriptorIndex = UINT_MAX; m_Manager = nullptr; }
-
-    // Movable but non-copyable
-    DescriptorHandle() = default;
-    DescriptorHandle(const DescriptorHandle&) = delete;
-    DescriptorHandle(DescriptorHandle&&) = default;
-    DescriptorHandle& operator=(const DescriptorHandle&) = delete;
-    DescriptorHandle& operator=(DescriptorHandle&&) = default;
 
 private:
     class DescriptorTableManager* m_Manager = nullptr;

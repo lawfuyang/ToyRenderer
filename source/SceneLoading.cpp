@@ -385,16 +385,16 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Load Materials");
 
-        auto HandleTextureView = [&](uint32_t& textureIdx, const cgltf_texture_view& textureView)
+        auto HandleTextureView = [&](Material::TextureView& sceneTextureView, const cgltf_texture_view& textureView)
             {
                 const cgltf_image* image = textureView.texture->image;
                 assert(image);
 
-                textureIdx = cgltf_texture_index(m_GLTFData, textureView.texture);
+                sceneTextureView.m_TextureIdx = cgltf_texture_index(m_GLTFData, textureView.texture);
 
                 if (textureView.texture->sampler)
                 {
-                    g_Scene->m_Textures.at(textureIdx).m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, textureView.texture->sampler));
+                    sceneTextureView.m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, textureView.texture->sampler));
                 }
             };
 
@@ -423,7 +423,7 @@ struct GLTFSceneLoader
             if (gltfMaterial.emissive_texture.texture)
             {
 				sceneMaterial.m_MaterialFlags |= MaterialFlag_UseEmissiveTexture;
-				HandleTextureView(sceneMaterial.m_EmissiveTextureIdx, gltfMaterial.emissive_texture);
+				HandleTextureView(sceneMaterial.m_Emissive, gltfMaterial.emissive_texture);
 			}
 
             if (gltfMaterial.has_pbr_specular_glossiness)
@@ -431,12 +431,12 @@ struct GLTFSceneLoader
                 if (gltfMaterial.pbr_specular_glossiness.diffuse_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
-                    HandleTextureView(sceneMaterial.m_AlbedoTextureIdx, gltfMaterial.pbr_specular_glossiness.diffuse_texture);
+                    HandleTextureView(sceneMaterial.m_Albedo, gltfMaterial.pbr_specular_glossiness.diffuse_texture);
                 }
                 if (gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
-                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTextureIdx, gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture);
+                    HandleTextureView(sceneMaterial.m_MetallicRoughness, gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture);
                 }
 
                 sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_specular_glossiness.diffuse_factor[0] };
@@ -448,12 +448,12 @@ struct GLTFSceneLoader
                 if (gltfMaterial.pbr_metallic_roughness.base_color_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
-                    HandleTextureView(sceneMaterial.m_AlbedoTextureIdx, gltfMaterial.pbr_metallic_roughness.base_color_texture);
+                    HandleTextureView(sceneMaterial.m_Albedo, gltfMaterial.pbr_metallic_roughness.base_color_texture);
                 }
                 if (gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture)
                 {
                     sceneMaterial.m_MaterialFlags |= MaterialFlag_UseMetallicRoughnessTexture;
-                    HandleTextureView(sceneMaterial.m_MetallicRoughnessTextureIdx, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
+                    HandleTextureView(sceneMaterial.m_MetallicRoughness, gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture);
                 }
 
                 sceneMaterial.m_ConstAlbedo = Vector4{ &gltfMaterial.pbr_metallic_roughness.base_color_factor[0] };
@@ -490,30 +490,37 @@ struct GLTFSceneLoader
             if (gltfMaterial.normal_texture.texture)
             {
                 sceneMaterial.m_MaterialFlags |= MaterialFlag_UseNormalTexture;
-                HandleTextureView(sceneMaterial.m_NormalTextureIdx, gltfMaterial.normal_texture);
+                HandleTextureView(sceneMaterial.m_Normal, gltfMaterial.normal_texture);
             }
 
             sceneMaterial.m_MaterialDataBufferIdx = i;
 
-            auto GetPackedSamplerAndDescriptorIndex = [this](uint32_t idx)
+            auto GetPackedSamplerAndDescriptorIndex = [this](const Material::TextureView& sceneTextureView)
             {
-                if (idx == UINT_MAX)
+                if (!sceneTextureView.IsValid())
                 {
                     return UINT_MAX; // no texture
                 }
 
-                Texture& tex = g_Scene->m_Textures.at(idx);
-                return tex.m_DescriptorHandle.GetIndexInHeap() | (((uint32_t)tex.m_AddressMode) << 30);
+                Texture& tex = g_Scene->m_Textures.at(sceneTextureView.m_TextureIdx);
+
+                const uint32_t textureHeapIdx = tex.m_SRVDescriptorHandle.GetIndexInHeap();
+                assert(textureHeapIdx < 0x3FFFFFFF);
+
+                const uint32_t samplerHeapIdx = (uint32_t)sceneTextureView.m_AddressMode;
+                assert(samplerHeapIdx < 0x4);
+
+                return (textureHeapIdx) | (samplerHeapIdx << 30);
             };
 
             MaterialData& materialData = m_GlobalMaterialData[i];
             materialData.m_ConstAlbedo = sceneMaterial.m_ConstAlbedo;
 			materialData.m_ConstEmissive = sceneMaterial.m_ConstEmissive;
             materialData.m_MaterialFlags = sceneMaterial.m_MaterialFlags;
-            materialData.m_AlbedoTextureSamplerAndDescriptorIndex = GetPackedSamplerAndDescriptorIndex(sceneMaterial.m_AlbedoTextureIdx);
-            materialData.m_NormalTextureSamplerAndDescriptorIndex = GetPackedSamplerAndDescriptorIndex(sceneMaterial.m_NormalTextureIdx);
-            materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex = GetPackedSamplerAndDescriptorIndex(sceneMaterial.m_MetallicRoughnessTextureIdx);
-			materialData.m_EmissiveTextureSamplerAndDescriptorIndex = GetPackedSamplerAndDescriptorIndex(sceneMaterial.m_EmissiveTextureIdx);
+            materialData.m_AlbedoTextureSamplerAndDescriptorIndex = GetPackedSamplerAndDescriptorIndex(sceneMaterial.m_Albedo);
+            materialData.m_NormalTextureSamplerAndDescriptorIndex = GetPackedSamplerAndDescriptorIndex(sceneMaterial.m_Normal);
+            materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex = GetPackedSamplerAndDescriptorIndex(sceneMaterial.m_MetallicRoughness);
+			materialData.m_EmissiveTextureSamplerAndDescriptorIndex = GetPackedSamplerAndDescriptorIndex(sceneMaterial.m_Emissive);
             materialData.m_ConstRoughness = sceneMaterial.m_ConstRoughness;
             materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;

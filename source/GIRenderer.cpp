@@ -446,8 +446,8 @@ public:
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "giprobetrace_CS_ProbeTrace";
-        computePassParams.m_BindingSets = { bindingSet, g_Graphic.GetBindlessDescriptorTable() };
-        computePassParams.m_BindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
+        computePassParams.m_BindingSets = { bindingSet, g_Graphic.GetSrvUavCbvDescriptorTable() };
+        computePassParams.m_BindingLayouts = { bindingLayout, g_Graphic.m_SrvUavCbvBindlessLayout };
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector3U{ dispatchX, dispatchY, dispatchZ }, Vector3U{ kNumThreadsPerWave, 1, 1 });
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);

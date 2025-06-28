@@ -25,11 +25,6 @@
 #include "CriticalSection.h"
 #include "Graphic.h"
 
-DescriptorHandle::DescriptorHandle(DescriptorTableManager* managerPtr, uint32_t index)
-    : m_Manager(managerPtr), m_DescriptorIndex(index)
-{
-}
-
 uint32_t DescriptorHandle::GetIndexInHeap() const
 {
     assert(IsValid());

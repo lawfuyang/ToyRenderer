@@ -72,7 +72,7 @@ public:
     void InitRenderDocAPI();
     void InitDevice();
     void InitShaders();
-    void InitDescriptorTable();
+    void InitDescriptorTables();
     
     [[nodiscard]] nvrhi::TextureHandle GetCurrentBackBuffer();
     [[nodiscard]] nvrhi::ShaderHandle GetShader(std::string_view shaderBinName);
@@ -82,7 +82,7 @@ public:
     [[nodiscard]] nvrhi::MeshletPipelineHandle GetOrCreatePSO(const nvrhi::MeshletPipelineDesc& psoDesc, nvrhi::FramebufferHandle frameBuffer);
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
 
-    nvrhi::IDescriptorTable* GetBindlessDescriptorTable();
+    nvrhi::IDescriptorTable* GetSrvUavCbvDescriptorTable();
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
     {
@@ -145,9 +145,9 @@ public:
 
     nvrhi::TextureHandle m_SwapChainTextureHandles[2];
 
-    static const uint32_t kBindlessLayoutCapacity = 1024; // NOTE: increase if needed
-    nvrhi::BindingLayoutHandle m_BindlessLayout;
-    std::shared_ptr<DescriptorTableManager> m_DescriptorTableManager;
+    static const uint32_t kSrvUavCbvBindlessLayoutCapacity = 1024; // NOTE: increase if needed
+    nvrhi::BindingLayoutHandle m_SrvUavCbvBindlessLayout;
+    std::shared_ptr<DescriptorTableManager> m_SrvUavCbvDescriptorTableManager;
 
     std::vector<Mesh> m_Meshes;
 

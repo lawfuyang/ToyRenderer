@@ -21,7 +21,7 @@ static_assert(_countof(Texture::m_StreamingMipDatas) == Graphic::kMaxTextureMips
 
 static DescriptorHandle GetDescriptorHandleForTexture(nvrhi::TextureHandle texture)
 {
-    return g_Graphic.m_DescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
+    return g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
 }
 
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)
@@ -32,7 +32,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     assert(textureDesc.depth == 1);
 
     m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-    m_DescriptorHandle = GetDescriptorHandleForTexture(m_NVRHITextureHandle);
+    m_SRVDescriptorHandle = GetDescriptorHandleForTexture(m_NVRHITextureHandle);
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
@@ -117,7 +117,7 @@ void Texture::LoadFromFile(std::string_view filePath)
         assert(0);
     }
 
-    m_DescriptorHandle = GetDescriptorHandleForTexture(m_NVRHITextureHandle);
+    m_SRVDescriptorHandle = GetDescriptorHandleForTexture(m_NVRHITextureHandle);
 
     const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
     LOG_DEBUG("New Texture: %s, %d x %d, %s", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
@@ -126,7 +126,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 bool Texture::IsValid() const
 {
     return m_NVRHITextureHandle != nullptr
-        && m_DescriptorHandle.IsValid()
+        && m_SRVDescriptorHandle.IsValid()
         && m_HighestStreamedMip != UINT_MAX;
 }
 
@@ -439,15 +439,19 @@ bool Material::IsValid() const
 
     if (m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
     {
-        bResult &= m_AlbedoTextureIdx != UINT_MAX;
+        bResult &= m_Albedo.IsValid();
     }
     if (m_MaterialFlags & MaterialFlag_UseNormalTexture)
     {
-        bResult &= m_NormalTextureIdx != UINT_MAX;
+        bResult &= m_Normal.IsValid();
     }
     if (m_MaterialFlags & MaterialFlag_UseMetallicRoughnessTexture)
     {
-        bResult &= m_MetallicRoughnessTextureIdx != UINT_MAX;
+        bResult &= m_MetallicRoughness.IsValid();
+    }
+    if (m_MaterialFlags & MaterialFlag_UseEmissiveTexture)
+    {
+        bResult &= m_Emissive.IsValid();
     }
 
     bResult &= m_MaterialDataBufferIdx != UINT_MAX;

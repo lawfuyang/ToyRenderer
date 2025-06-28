@@ -535,14 +535,14 @@ public:
         PSODesc.MS = g_Graphic.GetShader("basepass_MS_Main");
         PSODesc.PS = bAlphaMaskPrimitives ? params.m_PSAlphaMask : params.m_PS;
         PSODesc.renderState = finalRenderState;
-        PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
+        PSODesc.bindingLayouts = { bindingLayout, g_Graphic.m_SrvUavCbvBindlessLayout };
 
         nvrhi::MeshletState meshletState;
         meshletState.pipeline = g_Graphic.GetOrCreatePSO(PSODesc, frameBuffer);
         meshletState.framebuffer = frameBuffer;
         meshletState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)viewportTexDesc.width, (float)viewportTexDesc.height });
         meshletState.indirectParams = meshletDispatchArgumentsBuffer;
-        meshletState.bindings = { bindingSet, g_Graphic.m_DescriptorTableManager->GetDescriptorTable() };
+        meshletState.bindings = { bindingSet, g_Graphic.GetSrvUavCbvDescriptorTable() };
 
         commandList->setMeshletState(meshletState);
 

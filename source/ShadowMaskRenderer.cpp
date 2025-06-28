@@ -324,8 +324,8 @@ public:
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "shadowmask_CS_ShadowMask";
-        computePassParams.m_BindingSets = { bindingSet, g_Graphic.GetBindlessDescriptorTable() };
-        computePassParams.m_BindingLayouts = { bindingLayout, g_Graphic.m_BindlessLayout };
+        computePassParams.m_BindingSets = { bindingSet, g_Graphic.GetSrvUavCbvDescriptorTable() };
+        computePassParams.m_BindingLayouts = { bindingLayout, g_Graphic.m_SrvUavCbvBindlessLayout };
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_OutputResolution, 8);
         computePassParams.m_PushConstantsData = &resourceIndices;
         computePassParams.m_PushConstantsBytes = sizeof(resourceIndices);

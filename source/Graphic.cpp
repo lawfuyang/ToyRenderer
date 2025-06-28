@@ -239,17 +239,16 @@ void Graphic::InitShaders()
     }
 }
 
-void Graphic::InitDescriptorTable()
+void Graphic::InitDescriptorTables()
 {
     PROFILE_FUNCTION();
 
     nvrhi::BindlessLayoutDesc bindlessLayoutDesc;
     bindlessLayoutDesc.visibility = nvrhi::ShaderType::All;
-    bindlessLayoutDesc.maxCapacity = kBindlessLayoutCapacity;
+    bindlessLayoutDesc.maxCapacity = kSrvUavCbvBindlessLayoutCapacity;
     bindlessLayoutDesc.layoutType = nvrhi::BindlessLayoutDesc::LayoutType::MutableSrvUavCbv;
-    m_BindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
-
-    m_DescriptorTableManager = std::make_shared<DescriptorTableManager>(m_BindlessLayout);
+    m_SrvUavCbvBindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
+    m_SrvUavCbvDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_SrvUavCbvBindlessLayout);
 }
 
 nvrhi::TextureHandle Graphic::GetCurrentBackBuffer()
@@ -458,9 +457,9 @@ nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelin
     return computePipeline;
 }
 
-nvrhi::IDescriptorTable* Graphic::GetBindlessDescriptorTable()
+nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
 {
-    return m_DescriptorTableManager->GetDescriptorTable();
+    return m_SrvUavCbvDescriptorTableManager->GetDescriptorTable();
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace)
@@ -592,7 +591,7 @@ void Graphic::Initialize()
     tf::Taskflow tf;
     tf.emplace([this] { m_GraphicRHI->InitSwapChainTextureHandles(); });
     tf.emplace([this] { InitShaders(); });
-    tf::Task initDescriptorTable = tf.emplace([this] { InitDescriptorTable(); });
+    tf::Task initDescriptorTable = tf.emplace([this] { InitDescriptorTables(); });
     tf::Task initCommonResources = tf.emplace([this] { m_CommonResources->Initialize(); });
     tf.emplace([this] { m_Scene->Initialize(); });
 

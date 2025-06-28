@@ -41,9 +41,8 @@ public:
     nvrhi::TextureHandle m_MinMipTexture;
     nvrhi::BufferHandle m_FeedbackResolveBuffers[2];
 
-    DescriptorHandle m_DescriptorHandle;
+    DescriptorHandle m_SRVDescriptorHandle;
     nvrhi::TextureHandle m_NVRHITextureHandle;
-    nvrhi::SamplerAddressMode m_AddressMode = nvrhi::SamplerAddressMode::Wrap;
 };
 
 struct MeshLOD
@@ -90,14 +89,22 @@ public:
 class Material
 {
 public:
+    struct TextureView
+    {
+        uint32_t m_TextureIdx = UINT_MAX; // Index in the global texture array
+        nvrhi::SamplerAddressMode m_AddressMode = nvrhi::SamplerAddressMode::Wrap;
+
+        bool IsValid() const { return m_TextureIdx != UINT_MAX; }
+    };
+
     bool IsValid() const;
 
     uint32_t m_MaterialFlags = 0;
 
-    uint32_t m_AlbedoTextureIdx = UINT_MAX;
-    uint32_t m_NormalTextureIdx = UINT_MAX;
-    uint32_t m_MetallicRoughnessTextureIdx = UINT_MAX;
-    uint32_t m_EmissiveTextureIdx = UINT_MAX;
+    TextureView m_Albedo;
+    TextureView m_Normal;
+    TextureView m_MetallicRoughness;
+    TextureView m_Emissive;
 
     Vector4 m_ConstAlbedo = Vector4{ 1.0f, 0.078f, 0.576f, 1.0f };
     Vector3 m_ConstEmissive;
