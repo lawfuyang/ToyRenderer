@@ -16,7 +16,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     RaytracingAccelerationStructure g_SceneTLAS = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_SceneTLASIdx];
     StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_BasePassInstanceConstsIdx];
     StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalVertexBufferIdxInHeap];
-    StructuredBuffer<MaterialData> g_MaterialDataBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_MaterialDataBufferIdx];
+    StructuredBuffer<MaterialData> g_MaterialDataBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalMaterialDataBufferIdxInHeap];
     StructuredBuffer<uint> g_GlobalIndexIDsBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalIndexBufferIdxInHeap];
     StructuredBuffer<MeshData> g_MeshDataBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalMeshDataBufferIdxInHeap];
     RWTexture2DArray<float4> g_OutRayData = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_OutRayDataIdx];

@@ -11,10 +11,10 @@ cbuffer g_PassConstantsBuffer : register(b0) { BasePassConstants g_BasePassConst
 static StructuredBuffer<RawVertexFormat> g_VirtualVertexBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalVertexBufferIdxInHeap];
 static StructuredBuffer<MeshData> g_MeshDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshDataBufferIdxInHeap];
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
-StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t3);
-StructuredBuffer<MeshletData> g_MeshletDataBuffer : register(t4);
-StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
-StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
+static StructuredBuffer<MaterialData> g_MaterialDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMaterialDataBufferIdxInHeap];
+static StructuredBuffer<MeshletData> g_MeshletDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshletDataBufferIdxInHeap];
+static StructuredBuffer<uint> g_MeshletVertexIDsBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshletVertexOffsetsBufferIdxInHeap];
+static StructuredBuffer<uint> g_MeshletIndexIDsBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshletIndicesBufferIdxInHeap];
 StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
 Texture2D g_HZB : register(t8);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror

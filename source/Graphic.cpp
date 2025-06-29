@@ -464,11 +464,21 @@ nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
 DescriptorHandle Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::ResourceType resourceType)
 {
     assert(resourceType == nvrhi::ResourceType::Texture_SRV || resourceType == nvrhi::ResourceType::Texture_UAV);
+
+    DescriptorHandle descriptorHandle;
+
     if (resourceType == nvrhi::ResourceType::Texture_SRV)
     {
-        return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
+        descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
     }
-    return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_UAV(0, texture));
+    else
+    {
+        descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_UAV(0, texture));
+    }
+
+    texture->indexInHeap = descriptorHandle.GetIndexInHeap();
+
+    return descriptorHandle;
 }
 
 DescriptorHandle Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::BufferHandle buffer, nvrhi::ResourceType resourceType)
@@ -477,24 +487,35 @@ DescriptorHandle Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::BufferHandle
            resourceType == nvrhi::ResourceType::StructuredBuffer_SRV || resourceType == nvrhi::ResourceType::StructuredBuffer_UAV ||
            resourceType == nvrhi::ResourceType::RawBuffer_SRV || resourceType == nvrhi::ResourceType::RawBuffer_UAV);
 
+    DescriptorHandle descriptorHandle;
+
     switch (resourceType)
     {
         case nvrhi::ResourceType::TypedBuffer_SRV:
-            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_SRV(0, buffer));
+            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_SRV(0, buffer));
+            break;
         case nvrhi::ResourceType::TypedBuffer_UAV:
-            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_UAV(0, buffer));
+            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_UAV(0, buffer));
+            break;
         case nvrhi::ResourceType::StructuredBuffer_SRV:
-            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_SRV(0, buffer));
+            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_SRV(0, buffer));
+            break;
         case nvrhi::ResourceType::StructuredBuffer_UAV:
-            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_UAV(0, buffer));
+            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_UAV(0, buffer));
+            break;
         case nvrhi::ResourceType::RawBuffer_SRV:
-            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_SRV(0, buffer));
+            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_SRV(0, buffer));
+            break;
         case nvrhi::ResourceType::RawBuffer_UAV:
-            return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_UAV(0, buffer));
+            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_UAV(0, buffer));
+            break;
+        default:
+            assert(0);
     }
 
-    assert(false);
-    return {};
+    buffer->indexInHeap = descriptorHandle.GetIndexInHeap();
+
+    return descriptorHandle;
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace)
