@@ -12,21 +12,21 @@ void CS_UpdateInstanceConstsAndBuildTLAS(uint3 dispatchThreadID : SV_DispatchThr
         return;
     }
     
-    StructuredBuffer<NodeLocalTransform> nodeLocalTransforms0 = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_NodeLocalTransformsIdx];
-    StructuredBuffer<uint> primitiveIDToNodeIDBuffer = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_PrimitiveIDToNodeIDBufferIdx];
+    StructuredBuffer<NodeLocalTransform> nodeLocalTransforms = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_NodeLocalTransformsBufferIdxInHeap];
+    StructuredBuffer<uint> primitiveIDToNodeIDBuffer = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_PrimitiveIDToNodeIDBufferIdxInHeap];
     RWStructuredBuffer<BasePassInstanceConstants> instanceConstants = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_InstanceConstsBufferIdxInHeap];
     RWStructuredBuffer<TLASInstanceDesc> TLASInstanceDescsBuffer = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_TLASInstanceDescsBufferIdxInHeap];
     
     uint instanceID = dispatchThreadID.x;
     uint nodeID = primitiveIDToNodeIDBuffer[instanceID];
-    NodeLocalTransform localTransform = nodeLocalTransforms0[nodeID];
+    NodeLocalTransform localTransform = nodeLocalTransforms[nodeID];
     
     float4x4 worldMatrix = MakeWorldMatrix(localTransform.m_Position, localTransform.m_Rotation, localTransform.m_Scale);
     
     uint parentIdx = localTransform.m_ParentNodeIdx;
     while (parentIdx != 0xFFFFFFFF)
     {
-        NodeLocalTransform parentTransform = nodeLocalTransforms0[parentIdx];
+        NodeLocalTransform parentTransform = nodeLocalTransforms[parentIdx];
         
         worldMatrix = mul(worldMatrix, MakeWorldMatrix(parentTransform.m_Position, parentTransform.m_Rotation, parentTransform.m_Scale));
         

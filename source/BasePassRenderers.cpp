@@ -89,6 +89,7 @@ public:
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
             g_Scene->m_NodeLocalTransformsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Scene->m_NodeLocalTransformsBuffer, nvrhi::ResourceType::StructuredBuffer_SRV);
         }
 
         commandList->writeBuffer(g_Scene->m_NodeLocalTransformsBuffer, g_Scene->m_NodeLocalTransforms.data(), g_Scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
@@ -101,6 +102,7 @@ public:
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
             g_Scene->m_PrimitiveIDToNodeIDBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+            g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Scene->m_PrimitiveIDToNodeIDBuffer, nvrhi::ResourceType::StructuredBuffer_SRV);
         }
 
         std::vector<uint32_t> primitiveIDToNodeIDBytes;
@@ -144,23 +146,15 @@ public:
         passConstants.m_NumInstances = numPrimitives;
         passConstants.m_TLASInstanceDescsBufferIdxInHeap = g_Scene->m_TLASInstanceDescsBuffer->indexInHeap;
         passConstants.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
+        passConstants.m_NodeLocalTransformsBufferIdxInHeap = g_Scene->m_NodeLocalTransformsBuffer->indexInHeap;
+        passConstants.m_PrimitiveIDToNodeIDBufferIdxInHeap = g_Scene->m_PrimitiveIDToNodeIDBuffer->indexInHeap;
 
         nvrhi::BindingSetDesc bindingSetDesc;
-        bindingSetDesc.bindings =
-        {
-            nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_NodeLocalTransformsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Scene->m_PrimitiveIDToNodeIDBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_InstanceConstsBuffer), // TODO: remove after bindless refactor
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, g_Scene->m_TLASInstanceDescsBuffer), // TODO: remove after bindless refactor
-        };
+        bindingSetDesc.bindings = { nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)), };
 
         nvrhi::BindingSetHandle bindingSet;
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-        passConstants.m_NodeLocalTransformsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        passConstants.m_PrimitiveIDToNodeIDBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
