@@ -451,7 +451,8 @@ struct UpdateInstanceConstsPassConstants
     uint32_t m_NodeLocalTransformsIdx;
     uint32_t m_PrimitiveIDToNodeIDBufferIdx;
     uint32_t m_InstanceConstantsIdx;
-    uint32_t m_TLASInstanceDescsBufferIdx;
+
+    uint32_t m_TLASInstanceDescsBufferIdxInHeap;
 };
 
 struct XeGTAOPrefilterDepthsResourceIndices

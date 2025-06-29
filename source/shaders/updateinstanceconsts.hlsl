@@ -15,7 +15,7 @@ void CS_UpdateInstanceConstsAndBuildTLAS(uint3 dispatchThreadID : SV_DispatchThr
     StructuredBuffer<NodeLocalTransform> nodeLocalTransforms0 = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_NodeLocalTransformsIdx];
     StructuredBuffer<uint> primitiveIDToNodeIDBuffer = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_PrimitiveIDToNodeIDBufferIdx];
     RWStructuredBuffer<BasePassInstanceConstants> instanceConstants = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_InstanceConstantsIdx];
-    RWStructuredBuffer<TLASInstanceDesc> TLASInstanceDescsBuffer = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_TLASInstanceDescsBufferIdx];
+    RWStructuredBuffer<TLASInstanceDesc> TLASInstanceDescsBuffer = ResourceDescriptorHeap[g_UpdateInstanceConstsPassConstants.m_TLASInstanceDescsBufferIdxInHeap];
     
     uint instanceID = dispatchThreadID.x;
     uint nodeID = primitiveIDToNodeIDBuffer[instanceID];

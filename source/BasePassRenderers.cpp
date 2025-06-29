@@ -141,6 +141,7 @@ public:
 
         UpdateInstanceConstsPassConstants passConstants;
         passConstants.m_NumInstances = numPrimitives;
+        passConstants.m_TLASInstanceDescsBufferIdxInHeap = g_Scene->m_TLASInstanceDescsBuffer->indexInHeap;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
@@ -149,7 +150,7 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_NodeLocalTransformsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Scene->m_PrimitiveIDToNodeIDBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, g_Scene->m_TLASInstanceDescsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, g_Scene->m_TLASInstanceDescsBuffer), // TODO: remove after bindless refactor
         };
 
         nvrhi::BindingSetHandle bindingSet;
@@ -159,7 +160,6 @@ public:
         passConstants.m_NodeLocalTransformsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
         passConstants.m_PrimitiveIDToNodeIDBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
         passConstants.m_InstanceConstantsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-        passConstants.m_TLASInstanceDescsBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;

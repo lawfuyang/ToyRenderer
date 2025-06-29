@@ -433,6 +433,7 @@ void Scene::CreateAccelerationStructures()
     instanceDescsBufferDesc.initialState = nvrhi::ResourceStates::AccelStructBuildInput;
 
     m_TLASInstanceDescsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(instanceDescsBufferDesc);
+    g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_TLASInstanceDescsBuffer, nvrhi::ResourceType::StructuredBuffer_SRV);
 
     std::vector<nvrhi::rt::InstanceDesc> instances;
 
