@@ -321,6 +321,8 @@ void Scene::UpdateInstanceIDsBuffers()
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
         m_OpaqueInstanceIDsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_OpaqueInstanceIDsBuffer, nvrhi::ResourceType::StructuredBuffer_SRV);
+
         commandList->writeBuffer(m_OpaqueInstanceIDsBuffer, m_OpaquePrimitiveIDs.data(), m_OpaquePrimitiveIDs.size() * sizeof(uint32_t));
     }
 
@@ -334,6 +336,8 @@ void Scene::UpdateInstanceIDsBuffers()
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
         m_AlphaMaskInstanceIDsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_AlphaMaskInstanceIDsBuffer, nvrhi::ResourceType::StructuredBuffer_SRV);
+
         commandList->writeBuffer(m_AlphaMaskInstanceIDsBuffer, m_AlphaMaskPrimitiveIDs.data(), m_AlphaMaskPrimitiveIDs.size() * sizeof(uint32_t));
     }
 
@@ -347,6 +351,8 @@ void Scene::UpdateInstanceIDsBuffers()
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
         m_TransparentInstanceIDsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_TransparentInstanceIDsBuffer, nvrhi::ResourceType::StructuredBuffer_SRV);
+
         commandList->writeBuffer(m_TransparentInstanceIDsBuffer, m_TransparentPrimitiveIDs.data(), m_TransparentPrimitiveIDs.size() * sizeof(uint32_t));
     }
 }

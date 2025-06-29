@@ -362,6 +362,7 @@ public:
         passParameters.m_ForcedMeshLOD =  forcedMeshLOD;
         passParameters.m_MeshLODTarget = (2.0f / g_Scene->m_View.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
         passParameters.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
+        passParameters.m_PrimitivesIDsBufferIdxInHeap = bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer->indexInHeap : g_Scene->m_OpaqueInstanceIDsBuffer->indexInHeap;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -370,7 +371,7 @@ public:
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
             nvrhi::BindingSetItem::PushConstants(1, sizeof(GPUCullingPassResourceIndices)),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer : g_Scene->m_OpaqueInstanceIDsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer : g_Scene->m_OpaqueInstanceIDsBuffer), // TODO: remove after bindless refactor
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer), // TODO: remove after bindless refactor
             nvrhi::BindingSetItem::Texture_SRV(3, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, meshletAmplificationDataBuffer),
@@ -388,7 +389,6 @@ public:
 
         GPUCullingPassResourceIndices GPUCullingResourceIndices;
         GPUCullingResourceIndices.m_BasePassInstanceConstsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        GPUCullingResourceIndices.m_PrimitiveIndicesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
         GPUCullingResourceIndices.m_MeshDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
         GPUCullingResourceIndices.m_HZBIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
         GPUCullingResourceIndices.m_MeshletAmplificationDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;

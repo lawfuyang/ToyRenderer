@@ -193,13 +193,14 @@ struct GPUCullingPassConstants
     float m_P11;
     uint32_t m_ForcedMeshLOD;
     float m_MeshLODTarget;
+
     uint32_t m_GlobalMeshDataBufferIdxInHeap;
+    uint32_t m_PrimitivesIDsBufferIdxInHeap;
 };
 
 struct GPUCullingPassResourceIndices
 {
     uint32_t m_BasePassInstanceConstsIdx;
-    uint32_t m_PrimitiveIndicesIdx;
     uint32_t m_MeshDataIdx;
     uint32_t m_HZBIdx;
     uint32_t m_MeshletAmplificationDataBufferIdx;
