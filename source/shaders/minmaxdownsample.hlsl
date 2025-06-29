@@ -17,7 +17,7 @@ void CS_Main(
     }
     
     Texture2D<float> inputTexture = ResourceDescriptorHeap[g_MinMaxDownsampleConsts.m_InputIdx];
-    RWTexture2D<float> outputTexture = ResourceDescriptorHeap[g_MinMaxDownsampleConsts.m_OutputIdx];
+    RWTexture2D<float> outputTexture = ResourceDescriptorHeap[g_MinMaxDownsampleConsts.m_OutputIdxInHeap];
     SamplerState pointClampSampler = SamplerDescriptorHeap[g_MinMaxDownsampleConsts.m_PointClampSamplerIdx];
     
     float2 uv = (dispatchThreadID.xy + 0.5f) / g_MinMaxDownsampleConsts.m_OutputDimensions;

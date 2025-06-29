@@ -709,7 +709,7 @@ public:
             {
                 nvrhi::BindingSetItem::ConstantBuffer(0, passParametersBuffer),
                 nvrhi::BindingSetItem::PushConstants(1, sizeof(GIProbeVisualizationUpdateResourceIndices)),
-                nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB),
+                nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB), // TODO: remove after bindless refactoring
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(10, GIVolumeDescsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, probePositionsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(1, probeDrawIndirectArgsBuffer),
@@ -723,7 +723,6 @@ public:
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
             GIProbeVisualizationUpdateResourceIndices passResourceIndices;
-            passResourceIndices.m_HZBIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 0;
             passResourceIndices.m_DDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
             passResourceIndices.m_OutProbePositionsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
             passResourceIndices.m_OutProbeIndirectArgsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;

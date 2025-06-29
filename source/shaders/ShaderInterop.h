@@ -281,8 +281,9 @@ struct MinMaxDownsampleConsts
     Vector2U m_OutputDimensions;
     uint32_t m_bDownsampleMax;
     uint32_t m_InputIdx;
-    uint32_t m_OutputIdx;
     uint32_t m_PointClampSamplerIdx;
+
+    uint32_t m_OutputIdxInHeap;
 };
 
 struct NodeLocalTransform
@@ -356,6 +357,8 @@ struct GIProbeVisualizationUpdateConsts
     float m_NearPlane;
     float m_ProbeRadius;
     uint32_t m_bHideInactiveProbes;
+
+    uint32_t m_HZBIdxInHeap;
 };
 
 struct GIProbeVisualizationUpdateResourceIndices
@@ -365,7 +368,6 @@ struct GIProbeVisualizationUpdateResourceIndices
     uint32_t m_OutInstanceIndexToProbeIndexIdx;
     uint32_t m_DDGIVolumesIdx;
     uint32_t m_ProbeDataIdx;
-    uint32_t m_HZBIdx;
     uint32_t m_LinearClampMinReductionSamplerIdx;
 };
 

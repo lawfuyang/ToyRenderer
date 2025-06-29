@@ -22,7 +22,7 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
     RWStructuredBuffer<uint> g_OutInstanceIndexToProbeIndex = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_OutInstanceIndexToProbeIndexIdx];
     StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_DDGIVolumesIdx];
     RWTexture2DArray<float4> g_ProbeData = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_ProbeDataIdx];
-    Texture2D g_HZB = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_HZBIdx];
+    Texture2D g_HZB = ResourceDescriptorHeap[g_GIProbeVisualizationUpdateConsts.m_HZBIdxInHeap];
     SamplerState g_LinearClampMinReductionSampler = SamplerDescriptorHeap[g_GIProbeVisualizationUpdateResourceIndices.m_LinearClampMinReductionSamplerIdx];
     
     // TODO: multiple volumes

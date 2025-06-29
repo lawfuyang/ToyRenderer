@@ -557,6 +557,7 @@ public:
         MinMaxDownsampleConsts passParameters;
         passParameters.m_OutputDimensions = m_HZBDimensions;
         passParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
+        passParameters.m_OutputIdxInHeap = g_Scene->m_HZB->indexInHeap;
 
         nvrhi::TextureHandle depthStencilBuffer = params.m_FrameBufferDesc.depthAttachment.texture;
 
@@ -564,7 +565,7 @@ public:
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
             nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
-            nvrhi::BindingSetItem::Texture_UAV(0, g_Scene->m_HZB),
+            nvrhi::BindingSetItem::Texture_UAV(0, g_Scene->m_HZB), // TODO: remove after bindless refactor
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
@@ -573,7 +574,6 @@ public:
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
         passParameters.m_InputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        passParameters.m_OutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
         passParameters.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
         Graphic::ComputePassParams computePassParams;
@@ -659,6 +659,7 @@ public:
 		desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
 		g_Scene->m_HZB = g_Graphic.m_NVRHIDevice->createTexture(desc);
+        g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Scene->m_HZB, nvrhi::ResourceType::Texture_UAV);
 
 		nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
 		SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "GBufferRenderer::Initialize");
