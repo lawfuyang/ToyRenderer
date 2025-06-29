@@ -24,7 +24,7 @@
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
 cbuffer g_GPUCullingPassResourceIndicesBuffer : register(b1) { GPUCullingPassResourceIndices g_GPUCullingPassResourceIndices; }
 
-static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_BasePassInstanceConstsIdx];
+static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_GPUCullingPassConstants.m_InstanceConstsBufferIdxInHeap];
 static StructuredBuffer<uint> g_PrimitiveIndices = ResourceDescriptorHeap[g_GPUCullingPassConstants.m_PrimitivesIDsBufferIdxInHeap];
 static StructuredBuffer<MeshData> g_MeshData = ResourceDescriptorHeap[g_GPUCullingPassConstants.m_GlobalMeshDataBufferIdxInHeap];
 static Texture2D g_HZB = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_HZBIdx];

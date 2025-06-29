@@ -65,7 +65,7 @@ void CS_ShadowMask(
     Texture2D                                   depthBuffer            = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_DepthBufferIdx];
     RaytracingAccelerationStructure             sceneTLAS              = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_SceneTLASIdx];
     Texture2D<uint4>                            GBufferA               = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_GBufferAIdx];
-    StructuredBuffer<BasePassInstanceConstants> basePassInstanceConsts = ResourceDescriptorHeap[g_ShadowMaskResourceIndices.m_BasePassInstanceConstsIdx];
+    StructuredBuffer<BasePassInstanceConstants> basePassInstanceConsts = ResourceDescriptorHeap[g_ShadowMaskConsts.m_InstanceConstsBufferIdxInHeap];
     StructuredBuffer<RawVertexFormat>           globalVertexBuffer     = ResourceDescriptorHeap[g_ShadowMaskConsts.m_GlobalVertexBufferIdxInHeap];
     StructuredBuffer<MaterialData>              materialDataBuffer     = ResourceDescriptorHeap[g_ShadowMaskConsts.m_GlobalMaterialDataBufferIdxInHeap];
     StructuredBuffer<uint>                      globalIndexIDsBuffer   = ResourceDescriptorHeap[g_ShadowMaskConsts.m_GlobalIndexBufferIdxInHeap];

@@ -10,7 +10,7 @@
 cbuffer g_PassConstantsBuffer : register(b0) { BasePassConstants g_BasePassConsts; }
 static StructuredBuffer<RawVertexFormat> g_VirtualVertexBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalVertexBufferIdxInHeap];
 static StructuredBuffer<MeshData> g_MeshDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshDataBufferIdxInHeap];
-StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
+static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_BasePassConsts.m_InstanceConstsBufferIdxInHeap];
 static StructuredBuffer<MaterialData> g_MaterialDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMaterialDataBufferIdxInHeap];
 static StructuredBuffer<MeshletData> g_MeshletDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshletDataBufferIdxInHeap];
 static StructuredBuffer<uint> g_MeshletVertexIDsBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshletVertexOffsetsBufferIdxInHeap];

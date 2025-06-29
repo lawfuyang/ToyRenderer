@@ -65,6 +65,7 @@ public:
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
         g_Scene->m_InstanceConstsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+        g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Scene->m_InstanceConstsBuffer, nvrhi::ResourceType::StructuredBuffer_UAV);
 
         commandList->writeBuffer(g_Scene->m_InstanceConstsBuffer, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
     }
@@ -142,6 +143,7 @@ public:
         UpdateInstanceConstsPassConstants passConstants;
         passConstants.m_NumInstances = numPrimitives;
         passConstants.m_TLASInstanceDescsBufferIdxInHeap = g_Scene->m_TLASInstanceDescsBuffer->indexInHeap;
+        passConstants.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
@@ -149,7 +151,7 @@ public:
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_NodeLocalTransformsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Scene->m_PrimitiveIDToNodeIDBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_InstanceConstsBuffer), // TODO: remove after bindless refactor
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, g_Scene->m_TLASInstanceDescsBuffer), // TODO: remove after bindless refactor
         };
 
@@ -159,7 +161,6 @@ public:
 
         passConstants.m_NodeLocalTransformsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
         passConstants.m_PrimitiveIDToNodeIDBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-        passConstants.m_InstanceConstantsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
@@ -363,6 +364,7 @@ public:
         passParameters.m_MeshLODTarget = (2.0f / g_Scene->m_View.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
         passParameters.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
         passParameters.m_PrimitivesIDsBufferIdxInHeap = bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer->indexInHeap : g_Scene->m_OpaqueInstanceIDsBuffer->indexInHeap;
+        passParameters.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -370,7 +372,7 @@ public:
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
             nvrhi::BindingSetItem::PushConstants(1, sizeof(GPUCullingPassResourceIndices)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer), // TODO: remove after bindless refactor
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer : g_Scene->m_OpaqueInstanceIDsBuffer), // TODO: remove after bindless refactor
             nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer), // TODO: remove after bindless refactor
             nvrhi::BindingSetItem::Texture_SRV(3, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
@@ -387,8 +389,7 @@ public:
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-        GPUCullingPassResourceIndices GPUCullingResourceIndices;
-        GPUCullingResourceIndices.m_BasePassInstanceConstsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
+    GPUCullingPassResourceIndices GPUCullingResourceIndices;
         GPUCullingResourceIndices.m_MeshDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
         GPUCullingResourceIndices.m_HZBIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
         GPUCullingResourceIndices.m_MeshletAmplificationDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
@@ -509,6 +510,7 @@ public:
         basePassConstants.m_GlobalMeshletIndicesBufferIdxInHeap = g_Graphic.m_GlobalMeshletIndicesBuffer->indexInHeap;
         basePassConstants.m_GlobalMeshletDataBufferIdxInHeap = g_Graphic.m_GlobalMeshletDataBuffer->indexInHeap;
         basePassConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.m_GlobalMaterialDataBuffer->indexInHeap;
+        basePassConstants.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
 
@@ -516,7 +518,6 @@ public:
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(7, meshletAmplificationDataBuffer),
             nvrhi::BindingSetItem::Texture_SRV(8, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),

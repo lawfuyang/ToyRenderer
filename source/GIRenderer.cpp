@@ -400,6 +400,7 @@ public:
         passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
         passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.m_GlobalVertexBuffer->indexInHeap;
         passConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.m_GlobalMaterialDataBuffer->indexInHeap;
+        passConstants.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
@@ -410,7 +411,7 @@ public:
             nvrhi::BindingSetItem::Texture_SRV(2, m_GIVolume.m_ProbeIrradiance),
             nvrhi::BindingSetItem::Texture_SRV(3, m_GIVolume.m_ProbeDistance),
             nvrhi::BindingSetItem::RayTracingAccelStruct(4, g_Scene->m_TLAS),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Scene->m_InstanceConstsBuffer), // TODO: remove after bindless refactoring
             nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalVertexBuffer), // TODO: remove after bindless refactoring
             nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMaterialDataBuffer), // TODO: remove after bindless refactoring
             nvrhi::BindingSetItem::StructuredBuffer_SRV(8, g_Graphic.m_GlobalIndexBuffer), // TODO: remove after bindless refactoring
@@ -432,7 +433,6 @@ public:
         passConstants.m_ProbeIrradianceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
         passConstants.m_ProbeDistanceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
         passConstants.m_SceneTLASIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-        passConstants.m_BasePassInstanceConstsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
         passConstants.m_OutRayDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 10;
         passConstants.m_SamplersIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
