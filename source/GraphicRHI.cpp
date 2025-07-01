@@ -106,6 +106,8 @@ public:
                 debugInterface->SetEnableGPUBasedValidation(true);
                 LOG_DEBUG("D3D12 GPU Based Validation enabled");
             }
+
+            debugInterface->SetEnableAutoName(true);
         }
 
         {
