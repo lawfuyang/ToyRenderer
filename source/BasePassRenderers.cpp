@@ -144,10 +144,10 @@ public:
 
         UpdateInstanceConstsPassConstants passConstants;
         passConstants.m_NumInstances = numPrimitives;
-        passConstants.m_TLASInstanceDescsBufferIdxInHeap = g_Scene->m_TLASInstanceDescsBuffer->indexInHeap;
-        passConstants.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
-        passConstants.m_NodeLocalTransformsBufferIdxInHeap = g_Scene->m_NodeLocalTransformsBuffer->indexInHeap;
-        passConstants.m_PrimitiveIDToNodeIDBufferIdxInHeap = g_Scene->m_PrimitiveIDToNodeIDBuffer->indexInHeap;
+        passConstants.m_TLASInstanceDescsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_TLASInstanceDescsBuffer->uavIndexInTable);
+        passConstants.m_InstanceConstsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_InstanceConstsBuffer->uavIndexInTable);
+        passConstants.m_NodeLocalTransformsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_NodeLocalTransformsBuffer->srvIndexInTable);
+        passConstants.m_PrimitiveIDToNodeIDBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_PrimitiveIDToNodeIDBuffer->srvIndexInTable);
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = { nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)), };
@@ -356,9 +356,9 @@ public:
         passParameters.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
         passParameters.m_ForcedMeshLOD =  forcedMeshLOD;
         passParameters.m_MeshLODTarget = (2.0f / g_Scene->m_View.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
-        passParameters.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
-        passParameters.m_PrimitivesIDsBufferIdxInHeap = bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer->indexInHeap : g_Scene->m_OpaqueInstanceIDsBuffer->indexInHeap;
-        passParameters.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
+        passParameters.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshDataBuffer->srvIndexInTable);
+        passParameters.m_PrimitivesIDsBufferIdxInHeap  = bAlphaMaskPrimitives ? g_Graphic.GetIndexInHeap(g_Scene->m_AlphaMaskInstanceIDsBuffer->srvIndexInTable) : g_Graphic.GetIndexInHeap(g_Scene->m_OpaqueInstanceIDsBuffer->srvIndexInTable);
+        passParameters.m_InstanceConstsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_InstanceConstsBuffer->srvIndexInTable);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -498,13 +498,13 @@ public:
         basePassConstants.m_NearPlane = g_Scene->m_View.m_ZNearP;
         basePassConstants.m_DebugMode = g_Scene->m_DebugViewMode;
         basePassConstants.m_OutputResolution = Vector2U{ viewportTexDesc.width, viewportTexDesc.height };
-        basePassConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.m_GlobalVertexBuffer->indexInHeap;
-        basePassConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
-        basePassConstants.m_GlobalMeshletVertexOffsetsBufferIdxInHeap = g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->indexInHeap;
-        basePassConstants.m_GlobalMeshletIndicesBufferIdxInHeap = g_Graphic.m_GlobalMeshletIndicesBuffer->indexInHeap;
-        basePassConstants.m_GlobalMeshletDataBufferIdxInHeap = g_Graphic.m_GlobalMeshletDataBuffer->indexInHeap;
-        basePassConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.m_GlobalMaterialDataBuffer->indexInHeap;
-        basePassConstants.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
+        basePassConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalVertexBuffer->srvIndexInTable);
+        basePassConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshDataBuffer->srvIndexInTable);
+        basePassConstants.m_GlobalMeshletVertexOffsetsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->srvIndexInTable);
+        basePassConstants.m_GlobalMeshletIndicesBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshletIndicesBuffer->srvIndexInTable);
+        basePassConstants.m_GlobalMeshletDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshletDataBuffer->srvIndexInTable);
+        basePassConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMaterialDataBuffer->srvIndexInTable);
+        basePassConstants.m_InstanceConstsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_InstanceConstsBuffer->srvIndexInTable);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
 
@@ -557,7 +557,7 @@ public:
         MinMaxDownsampleConsts passParameters;
         passParameters.m_OutputDimensions = m_HZBDimensions;
         passParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
-        passParameters.m_OutputIdxInHeap = g_Scene->m_HZB->indexInHeap;
+        passParameters.m_OutputIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_HZB->uavIndexInTable);
 
         nvrhi::TextureHandle depthStencilBuffer = params.m_FrameBufferDesc.depthAttachment.texture;
 

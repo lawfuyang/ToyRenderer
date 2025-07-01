@@ -396,11 +396,11 @@ public:
         GIProbeTraceConsts passConstants;
         passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
         passConstants.m_DirectionalLightStrength = g_Scene->m_DirLightStrength;
-        passConstants.m_GlobalIndexBufferIdxInHeap = g_Graphic.m_GlobalIndexBuffer->indexInHeap;
-        passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
-        passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.m_GlobalVertexBuffer->indexInHeap;
-        passConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.m_GlobalMaterialDataBuffer->indexInHeap;
-        passConstants.m_InstanceConstsBufferIdxInHeap = g_Scene->m_InstanceConstsBuffer->indexInHeap;
+        passConstants.m_GlobalIndexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalIndexBuffer->srvIndexInTable);
+        passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshDataBuffer->srvIndexInTable);
+        passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalVertexBuffer->srvIndexInTable);
+        passConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMaterialDataBuffer->srvIndexInTable);
+        passConstants.m_InstanceConstsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_InstanceConstsBuffer->srvIndexInTable);
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =

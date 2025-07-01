@@ -41,7 +41,6 @@ public:
     nvrhi::TextureHandle m_MinMipTexture;
     nvrhi::BufferHandle m_FeedbackResolveBuffers[2];
 
-    DescriptorHandle m_SRVDescriptorHandle;
     nvrhi::TextureHandle m_NVRHITextureHandle;
 };
 

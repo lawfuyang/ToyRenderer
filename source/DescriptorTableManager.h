@@ -26,31 +26,6 @@
 
 #include "CriticalSection.h"
 
-// Stores a descriptor index in a descriptor table. Releases the descriptor when destroyed.
-class DescriptorHandle
-{
-public:
-    DescriptorHandle() = default;
-    DescriptorHandle(class DescriptorTableManager* managerPtr, uint32_t index)
-    : m_Manager(managerPtr), m_DescriptorIndex(index)
-{}
-
-    [[nodiscard]] bool IsValid() const { return m_DescriptorIndex != UINT_MAX && !!m_Manager; }
-    [[nodiscard]] uint32_t Get() const { if (m_DescriptorIndex != UINT_MAX) assert(!!m_Manager); return m_DescriptorIndex; }
-
-    // For ResourceDescriptorHeap Index instead of a table relative index
-    // This value is volatile if the descriptor table resizes and needs to be refetched
-    [[nodiscard]] uint32_t GetIndexInHeap() const;
-
-    void Reset() { m_DescriptorIndex = UINT_MAX; m_Manager = nullptr; }
-
-private:
-    class DescriptorTableManager* m_Manager = nullptr;
-    uint32_t m_DescriptorIndex = UINT_MAX;
-
-    friend class DescriptorTableManager;
-};
-
 class DescriptorTableManager
 {
 protected:
@@ -98,6 +73,11 @@ public:
 
     nvrhi::IDescriptorTable* GetDescriptorTable() const { return m_DescriptorTable; }
 
-    DescriptorHandle CreateDescriptorHandle(nvrhi::BindingSetItem item);
-    void ReleaseDescriptor(const DescriptorHandle& descriptor);
+    uint32_t CreateDescriptorHandle(nvrhi::BindingSetItem item);
+
+    // For ResourceDescriptorHeap Index instead of a table relative index
+    // This value is volatile if the descriptor table resizes and needs to be refetched
+    uint32_t GetIndexInHeap(uint32_t indexInTable) const { return m_DescriptorTable->getFirstDescriptorIndexInHeap() + indexInTable; }
+
+    void ReleaseDescriptor(uint32_t indexInTable);
 };

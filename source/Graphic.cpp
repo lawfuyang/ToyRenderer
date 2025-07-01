@@ -461,61 +461,67 @@ nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
     return m_SrvUavCbvDescriptorTableManager->GetDescriptorTable();
 }
 
-DescriptorHandle Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::ResourceType resourceType)
+void Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::ResourceType resourceType)
 {
+    assert(texture->srvIndexInTable == UINT_MAX && texture->uavIndexInTable == UINT_MAX); // sanity check: texture not registered yet
+
     assert(resourceType == nvrhi::ResourceType::Texture_SRV || resourceType == nvrhi::ResourceType::Texture_UAV);
 
-    DescriptorHandle descriptorHandle;
+    texture->srvIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
 
-    if (resourceType == nvrhi::ResourceType::Texture_SRV)
+    if (resourceType == nvrhi::ResourceType::Texture_UAV)
     {
-        descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
+        texture->uavIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_UAV(0, texture));
     }
-    else
-    {
-        descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_UAV(0, texture));
-    }
-
-    texture->indexInHeap = descriptorHandle.GetIndexInHeap();
-
-    return descriptorHandle;
 }
 
-DescriptorHandle Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::BufferHandle buffer, nvrhi::ResourceType resourceType)
+void Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::BufferHandle buffer, nvrhi::ResourceType resourceType)
 {
-    assert(resourceType == nvrhi::ResourceType::TypedBuffer_SRV || resourceType == nvrhi::ResourceType::TypedBuffer_UAV ||
-           resourceType == nvrhi::ResourceType::StructuredBuffer_SRV || resourceType == nvrhi::ResourceType::StructuredBuffer_UAV ||
-           resourceType == nvrhi::ResourceType::RawBuffer_SRV || resourceType == nvrhi::ResourceType::RawBuffer_UAV);
+    assert(buffer->srvIndexInTable == UINT_MAX && buffer->uavIndexInTable == UINT_MAX); // sanity check: buffer not registered yet
 
-    DescriptorHandle descriptorHandle;
+    assert(resourceType == nvrhi::ResourceType::TypedBuffer_SRV || resourceType == nvrhi::ResourceType::TypedBuffer_UAV ||
+        resourceType == nvrhi::ResourceType::StructuredBuffer_SRV || resourceType == nvrhi::ResourceType::StructuredBuffer_UAV ||
+        resourceType == nvrhi::ResourceType::RawBuffer_SRV || resourceType == nvrhi::ResourceType::RawBuffer_UAV);
 
     switch (resourceType)
     {
         case nvrhi::ResourceType::TypedBuffer_SRV:
-            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_SRV(0, buffer));
-            break;
         case nvrhi::ResourceType::TypedBuffer_UAV:
-            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_UAV(0, buffer));
+            buffer->srvIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_SRV(0, buffer));
             break;
         case nvrhi::ResourceType::StructuredBuffer_SRV:
-            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_SRV(0, buffer));
-            break;
         case nvrhi::ResourceType::StructuredBuffer_UAV:
-            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_UAV(0, buffer));
+            buffer->srvIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_SRV(0, buffer));
             break;
         case nvrhi::ResourceType::RawBuffer_SRV:
-            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_SRV(0, buffer));
-            break;
         case nvrhi::ResourceType::RawBuffer_UAV:
-            descriptorHandle = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_UAV(0, buffer));
+            buffer->srvIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_SRV(0, buffer));
             break;
         default:
             assert(0);
     }
 
-    buffer->indexInHeap = descriptorHandle.GetIndexInHeap();
+    switch (resourceType)
+    {
+    case nvrhi::ResourceType::TypedBuffer_UAV:
+        buffer->uavIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::TypedBuffer_UAV(0, buffer));
+        break;
+    case nvrhi::ResourceType::StructuredBuffer_UAV:
+        buffer->uavIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::StructuredBuffer_UAV(0, buffer));
+        break;
+    case nvrhi::ResourceType::RawBuffer_UAV:
+        buffer->uavIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::RawBuffer_UAV(0, buffer));
+        break;
 
-    return descriptorHandle;
+    // NOTE: no default assert, because UAV is optional
+    }
+}
+
+uint32_t Graphic::GetIndexInHeap(uint32_t indexInTable) const
+{
+    const uint32_t indexInHeap = m_SrvUavCbvDescriptorTableManager->GetIndexInHeap(indexInTable);
+    assert(indexInHeap != UINT_MAX);
+    return indexInHeap;
 }
 
 void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace)

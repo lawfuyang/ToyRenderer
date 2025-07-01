@@ -237,16 +237,28 @@ void Scene::FinalizeTextureStreamingRequests()
                 commandList->copyTexture(request.m_NewTextureHandle, destSlice, texture.m_NVRHITextureHandle, srcSlice);
             }
 
+            nvrhi::TextureHandle originalTextureHandle = texture.m_NVRHITextureHandle;
+
+            // sanity check. no UAVs for streamable textures
+            assert(originalTextureHandle->uavIndexInTable == UINT_MAX);
+            assert(request.m_NewTextureHandle->uavIndexInTable == UINT_MAX);
+
             texture.m_NVRHITextureHandle = request.m_NewTextureHandle;
             texture.m_HighestStreamedMip = request.m_RequestedMip;
 
             // update texture descriptor index
             DescriptorTableManager* descriptorTableManager = g_Graphic.m_SrvUavCbvDescriptorTableManager.get();
-            descriptorTableManager->ReleaseDescriptor(texture.m_SRVDescriptorHandle);
-            const DescriptorHandle newDescriptorHandle = descriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle));
+            descriptorTableManager->ReleaseDescriptor(originalTextureHandle->srvIndexInTable);
+
+            // sanity check: new texture handle not in the descriptor table yet
+            assert(texture.m_NVRHITextureHandle->srvIndexInTable == UINT_MAX);
+
+            const uint32_t newTableIndex = descriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle));
 
             // sanity check: make sure that the descriptor index is the exact same
-            assert(texture.m_SRVDescriptorHandle.Get() == newDescriptorHandle.Get());
+            assert(originalTextureHandle->srvIndexInTable == newTableIndex);
+
+            texture.m_NVRHITextureHandle->srvIndexInTable = newTableIndex;
 
             //LOG_DEBUG("Texture Streaming Request Finalized: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_RequestedMip);
         }

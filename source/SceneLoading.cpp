@@ -505,12 +505,18 @@ struct GLTFSceneLoader
 
                 Texture& tex = g_Scene->m_Textures.at(sceneTextureView.m_TextureIdx);
 
-                assert(tex.m_NVRHITextureHandle->indexInHeap < 0x3FFFFFFF);
+                // textures loaded from scene should not be UAV
+                assert(tex.m_NVRHITextureHandle->uavIndexInTable == UINT_MAX);
+
+                // need to fit srv index in bottom 30 bits of the packed value
+                assert(tex.m_NVRHITextureHandle->srvIndexInTable < (1u << 30));
 
                 const uint32_t samplerHeapIdx = (uint32_t)sceneTextureView.m_AddressMode;
-                assert(samplerHeapIdx < 0x4);
 
-                return (tex.m_NVRHITextureHandle->indexInHeap) | (samplerHeapIdx << 30);
+                // need to fix sampler index in top 2 bits of the packed value
+                assert(samplerHeapIdx < (1u << 2));
+
+                return (tex.m_NVRHITextureHandle->srvIndexInTable) | (samplerHeapIdx << 30);
             };
 
             MaterialData& materialData = m_GlobalMaterialData[i];

@@ -25,12 +25,6 @@
 #include "CriticalSection.h"
 #include "Graphic.h"
 
-uint32_t DescriptorHandle::GetIndexInHeap() const
-{
-    assert(IsValid());
-    return m_Manager->GetDescriptorTable()->getFirstDescriptorIndexInHeap() + m_DescriptorIndex;
-}
-
 DescriptorTableManager::DescriptorTableManager(nvrhi::IBindingLayout* layout)
 {
     m_DescriptorTable = g_Graphic.m_NVRHIDevice->createDescriptorTable(layout);
@@ -43,7 +37,7 @@ DescriptorTableManager::DescriptorTableManager(nvrhi::IBindingLayout* layout)
     memset(m_Descriptors.data(), 0, sizeof(nvrhi::BindingSetItem) * m_MaxCapacity);
 }
 
-DescriptorHandle DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem item)
+uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem item)
 {
     assert(m_DescriptorTable);
 
@@ -55,7 +49,7 @@ DescriptorHandle DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSe
         AUTO_LOCK(m_Lock);
         const auto& found = m_DescriptorIndexMap.find(item);
         if (found != m_DescriptorIndexMap.end())
-            return DescriptorHandle{ this, found->second };
+            return found->second;
 
         bool foundFreeSlot = false;
 
@@ -81,32 +75,29 @@ DescriptorHandle DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSe
     if (item.resourceHandle)
         item.resourceHandle->AddRef();
 
-    return DescriptorHandle{ this, index };
+    return index;
 }
 
-void DescriptorTableManager::ReleaseDescriptor(const DescriptorHandle& descriptorHandle)
+void DescriptorTableManager::ReleaseDescriptor(uint32_t indexInTable)
 {
-    assert(descriptorHandle.m_Manager == this);
     AUTO_LOCK(m_Lock);
 
-    const uint32_t index = descriptorHandle.Get();
-
-    nvrhi::BindingSetItem& descriptor = m_Descriptors[index];
+    nvrhi::BindingSetItem& descriptor = m_Descriptors[indexInTable];
 
     if (descriptor.resourceHandle)
         descriptor.resourceHandle->Release();
 
     // Erase the existing descriptor from the index map to prevent its "reuse" later
-    const auto indexMapEntry = m_DescriptorIndexMap.find(m_Descriptors[index]);
+    const auto indexMapEntry = m_DescriptorIndexMap.find(m_Descriptors[indexInTable]);
     if (indexMapEntry != m_DescriptorIndexMap.end())
         m_DescriptorIndexMap.erase(indexMapEntry);
 
-    descriptor = nvrhi::BindingSetItem::None(index);
+    descriptor = nvrhi::BindingSetItem::None(indexInTable);
 
     g_Graphic.m_NVRHIDevice->writeDescriptorTable(m_DescriptorTable, descriptor);
 
-    m_AllocatedDescriptors[index] = false;
-    m_SearchStart = std::min(m_SearchStart, index);
+    m_AllocatedDescriptors[indexInTable] = false;
+    m_SearchStart = std::min(m_SearchStart, indexInTable);
 }
 
 DescriptorTableManager::~DescriptorTableManager()

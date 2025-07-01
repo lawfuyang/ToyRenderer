@@ -279,10 +279,10 @@ public:
         passConstants.m_CameraPosition = g_Scene->m_View.m_Eye;
         passConstants.m_bDoDenoising = m_bEnableShadowDenoising;
         passConstants.m_RayStartOffset = (g_Scene->m_BoundingSphere.Radius < 3.0f) ? 0.01f : 0.1f;
-        passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.m_GlobalVertexBuffer->indexInHeap;
-        passConstants.m_GlobalIndexBufferIdxInHeap = g_Graphic.m_GlobalIndexBuffer->indexInHeap;
-        passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.m_GlobalMeshDataBuffer->indexInHeap;
-        passConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.m_GlobalMaterialDataBuffer->indexInHeap;
+        passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalVertexBuffer->srvIndexInTable);
+        passConstants.m_GlobalIndexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalIndexBuffer->srvIndexInTable);
+        passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshDataBuffer->srvIndexInTable);
+        passConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMaterialDataBuffer->srvIndexInTable);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 

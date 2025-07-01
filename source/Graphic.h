@@ -83,8 +83,9 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
 
     nvrhi::IDescriptorTable* GetSrvUavCbvDescriptorTable();
-    DescriptorHandle RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::ResourceType resourceType);
-    DescriptorHandle RegisterInSrvUavCbvDescriptorTable(nvrhi::BufferHandle buffer, nvrhi::ResourceType resourceType);
+    void RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::ResourceType resourceType);
+    void RegisterInSrvUavCbvDescriptorTable(nvrhi::BufferHandle buffer, nvrhi::ResourceType resourceType);
+    uint32_t GetIndexInHeap(uint32_t indexInTable) const;
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
     {
