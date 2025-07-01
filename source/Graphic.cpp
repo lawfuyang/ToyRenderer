@@ -13,6 +13,7 @@
 #include "shaders/ShaderInterop.h"
 
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
+CommandLineOption<bool> g_ExecuteAndWaitPerCommandList{ "executeandwaitpercommandlist", false };
 
 void Graphic::InitRenderDocAPI()
 {
@@ -831,7 +832,19 @@ void Graphic::ExecuteAllCommandLists()
             verify(m_NVRHIDevice->waitForIdle());
         }
 
-        m_NVRHIDevice->executeCommandLists(&m_PendingCommandLists[0], m_PendingCommandLists.size());
+        if (g_ExecuteAndWaitPerCommandList.Get())
+        {
+            for (nvrhi::CommandListHandle cmdList : m_PendingCommandLists)
+            {
+                m_NVRHIDevice->executeCommandList(cmdList);
+                verify(m_NVRHIDevice->waitForIdle());
+            }
+        }
+        else
+        {
+            m_NVRHIDevice->executeCommandLists(&m_PendingCommandLists[0], m_PendingCommandLists.size());
+        }
+
         m_PendingCommandLists.clear();
     }
 
