@@ -27,7 +27,7 @@ namespace FFXHelpers
 	{
 		nvrhi::BufferDesc desc;
 		desc.byteSize = sizeof(uint32_t) * 6;
-		desc.structStride = sizeof(uint32_t);
+		desc.structStride = desc.byteSize;
 		desc.debugName = "SPD Global Atomic Buffer";
 		desc.canHaveUAVs = true;
 
