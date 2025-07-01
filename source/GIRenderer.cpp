@@ -117,7 +117,15 @@ public:
         m_ProbeDistance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Distance);
         m_ProbeData = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Data);
 
-        m_ProbeVariabilityReadback.Initialize(kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::VariabilityAverage]);
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            nvrhi::TextureDesc desc;
+            desc.format = kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::VariabilityAverage];
+            desc.debugName = "Probe Variability Readback Staging Texture";
+            desc.initialState = nvrhi::ResourceStates::CopyDest;
+
+            m_ProbeVariabilityReadbackStagingTextures[i] = g_Graphic.m_NVRHIDevice->createStagingTexture(desc, nvrhi::CpuAccessMode::Read);
+        }
 
         // Store the volume rotation
         m_rotationMatrix = EulerAnglesToRotationMatrix(m_desc.eulerAngles);
@@ -143,7 +151,7 @@ public:
     RenderGraph::ResourceHandle m_ProbeVariabilityRDGTextureHandle;        // Probe variability texture array
     RenderGraph::ResourceHandle m_ProbeVariabilityAverageRDGTextureHandle; // Average of Probe variability for whole volume
 
-    FencedReadbackTexture m_ProbeVariabilityReadback; // CPU-readable resource containing final Probe variability average
+    nvrhi::StagingTextureHandle m_ProbeVariabilityReadbackStagingTextures[2]; // CPU-readable resource containing final Probe variability average
 
     uint32_t m_NumVolumeVariabilitySamples = 0;
     float m_DebugProbeRadius = 0.1f;
@@ -560,10 +568,16 @@ public:
 
         if (m_GIVolume.GetProbeVariabilityEnabled())
         {
-            Vector2 variabilityReadback;
-            m_GIVolume.m_ProbeVariabilityReadback.Read(&variabilityReadback);
-            m_GIVolume.m_AverageVariability = variabilityReadback.x;
-            m_GIVolume.SetVariabilityForCurrentFrame(variabilityReadback.x);
+            nvrhi::StagingTextureHandle thisFrameVariabilityTexture = m_GIVolume.m_ProbeVariabilityReadbackStagingTextures[g_Graphic.m_FrameCounter % 2];
+
+            size_t outRowPitch;
+            const float* variabilityReadback = (const float*)g_Graphic.m_NVRHIDevice->mapStagingTexture(thisFrameVariabilityTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Read, &outRowPitch);
+            assert(variabilityReadback);
+
+            m_GIVolume.m_AverageVariability = *variabilityReadback;
+            m_GIVolume.SetVariabilityForCurrentFrame(*variabilityReadback);
+
+            g_Graphic.m_NVRHIDevice->unmapStagingTexture(thisFrameVariabilityTexture);
 
             const Vector3U kNumThreadsInGroup = { 4, 8, 4 }; // Each thread group will have 8x8x8 threads
             const Vector2U kThreadSampleFootprint = { 4, 2 }; // Each thread will sample 4x2 texels
@@ -598,7 +612,7 @@ public:
                 bIsFirstPass = false;
             }
 
-            m_GIVolume.m_ProbeVariabilityReadback.CopyTo(commandList, probeVariabilityAverageTexture);
+            commandList->copyTexture(thisFrameVariabilityTexture, nvrhi::TextureSlice{}, probeVariabilityAverageTexture, nvrhi::TextureSlice{ 0,0,0,1,1,1 });
         }
     }
 };

@@ -12,7 +12,7 @@ extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 
 class AdaptLuminanceRenderer : public IRenderer
 {
-    FencedReadbackBuffer m_ExposureReadbackBuffer;
+    nvrhi::BufferHandle m_ExposureReadbackBuffers[2];
     RenderGraph::ResourceHandle m_LuminanceHistogramRDGBufferHandle;
 
     float m_MinimumLuminance = 0.004f;
@@ -25,7 +25,17 @@ public:
     void Initialize() override
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        m_ExposureReadbackBuffer.Initialize(sizeof(float));
+        
+        for (int i = 0; i < 2; ++i)
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(float);
+            desc.debugName = "Exposure Readback Buffer";
+            desc.initialState = nvrhi::ResourceStates::CopyDest;
+            desc.cpuAccess = nvrhi::CpuAccessMode::Read;
+
+            m_ExposureReadbackBuffers[i] = device->createBuffer(desc);
+        }
     }
 
     void UpdateImgui() override
@@ -70,12 +80,16 @@ public:
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
         // read back previous frame's scene exposure
-        m_ExposureReadbackBuffer.Read((void*)&g_Scene->m_LastFrameExposure);
+        // m_ExposureReadbackBuffer.Read((void*)&g_Scene->m_LastFrameExposure);
+        const float* readbackBytes = (float*)device->mapBuffer(m_ExposureReadbackBuffers[g_Graphic.m_FrameCounter % 2], nvrhi::CpuAccessMode::Read);
+        assert(readbackBytes);
+        g_Scene->m_LastFrameExposure = *readbackBytes;
+        device->unmapBuffer(m_ExposureReadbackBuffers[g_Graphic.m_FrameCounter % 2]);
 
         ON_EXIT_SCOPE_LAMBDA([&]
             {
                 // copy to staging texture to be read back by CPU next frame, regardless whether manual exposure mode is enabled or not
-                m_ExposureReadbackBuffer.CopyTo(commandList, g_Scene->m_LuminanceBuffer);
+                commandList->copyBuffer(m_ExposureReadbackBuffers[g_Graphic.m_FrameCounter % 2], 0, g_Scene->m_LuminanceBuffer, 0, sizeof(float));
             });
 
         if (g_Scene->m_ManualExposureOverride > 0.0f)
