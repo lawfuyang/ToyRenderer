@@ -5,32 +5,23 @@
 #include "ShaderInterop.h"
 
 cbuffer GIProbeTraceConstsBuffer : register(b0) { GIProbeTraceConsts g_GIProbeTraceConsts; }
+StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t0);
+Texture2DArray<float4> g_ProbeData : register(t1);
+Texture2DArray<float4> g_ProbeIrradiance : register(t2);
+Texture2DArray<float4> g_ProbeDistance : register(t3);
+RaytracingAccelerationStructure g_SceneTLAS : register(t4);
+StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t5);
+StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer : register(t6);
+StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t7);
+StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t8);
+StructuredBuffer<MeshData> g_MeshDataBuffer : register(t9);
+RWTexture2DArray<float4> g_OutRayData : register(u0);
+sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
+sampler g_LinearWrapSampler : register(s4); // Linear Wrap
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
 void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
-{
-    StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_DDGIVolumesIdx];
-    Texture2DArray<float4> g_ProbeData = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_ProbeDataIdx];
-    Texture2DArray<float4> g_ProbeIrradiance = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_ProbeIrradianceIdx];
-    Texture2DArray<float4> g_ProbeDistance = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_ProbeDistanceIdx];
-    RaytracingAccelerationStructure g_SceneTLAS = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_SceneTLASIdx];
-    StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_InstanceConstsBufferIdxInHeap];
-    StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalVertexBufferIdxInHeap];
-    StructuredBuffer<MaterialData> g_MaterialDataBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalMaterialDataBufferIdxInHeap];
-    StructuredBuffer<uint> g_GlobalIndexIDsBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalIndexBufferIdxInHeap];
-    StructuredBuffer<MeshData> g_MeshDataBuffer = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_GlobalMeshDataBufferIdxInHeap];
-    RWTexture2DArray<float4> g_OutRayData = ResourceDescriptorHeap[g_GIProbeTraceConsts.m_OutRayDataIdx];
-    
-    sampler anisotropicSamplers[SamplerIdx_Count] =
-    {
-        SamplerDescriptorHeap[g_GIProbeTraceConsts.m_SamplersIdx + 0],
-        SamplerDescriptorHeap[g_GIProbeTraceConsts.m_SamplersIdx + 1],
-        SamplerDescriptorHeap[g_GIProbeTraceConsts.m_SamplersIdx + 2],
-        SamplerDescriptorHeap[g_GIProbeTraceConsts.m_SamplersIdx + 3],
-    };
-    
-    sampler linearWrapSampler = SamplerDescriptorHeap[g_GIProbeTraceConsts.m_SamplersIdx + 4];
-    
+{    
     // TODO: multiple volumes
     uint volumeIndex = 0;
     
@@ -103,7 +94,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     args.m_MeshDataBuffer = g_MeshDataBuffer;
     args.m_GlobalIndexIDsBuffer = g_GlobalIndexIDsBuffer;
     args.m_GlobalVertexBuffer = g_GlobalVertexBuffer;
-    args.m_Samplers = anisotropicSamplers;
+    args.m_Samplers = g_Samplers;
     
     float3 rayHitWorldPosition;
     GBufferParams rayHitGBufferParams = GetRayHitInstanceGBufferParams(args, rayHitWorldPosition);
@@ -133,7 +124,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     volumeResources.probeIrradiance = g_ProbeIrradiance;
     volumeResources.probeDistance = g_ProbeDistance;
     volumeResources.probeData = g_ProbeData;
-    volumeResources.bilinearSampler = linearWrapSampler;
+    volumeResources.bilinearSampler = g_LinearWrapSampler;
     
     GetDDGIIrradianceArguments irradianceArgs;
     irradianceArgs.m_WorldPosition = rayHitWorldPosition;

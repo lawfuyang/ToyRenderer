@@ -279,25 +279,20 @@ public:
         passConstants.m_CameraPosition = g_Scene->m_View.m_Eye;
         passConstants.m_bDoDenoising = m_bEnableShadowDenoising;
         passConstants.m_RayStartOffset = (g_Scene->m_BoundingSphere.Radius < 3.0f) ? 0.01f : 0.1f;
-        passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalVertexBuffer->srvIndexInTable);
-        passConstants.m_GlobalIndexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalIndexBuffer->srvIndexInTable);
-        passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshDataBuffer->srvIndexInTable);
-        passConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMaterialDataBuffer->srvIndexInTable);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-            nvrhi::BindingSetItem::PushConstants(1, sizeof(ShadowMaskResourceIndices)),
             nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopy),
             nvrhi::BindingSetItem::RayTracingAccelStruct(1, g_Scene->m_TLAS),
             nvrhi::BindingSetItem::Texture_SRV(2, GBufferATexture),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Scene->m_InstanceConstsBuffer), // TODO: remove after bindless refactoring
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalVertexBuffer), // TODO: remove after bindless refactoring
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMaterialDataBuffer), // TODO: remove after bindless refactoring
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalIndexBuffer), // TODO: remove after bindless refactoring
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMeshDataBuffer), // TODO: remove after bindless refactoring
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalVertexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMaterialDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalIndexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::Texture_SRV(8, g_CommonResources.BlueNoise.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::Texture_UAV(0, shadowDataTexture),
             nvrhi::BindingSetItem::Texture_UAV(1, linearViewDepthTexture),
@@ -311,23 +306,12 @@ public:
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-        ShadowMaskResourceIndices resourceIndices;
-        resourceIndices.m_DepthBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        resourceIndices.m_SceneTLASIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-        resourceIndices.m_GBufferAIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-        resourceIndices.m_BlueNoiseIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 8;
-        resourceIndices.m_ShadowDataOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 9;
-        resourceIndices.m_LinearViewDepthOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 10;
-        resourceIndices.m_SamplersIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
-
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "shadowmask_CS_ShadowMask";
         computePassParams.m_BindingSets = { bindingSet, g_Graphic.GetSrvUavCbvDescriptorTable() };
         computePassParams.m_BindingLayouts = { bindingLayout, g_Graphic.m_SrvUavCbvBindlessLayout };
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_OutputResolution, 8);
-        computePassParams.m_PushConstantsData = &resourceIndices;
-        computePassParams.m_PushConstantsBytes = sizeof(resourceIndices);
 
         g_Graphic.AddComputePass(computePassParams);
     }
@@ -343,16 +327,13 @@ public:
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-            nvrhi::BindingSetItem::Texture_SRV(0, GBufferATexture),
+            nvrhi::BindingSetItem::Texture_SRV(2, GBufferATexture), // re-use SRV2, because shadowmask.hlsl already has it bound in that slot
             nvrhi::BindingSetItem::Texture_UAV(0, normalRoughnessTexture)
         };
 
         nvrhi::BindingSetHandle bindingSet;
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-        passConstants.m_GBufferAIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        passConstants.m_NormalRoughnessOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;

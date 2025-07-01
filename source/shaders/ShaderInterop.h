@@ -91,14 +91,6 @@ struct BasePassConstants
     uint32_t m_DebugMode;
     uint32_t PAD0;
     Vector2U m_OutputResolution;
-
-    uint32_t m_GlobalVertexBufferIdxInHeap;
-    uint32_t m_GlobalMeshDataBufferIdxInHeap;
-    uint32_t m_GlobalMeshletVertexOffsetsBufferIdxInHeap;
-    uint32_t m_GlobalMeshletIndicesBufferIdxInHeap;
-    uint32_t m_GlobalMeshletDataBufferIdxInHeap;
-    uint32_t m_GlobalMaterialDataBufferIdxInHeap;
-    uint32_t m_InstanceConstsBufferIdxInHeap;
 };
 
 struct BasePassInstanceConstants
@@ -194,27 +186,6 @@ struct GPUCullingPassConstants
     float m_P11;
     uint32_t m_ForcedMeshLOD;
     float m_MeshLODTarget;
-
-    uint32_t m_GlobalMeshDataBufferIdxInHeap;
-    uint32_t m_PrimitivesIDsBufferIdxInHeap;
-    uint32_t m_InstanceConstsBufferIdxInHeap;
-};
-
-struct GPUCullingPassResourceIndices
-{
-    uint32_t m_MeshDataIdx;
-    uint32_t m_HZBIdx;
-    uint32_t m_MeshletAmplificationDataBufferIdx;
-    uint32_t m_MeshletDispatchArgumentsBufferIdx;
-    uint32_t m_LateCullInstanceIndicesCounterIdx;
-    uint32_t m_LateCullInstanceIndicesBufferIdx;
-    uint32_t m_LinearClampMinReductionSamplerIdx;
-};
-
-struct GPUCullingBuildLateCullIndirectArgsResourceIndices
-{
-    uint32_t m_NumLateCullInstancesIdx;
-    uint32_t m_LateCullDispatchIndirectArgsIdx;
 };
 
 struct HosekWilkieSkyParameters
@@ -280,10 +251,6 @@ struct MinMaxDownsampleConsts
 {
     Vector2U m_OutputDimensions;
     uint32_t m_bDownsampleMax;
-    uint32_t m_InputIdx;
-    uint32_t m_PointClampSamplerIdx;
-
-    uint32_t m_OutputIdxInHeap;
 };
 
 struct NodeLocalTransform
@@ -298,8 +265,6 @@ struct NodeLocalTransform
 struct PackNormalAndRoughnessConsts
 {
     Vector2U m_OutputResolution;
-    uint32_t m_GBufferAIdx;
-    uint32_t m_NormalRoughnessOutputIdx;
 };
 
 struct FullScreenPassThroughResourcesIndices
@@ -319,30 +284,10 @@ struct PostProcessParameters
     uint32_t m_BloomTextureIdx;
 };
 
-struct GIProbeExtraReductionConsts
-{
-    Vector3U m_ReductionInputSize;
-    uint32_t m_DDGIVolumesIdx;
-    uint32_t m_ProbeVariabilityAverageIdx;
-};
-
 struct GIProbeTraceConsts
 {
     Vector3 m_DirectionalLightVector;
     float m_DirectionalLightStrength;
-    uint32_t m_DDGIVolumesIdx;
-    uint32_t m_ProbeDataIdx;
-    uint32_t m_ProbeIrradianceIdx;
-    uint32_t m_ProbeDistanceIdx;
-    uint32_t m_SceneTLASIdx;
-    uint32_t m_OutRayDataIdx;
-    uint32_t m_SamplersIdx;
-
-    uint32_t m_GlobalIndexBufferIdxInHeap;
-    uint32_t m_GlobalMeshDataBufferIdxInHeap;
-    uint32_t m_GlobalVertexBufferIdxInHeap;
-    uint32_t m_GlobalMaterialDataBufferIdxInHeap;
-    uint32_t m_InstanceConstsBufferIdxInHeap;
 };
 
 struct GIProbeVisualizationUpdateConsts
@@ -409,23 +354,6 @@ struct ShadowMaskConsts
     Vector2U m_OutputResolution;
     uint32_t m_bDoDenoising;
     float m_RayStartOffset;
-    
-    uint32_t m_GlobalVertexBufferIdxInHeap;
-    uint32_t m_GlobalIndexBufferIdxInHeap;
-    uint32_t m_GlobalMeshDataBufferIdxInHeap;
-    uint32_t m_GlobalMaterialDataBufferIdxInHeap;
-    uint32_t m_InstanceConstsBufferIdxInHeap;
-};
-
-struct ShadowMaskResourceIndices
-{
-    uint32_t m_DepthBufferIdx;
-    uint32_t m_SceneTLASIdx;
-    uint32_t m_GBufferAIdx;
-    uint32_t m_BlueNoiseIdx;
-    uint32_t m_ShadowDataOutputIdx;
-    uint32_t m_LinearViewDepthOutputIdx;
-    uint32_t m_SamplersIdx;
 };
 
 struct SkyPassParameters
@@ -451,11 +379,6 @@ struct TLASInstanceDesc
 struct UpdateInstanceConstsPassConstants
 {
     uint32_t m_NumInstances;
-
-    uint32_t m_TLASInstanceDescsBufferIdxInHeap;
-    uint32_t m_InstanceConstsBufferIdxInHeap;
-    uint32_t m_NodeLocalTransformsBufferIdxInHeap;
-    uint32_t m_PrimitiveIDToNodeIDBufferIdxInHeap;
 };
 
 struct XeGTAOPrefilterDepthsResourceIndices

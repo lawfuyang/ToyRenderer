@@ -22,17 +22,15 @@
 #endif
 
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
-cbuffer g_GPUCullingPassResourceIndicesBuffer : register(b1) { GPUCullingPassResourceIndices g_GPUCullingPassResourceIndices; }
-
-static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_GPUCullingPassConstants.m_InstanceConstsBufferIdxInHeap];
-static StructuredBuffer<uint> g_PrimitiveIndices = ResourceDescriptorHeap[g_GPUCullingPassConstants.m_PrimitivesIDsBufferIdxInHeap];
-static StructuredBuffer<MeshData> g_MeshData = ResourceDescriptorHeap[g_GPUCullingPassConstants.m_GlobalMeshDataBufferIdxInHeap];
-static Texture2D g_HZB = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_HZBIdx];
-static RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_MeshletAmplificationDataBufferIdx];
-static RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_MeshletDispatchArgumentsBufferIdx];
-static RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_LateCullInstanceIndicesCounterIdx];
-static RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer = ResourceDescriptorHeap[g_GPUCullingPassResourceIndices.m_LateCullInstanceIndicesBufferIdx];
-static SamplerState g_LinearClampMinReductionSampler = SamplerDescriptorHeap[g_GPUCullingPassResourceIndices.m_LinearClampMinReductionSamplerIdx];
+static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
+static StructuredBuffer<uint> g_PrimitiveIndices : register(t1);
+static StructuredBuffer<MeshData> g_MeshData : register(t2);
+static Texture2D g_HZB : register(t3);
+static RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(u0);
+static RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer : register(u1);
+static RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u2);
+static RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u3);
+static SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts, float4 boundingSphereViewSpace)
 {
@@ -181,7 +179,8 @@ void CS_GPUCulling(
 #endif
 }
 
-cbuffer GPUCullingBuildLateCullIndirectArgsResourceIndicesBuffer : register(b0) { GPUCullingBuildLateCullIndirectArgsResourceIndices g_GPUCullingBuildLateCullIndirectArgsResourceIndices; }
+StructuredBuffer<int> g_NumLateCullInstances : register(t0);
+RWStructuredBuffer<DispatchIndirectArguments> g_LateCullDispatchIndirectArgs : register(u0);
 
 [numthreads(1, 1, 1)]
 void CS_BuildLateCullIndirectArgs(
@@ -190,10 +189,7 @@ void CS_BuildLateCullIndirectArgs(
     uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex)
 {
-    StructuredBuffer<int> numLateCullInstances = ResourceDescriptorHeap[g_GPUCullingBuildLateCullIndirectArgsResourceIndices.m_NumLateCullInstancesIdx];
-    RWStructuredBuffer<DispatchIndirectArguments> lateCullDispatchIndirectArgs = ResourceDescriptorHeap[g_GPUCullingBuildLateCullIndirectArgsResourceIndices.m_LateCullDispatchIndirectArgsIdx];
-    
-    lateCullDispatchIndirectArgs[0].m_ThreadGroupCountX = DivideAndRoundUp(numLateCullInstances[0], 64);
-    lateCullDispatchIndirectArgs[0].m_ThreadGroupCountY = 1;
-    lateCullDispatchIndirectArgs[0].m_ThreadGroupCountZ = 1;
+    g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountX = DivideAndRoundUp(g_NumLateCullInstances[0], 64);
+    g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountY = 1;
+    g_LateCullDispatchIndirectArgs[0].m_ThreadGroupCountZ = 1;
 }

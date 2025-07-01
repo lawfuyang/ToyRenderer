@@ -404,11 +404,6 @@ public:
         GIProbeTraceConsts passConstants;
         passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
         passConstants.m_DirectionalLightStrength = g_Scene->m_DirLightStrength;
-        passConstants.m_GlobalIndexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalIndexBuffer->srvIndexInTable);
-        passConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshDataBuffer->srvIndexInTable);
-        passConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalVertexBuffer->srvIndexInTable);
-        passConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMaterialDataBuffer->srvIndexInTable);
-        passConstants.m_InstanceConstsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_InstanceConstsBuffer->srvIndexInTable);
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
@@ -419,11 +414,11 @@ public:
             nvrhi::BindingSetItem::Texture_SRV(2, m_GIVolume.m_ProbeIrradiance),
             nvrhi::BindingSetItem::Texture_SRV(3, m_GIVolume.m_ProbeDistance),
             nvrhi::BindingSetItem::RayTracingAccelStruct(4, g_Scene->m_TLAS),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Scene->m_InstanceConstsBuffer), // TODO: remove after bindless refactoring
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalVertexBuffer), // TODO: remove after bindless refactoring
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMaterialDataBuffer), // TODO: remove after bindless refactoring
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(8, g_Graphic.m_GlobalIndexBuffer), // TODO: remove after bindless refactoring
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(9, g_Graphic.m_GlobalMeshDataBuffer), // TODO: remove after bindless refactoring
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalVertexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(7, g_Graphic.m_GlobalMaterialDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(8, g_Graphic.m_GlobalIndexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(9, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::Texture_UAV(0, probeRayDataTexture),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
@@ -435,14 +430,6 @@ public:
         nvrhi::BindingSetHandle bindingSet;
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-        passConstants.m_DDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        passConstants.m_ProbeDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-        passConstants.m_ProbeIrradianceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-        passConstants.m_ProbeDistanceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-        passConstants.m_SceneTLASIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-        passConstants.m_OutRayDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 10;
-        passConstants.m_SamplersIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
         uint32_t dispatchX, dispatchY, dispatchZ;
         m_GIVolume.GetRayDispatchDimensions(dispatchX, dispatchY, dispatchZ);

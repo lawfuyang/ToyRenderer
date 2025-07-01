@@ -8,17 +8,17 @@
 #include "ShaderInterop.h"
 
 cbuffer g_PassConstantsBuffer : register(b0) { BasePassConstants g_BasePassConsts; }
-static StructuredBuffer<RawVertexFormat> g_VirtualVertexBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalVertexBufferIdxInHeap];
-static StructuredBuffer<MeshData> g_MeshDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshDataBufferIdxInHeap];
-static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts = ResourceDescriptorHeap[g_BasePassConsts.m_InstanceConstsBufferIdxInHeap];
-static StructuredBuffer<MaterialData> g_MaterialDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMaterialDataBufferIdxInHeap];
-static StructuredBuffer<MeshletData> g_MeshletDataBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshletDataBufferIdxInHeap];
-static StructuredBuffer<uint> g_MeshletVertexIDsBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshletVertexOffsetsBufferIdxInHeap];
-static StructuredBuffer<uint> g_MeshletIndexIDsBuffer = ResourceDescriptorHeap[g_BasePassConsts.m_GlobalMeshletIndicesBufferIdxInHeap];
-StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
-Texture2D g_HZB : register(t8);
+static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
+static StructuredBuffer<RawVertexFormat> g_VirtualVertexBuffer : register(t1);
+static StructuredBuffer<MeshData> g_MeshDataBuffer : register(t2);
+static StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t3);
+static StructuredBuffer<MeshletData> g_MeshletDataBuffer : register(t4);
+static StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
+static StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
+static StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
+static Texture2D g_HZB : register(t8);
 sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
-SamplerState g_LinearClampMinReductionSampler : register(s4);
+static SamplerState g_LinearClampMinReductionSampler : register(s4);
 
 struct VertexOut
 {

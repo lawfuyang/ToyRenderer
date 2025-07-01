@@ -144,13 +144,16 @@ public:
 
         UpdateInstanceConstsPassConstants passConstants;
         passConstants.m_NumInstances = numPrimitives;
-        passConstants.m_TLASInstanceDescsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_TLASInstanceDescsBuffer->uavIndexInTable);
-        passConstants.m_InstanceConstsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_InstanceConstsBuffer->uavIndexInTable);
-        passConstants.m_NodeLocalTransformsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_NodeLocalTransformsBuffer->srvIndexInTable);
-        passConstants.m_PrimitiveIDToNodeIDBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_PrimitiveIDToNodeIDBuffer->srvIndexInTable);
 
         nvrhi::BindingSetDesc bindingSetDesc;
-        bindingSetDesc.bindings = { nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)), };
+        bindingSetDesc.bindings =
+        {
+            nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_NodeLocalTransformsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Scene->m_PrimitiveIDToNodeIDBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_UAV(1, g_Scene->m_TLASInstanceDescsBuffer),
+        };
 
         nvrhi::BindingSetHandle bindingSet;
         nvrhi::BindingLayoutHandle bindingLayout;
@@ -356,19 +359,15 @@ public:
         passParameters.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
         passParameters.m_ForcedMeshLOD =  forcedMeshLOD;
         passParameters.m_MeshLODTarget = (2.0f / g_Scene->m_View.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
-        passParameters.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshDataBuffer->srvIndexInTable);
-        passParameters.m_PrimitivesIDsBufferIdxInHeap  = bAlphaMaskPrimitives ? g_Graphic.GetIndexInHeap(g_Scene->m_AlphaMaskInstanceIDsBuffer->srvIndexInTable) : g_Graphic.GetIndexInHeap(g_Scene->m_OpaqueInstanceIDsBuffer->srvIndexInTable);
-        passParameters.m_InstanceConstsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_InstanceConstsBuffer->srvIndexInTable);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-            nvrhi::BindingSetItem::PushConstants(1, sizeof(GPUCullingPassResourceIndices)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer), // TODO: remove after bindless refactor
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer : g_Scene->m_OpaqueInstanceIDsBuffer), // TODO: remove after bindless refactor
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer), // TODO: remove after bindless refactor
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, bAlphaMaskPrimitives ? g_Scene->m_AlphaMaskInstanceIDsBuffer : g_Scene->m_OpaqueInstanceIDsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::Texture_SRV(3, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(0, meshletAmplificationDataBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, meshletDispatchArgumentsBuffer),
@@ -383,15 +382,6 @@ public:
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-    GPUCullingPassResourceIndices GPUCullingResourceIndices;
-        GPUCullingResourceIndices.m_MeshDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-        GPUCullingResourceIndices.m_HZBIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-        GPUCullingResourceIndices.m_MeshletAmplificationDataBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-        GPUCullingResourceIndices.m_MeshletDispatchArgumentsBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-        GPUCullingResourceIndices.m_LateCullInstanceIndicesCounterIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 6;
-        GPUCullingResourceIndices.m_LateCullInstanceIndicesBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 7;
-        GPUCullingResourceIndices.m_LinearClampMinReductionSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
-
         if (!bLateCull)
         {
             Graphic::ComputePassParams computePassParams;
@@ -400,31 +390,22 @@ public:
             computePassParams.m_BindingSets = { bindingSet };
             computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave);
-            computePassParams.m_PushConstantsData = &GPUCullingResourceIndices;
-            computePassParams.m_PushConstantsBytes = sizeof(GPUCullingResourceIndices);
 
             g_Graphic.AddComputePass(computePassParams);
 
             if (m_bDoOcclusionCulling)
             {
                 bindingSetDesc.bindings = {
-                    nvrhi::BindingSetItem::PushConstants(0, sizeof(GPUCullingBuildLateCullIndirectArgsResourceIndices)),
                     nvrhi::BindingSetItem::StructuredBuffer_SRV(0, lateCullInstanceCountBuffer),
                     nvrhi::BindingSetItem::StructuredBuffer_UAV(0, lateCullDispatchIndirectArgsBuffer)
                 };
 
                 g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-                GPUCullingBuildLateCullIndirectArgsResourceIndices lateCullIndirectArgsResourceIndices;
-                lateCullIndirectArgsResourceIndices.m_NumLateCullInstancesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-                lateCullIndirectArgsResourceIndices.m_LateCullDispatchIndirectArgsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-
                 computePassParams.m_ShaderName = "gpuculling_CS_BuildLateCullIndirectArgs";
                 computePassParams.m_BindingSets = { bindingSet };
                 computePassParams.m_BindingLayouts = { bindingLayout };
                 computePassParams.m_DispatchGroupSize = Vector3U{ 1, 1, 1 };
-                computePassParams.m_PushConstantsData = &lateCullIndirectArgsResourceIndices;
-                computePassParams.m_PushConstantsBytes = sizeof(lateCullIndirectArgsResourceIndices);
 
                 g_Graphic.AddComputePass(computePassParams);
             }
@@ -439,8 +420,6 @@ public:
                 computePassParams.m_BindingSets = { bindingSet };
                 computePassParams.m_BindingLayouts = { bindingLayout };
                 computePassParams.m_IndirectArgsBuffer = lateCullDispatchIndirectArgsBuffer;
-                computePassParams.m_PushConstantsData = &GPUCullingResourceIndices;
-                computePassParams.m_PushConstantsBytes = sizeof(GPUCullingResourceIndices);
 
                 g_Graphic.AddComputePass(computePassParams);
             }
@@ -498,13 +477,6 @@ public:
         basePassConstants.m_NearPlane = g_Scene->m_View.m_ZNearP;
         basePassConstants.m_DebugMode = g_Scene->m_DebugViewMode;
         basePassConstants.m_OutputResolution = Vector2U{ viewportTexDesc.width, viewportTexDesc.height };
-        basePassConstants.m_GlobalVertexBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalVertexBuffer->srvIndexInTable);
-        basePassConstants.m_GlobalMeshDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshDataBuffer->srvIndexInTable);
-        basePassConstants.m_GlobalMeshletVertexOffsetsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->srvIndexInTable);
-        basePassConstants.m_GlobalMeshletIndicesBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshletIndicesBuffer->srvIndexInTable);
-        basePassConstants.m_GlobalMeshletDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMeshletDataBuffer->srvIndexInTable);
-        basePassConstants.m_GlobalMaterialDataBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Graphic.m_GlobalMaterialDataBuffer->srvIndexInTable);
-        basePassConstants.m_InstanceConstsBufferIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_InstanceConstsBuffer->srvIndexInTable);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
 
@@ -512,6 +484,13 @@ public:
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, g_Scene->m_InstanceConstsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Graphic.m_GlobalVertexBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(2, g_Graphic.m_GlobalMeshDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(3, g_Graphic.m_GlobalMaterialDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(4, g_Graphic.m_GlobalMeshletDataBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Graphic.m_GlobalMeshletVertexOffsetsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMeshletIndicesBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(7, meshletAmplificationDataBuffer),
             nvrhi::BindingSetItem::Texture_SRV(8, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
@@ -557,7 +536,6 @@ public:
         MinMaxDownsampleConsts passParameters;
         passParameters.m_OutputDimensions = m_HZBDimensions;
         passParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
-        passParameters.m_OutputIdxInHeap = g_Graphic.GetIndexInHeap(g_Scene->m_HZB->uavIndexInTable);
 
         nvrhi::TextureHandle depthStencilBuffer = params.m_FrameBufferDesc.depthAttachment.texture;
 
@@ -565,16 +543,13 @@ public:
         bindingSetDesc.bindings = {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
             nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
-            nvrhi::BindingSetItem::Texture_UAV(0, g_Scene->m_HZB), // TODO: remove after bindless refactor
+            nvrhi::BindingSetItem::Texture_UAV(0, g_Scene->m_HZB),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
         nvrhi::BindingSetHandle bindingSet;
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-        passParameters.m_InputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        passParameters.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
