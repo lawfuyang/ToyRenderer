@@ -77,8 +77,7 @@ void VS_FullScreenCube(
     outPosition = vertex[index[inVertexID] - 1];
 }
 
-cbuffer FullScreenPassThroughResourcesIndicesBuffer : register(b0){ FullScreenPassThroughResourcesIndices g_ResourceIndices; }
-static Texture2D g_Input = ResourceDescriptorHeap[g_ResourceIndices.m_InputTextureIdx];
+Texture2D g_Input : register(t0);
 
 void PS_Passthrough(
     in float4 inPosition : SV_POSITION,

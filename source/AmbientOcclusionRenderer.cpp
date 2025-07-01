@@ -168,7 +168,6 @@ public:
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings = {
                 nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-                nvrhi::BindingSetItem::PushConstants(1, sizeof(XeGTAOPrefilterDepthsResourceIndices)),
                 nvrhi::BindingSetItem::Texture_SRV(0, depthBufferCopyTexture),
                 nvrhi::BindingSetItem::Texture_UAV(0, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 0, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
                 nvrhi::BindingSetItem::Texture_UAV(1, workingDepthBuffer, kWorkingDepthBufferFormat, nvrhi::TextureSubresourceSet{ 1, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices }),
@@ -182,23 +181,12 @@ public:
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-            XeGTAOPrefilterDepthsResourceIndices prefilterDepthsResourceIndices;
-            prefilterDepthsResourceIndices.m_SrcRawDepthIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP0Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP1Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP2Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP3Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-            prefilterDepthsResourceIndices.m_OutWorkingDepthMIP4Idx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-            prefilterDepthsResourceIndices.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
-
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "ambientocclusion_CS_XeGTAO_PrefilterDepths";
             computePassParams.m_BindingSets = { bindingSet };
             computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector2U{ workingDepthBuffer->getDesc().width, workingDepthBuffer->getDesc().height }, Vector2U{ 16, 16 });
-            computePassParams.m_PushConstantsData = &prefilterDepthsResourceIndices;
-            computePassParams.m_PushConstantsBytes = sizeof(prefilterDepthsResourceIndices);
 
             g_Graphic.AddComputePass(computePassParams);
         }
@@ -208,7 +196,6 @@ public:
             XeGTAOMainPassConstantBuffer mainPassConsts{};
             mainPassConsts.m_WorldToViewNoTranslate = g_Scene->m_View.m_WorldToView;
             mainPassConsts.m_WorldToViewNoTranslate.Translation(Vector3::Zero);
-
             mainPassConsts.m_Quality = m_XeGTAOSettings.QualityLevel;
 
             nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
@@ -229,14 +216,6 @@ public:
             nvrhi::BindingSetHandle bindingSet;
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-            mainPassConsts.m_SrcWorkingDepthIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-            mainPassConsts.m_SrcHilbertLUTIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-            mainPassConsts.m_GBufferAIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-            mainPassConsts.m_OutWorkingAOTermIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-            mainPassConsts.m_OutWorkingEdgesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-            mainPassConsts.m_DebugOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-            mainPassConsts.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
@@ -280,12 +259,6 @@ public:
             nvrhi::BindingSetHandle bindingSet;
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-            denoiseConsts.m_SrcWorkingAOTermIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-            denoiseConsts.m_SrcWorkingEdgesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-            denoiseConsts.m_OutFinalAOTermIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-            denoiseConsts.m_DebugOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-            denoiseConsts.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;

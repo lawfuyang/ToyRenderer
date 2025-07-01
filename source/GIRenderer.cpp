@@ -224,8 +224,6 @@ public:
 
     GIVolume m_GIVolume;
 
-    RenderGraph::ResourceHandle m_VolumeResourceIndicesRDGBufferHandle;
-
     GIRenderer() : IRenderer("GIRenderer") {}
     
     void PostSceneLoad() override
@@ -382,15 +380,6 @@ public:
             renderGraph.CreateTransientResource(g_GIVolumeDescsBuffer, desc);
         }
 
-        {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(rtxgi::DDGIVolumeResourceIndices) * 1; // TODO: multiple volumes
-            desc.structStride = sizeof(rtxgi::DDGIVolumeResourceIndices);
-            desc.debugName = "Volume Resource Indices";
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            renderGraph.CreateTransientResource(m_VolumeResourceIndicesRDGBufferHandle, desc);
-        }
-
         return true;
     }
 
@@ -473,7 +462,6 @@ public:
         nvrhi::TextureHandle probeVariabilityTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeVariabilityRDGTextureHandle);
         nvrhi::TextureHandle probeVariabilityAverageTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeVariabilityAverageRDGTextureHandle);
         nvrhi::BufferHandle GIVolumeDescsBuffer = renderGraph.GetBuffer(g_GIVolumeDescsBuffer);
-        nvrhi::BufferHandle volumeResourceIndicesBuffer = renderGraph.GetBuffer(m_VolumeResourceIndicesRDGBufferHandle);
 
         const rtxgi::DDGIVolumeDescGPUPacked volumeDescGPU = m_GIVolume.GetDescGPUPacked();
         commandList->writeBuffer(GIVolumeDescsBuffer, &volumeDescGPU, sizeof(rtxgi::DDGIVolumeDescGPUPacked));
@@ -488,7 +476,6 @@ public:
         {
             nvrhi::BindingSetItem::PushConstants(kDDGIRootConstsRegister, sizeof(DDGIRootConstants)),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(0, GIVolumeDescsBuffer),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(1, volumeResourceIndicesBuffer),
             nvrhi::BindingSetItem::Texture_UAV(0, probeRayDataTexture),
             nvrhi::BindingSetItem::Texture_UAV(1, m_GIVolume.m_ProbeIrradiance),
             nvrhi::BindingSetItem::Texture_UAV(2, m_GIVolume.m_ProbeDistance),
@@ -501,28 +488,8 @@ public:
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-        rootConsts.volumeConstantsIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 0;
-        rootConsts.volumeResourceIndicesIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-
-        rtxgi::DDGIVolumeResourceIndices volumeResourceIndices;
-        volumeResourceIndices.rayDataUAVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-        volumeResourceIndices.rayDataSRVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-        volumeResourceIndices.probeIrradianceUAVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-        volumeResourceIndices.probeIrradianceSRVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-        volumeResourceIndices.probeDistanceUAVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-        volumeResourceIndices.probeDistanceSRVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-        volumeResourceIndices.probeDataUAVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-        volumeResourceIndices.probeDataSRVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-        volumeResourceIndices.probeVariabilityUAVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 6;
-        volumeResourceIndices.probeVariabilitySRVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 6;
-        volumeResourceIndices.probeVariabilityAverageUAVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 7;
-        volumeResourceIndices.probeVariabilityAverageSRVIndex = bindingSet->m_ResourceDescriptorHeapStartIdx + 7;
-        commandList->writeBuffer(volumeResourceIndicesBuffer, &volumeResourceIndices, sizeof(volumeResourceIndices));
-
         UINT probeCountX, probeCountY, probeCountZ;
         rtxgi::GetDDGIVolumeProbeCounts(volumeDesc, probeCountX, probeCountY, probeCountZ);
-
-        rootConsts.volumeConstantsIndex = bindingSet->m_ResourceDescriptorHeapStartIdx;
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
@@ -709,8 +676,7 @@ public:
             bindingSetDesc.bindings =
             {
                 nvrhi::BindingSetItem::ConstantBuffer(0, passParametersBuffer),
-                nvrhi::BindingSetItem::PushConstants(1, sizeof(GIProbeVisualizationUpdateResourceIndices)),
-                nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB), // TODO: remove after bindless refactoring
+                nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(10, GIVolumeDescsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, probePositionsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(1, probeDrawIndirectArgsBuffer),
@@ -723,22 +689,12 @@ public:
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-            GIProbeVisualizationUpdateResourceIndices passResourceIndices;
-            passResourceIndices.m_DDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-            passResourceIndices.m_OutProbePositionsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-            passResourceIndices.m_OutProbeIndirectArgsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-            passResourceIndices.m_OutInstanceIndexToProbeIndexIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-            passResourceIndices.m_ProbeDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-            passResourceIndices.m_LinearClampMinReductionSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx + 0;
-
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "giprobevisualization_CS_VisualizeGIProbesCulling";
             computePassParams.m_BindingSets = { bindingSet };
             computePassParams.m_BindingLayouts = { bindingLayout };
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(numProbes, kNumThreadsPerWave);
-            computePassParams.m_PushConstantsData = &passResourceIndices;
-            computePassParams.m_PushConstantsBytes = sizeof(passResourceIndices);
 
             g_Graphic.AddComputePass(computePassParams);
         }
@@ -777,13 +733,6 @@ public:
             nvrhi::BindingSetHandle bindingSet;
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-            passParameters.m_InProbePositionsIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 0;
-            passParameters.m_VisProbeDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-            passParameters.m_VisProbeIrradianceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-            passParameters.m_VisDDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-            passParameters.m_InInstanceIndexToProbeIndexIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-            passParameters.m_LinearWrapSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx + 0;
 
             nvrhi::BlendState blendState;
             blendState.targets[0] = g_CommonResources.BlendOpaque;

@@ -58,11 +58,6 @@ public:
         nvrhi::BindingLayoutHandle bindingLayout;
         g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-        assert(bindingSet->m_ResourceDescriptorHeapStartIdx != ~0u);
-        passParameters.m_ColorInputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        passParameters.m_AverageLuminanceBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-        passParameters.m_BloomTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-
         Graphic::FullScreenPassParams fullScreenPassParams;
         fullScreenPassParams.m_CommandList = commandList;
         fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;

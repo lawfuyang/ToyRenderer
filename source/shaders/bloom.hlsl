@@ -3,9 +3,8 @@
 #include "ShaderInterop.h"
 
 cbuffer g_BloomConstsBuffer : register(b0) { BloomConsts g_BloomConsts; }
-static Texture2D g_DownsampleSourceTexture = ResourceDescriptorHeap[g_BloomConsts.m_DownsampleSourceTextureIdx];
-static Texture2D g_UpsampleSourceTexture = ResourceDescriptorHeap[g_BloomConsts.m_UpsampleSourceTextureIdx];
-static sampler g_LinearClampSampler = SamplerDescriptorHeap[g_BloomConsts.m_LinearClampSamplerIdx];
+Texture2D g_DownsampleSourceTexture : register(t0);
+sampler g_LinearClampSampler : register(s0);
 
 float KarisAverage(float3 col)
 {
@@ -88,6 +87,8 @@ void PS_Downsample(
     
     outColor = float4(downsample, 1.0f);
 }
+
+Texture2D g_UpsampleSourceTexture : register(t0);
 
 void PS_Upsample(
     in float4 inPosition : SV_POSITION,

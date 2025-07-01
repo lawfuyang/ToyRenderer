@@ -73,8 +73,6 @@ struct AdaptExposureParameters
     float m_LogLuminanceRange;
     float m_AdaptationSpeed;
     uint32_t m_NbPixels;
-    uint32_t m_HistogramIdx;
-    uint32_t m_LuminanceBufferIdx;
 };
 
 struct BasePassConstants
@@ -107,9 +105,6 @@ struct BloomConsts
     Vector2 m_InvSourceResolution;
     float m_FilterRadius;
     uint32_t m_bIsFirstDownsample;
-    uint32_t m_DownsampleSourceTextureIdx;
-    uint32_t m_LinearClampSamplerIdx;
-    uint32_t m_UpsampleSourceTextureIdx;
 };
 
 struct DeferredLightingConsts
@@ -122,22 +117,6 @@ struct DeferredLightingConsts
     float m_DirectionalLightStrength;
     Vector2U m_LightingOutputResolution;
     uint32_t m_GIEnabled;
-};
-
-struct DeferredLightingResourceIndices
-{
-    uint32_t m_GBufferAIdx;
-    uint32_t m_GBufferMotionIdx;
-    uint32_t m_DepthBufferIdx;
-    uint32_t m_SSAOTextureIdx;
-    uint32_t m_ShadowMaskTextureIdx;
-    uint32_t m_DDGIVolumesIdx;
-    uint32_t m_ProbeDataIdx;
-    uint32_t m_ProbeIrradianceIdx;
-    uint32_t m_ProbeDistanceIdx;
-    uint32_t m_LightingOutputIdx;
-    uint32_t m_PointClampSamplerIdx;
-    uint32_t m_LinearWrapSamplerIdx;
 };
 
 struct DrawIndirectArguments
@@ -169,8 +148,6 @@ struct GenerateLuminanceHistogramParameters
     Vector2U m_SrcColorDims;
     float m_MinLogLuminance;
     float m_InverseLogLuminanceRange;
-    uint32_t m_SrcColorIdx;
-    uint32_t m_HistogramOutIdx;
 };
 
 struct GPUCullingPassConstants
@@ -267,11 +244,6 @@ struct PackNormalAndRoughnessConsts
     Vector2U m_OutputResolution;
 };
 
-struct FullScreenPassThroughResourcesIndices
-{
-    uint32_t m_InputTextureIdx;
-};
-
 struct PostProcessParameters
 {
     Vector2U m_OutputDims;
@@ -279,9 +251,6 @@ struct PostProcessParameters
     float m_MiddleGray;
     float m_WhitePoint;
     float m_BloomStrength;
-    uint32_t m_ColorInputIdx;
-    uint32_t m_AverageLuminanceBufferIdx;
-    uint32_t m_BloomTextureIdx;
 };
 
 struct GIProbeTraceConsts
@@ -306,27 +275,11 @@ struct GIProbeVisualizationUpdateConsts
     uint32_t m_HZBIdxInHeap;
 };
 
-struct GIProbeVisualizationUpdateResourceIndices
-{
-    uint32_t m_OutProbePositionsIdx;
-    uint32_t m_OutProbeIndirectArgsIdx;
-    uint32_t m_OutInstanceIndexToProbeIndexIdx;
-    uint32_t m_DDGIVolumesIdx;
-    uint32_t m_ProbeDataIdx;
-    uint32_t m_LinearClampMinReductionSamplerIdx;
-};
-
 struct GIProbeVisualizationConsts
 {
     Matrix m_WorldToClip;
     Vector3 m_CameraDirection;
     float m_ProbeRadius;
-    uint32_t m_InProbePositionsIdx;
-    uint32_t m_VisProbeDataIdx;
-    uint32_t m_VisProbeIrradianceIdx;
-    uint32_t m_VisDDGIVolumesIdx;
-    uint32_t m_InInstanceIndexToProbeIndexIdx;
-    uint32_t m_LinearWrapSamplerIdx;
 };
 
 // VS-friendly Vertex Layout
@@ -381,38 +334,15 @@ struct UpdateInstanceConstsPassConstants
     uint32_t m_NumInstances;
 };
 
-struct XeGTAOPrefilterDepthsResourceIndices
-{
-    uint32_t m_SrcRawDepthIdx;
-    uint32_t m_OutWorkingDepthMIP0Idx;
-    uint32_t m_OutWorkingDepthMIP1Idx;
-    uint32_t m_OutWorkingDepthMIP2Idx;
-    uint32_t m_OutWorkingDepthMIP3Idx;
-    uint32_t m_OutWorkingDepthMIP4Idx;
-    uint32_t m_PointClampSamplerIdx;
-};
-
 struct XeGTAOMainPassConstantBuffer
 {
     Matrix m_WorldToViewNoTranslate;
     uint32_t m_Quality;
-    uint32_t m_SrcWorkingDepthIdx;
-    uint32_t m_SrcHilbertLUTIdx;
-    uint32_t m_GBufferAIdx;
-    uint32_t m_OutWorkingAOTermIdx;
-    uint32_t m_OutWorkingEdgesIdx;
-    uint32_t m_DebugOutputIdx;
-    uint32_t m_PointClampSamplerIdx;
 };
 
 struct XeGTAODenoiseConstants
 {
     uint32_t m_FinalApply;
-    uint32_t m_SrcWorkingAOTermIdx;
-    uint32_t m_SrcWorkingEdgesIdx;
-    uint32_t m_OutFinalAOTermIdx;
-    uint32_t m_DebugOutputIdx;
-    uint32_t m_PointClampSamplerIdx;
 };
 
 #endif // #define _SHADER_INTEROP_H_

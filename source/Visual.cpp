@@ -26,7 +26,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     assert(textureDesc.depth == 1);
 
     m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-    g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_NVRHITextureHandle, nvrhi::ResourceType::Texture_SRV);
+    g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_NVRHITextureHandle);
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
@@ -111,7 +111,7 @@ void Texture::LoadFromFile(std::string_view filePath)
         assert(0);
     }
 
-    g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_NVRHITextureHandle, nvrhi::ResourceType::Texture_SRV);
+    g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_NVRHITextureHandle);
 
     const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
     LOG_DEBUG("New Texture: %s, %d x %d, %s", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));

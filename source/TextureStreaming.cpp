@@ -239,10 +239,6 @@ void Scene::FinalizeTextureStreamingRequests()
 
             nvrhi::TextureHandle originalTextureHandle = texture.m_NVRHITextureHandle;
 
-            // sanity check. no UAVs for streamable textures
-            assert(originalTextureHandle->uavIndexInTable == UINT_MAX);
-            assert(request.m_NewTextureHandle->uavIndexInTable == UINT_MAX);
-
             texture.m_NVRHITextureHandle = request.m_NewTextureHandle;
             texture.m_HighestStreamedMip = request.m_RequestedMip;
 

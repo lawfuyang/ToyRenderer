@@ -65,7 +65,6 @@ public:
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
         g_Scene->m_InstanceConstsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-        g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Scene->m_InstanceConstsBuffer, nvrhi::ResourceType::StructuredBuffer_UAV);
 
         commandList->writeBuffer(g_Scene->m_InstanceConstsBuffer, instanceConstsBytes.data(), instanceConstsBytes.size() * sizeof(BasePassInstanceConstants));
     }
@@ -89,7 +88,6 @@ public:
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
             g_Scene->m_NodeLocalTransformsBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-            g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Scene->m_NodeLocalTransformsBuffer, nvrhi::ResourceType::StructuredBuffer_SRV);
         }
 
         commandList->writeBuffer(g_Scene->m_NodeLocalTransformsBuffer, g_Scene->m_NodeLocalTransforms.data(), g_Scene->m_NodeLocalTransforms.size() * sizeof(NodeLocalTransform));
@@ -102,7 +100,6 @@ public:
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
             g_Scene->m_PrimitiveIDToNodeIDBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-            g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Scene->m_PrimitiveIDToNodeIDBuffer, nvrhi::ResourceType::StructuredBuffer_SRV);
         }
 
         std::vector<uint32_t> primitiveIDToNodeIDBytes;
@@ -634,7 +631,6 @@ public:
 		desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
 		g_Scene->m_HZB = g_Graphic.m_NVRHIDevice->createTexture(desc);
-        g_Graphic.RegisterInSrvUavCbvDescriptorTable(g_Scene->m_HZB, nvrhi::ResourceType::Texture_UAV);
 
 		nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
 		SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "GBufferRenderer::Initialize");
@@ -728,7 +724,6 @@ public:
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =
             {
-                nvrhi::BindingSetItem::PushConstants(0, sizeof(FullScreenPassThroughResourcesIndices)),
                 nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
             };
 
@@ -741,19 +736,12 @@ public:
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-            assert(bindingSet->m_ResourceDescriptorHeapStartIdx != ~0u);
-
-            FullScreenPassThroughResourcesIndices resourcesIndices;
-            resourcesIndices.m_InputTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-
             Graphic::FullScreenPassParams fullScreenPassParams;
             fullScreenPassParams.m_CommandList = commandList;
             fullScreenPassParams.m_FrameBufferDesc = frameBufferDescDepthBufferCopy;
             fullScreenPassParams.m_BindingSets = { bindingSet };
             fullScreenPassParams.m_BindingLayouts = { bindingLayout };
             fullScreenPassParams.m_ShaderName = "fullscreen_PS_Passthrough";
-            fullScreenPassParams.m_PushConstantsData = &resourcesIndices;
-            fullScreenPassParams.m_PushConstantsBytes = sizeof(resourcesIndices);
 
             g_Graphic.AddFullScreenPass(fullScreenPassParams);
         }

@@ -124,9 +124,6 @@ public:
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-            passParameters.m_SrcColorIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-            passParameters.m_HistogramOutIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "adaptluminance_CS_GenerateLuminanceHistogram";
@@ -157,9 +154,6 @@ public:
             nvrhi::BindingSetHandle bindingSet;
             nvrhi::BindingLayoutHandle bindingLayout;
             g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-            passParameters.m_HistogramIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-            passParameters.m_LuminanceBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
 
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;

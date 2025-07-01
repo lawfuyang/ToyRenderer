@@ -92,9 +92,6 @@ public:
 			nvrhi::BindingLayoutHandle bindingLayout;
 			g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-			bloomConsts.m_DownsampleSourceTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-            bloomConsts.m_LinearClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
-
 			const nvrhi::Viewport viewPort = nvrhi::Viewport{ (float)destRes.x, (float)destRes.y };
 
 			Graphic::FullScreenPassParams fullScreenPassParams;
@@ -134,9 +131,6 @@ public:
 			nvrhi::BindingSetHandle bindingSet;
 			nvrhi::BindingLayoutHandle bindingLayout;
 			g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
-            bloomConsts.m_UpsampleSourceTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-            bloomConsts.m_LinearClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
 
 			const nvrhi::Viewport viewPort = nvrhi::Viewport{ (float)destRes.x, (float)destRes.y };
 

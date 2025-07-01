@@ -3,8 +3,8 @@
 #include "ShaderInterop.h"
 
 cbuffer GenerateLuminanceHistogramParametersConstantBuffer : register(b0) { GenerateLuminanceHistogramParameters g_GenerateLuminanceHistogramParameters; }
-static Texture2D g_SrcColor = ResourceDescriptorHeap[g_GenerateLuminanceHistogramParameters.m_SrcColorIdx];
-static RWStructuredBuffer<uint> g_HistogramOut = ResourceDescriptorHeap[g_GenerateLuminanceHistogramParameters.m_HistogramOutIdx];
+Texture2D g_SrcColor : register(t0);
+RWStructuredBuffer<uint> g_HistogramOut : register(u0);
 
 // Shared histogram buffer used for storing intermediate sums for each work group
 groupshared uint gs_Histogram[256];
@@ -49,8 +49,8 @@ void CS_GenerateLuminanceHistogram(
 }
 
 cbuffer AdaptExposureParametersConstantBuffer : register(b0) { AdaptExposureParameters g_AdaptExposureParameters; }
-static StructuredBuffer<uint> g_Histogram = ResourceDescriptorHeap[g_AdaptExposureParameters.m_HistogramIdx];
-static RWStructuredBuffer<float> g_LuminanceBuffer = ResourceDescriptorHeap[g_AdaptExposureParameters.m_LuminanceBufferIdx];
+StructuredBuffer<uint> g_Histogram : register(t0);
+RWStructuredBuffer<float> g_LuminanceBuffer : register(u0);
 
 groupshared uint gs_LuminanceBins[256];
 

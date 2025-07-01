@@ -86,7 +86,6 @@ public:
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {
 			nvrhi::BindingSetItem::ConstantBuffer(0, passConstantBuffer),
-			nvrhi::BindingSetItem::PushConstants(1, sizeof(DeferredLightingResourceIndices)),
 			nvrhi::BindingSetItem::Texture_SRV(0, GBufferATexture),
             nvrhi::BindingSetItem::Texture_SRV(1, GBufferMotionTexture),
 			nvrhi::BindingSetItem::Texture_SRV(2, depthBufferCopyTexture),
@@ -116,23 +115,6 @@ public:
 		nvrhi::BindingLayoutHandle bindingLayout;
 		g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
 
-		assert(bindingSet->m_ResourceDescriptorHeapStartIdx != ~0u);
-        assert(bindingSet->m_SamplerDescriptorHeapStartIdx != ~0u);
-
-		DeferredLightingResourceIndices rootConsts;
-		rootConsts.m_GBufferAIdx = bindingSet->m_ResourceDescriptorHeapStartIdx;
-        rootConsts.m_GBufferMotionIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 1;
-        rootConsts.m_DepthBufferIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 2;
-        rootConsts.m_SSAOTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 3;
-        rootConsts.m_ShadowMaskTextureIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 4;
-        rootConsts.m_DDGIVolumesIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 5;
-        rootConsts.m_ProbeDataIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 6;
-        rootConsts.m_ProbeIrradianceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 7;
-        rootConsts.m_ProbeDistanceIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 8;
-        rootConsts.m_LightingOutputIdx = bindingSet->m_ResourceDescriptorHeapStartIdx + 9;
-        rootConsts.m_PointClampSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx;
-        rootConsts.m_LinearWrapSamplerIdx = bindingSet->m_SamplerDescriptorHeapStartIdx + 1;
-
 		Graphic::FullScreenPassParams fullScreenPassParams;
 		fullScreenPassParams.m_CommandList = commandList;
 		fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
@@ -140,8 +122,6 @@ public:
 		fullScreenPassParams.m_BindingLayouts = { bindingLayout };
 		fullScreenPassParams.m_ShaderName = shaderName;
 		fullScreenPassParams.m_DepthStencilState = &depthStencilState;
-		fullScreenPassParams.m_PushConstantsData = &rootConsts;
-		fullScreenPassParams.m_PushConstantsBytes = sizeof(rootConsts);
 
 		g_Graphic.AddFullScreenPass(fullScreenPassParams);
 	}
