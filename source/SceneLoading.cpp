@@ -506,14 +506,15 @@ struct GLTFSceneLoader
                 Texture& tex = g_Scene->m_Textures.at(sceneTextureView.m_TextureIdx);
 
                 // need to fit srv index in bottom 30 bits of the packed value
-                assert(tex.m_NVRHITextureHandle->srvIndexInTable < (1u << 30));
+                const uint32_t srvIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_NVRHITextureHandle->srvIndexInTable);
+                assert(srvIndexInHeap < (1u << 30));
 
                 const uint32_t samplerHeapIdx = (uint32_t)sceneTextureView.m_AddressMode;
 
                 // need to fix sampler index in top 2 bits of the packed value
                 assert(samplerHeapIdx < (1u << 2));
 
-                return (tex.m_NVRHITextureHandle->srvIndexInTable) | (samplerHeapIdx << 30);
+                return srvIndexInHeap| (samplerHeapIdx << 30);
             };
 
             MaterialData& materialData = m_GlobalMaterialData[i];
