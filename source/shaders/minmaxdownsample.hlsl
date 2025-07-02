@@ -3,9 +3,9 @@
 #include "ShaderInterop.h"
 
 cbuffer g_MinMaxDownsampleConstsBuffer : register(b0) { MinMaxDownsampleConsts g_MinMaxDownsampleConsts; }
-static Texture2D<float> g_Input : register(t0);
-static RWTexture2D<float> g_Output : register(u0);
-static SamplerState g_PointClampSampler : register(s0);
+Texture2D<float> g_Input : register(t0);
+RWTexture2D<float> g_Output : register(u0);
+SamplerState g_PointClampSampler : register(s0);
 
 [numthreads(8, 8, 1)]
 void CS_Main(

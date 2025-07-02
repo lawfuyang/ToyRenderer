@@ -22,15 +22,15 @@
 #endif
 
 cbuffer g_GPUCullingPassConstantsBuffer : register(b0) { GPUCullingPassConstants g_GPUCullingPassConstants; }
-static StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
-static StructuredBuffer<uint> g_PrimitiveIndices : register(t1);
-static StructuredBuffer<MeshData> g_MeshData : register(t2);
-static Texture2D g_HZB : register(t3);
-static RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(u0);
-static RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer : register(u1);
-static RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u2);
-static RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u3);
-static SamplerState g_LinearClampMinReductionSampler : register(s0);
+StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t0);
+StructuredBuffer<uint> g_PrimitiveIndices : register(t1);
+StructuredBuffer<MeshData> g_MeshData : register(t2);
+Texture2D g_HZB : register(t3);
+RWStructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(u0);
+RWStructuredBuffer<DispatchIndirectArguments> g_MeshletDispatchArgumentsBuffer : register(u1);
+RWStructuredBuffer<uint> g_LateCullInstanceIndicesCounter : register(u2);
+RWStructuredBuffer<uint> g_LateCullInstanceIndicesBuffer : register(u3);
+SamplerState g_LinearClampMinReductionSampler : register(s0);
 
 void SubmitInstance(uint instanceConstsIdx, BasePassInstanceConstants instanceConsts, float4 boundingSphereViewSpace)
 {
