@@ -271,8 +271,6 @@ struct GIProbeVisualizationUpdateConsts
     float m_NearPlane;
     float m_ProbeRadius;
     uint32_t m_bHideInactiveProbes;
-
-    uint32_t m_HZBIdxInHeap;
 };
 
 struct GIProbeVisualizationConsts
