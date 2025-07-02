@@ -111,15 +111,10 @@ public:
 		const bool bHasDebugView = g_Scene->m_DebugViewMode != 0;
 		const char* shaderName = bHasDebugView ? "deferredlighting_PS_Main_Debug" : "deferredlighting_PS_Main";
 
-		nvrhi::BindingSetHandle bindingSet;
-		nvrhi::BindingLayoutHandle bindingLayout;
-		g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
 		Graphic::FullScreenPassParams fullScreenPassParams;
 		fullScreenPassParams.m_CommandList = commandList;
 		fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-		fullScreenPassParams.m_BindingSets = { bindingSet };
-		fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+		fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
 		fullScreenPassParams.m_ShaderName = shaderName;
 		fullScreenPassParams.m_DepthStencilState = &depthStencilState;
 

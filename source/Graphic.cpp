@@ -823,12 +823,21 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
 
     const nvrhi::DepthStencilState& depthStencilState = depthStencilStateIn ? *depthStencilStateIn : g_CommonResources.DepthNoneStencilNone;
 
+    nvrhi::BindingSetHandle bindingSet;
+    nvrhi::BindingLayoutHandle bindingLayout;
+    g_Graphic.CreateBindingSetAndLayout(fullScreenPassParams.m_BindingSetDesc, bindingSet, bindingLayout);
+
     // PSO
     nvrhi::MeshletPipelineDesc PSODesc;
     PSODesc.MS = GetShader("fullscreen_MS_FullScreenTriangle");
     PSODesc.PS = GetShader(fullScreenPassParams.m_ShaderName);
     PSODesc.renderState = nvrhi::RenderState{ blendState, depthStencilState, g_CommonResources.CullNone };
-    std::copy(fullScreenPassParams.m_BindingLayouts.begin(), fullScreenPassParams.m_BindingLayouts.end(), std::back_inserter(PSODesc.bindingLayouts));
+    PSODesc.bindingLayouts.push_back(bindingLayout);
+    
+    for (nvrhi::BindingLayoutHandle extraBindingLayout : fullScreenPassParams.m_ExtraBindingLayouts)
+    {
+        PSODesc.bindingLayouts.push_back(extraBindingLayout);
+    }
 
     nvrhi::FramebufferHandle frameBuffer = m_NVRHIDevice->createFramebuffer(frameBufferDesc);
 
@@ -840,8 +849,12 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
     meshletState.framebuffer = frameBuffer;
     meshletState.viewport.addViewportAndScissorRect(viewPort);
     meshletState.pipeline = GetOrCreatePSO(PSODesc, frameBuffer);
+    meshletState.bindings.push_back(bindingSet);
 
-    std::copy(fullScreenPassParams.m_BindingSets.begin(), fullScreenPassParams.m_BindingSets.end(), std::back_inserter(meshletState.bindings));
+    for (nvrhi::BindingSetHandle extraBindingSet : fullScreenPassParams.m_ExtraBindingSets)
+    {
+        meshletState.bindings.push_back(extraBindingSet);
+    }
 
     commandList->setMeshletState(meshletState);
 
@@ -861,13 +874,27 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     PROFILE_FUNCTION();
     PROFILE_GPU_SCOPED(computePassParams.m_CommandList, computePassParams.m_ShaderName.data());
 
+    nvrhi::BindingSetHandle bindingSet;
+    nvrhi::BindingLayoutHandle bindingLayout;
+    g_Graphic.CreateBindingSetAndLayout(computePassParams.m_BindingSetDesc, bindingSet, bindingLayout);
+
     nvrhi::ComputePipelineDesc pipelineDesc;
     pipelineDesc.CS = GetShader(computePassParams.m_ShaderName);
-    std::copy(computePassParams.m_BindingLayouts.begin(), computePassParams.m_BindingLayouts.end(), std::back_inserter(pipelineDesc.bindingLayouts));
+    pipelineDesc.bindingLayouts.push_back(bindingLayout);
+
+    for (nvrhi::BindingLayoutHandle extraBindingLayout : computePassParams.m_ExtraBindingLayouts)
+    {
+        pipelineDesc.bindingLayouts.push_back(extraBindingLayout);
+    }
 
     nvrhi::ComputeState computeState;
     computeState.pipeline = GetOrCreatePSO(pipelineDesc);
-    std::copy(computePassParams.m_BindingSets.begin(), computePassParams.m_BindingSets.end(), std::back_inserter(computeState.bindings));
+    computeState.bindings.push_back(bindingSet);
+    
+    for (nvrhi::BindingSetHandle extraBindingSet : computePassParams.m_ExtraBindingSets)
+    {
+        computeState.bindings.push_back(extraBindingSet);
+    }
 
     if (computePassParams.m_IndirectArgsBuffer)
     {

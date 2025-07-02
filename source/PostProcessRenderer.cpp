@@ -54,15 +54,10 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
         };
 
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
         Graphic::FullScreenPassParams fullScreenPassParams;
         fullScreenPassParams.m_CommandList = commandList;
         fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-        fullScreenPassParams.m_BindingSets = { bindingSet };
-        fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+        fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
         fullScreenPassParams.m_ShaderName = "postprocess_PS_PostProcess";
         fullScreenPassParams.m_PushConstantsData = &passParameters;
         fullScreenPassParams.m_PushConstantsBytes = sizeof(passParameters);

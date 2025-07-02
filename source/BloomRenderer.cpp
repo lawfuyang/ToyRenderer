@@ -88,17 +88,12 @@ public:
 			nvrhi::FramebufferDesc frameBufferDesc;
 			frameBufferDesc.addColorAttachment(bloomTexture, nvrhi::TextureSubresourceSet{ destMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices });
 
-			nvrhi::BindingSetHandle bindingSet;
-			nvrhi::BindingLayoutHandle bindingLayout;
-			g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
 			const nvrhi::Viewport viewPort = nvrhi::Viewport{ (float)destRes.x, (float)destRes.y };
 
 			Graphic::FullScreenPassParams fullScreenPassParams;
 			fullScreenPassParams.m_CommandList = commandList;
 			fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-			fullScreenPassParams.m_BindingSets = { bindingSet };
-			fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+			fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
 			fullScreenPassParams.m_ShaderName = "bloom_PS_Downsample";
             fullScreenPassParams.m_ViewPort = &viewPort;
 			fullScreenPassParams.m_PushConstantsData = &bloomConsts;
@@ -128,17 +123,12 @@ public:
 			nvrhi::FramebufferDesc frameBufferDesc;
 			frameBufferDesc.addColorAttachment(bloomTexture, nvrhi::TextureSubresourceSet{ destMip, 1, 0, nvrhi::TextureSubresourceSet::AllArraySlices });
 
-			nvrhi::BindingSetHandle bindingSet;
-			nvrhi::BindingLayoutHandle bindingLayout;
-			g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
 			const nvrhi::Viewport viewPort = nvrhi::Viewport{ (float)destRes.x, (float)destRes.y };
 
 			Graphic::FullScreenPassParams fullScreenPassParams;
 			fullScreenPassParams.m_CommandList = commandList;
 			fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-			fullScreenPassParams.m_BindingSets = { bindingSet };
-			fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+			fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
 			fullScreenPassParams.m_ShaderName = "bloom_PS_Upsample";
 			fullScreenPassParams.m_ViewPort = &viewPort;
 			fullScreenPassParams.m_PushConstantsData = &bloomConsts;

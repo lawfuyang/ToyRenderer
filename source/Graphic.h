@@ -107,8 +107,9 @@ public:
     {
         nvrhi::CommandListHandle m_CommandList;
         std::string m_ShaderName;
-        SmallVector<nvrhi::BindingSetHandle, 2> m_BindingSets;
-        SmallVector<nvrhi::BindingLayoutHandle, 2> m_BindingLayouts;
+        nvrhi::BindingSetDesc m_BindingSetDesc;
+        SmallVector<nvrhi::BindingSetHandle, 1> m_ExtraBindingSets;
+        SmallVector<nvrhi::BindingLayoutHandle, 1> m_ExtraBindingLayouts;
         const void* m_PushConstantsData = nullptr;
         size_t m_PushConstantsBytes = 0;
     };

@@ -302,15 +302,12 @@ public:
             nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
         };
 
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "shadowmask_CS_ShadowMask";
-        computePassParams.m_BindingSets = { bindingSet, g_Graphic.GetSrvUavCbvDescriptorTable() };
-        computePassParams.m_BindingLayouts = { bindingLayout, g_Graphic.m_SrvUavCbvBindlessLayout };
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_ExtraBindingSets = { g_Graphic.GetSrvUavCbvDescriptorTable() };
+        computePassParams.m_ExtraBindingLayouts = { g_Graphic.m_SrvUavCbvBindlessLayout };
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_OutputResolution, 8);
 
         g_Graphic.AddComputePass(computePassParams);
@@ -331,15 +328,10 @@ public:
             nvrhi::BindingSetItem::Texture_UAV(0, normalRoughnessTexture)
         };
 
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "shadowmask_CS_PackNormalAndRoughness";
-        computePassParams.m_BindingSets = { bindingSet };
-        computePassParams.m_BindingLayouts = { bindingLayout };
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_OutputResolution, 8);
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);
@@ -492,15 +484,10 @@ public:
             }
             assert(resourceIndex == dispatchDesc.resourcesNum);
 
-            nvrhi::BindingSetHandle bindingSet;
-            nvrhi::BindingLayoutHandle bindingLayout;
-            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = nrdPipelineDesc.shaderFileName;
-            computePassParams.m_BindingSets = { bindingSet };
-            computePassParams.m_BindingLayouts = { bindingLayout };
+            computePassParams.m_BindingSetDesc = bindingSetDesc;
             computePassParams.m_DispatchGroupSize = {dispatchDesc.gridWidth, dispatchDesc.gridHeight, 1};
 
             if (instanceDesc.samplersNum > 0)
@@ -516,8 +503,8 @@ public:
                 nvrhi::BindingLayoutHandle samplersBindingLayout;
                 g_Graphic.CreateBindingSetAndLayout(samplersBindingSetDesc, samplersBindingSet, samplersBindingLayout, 1); // NOTE: samplers are in register space 1, as of NRD 4.15
 
-                computePassParams.m_BindingSets.push_back(samplersBindingSet);
-                computePassParams.m_BindingLayouts.push_back(samplersBindingLayout);
+                computePassParams.m_ExtraBindingSets = { samplersBindingSet };
+                computePassParams.m_ExtraBindingLayouts = { samplersBindingLayout };
             }
 
             g_Graphic.AddComputePass(computePassParams);

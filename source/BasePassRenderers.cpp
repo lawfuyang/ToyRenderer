@@ -152,15 +152,10 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_UAV(1, g_Scene->m_TLASInstanceDescsBuffer),
         };
 
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "updateinstanceconsts_CS_UpdateInstanceConstsAndBuildTLAS";
-        computePassParams.m_BindingSets = { bindingSet };
-        computePassParams.m_BindingLayouts = { bindingLayout };
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(passConstants.m_NumInstances, kNumThreadsPerWave);
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);
@@ -375,17 +370,12 @@ public:
 
         const std::string shaderName = StringFormat("gpuculling_CS_GPUCulling LATE_CULL=%d", bLateCull);
 
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
         if (!bLateCull)
         {
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = shaderName;
-            computePassParams.m_BindingSets = { bindingSet };
-            computePassParams.m_BindingLayouts = { bindingLayout };
+            computePassParams.m_BindingSetDesc = bindingSetDesc;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(nbInstances, kNumThreadsPerWave);
 
             g_Graphic.AddComputePass(computePassParams);
@@ -397,11 +387,8 @@ public:
                     nvrhi::BindingSetItem::StructuredBuffer_UAV(0, lateCullDispatchIndirectArgsBuffer)
                 };
 
-                g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
                 computePassParams.m_ShaderName = "gpuculling_CS_BuildLateCullIndirectArgs";
-                computePassParams.m_BindingSets = { bindingSet };
-                computePassParams.m_BindingLayouts = { bindingLayout };
+                computePassParams.m_BindingSetDesc = bindingSetDesc;
                 computePassParams.m_DispatchGroupSize = Vector3U{ 1, 1, 1 };
 
                 g_Graphic.AddComputePass(computePassParams);
@@ -414,8 +401,7 @@ public:
                 Graphic::ComputePassParams computePassParams;
                 computePassParams.m_CommandList = commandList;
                 computePassParams.m_ShaderName = shaderName;
-                computePassParams.m_BindingSets = { bindingSet };
-                computePassParams.m_BindingLayouts = { bindingLayout };
+                computePassParams.m_BindingSetDesc = bindingSetDesc;
                 computePassParams.m_IndirectArgsBuffer = lateCullDispatchIndirectArgsBuffer;
 
                 g_Graphic.AddComputePass(computePassParams);
@@ -544,15 +530,10 @@ public:
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler)
         };
 
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "minmaxdownsample_CS_Main";
-        computePassParams.m_BindingSets = { bindingSet };
-        computePassParams.m_BindingLayouts = { bindingLayout };
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(m_HZBDimensions, 8);
         computePassParams.m_PushConstantsData = &passParameters;
         computePassParams.m_PushConstantsBytes = sizeof(passParameters);
@@ -732,15 +713,10 @@ public:
             nvrhi::FramebufferDesc frameBufferDescDepthBufferCopy;
             frameBufferDescDepthBufferCopy.addColorAttachment(depthBufferCopy);
 
-            nvrhi::BindingSetHandle bindingSet;
-            nvrhi::BindingLayoutHandle bindingLayout;
-            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
             Graphic::FullScreenPassParams fullScreenPassParams;
             fullScreenPassParams.m_CommandList = commandList;
             fullScreenPassParams.m_FrameBufferDesc = frameBufferDescDepthBufferCopy;
-            fullScreenPassParams.m_BindingSets = { bindingSet };
-            fullScreenPassParams.m_BindingLayouts = { bindingLayout };
+            fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
             fullScreenPassParams.m_ShaderName = "fullscreen_PS_Passthrough";
 
             g_Graphic.AddFullScreenPass(fullScreenPassParams);

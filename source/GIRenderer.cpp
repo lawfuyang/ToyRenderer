@@ -416,10 +416,6 @@ public:
             nvrhi::BindingSetItem::Sampler(4, g_CommonResources.LinearWrapSampler),
         };
 
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
         uint32_t dispatchX, dispatchY, dispatchZ;
         m_GIVolume.GetRayDispatchDimensions(dispatchX, dispatchY, dispatchZ);
 
@@ -430,8 +426,9 @@ public:
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "giprobetrace_CS_ProbeTrace";
-        computePassParams.m_BindingSets = { bindingSet, g_Graphic.GetSrvUavCbvDescriptorTable() };
-        computePassParams.m_BindingLayouts = { bindingLayout, g_Graphic.m_SrvUavCbvBindlessLayout };
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
+        computePassParams.m_ExtraBindingSets = { g_Graphic.GetSrvUavCbvDescriptorTable() };
+        computePassParams.m_ExtraBindingLayouts = { g_Graphic.m_SrvUavCbvBindlessLayout };
         computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(Vector3U{ dispatchX, dispatchY, dispatchZ }, Vector3U{ kNumThreadsPerWave, 1, 1 });
         computePassParams.m_PushConstantsData = &passConstants;
         computePassParams.m_PushConstantsBytes = sizeof(passConstants);
@@ -484,18 +481,13 @@ public:
             nvrhi::BindingSetItem::Texture_UAV(5, probeVariabilityAverageTexture),
         };
 
-        nvrhi::BindingSetHandle bindingSet;
-        nvrhi::BindingLayoutHandle bindingLayout;
-        g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
         UINT probeCountX, probeCountY, probeCountZ;
         rtxgi::GetDDGIVolumeProbeCounts(volumeDesc, probeCountX, probeCountY, probeCountZ);
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
         computePassParams.m_ShaderName = "ProbeBlendingCS_DDGIProbeBlendingCS RTXGI_DDGI_BLEND_RADIANCE=1";
-        computePassParams.m_BindingSets = { bindingSet };
-        computePassParams.m_BindingLayouts = { bindingLayout };
+        computePassParams.m_BindingSetDesc = bindingSetDesc;
         computePassParams.m_DispatchGroupSize = Vector3U{ probeCountX, probeCountY, probeCountZ };
         computePassParams.m_PushConstantsData = &rootConsts;
         computePassParams.m_PushConstantsBytes = sizeof(rootConsts);
@@ -685,15 +677,10 @@ public:
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler),
             };
 
-            nvrhi::BindingSetHandle bindingSet;
-            nvrhi::BindingLayoutHandle bindingLayout;
-            g_Graphic.CreateBindingSetAndLayout(bindingSetDesc, bindingSet, bindingLayout);
-
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
             computePassParams.m_ShaderName = "giprobevisualization_CS_VisualizeGIProbesCulling";
-            computePassParams.m_BindingSets = { bindingSet };
-            computePassParams.m_BindingLayouts = { bindingLayout };
+            computePassParams.m_BindingSetDesc = bindingSetDesc;
             computePassParams.m_DispatchGroupSize = ComputeShaderUtils::GetGroupCount(numProbes, kNumThreadsPerWave);
 
             g_Graphic.AddComputePass(computePassParams);
