@@ -86,12 +86,7 @@ public:
     void RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture);
     uint32_t GetIndexInHeap(uint32_t indexInTable) const;
 
-    void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle)
-    {
-        CreateBindingSetAndLayout(bindingSetDesc, outBindingSetHandle, outLayoutHandle, 0);
-    }
-
-    void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace);
+    void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace = 0);
 
     template <typename T>
     [[nodiscard]] nvrhi::BufferHandle CreateConstantBuffer(nvrhi::CommandListHandle commandList, const T& srcData)
