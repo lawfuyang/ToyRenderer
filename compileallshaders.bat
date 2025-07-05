@@ -68,7 +68,7 @@ goto :eof
 
 :AfterSetGlobalDefineFromCMakeCache
 
-%SHADER_MAKE_EXE% --platform="DXIL" --config=%CONFIG_FILE% --out=%OUT% --binaryBlob --compiler=%DXC_PATH% --shaderModel="6_6" --WX --embedPDB --matrixRowMajor %INCLUDE_DIRS% --outputExt=".bin" --continue --colorize %RELAXED_INCLUDES% --flatten --compilerOptions=%COMPILER_OPTIONS% %GLOBAL_DEFINES%
+%SHADER_MAKE_EXE% --platform="DXIL" --config=%CONFIG_FILE% --out=%OUT% --binaryBlob --compiler=%DXC_PATH% --shaderModel="6_8" --WX --embedPDB --matrixRowMajor %INCLUDE_DIRS% --outputExt=".bin" --continue --colorize %RELAXED_INCLUDES% --flatten --compilerOptions=%COMPILER_OPTIONS% %GLOBAL_DEFINES%
 
 if not "%1" == "NO_PAUSE" (
 	pause
