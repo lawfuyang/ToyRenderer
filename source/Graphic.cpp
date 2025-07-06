@@ -360,7 +360,11 @@ static std::size_t HashCommonGraphicStates(
         HashCombine(psoHash, PS->getDesc().debugName);
     }
 
-    HashCombine(psoHash, HashRawMem(renderState));
+    // for some reason, in Release builds, there's a PSO hash leak when hashing the entire RenderState struct, so we only hash the individual members
+    // did not investigate why
+    HashCombine(psoHash, HashRawMem(renderState.blendState));
+    HashCombine(psoHash, HashRawMem(renderState.depthStencilState));
+    HashCombine(psoHash, HashRawMem(renderState.rasterState));
 
     HashBindingLayout(psoHash, bindingLayouts);
 
