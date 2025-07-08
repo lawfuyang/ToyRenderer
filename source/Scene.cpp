@@ -473,6 +473,7 @@ void Scene::Update()
         UpdateAnimations();
     }
 
+    StressTestTextureMipRequests();
     FinalizeTextureStreamingRequests();
 
     tf::Taskflow tf;
@@ -600,43 +601,7 @@ void Scene::UpdateIMGUI()
         ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
         ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, Graphic::kMaxNumMeshLODs - 1);
 
-        ImGui::Text("Texture Mip Bias");
-        ImGui::SameLine();
-        if (ImGui::Button("- -"))
-        {
-            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
-            {
-                Texture& tex = g_Scene->m_Textures[i];
-                AddTextureStreamingRequest(tex, tex.m_CurrentlyStreamedMip - 2);
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("-"))
-        {
-            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
-            {
-                Texture& tex = g_Scene->m_Textures[i];
-                AddTextureStreamingRequest(tex, tex.m_CurrentlyStreamedMip - 1);
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("+"))
-        {
-            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
-            {
-                Texture& tex = g_Scene->m_Textures[i];
-                AddTextureStreamingRequest(tex, tex.m_CurrentlyStreamedMip + 1);
-            }
-        }
-        ImGui::SameLine();
-        if  (ImGui::Button("+ +"))
-        {
-            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
-            {
-                Texture& tex = g_Scene->m_Textures[i];
-                AddTextureStreamingRequest(tex, tex.m_CurrentlyStreamedMip + 2);
-            }
-        }
+        ImGui::Checkbox("Stress test texture mip requests", &m_bStressTestTextureMipRequests);
 
         ImGui::TreePop();
     }

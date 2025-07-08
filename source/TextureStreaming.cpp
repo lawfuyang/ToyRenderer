@@ -263,3 +263,12 @@ void Scene::FinalizeTextureStreamingRequests()
         // TriggerDumpProfilingCapture("TextureStreamingRequestsCapture");
     }
 }
+
+void Scene::StressTestTextureMipRequests()
+{
+    if (!m_bStressTestTextureMipRequests)
+    {
+        return;
+    }
+
+}

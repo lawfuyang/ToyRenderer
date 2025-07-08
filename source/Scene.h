@@ -122,6 +122,7 @@ public:
     bool m_bEnableMeshletConeCulling = true;
     bool m_bFreezeCullingCamera = false;
     int m_ForceMeshLOD = -1;
+    bool m_bStressTestTextureMipRequests = false;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;
@@ -162,6 +163,7 @@ private:
     void AddTextureStreamingRequest(Texture& texture, int32_t targetMip);
     void FinalizeTextureStreamingRequests();
     void ProcessTextureStreamingRequestsAsyncIO();
+    void StressTestTextureMipRequests();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;
