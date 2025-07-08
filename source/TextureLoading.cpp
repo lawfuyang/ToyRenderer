@@ -793,7 +793,7 @@ struct DDSFile
                 startMipToRead = minMip;
             }
 
-            texture.m_HighestDetailedStreamedMip = startMipToRead;
+            texture.m_PackedMipIdx = texture.m_CurrentlyStreamedMip = texture.m_InFlightStreamingMip = startMipToRead;
 
             // offset the file read position to the start of the first mip to read
             for (uint32_t i = 0; i < startMipToRead; ++i)

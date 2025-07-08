@@ -10,29 +10,29 @@ void Scene::AddTextureStreamingRequest(Texture& texture, int32_t targetMip)
         return; // texture is not streamed
     }
 
-    targetMip = std::clamp(targetMip, 0, (int32_t)texture.m_NumTextureMips - 1);
+    targetMip = std::clamp(targetMip, 0, (int32_t)texture.m_PackedMipIdx);
 
-    if (texture.m_InFlightStreamingMip == targetMip || texture.m_HighestDetailedStreamedMip == targetMip)
+    if (texture.m_InFlightStreamingMip == targetMip || texture.m_CurrentlyStreamedMip == targetMip)
     {
         return;
     }
 
     assert(texture.m_StreamingMipDatas[targetMip].IsValid());
 
-    const bool bStreamLowerDetailedMip = targetMip > texture.m_HighestDetailedStreamedMip;
+    const bool bStreamLowerDetailedMip = targetMip > texture.m_CurrentlyStreamedMip;
     if (bStreamLowerDetailedMip)
     {
-        const Vector2U currentMipRes = texture.m_StreamingMipDatas[texture.m_HighestDetailedStreamedMip].m_Resolution;
+        const Vector2U currentMipRes = texture.m_StreamingMipDatas[texture.m_CurrentlyStreamedMip].m_Resolution;
         const uint32_t currentMipMaxSize = std::max(currentMipRes.x, currentMipRes.y);
-        const bool bIsPackedMip = currentMipMaxSize <= Graphic::kPackedMipResolution;
-        if (bIsPackedMip)
+        const bool bIsCurrentlyPackedMip = currentMipMaxSize <= Graphic::kPackedMipResolution;
+        if (bIsCurrentlyPackedMip)
         {
             return;
         }
     }
 
-    const bool bHigherDetailedMip = ((uint32_t)targetMip < texture.m_HighestDetailedStreamedMip);
-    const uint32_t mipToStream = (uint32_t)((int32_t)texture.m_HighestDetailedStreamedMip + (bHigherDetailedMip ? -1 : 1));
+    const bool bHigherDetailedMip = ((uint32_t)targetMip < texture.m_CurrentlyStreamedMip);
+    const uint32_t mipToStream = (uint32_t)((int32_t)texture.m_CurrentlyStreamedMip + (bHigherDetailedMip ? -1 : 1));
 
     texture.m_InFlightStreamingMip = mipToStream;
 
@@ -78,7 +78,7 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             assert(streamingMipData.m_NumBytes == request.m_MipBytes.size());
             
             // an IO operation should only be done if the requested mip is higher detailed than the currently streamed mip
-            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_HighestDetailedStreamedMip);
+            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_CurrentlyStreamedMip);
             assert(bHigherDetailedMip);
 
             const nvrhi::TextureDesc& originalDesc = texture.m_NVRHITextureHandle->getDesc();
@@ -119,7 +119,7 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             assert(request.m_MipToStream != UINT_MAX);
             assert(request.m_MipToStream < std::size(texture.m_StreamingMipDatas));
 
-            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_HighestDetailedStreamedMip);
+            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_CurrentlyStreamedMip);
 
             const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_MipToStream];
             assert(streamingMipData.IsValid());
@@ -212,7 +212,7 @@ void Scene::FinalizeTextureStreamingRequests()
             assert(request.m_Texture);
             Texture& texture = *request.m_Texture;
 
-            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_HighestDetailedStreamedMip);
+            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_CurrentlyStreamedMip);
             const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_MipToStream];
             const nvrhi::TextureDesc& originalDesc = texture.m_NVRHITextureHandle->getDesc();
 
@@ -240,7 +240,7 @@ void Scene::FinalizeTextureStreamingRequests()
             texture.m_NVRHITextureHandle = request.m_NewTextureHandle;
 
             assert(texture.m_InFlightStreamingMip == request.m_MipToStream);
-            texture.m_HighestDetailedStreamedMip = texture.m_InFlightStreamingMip;
+            texture.m_CurrentlyStreamedMip = texture.m_InFlightStreamingMip;
 
             // update texture descriptor index
             DescriptorTableManager* descriptorTableManager = g_Graphic.m_SrvUavCbvDescriptorTableManager.get();
