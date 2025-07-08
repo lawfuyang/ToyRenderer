@@ -3,41 +3,41 @@
 #include "Engine.h"
 #include "Graphic.h"
 
-void Scene::AddTextureStreamingRequest(Texture& texture, bool bHigherDetailedMip)
+void Scene::AddTextureStreamingRequest(Texture& texture, int32_t targetMip)
 {
     if (texture.m_StreamingFilePath.empty())
     {
         return; // texture is not streamed
     }
 
-    if (texture.m_HighestStreamedMip == 0 && bHigherDetailedMip)
+    targetMip = std::clamp(targetMip, 0, (int32_t)texture.m_NumTextureMips - 1);
+
+    if (texture.m_InFlightStreamingMip == targetMip || texture.m_HighestDetailedStreamedMip == targetMip)
     {
-        return; // no mip to lower
+        return;
     }
 
-    if (!bHigherDetailedMip)
+    assert(texture.m_StreamingMipDatas[targetMip].IsValid());
+
+    const bool bStreamLowerDetailedMip = targetMip > texture.m_HighestDetailedStreamedMip;
+    if (bStreamLowerDetailedMip)
     {
-        const Vector2U currentMipRes = texture.m_StreamingMipDatas[texture.m_HighestStreamedMip].m_Resolution;
+        const Vector2U currentMipRes = texture.m_StreamingMipDatas[texture.m_HighestDetailedStreamedMip].m_Resolution;
         const uint32_t currentMipMaxSize = std::max(currentMipRes.x, currentMipRes.y);
         const bool bIsPackedMip = currentMipMaxSize <= Graphic::kPackedMipResolution;
         if (bIsPackedMip)
         {
-            return; // no mip to raise
+            return;
         }
     }
 
-    const uint32_t requestedMip = ((int)texture.m_HighestStreamedMip + (bHigherDetailedMip ? -1 : 1));
-    assert(texture.m_StreamingMipDatas[requestedMip].IsValid());
+    const bool bHigherDetailedMip = ((uint32_t)targetMip < texture.m_HighestDetailedStreamedMip);
+    const uint32_t mipToStream = (uint32_t)((int32_t)texture.m_HighestDetailedStreamedMip + (bHigherDetailedMip ? -1 : 1));
 
-    if (texture.m_InFlightStreamingMip == requestedMip)
-    {
-        return; // already in flight
-    }
-
-    texture.m_InFlightStreamingMip = requestedMip;
+    texture.m_InFlightStreamingMip = mipToStream;
 
     AUTO_LOCK(m_TextureStreamingRequestsLock);
-    m_TextureStreamingRequests.push_back(TextureStreamingRequest{ &texture, requestedMip });
+    m_TextureStreamingRequests.push_back(TextureStreamingRequest{ &texture, (uint32_t)targetMip, mipToStream });
 }
 
 void Scene::ProcessTextureStreamingRequestsAsyncIO()
@@ -67,9 +67,9 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             Texture& texture = *request.m_Texture;
             assert(texture.IsValid());
 
-            assert(request.m_RequestedMip != UINT_MAX);
-            assert(request.m_RequestedMip < std::size(texture.m_StreamingMipDatas));
-            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
+            assert(request.m_MipToStream != UINT_MAX);
+            assert(request.m_MipToStream < std::size(texture.m_StreamingMipDatas));
+            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_MipToStream];
             assert(streamingMipData.IsValid());
 
             assert(asyncIOOutcome.offset == streamingMipData.m_DataOffset);
@@ -78,7 +78,7 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             assert(streamingMipData.m_NumBytes == request.m_MipBytes.size());
             
             // an IO operation should only be done if the requested mip is higher detailed than the currently streamed mip
-            const bool bHigherDetailedMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
+            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_HighestDetailedStreamedMip);
             assert(bHigherDetailedMip);
 
             const nvrhi::TextureDesc& originalDesc = texture.m_NVRHITextureHandle->getDesc();
@@ -116,16 +116,13 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
 
             assert(texture.IsValid());
             assert(!texture.m_StreamingFilePath.empty());
-            assert(request.m_RequestedMip != UINT_MAX);
-            assert(request.m_RequestedMip < std::size(texture.m_StreamingMipDatas));
+            assert(request.m_MipToStream != UINT_MAX);
+            assert(request.m_MipToStream < std::size(texture.m_StreamingMipDatas));
 
-            // check that requested mip is only '1' diff from the highest streamed mip
-            assert(std::abs((int)texture.m_HighestStreamedMip - (int)request.m_RequestedMip) == 1);
+            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_HighestDetailedStreamedMip);
 
-            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
+            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_MipToStream];
             assert(streamingMipData.IsValid());
-
-            const bool bHigherDetailedMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
 
             if (bHigherDetailedMip)
             {
@@ -152,7 +149,8 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
 
                 TextureStreamingRequest& inFlightRequest = m_InFlightTextureStreamingRequests[inFlightidx];
                 inFlightRequest.m_Texture = request.m_Texture;
-                inFlightRequest.m_RequestedMip = request.m_RequestedMip;
+                inFlightRequest.m_MipToStream = request.m_MipToStream;
+                inFlightRequest.m_RequestedFinalMip = request.m_RequestedFinalMip;
                 inFlightRequest.m_MipBytes.resize(streamingMipData.m_NumBytes);
 
                 inFlightidx |= 0x80000000; // use the highest bit to mark as in-flight, mainly so that i can simply check for nullptr for userdata ptr
@@ -161,6 +159,7 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
                 // according to the doc, we can close the async IO handle after the read request is submitted
                 SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
 
+                // immediately process & discard the SDL_ASYNCIO_TASK_CLOSE result
                 ProcessAsyncIOResults();
 
                 m_InFlightTextureStreamingRequests.push_back(std::move(request));
@@ -212,10 +211,9 @@ void Scene::FinalizeTextureStreamingRequests()
 
             assert(request.m_Texture);
             Texture& texture = *request.m_Texture;
-            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_RequestedMip];
 
-            const bool bHigherDetailedMip = (request.m_RequestedMip < texture.m_HighestStreamedMip);
-
+            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_HighestDetailedStreamedMip);
+            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_MipToStream];
             const nvrhi::TextureDesc& originalDesc = texture.m_NVRHITextureHandle->getDesc();
 
             if (bHigherDetailedMip)
@@ -240,21 +238,23 @@ void Scene::FinalizeTextureStreamingRequests()
             nvrhi::TextureHandle originalTextureHandle = texture.m_NVRHITextureHandle;
 
             texture.m_NVRHITextureHandle = request.m_NewTextureHandle;
-            texture.m_HighestStreamedMip = request.m_RequestedMip;
+
+            assert(texture.m_InFlightStreamingMip == request.m_MipToStream);
+            texture.m_HighestDetailedStreamedMip = texture.m_InFlightStreamingMip;
 
             // update texture descriptor index
             DescriptorTableManager* descriptorTableManager = g_Graphic.m_SrvUavCbvDescriptorTableManager.get();
             descriptorTableManager->ReleaseDescriptor(originalTextureHandle->srvIndexInTable);
-
-            // sanity check: new texture handle not in the descriptor table yet
             assert(texture.m_NVRHITextureHandle->srvIndexInTable == UINT_MAX);
-
             const uint32_t newTableIndex = descriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle));
-
-            // sanity check: make sure that the descriptor index is the exact same
             assert(originalTextureHandle->srvIndexInTable == newTableIndex);
-
             texture.m_NVRHITextureHandle->srvIndexInTable = newTableIndex;
+
+            // requested mip delta is > 1, add stream request again for next mip
+            if (request.m_MipToStream != request.m_RequestedFinalMip)
+            {
+                AddTextureStreamingRequest(texture, request.m_RequestedFinalMip);
+            }
 
             //LOG_DEBUG("Texture Streaming Request Finalized: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_RequestedMip);
         }

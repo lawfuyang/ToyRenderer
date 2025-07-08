@@ -71,7 +71,8 @@ public:
 struct TextureStreamingRequest
 {
     Texture* m_Texture = nullptr;
-    uint32_t m_RequestedMip = UINT_MAX;
+    uint32_t m_RequestedFinalMip = UINT_MAX;
+    uint32_t m_MipToStream = UINT_MAX;
     std::vector<std::byte> m_MipBytes;
     nvrhi::TextureHandle m_NewTextureHandle;
 };
@@ -158,7 +159,7 @@ private:
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
     void CreateAccelerationStructures();
-    void AddTextureStreamingRequest(Texture& texture, bool bHigherDetailedMip);
+    void AddTextureStreamingRequest(Texture& texture, int32_t targetMip);
     void FinalizeTextureStreamingRequests();
     void ProcessTextureStreamingRequestsAsyncIO();
 

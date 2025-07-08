@@ -12,5 +12,5 @@ nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle comman
 nvrhi::TextureHandle CreateDDSTextureFromFile(
     nvrhi::CommandListHandle commandList,
     FILE* file,
-    struct StreamingMipData* streamingMipDatas,
+    class Texture& texture,
     const char* debugName);

@@ -688,7 +688,7 @@ struct DDSFile
         }
     }
 
-    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE *f, StreamingMipData *streamingMipDatas, const char *debugName)
+    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE *f, Texture& texture, const char *debugName)
     {
         assert(f);
 
@@ -777,6 +777,7 @@ struct DDSFile
             assert(!(header.m_caps2 & uint32_t(HeaderCaps2FlagBits::CubemapAllFaces)));
         }
 
+        texture.m_NumTextureMips = header.m_mipMapCount;
         uint32_t mipsToRead = header.m_mipMapCount;
         uint32_t startMipToRead = 0;
 
@@ -792,6 +793,8 @@ struct DDSFile
                 startMipToRead = minMip;
             }
 
+            texture.m_HighestDetailedStreamedMip = startMipToRead;
+
             // offset the file read position to the start of the first mip to read
             for (uint32_t i = 0; i < startMipToRead; ++i)
             {
@@ -805,7 +808,7 @@ struct DDSFile
                 const int seekResult = fseek(f, numBytes, SEEK_CUR);
                 assert(seekResult == 0);
 
-                StreamingMipData& streamingMipData = streamingMipDatas[i];
+                StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[i];
                 streamingMipData.m_Resolution = { mipWidth, mipHeight };
                 streamingMipData.m_DataOffset = fileReadOffset;
                 streamingMipData.m_NumBytes = numBytes;
@@ -851,7 +854,7 @@ struct DDSFile
             const uint32_t bytesRead = fread(imageDatas[i].m_data.data(), sizeof(std::byte), numBytes, f);
             assert(bytesRead == numBytes);
 
-            StreamingMipData& streamingMipData = streamingMipDatas[startMipToRead + i];
+            StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[startMipToRead + i];
             streamingMipData.m_Resolution = { mipWidth, mipHeight };
             streamingMipData.m_DataOffset = fileReadOffset;
             streamingMipData.m_NumBytes = numBytes;
@@ -884,10 +887,10 @@ struct DDSFile
     }
 };
 
-nvrhi::TextureHandle CreateDDSTextureFromFile(nvrhi::CommandListHandle commandList, FILE* file, StreamingMipData* streamingMipDatas, const char* debugName)
+nvrhi::TextureHandle CreateDDSTextureFromFile(nvrhi::CommandListHandle commandList, FILE* file, Texture& texture, const char* debugName)
 {
     DDSFile ddsFile;
-    return ddsFile.Load(commandList, file, streamingMipDatas, debugName);
+    return ddsFile.Load(commandList, file, texture, debugName);
 }
 
 nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB)

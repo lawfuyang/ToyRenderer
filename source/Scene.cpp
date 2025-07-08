@@ -604,14 +604,19 @@ void Scene::UpdateIMGUI()
         ImGui::SameLine();
         if (ImGui::Button("- -"))
         {
-            // TODO
+            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
+            {
+                Texture& tex = g_Scene->m_Textures[i];
+                AddTextureStreamingRequest(tex, tex.m_HighestDetailedStreamedMip - 2);
+            }
         }
         ImGui::SameLine();
         if (ImGui::Button("-"))
         {
             for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
             {
-                AddTextureStreamingRequest(g_Scene->m_Textures[i], true);
+                Texture& tex = g_Scene->m_Textures[i];
+                AddTextureStreamingRequest(tex, tex.m_HighestDetailedStreamedMip - 1);
             }
         }
         ImGui::SameLine();
@@ -619,13 +624,18 @@ void Scene::UpdateIMGUI()
         {
             for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
             {
-                AddTextureStreamingRequest(g_Scene->m_Textures[i], false);
+                Texture& tex = g_Scene->m_Textures[i];
+                AddTextureStreamingRequest(tex, tex.m_HighestDetailedStreamedMip + 1);
             }
         }
         ImGui::SameLine();
         if  (ImGui::Button("+ +"))
         {
-            // TODO
+            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
+            {
+                Texture& tex = g_Scene->m_Textures[i];
+                AddTextureStreamingRequest(tex, tex.m_HighestDetailedStreamedMip + 2);
+            }
         }
 
         ImGui::TreePop();
