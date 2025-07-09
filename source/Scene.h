@@ -121,6 +121,7 @@ public:
     bool m_bFreezeCullingCamera = false;
     int m_ForceMeshLOD = -1;
     bool m_bStressTestTextureMipRequests = false;
+    bool m_bEnableSamplerFeedback = true;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;

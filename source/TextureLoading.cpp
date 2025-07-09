@@ -858,6 +858,8 @@ struct DDSFile
             fileReadOffset += numBytes;
             assert(fileReadOffset <= fileInfo.m_FileSize);
         }
+
+        assert(fileReadOffset == fileInfo.m_FileSize);
     }
 };
 

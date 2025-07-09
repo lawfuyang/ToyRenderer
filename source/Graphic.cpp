@@ -57,15 +57,19 @@ void Graphic::InitDevice()
                 }
             };
 
+        EnsureFeatureSupport(nvrhi::Feature::HeapDirectlyIndexed);
         EnsureFeatureSupport(nvrhi::Feature::Meshlets);
-        EnsureFeatureSupport(nvrhi::Feature::RayTracingAccelStruct);
-        EnsureFeatureSupport(nvrhi::Feature::RayTracingPipeline);
         EnsureFeatureSupport(nvrhi::Feature::RayQuery);
+        EnsureFeatureSupport(nvrhi::Feature::RayTracingAccelStruct);
 
-        // NOTE: RenderDoc <= 1.37 doesnt like this
+        // NOTE: not supported in RenderDoc as of 1.39
         if (!m_RenderDocAPI)
         {
             EnsureFeatureSupport(nvrhi::Feature::SamplerFeedback);
+        }
+        else
+        {
+            g_Scene->m_bEnableSamplerFeedback = false;
         }
 
         if (feature.first == nvrhi::Feature::WaveLaneCountMinMax)
@@ -466,11 +470,11 @@ nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
     return m_SrvUavCbvDescriptorTableManager->GetDescriptorTable();
 }
 
-void Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture)
+void Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::TextureSubresourceSet subresources)
 {
     assert(texture->srvIndexInTable == UINT_MAX); // sanity check: texture not registered yet
 
-    texture->srvIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture));
+    texture->srvIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture, nvrhi::Format::UNKNOWN, subresources));
 }
 
 uint32_t Graphic::GetIndexInHeap(uint32_t indexInTable) const

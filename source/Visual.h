@@ -35,10 +35,12 @@ public:
     uint32_t m_NumTextureMips;
     StreamingMipData m_StreamingMipDatas[16];
     uint32_t m_PackedMipIdx = 0;
+    uint32_t m_NumPackedMips = 0;
     uint32_t m_CurrentlyStreamedMip = 0;
     uint32_t m_InFlightStreamingMip = 0; // index in the m_InFlightTextureStreamingRequests array
 
     nvrhi::HeapHandle m_MipHeaps[8];
+    nvrhi::BufferHandle m_MipHeapBuffers[8];
     nvrhi::TextureHandle m_NVRHITextureHandle;
 };
 

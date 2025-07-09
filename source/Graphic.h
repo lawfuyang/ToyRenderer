@@ -41,7 +41,6 @@ public:
     static constexpr uint32_t kMaxTextureMips = 16;
     static constexpr uint32_t kMaxThreadGroupsPerDimension = 65535; // both d3d12 & vulkan have a limit of 65535 thread groups per dimension
     static constexpr uint32_t kMaxNumMeshLODs = 8;
-    static constexpr uint32_t kPackedMipResolution = 256;
 
     static constexpr uint32_t kStencilBit_Opaque = 0x0;
     static constexpr uint32_t kStencilBit_Sky = 0x1;
@@ -83,7 +82,7 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
 
     nvrhi::IDescriptorTable* GetSrvUavCbvDescriptorTable();
-    void RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture);
+    void RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::TextureSubresourceSet subresources = nvrhi::AllSubresources);
     uint32_t GetIndexInHeap(uint32_t indexInTable) const;
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace = 0);
