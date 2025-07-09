@@ -362,7 +362,7 @@ static std::size_t HashCommonGraphicStates(
 
     // for some reason, in Release builds, there's a PSO hash leak when hashing the entire RenderState struct, so we only hash the individual members
     // did not investigate why
-    HashCombine(psoHash, HashRawMem(renderState.blendState));
+    HashCombine(psoHash, std::hash<nvrhi::BlendState>()(renderState.blendState));
     HashCombine(psoHash, HashRawMem(renderState.depthStencilState));
     HashCombine(psoHash, HashRawMem(renderState.rasterState));
 
