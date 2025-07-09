@@ -1,3 +1,5 @@
+#include "TextureLoading.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
@@ -5,10 +7,9 @@
 
 #include "Engine.h"
 #include "Graphic.h"
+#include "Scene.h"
 #include "Utilities.h"
 #include "Visual.h"
-
-CommandLineOption<bool> g_LoadPackedMipsOnly{ "loadpackedmipsonly", false };
 
 bool IsSTBImage(const void* data, uint32_t nbBytes)
 {
@@ -183,15 +184,6 @@ struct DDSFile
         uint32_t m_miscFlag;
         uint32_t m_arraySize;
         uint32_t m_miscFlag2;
-    };
-
-    struct MipData
-    {
-        uint32_t m_width;
-        uint32_t m_height;
-        uint32_t m_memPitch;
-        uint32_t m_memSlicePitch;
-        std::vector<std::byte> m_data;
     };
 
     constexpr static uint32_t MakeFourCC(char ch0, char ch1, char ch2, char ch3)
@@ -688,7 +680,7 @@ struct DDSFile
         }
     }
 
-    nvrhi::TextureHandle Load(nvrhi::CommandListHandle commandList, FILE *f, Texture& texture, const char *debugName)
+    DDSFileInfo GetDDSFileInfo(FILE* f)
     {
         assert(f);
 
@@ -777,62 +769,64 @@ struct DDSFile
             assert(!(header.m_caps2 & uint32_t(HeaderCaps2FlagBits::CubemapAllFaces)));
         }
 
-        texture.m_NumTextureMips = header.m_mipMapCount;
-        uint32_t mipsToRead = header.m_mipMapCount;
-        uint32_t startMipToRead = 0;
+        DDSFileInfo info;
+        info.m_FileSize = fileSize;
+        info.m_Width = header.m_width;
+        info.m_Height = header.m_height;
+        info.m_MipCount = header.m_mipMapCount;
+        info.m_Format = ConvertFromDXGIFormat(dxgiFormat);
+        info.m_DXGIFormat = dxgiFormat;
+        info.m_ImageDataByteOffset = fileReadOffset;
 
-        if (g_LoadPackedMipsOnly.Get())
+        return info;
+    }
+
+    void ReadPackedDDSMipDatas(const DDSFileInfo& fileInfo, DDSReadParams& params)
+    {
+        FILE* f = params.m_File;
+        assert(f);
+        fseek(f, fileInfo.m_ImageDataByteOffset, SEEK_SET);
+
+        Texture& texture = *params.m_Texture;
+        uint32_t fileReadOffset = fileInfo.m_ImageDataByteOffset;
+        uint32_t mipsToRead = fileInfo.m_MipCount;
+
+        // offset the file read position to the start of the first mip to read
+        for (uint32_t i = 0; i < params.m_StartMipToRead; ++i)
         {
-            const uint32_t maxMipDimension = std::max<uint32_t>(header.m_width, header.m_height);
+            const uint32_t mipWidth = std::max<uint32_t>(1, fileInfo.m_Width >> i);
+            const uint32_t mipHeight = std::max<uint32_t>(1, fileInfo.m_Height >> i);
 
-            if (maxMipDimension > Graphic::kPackedMipResolution)
-            {
-                uint32_t minMip = static_cast<uint32_t>(std::ceil(std::log2(static_cast<double>(maxMipDimension) / Graphic::kPackedMipResolution)));
-                minMip = std::min<uint32_t>(minMip, header.m_mipMapCount); // Clamp to mipCount
-                mipsToRead = header.m_mipMapCount - minMip;
-                startMipToRead = minMip;
-            }
+            uint32_t numBytes;
+            uint32_t rowBytes;
+            GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, &numBytes, &rowBytes, nullptr);
 
-            texture.m_PackedMipIdx = texture.m_CurrentlyStreamedMip = texture.m_InFlightStreamingMip = startMipToRead;
+            const int seekResult = fseek(f, numBytes, SEEK_CUR);
+            assert(seekResult == 0);
 
-            // offset the file read position to the start of the first mip to read
-            for (uint32_t i = 0; i < startMipToRead; ++i)
-            {
-                const uint32_t mipWidth = std::max<uint32_t>(1, header.m_width >> i);
-                const uint32_t mipHeight = std::max<uint32_t>(1, header.m_height >> i);
+            StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[i];
+            streamingMipData.m_Resolution = { mipWidth, mipHeight };
+            streamingMipData.m_DataOffset = fileReadOffset;
+            streamingMipData.m_NumBytes = numBytes;
+            streamingMipData.m_RowPitch = rowBytes;
 
-                uint32_t numBytes;
-                uint32_t rowBytes;
-                GetImageInfo(mipWidth, mipHeight, dxgiFormat, &numBytes, &rowBytes, nullptr);
-
-                const int seekResult = fseek(f, numBytes, SEEK_CUR);
-                assert(seekResult == 0);
-
-                StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[i];
-                streamingMipData.m_Resolution = { mipWidth, mipHeight };
-                streamingMipData.m_DataOffset = fileReadOffset;
-                streamingMipData.m_NumBytes = numBytes;
-                streamingMipData.m_RowPitch = rowBytes;
-
-                fileReadOffset += numBytes;
-                assert(fileReadOffset <= fileSize);
-            }
+            fileReadOffset += numBytes;
+            assert(fileReadOffset <= fileInfo.m_FileSize);
         }
 
-        const nvrhi::Format nvrhiFormat = ConvertFromDXGIFormat(dxgiFormat);
-        const bool bIsCompressedFormat = nvrhi::getFormatInfo(nvrhiFormat).blockSize != 1;
+        const bool bIsCompressedFormat = nvrhi::getFormatInfo(fileInfo.m_Format).blockSize != 1;
 
-        std::vector<MipData> imageDatas;
-        imageDatas.resize(mipsToRead);
+        std::vector<MipData>& mipDatas = params.m_MipDatas;
+        mipDatas.resize(params.m_NumMipsToRead);
 
-        for (uint32_t i = 0; i < imageDatas.size(); ++i)
+        for (uint32_t i = 0; i < mipDatas.size(); ++i)
         {
             PROFILE_SCOPED("Read mip bytes from file");
 
-            const uint32_t mipToRead = startMipToRead + i;
+            const uint32_t mipToRead = params.m_StartMipToRead + i;
 
-            uint32_t mipWidth = std::max<uint32_t>(1, header.m_width >> mipToRead);
-            uint32_t mipHeight = std::max<uint32_t>(1, header.m_height >> mipToRead);
+            uint32_t mipWidth = std::max<uint32_t>(1, fileInfo.m_Width >> mipToRead);
+            uint32_t mipHeight = std::max<uint32_t>(1, fileInfo.m_Height >> mipToRead);
 
             // pad dimensions to multiple of 4 for compressed formats
             if (bIsCompressedFormat)
@@ -843,54 +837,40 @@ struct DDSFile
 
             uint32_t numBytes;
             uint32_t rowBytes;
-            GetImageInfo(mipWidth, mipHeight, dxgiFormat, &numBytes, &rowBytes, nullptr);
+            GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, &numBytes, &rowBytes, nullptr);
 
-            imageDatas[i].m_width = mipWidth;
-            imageDatas[i].m_height = mipHeight;
-            imageDatas[i].m_memPitch = rowBytes;
-            imageDatas[i].m_memSlicePitch = numBytes;
+            mipDatas[i].m_Mip = mipToRead;
+            mipDatas[i].m_Width = mipWidth;
+            mipDatas[i].m_Height = mipHeight;
+            mipDatas[i].m_MemPitch = rowBytes;
+            mipDatas[i].m_MemSlicePitch = numBytes;
 
-            imageDatas[i].m_data.resize(numBytes);
-            const uint32_t bytesRead = fread(imageDatas[i].m_data.data(), sizeof(std::byte), numBytes, f);
+            mipDatas[i].m_Data.resize(numBytes);
+            const uint32_t bytesRead = fread(mipDatas[i].m_Data.data(), sizeof(std::byte), numBytes, f);
             assert(bytesRead == numBytes);
 
-            StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[startMipToRead + i];
+            StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[mipToRead];
             streamingMipData.m_Resolution = { mipWidth, mipHeight };
             streamingMipData.m_DataOffset = fileReadOffset;
             streamingMipData.m_NumBytes = numBytes;
             streamingMipData.m_RowPitch = rowBytes;
 
             fileReadOffset += numBytes;
-            assert(fileReadOffset <= fileSize);
+            assert(fileReadOffset <= fileInfo.m_FileSize);
         }
-
-        const uint32_t packedMipsWidth = std::max<uint32_t>(1, header.m_width >> startMipToRead);
-        const uint32_t packedMipsHeight = std::max<uint32_t>(1, header.m_height >> startMipToRead);
-
-        nvrhi::TextureDesc textureDesc;
-        textureDesc.format = nvrhiFormat;
-        textureDesc.width = packedMipsWidth;
-        textureDesc.height = packedMipsHeight;
-        textureDesc.mipLevels = imageDatas.size();
-        textureDesc.debugName = debugName;
-        textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-        nvrhi::TextureHandle newTexture = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-
-        for (uint32_t i = 0; i < imageDatas.size(); ++i)
-        {
-            PROFILE_SCOPED("Write mip to texture");
-            commandList->writeTexture(newTexture, 0, i, imageDatas[i].m_data.data(), imageDatas[i].m_memPitch);
-        }
-
-        return newTexture;
     }
 };
 
-nvrhi::TextureHandle CreateDDSTextureFromFile(nvrhi::CommandListHandle commandList, FILE* file, Texture& texture, const char* debugName)
+void ReadPackedDDSMipDatas(const DDSFileInfo& fileInfo, DDSReadParams& params)
 {
     DDSFile ddsFile;
-    return ddsFile.Load(commandList, file, texture, debugName);
+    ddsFile.ReadPackedDDSMipDatas(fileInfo, params);
+}
+
+DDSFileInfo GetDDSFileInfo(FILE* file)
+{
+    DDSFile ddsFile;
+    return ddsFile.GetDDSFileInfo(file);
 }
 
 nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB)

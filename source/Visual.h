@@ -38,11 +38,7 @@ public:
     uint32_t m_CurrentlyStreamedMip = 0;
     uint32_t m_InFlightStreamingMip = 0; // index in the m_InFlightTextureStreamingRequests array
 
-    nvrhi::TextureHandle m_ReservedTextureHandle;
-    nvrhi::SamplerFeedbackTextureHandle m_FeedbackTexture;
-    nvrhi::TextureHandle m_MinMipTexture;
-    nvrhi::BufferHandle m_FeedbackResolveBuffers[2];
-
+    nvrhi::HeapHandle m_MipHeaps[8];
     nvrhi::TextureHandle m_NVRHITextureHandle;
 };
 

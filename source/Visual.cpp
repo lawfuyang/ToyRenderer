@@ -71,34 +71,47 @@ void Texture::LoadFromFile(std::string_view filePath)
     }
     else if (IsDDSImage(scopedFile))
     {
-        m_NVRHITextureHandle = CreateDDSTextureFromFile(commandList, scopedFile, *this, debugName.data());
+        const DDSFileInfo ddsFileInfo = GetDDSFileInfo(scopedFile);
 
-        {
-            nvrhi::TextureDesc textureDesc = m_NVRHITextureHandle->getDesc();
-            textureDesc.width = m_StreamingMipDatas[0].m_Resolution.x;
-            textureDesc.height = m_StreamingMipDatas[0].m_Resolution.y;
-            textureDesc.isTiled = true;
-            textureDesc.debugName = debugName + "Reserved texture";
-            m_ReservedTextureHandle = device->createTexture(textureDesc);
-        }
+        m_NumTextureMips = ddsFileInfo.m_MipCount;
 
-        // Get tiling info
-        uint32_t numTiles = 0;
+        nvrhi::TextureDesc desc;
+        desc.width = ddsFileInfo.m_Width;
+        desc.height = ddsFileInfo.m_Height;
+        desc.format = ddsFileInfo.m_Format;
+        desc.isTiled = true;
+        desc.mipLevels = ddsFileInfo.m_MipCount;
+        desc.debugName = debugName;
+        desc.initialState = nvrhi::ResourceStates::ShaderResource;
+        m_NVRHITextureHandle = device->createTexture(desc);
+
+        uint32_t numTiles;
         nvrhi::PackedMipDesc packedMipDesc;
         nvrhi::TileShape tileShape;
-        uint32_t subResourceTilingsNum = ComputeNbMips(m_StreamingMipDatas[0].m_Resolution.x, m_StreamingMipDatas[0].m_Resolution.y);
+        uint32_t subResourceTilingsNum = m_NumTextureMips;
         nvrhi::SubresourceTiling tilingsInfo[Graphic::kMaxTextureMips];
-        device->getTextureTiling(m_ReservedTextureHandle, &numTiles, &packedMipDesc, &tileShape, &subResourceTilingsNum, tilingsInfo);
+        device->getTextureTiling(m_NVRHITextureHandle, &numTiles, &packedMipDesc, &tileShape, &subResourceTilingsNum, tilingsInfo);
 
-        nvrhi::SamplerFeedbackTextureDesc samplerFeedbackDesc;
-        samplerFeedbackDesc.samplerFeedbackFormat = nvrhi::SamplerFeedbackFormat::MinMipOpaque;
-        samplerFeedbackDesc.samplerFeedbackMipRegionX = 4;
-        samplerFeedbackDesc.samplerFeedbackMipRegionY = 4;
-        samplerFeedbackDesc.samplerFeedbackMipRegionZ = 1;
-        samplerFeedbackDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
-        samplerFeedbackDesc.keepInitialState = true;
+        m_PackedMipIdx = m_CurrentlyStreamedMip = m_InFlightStreamingMip = packedMipDesc.numStandardMips;
+        
+        nvrhi::HeapDesc packedMipHeapDesc;
+        packedMipHeapDesc.capacity = packedMipDesc.numTilesForPackedMips * KB_TO_BYTES(64);
+        packedMipHeapDesc.type = nvrhi::HeapType::DeviceLocal;
+        packedMipHeapDesc.debugName = "packed mip heap";
+        m_MipHeaps[packedMipDesc.numStandardMips] = device->createHeap(packedMipHeapDesc);
 
-        m_FeedbackTexture = device->createSamplerFeedbackTexture(m_ReservedTextureHandle, samplerFeedbackDesc);
+        DDSReadParams readParams;
+        readParams.m_File = scopedFile;
+        readParams.m_Texture = this;
+        readParams.m_StartMipToRead = packedMipDesc.numStandardMips;
+        readParams.m_NumMipsToRead = packedMipDesc.numPackedMips;
+        ReadPackedDDSMipDatas(ddsFileInfo, readParams);
+
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+        std::vector<nvrhi::TextureTilesMapping> tileMappings;
+
+        //device->updateTextureTileMappings(m_NVRHITextureHandle, tileMappings.data(), tileMappings.size());
     }
     else
     {
