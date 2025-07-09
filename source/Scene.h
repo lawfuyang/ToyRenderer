@@ -70,11 +70,9 @@ public:
 
 struct TextureStreamingRequest
 {
-    Texture* m_Texture = nullptr;
-    uint32_t m_RequestedFinalMip = UINT_MAX;
-    uint32_t m_MipToStream = UINT_MAX;
+    uint32_t m_TextureIdx;
+    uint32_t m_MipToStream;
     std::vector<std::byte> m_MipBytes;
-    nvrhi::TextureHandle m_NewTextureHandle;
 };
 
 class Scene
@@ -160,7 +158,7 @@ private:
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
     void CreateAccelerationStructures();
-    void AddTextureStreamingRequest(Texture& texture, int32_t targetMip);
+    void AddTextureStreamingRequest(uint32_t textureIdx, int32_t targetMip);
     void FinalizeTextureStreamingRequests();
     void ProcessTextureStreamingRequestsAsyncIO();
     void StressTestTextureMipRequests();
@@ -173,8 +171,6 @@ private:
 
     std::vector<TextureStreamingRequest> m_TextureStreamingRequests;
     std::mutex m_TextureStreamingRequestsLock;
-
-    std::vector<TextureStreamingRequest> m_InFlightTextureStreamingRequests;
 
     std::vector<TextureStreamingRequest> m_TextureStreamingRequestsToFinalize;
     std::mutex m_TextureStreamingRequestsToFinalizeLock;
