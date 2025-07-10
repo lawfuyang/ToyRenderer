@@ -1,33 +1,14 @@
 #include "TextureLoading.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_ONLY_JPEG
-#define STBI_ONLY_PNG
-#include "extern/stb/stb_image.h"
-
 #include "Engine.h"
 #include "Graphic.h"
 #include "Scene.h"
 #include "Utilities.h"
 #include "Visual.h"
 
-bool IsSTBImage(const void* data, uint32_t nbBytes)
-{
-    return !!stbi_info_from_memory((const stbi_uc*)data, (int)nbBytes, nullptr, nullptr, nullptr);
-}
-
-bool IsSTBImage(FILE* f)
-{
-    assert(f);
-    const long originalFilePos = ftell(f);
-    ON_EXIT_SCOPE_LAMBDA([&] { fseek(f, originalFilePos, SEEK_SET); });
-
-    return !!stbi_info_from_file(f, nullptr, nullptr, nullptr);
-}
-
 static const char kDDSMagic[] = { 'D', 'D', 'S', ' ' };
 
-bool IsDDSImage(const void* data)
+static bool IsDDSImage(const void* data)
 {
     for (uint32_t i = 0; i < 4; i++)
     {
@@ -873,81 +854,4 @@ DDSFileInfo GetDDSFileInfo(FILE* file)
 {
     DDSFile ddsFile;
     return ddsFile.GetDDSFileInfo(file);
-}
-
-nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB)
-{
-    PROFILE_FUNCTION();
-
-    int width = 0, height = 0, originalChannels = 0;
-
-    if (!stbi_info_from_memory((const stbi_uc*)data, (int)nbBytes, &width, &height, &originalChannels))
-    {
-        LOG_DEBUG("STBI error: [%s]", stbi_failure_reason());
-        assert(0);
-    }
-
-    const bool bIsHDR = stbi_is_hdr_from_memory((const stbi_uc*)data, (int)nbBytes);
-
-    const int channels = originalChannels == 3 ? 4 : originalChannels;
-
-    stbi_uc* bitmap;
-
-    if (bIsHDR)
-    {
-        float* floatmap = stbi_loadf_from_memory((const stbi_uc*)data, (int)nbBytes, &width, &height, &originalChannels, channels);
-        bitmap = reinterpret_cast<stbi_uc*>(floatmap);
-    }
-    else
-    {
-        bitmap = stbi_load_from_memory((const stbi_uc*)data, (int)nbBytes, &width, &height, &originalChannels, channels);
-    }
-
-    if (!bitmap)
-    {
-        LOG_DEBUG("STBI error: [%s]", stbi_failure_reason());
-        assert(0);
-    }
-
-    nvrhi::Format format = nvrhi::Format::UNKNOWN;
-    switch (channels)
-    {
-    case 1:
-        format = bIsHDR ? nvrhi::Format::R32_FLOAT : nvrhi::Format::R8_UNORM;
-        break;
-    case 2:
-        format = bIsHDR ? nvrhi::Format::RG32_FLOAT : nvrhi::Format::RG8_UNORM;
-        break;
-    case 4:
-        format = bIsHDR ? nvrhi::Format::RGBA32_FLOAT : (forceSRGB ? nvrhi::Format::SRGBA8_UNORM : nvrhi::Format::RGBA8_UNORM);
-        break;
-    default:
-        LOG_DEBUG("Unsupported number of components (%d) for texture", channels);
-        assert(0);
-    }
-
-    nvrhi::TextureDesc textureDesc;
-    textureDesc.format = format;
-    textureDesc.width = static_cast<uint32_t>(width);
-    textureDesc.height = static_cast<uint32_t>(height);
-    textureDesc.depth = 1;
-    textureDesc.arraySize = 1;
-    textureDesc.dimension = nvrhi::TextureDimension::Texture2D;
-    textureDesc.mipLevels = 1;
-    textureDesc.debugName = debugName;
-    textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-    nvrhi::TextureHandle newTexture = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-
-    const uint32_t bytesPerPixel = channels * (bIsHDR ? 4 : 1);
-    const uint32_t bytesPerPixelCheck = nvrhi::getFormatInfo(format).bytesPerBlock;
-    assert(bytesPerPixel == bytesPerPixelCheck);
-
-    commandList->writeTexture(newTexture, 0, 0, bitmap, static_cast<size_t>(width * bytesPerPixel), 0);
-    commandList->setPermanentTextureState(newTexture, nvrhi::ResourceStates::ShaderResource);
-    commandList->commitBarriers();
-
-    stbi_image_free(bitmap);
-
-    return newTexture;
 }

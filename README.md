@@ -18,7 +18,7 @@ Use "**--scene**" commandline argument to load a scene. Example:
     - KHR_texture_transform
     - KHR_texture_basisu
 - No alpha blending, only opaque materials with Alpha Mask
-- jpeg, png, or dds images only
+- dds textures only
 
 ## Images
 ### Meshlet Rendering Pipeline

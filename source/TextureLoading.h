@@ -2,13 +2,6 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
-bool IsSTBImage(const void* data, uint32_t nbBytes);
-bool IsDDSImage(const void* data);
-bool IsSTBImage(FILE* file);
-bool IsDDSImage(FILE* file);
-
-nvrhi::TextureHandle CreateSTBITextureFromMemory(nvrhi::CommandListHandle commandList, const void* data, uint32_t nbBytes, const char* debugName, bool forceSRGB = false);
-
 struct DDSFileInfo
 {
     uint32_t m_FileSize;
@@ -39,5 +32,6 @@ struct DDSReadParams
     uint32_t m_NumMipsToRead;
 };
 
+bool IsDDSImage(FILE* file);
 DDSFileInfo GetDDSFileInfo(FILE* file);
 void ReadPackedDDSMipDatas(const DDSFileInfo& fileInfo, DDSReadParams& params);

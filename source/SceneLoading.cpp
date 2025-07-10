@@ -358,24 +358,10 @@ struct GLTFSceneLoader
                     std::string filePath = (std::filesystem::path{m_BaseFolderPath} / image->uri).string();
                     cgltf_decode_uri(filePath.data());
 
-                    // ghetto hack to prioritize DDS files
-                    bool bIsDDS = false;
-                    if (const std::string ddsFilePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
-                        std::filesystem::exists(ddsFilePath))
-                    {
-                        bIsDDS = true;
-                        filePath = ddsFilePath;
-                    }
-
-                    // final sanity check
-                    assert(std::filesystem::exists(filePath));
+                    // force DDS format for all textures
+                    filePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
 
                     g_Scene->m_Textures[i].LoadFromFile(filePath);
-
-                    if (bIsDDS)
-                    {
-                        g_Scene->m_Textures[i].m_StreamingFilePath = filePath;
-                    }
                 });
         }
 
