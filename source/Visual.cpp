@@ -26,7 +26,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     assert(textureDesc.depth == 1);
 
     m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-    g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_NVRHITextureHandle);
+    m_SRVIndexInTable = g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_NVRHITextureHandle);
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
@@ -138,7 +138,7 @@ void Texture::LoadFromFile(std::string_view filePath)
         commandList->writeTexture(m_NVRHITextureHandle, 0, m_PackedMipIdx + i, readParams.m_MipDatas[i].m_Data.data(), readParams.m_MipDatas[i].m_MemPitch);
     }
 
-    g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_NVRHITextureHandle, nvrhi::TextureSubresourceSet{ m_CurrentlyStreamedMip, m_NumTextureMips - m_CurrentlyStreamedMip, 0, nvrhi::TextureSubresourceSet::AllArraySlices });
+    m_SRVIndexInTable = g_Graphic.RegisterInSrvUavCbvDescriptorTable(m_NVRHITextureHandle, nvrhi::TextureSubresourceSet{ m_CurrentlyStreamedMip, m_NumTextureMips - m_CurrentlyStreamedMip, 0, nvrhi::TextureSubresourceSet::AllArraySlices });
 
     const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
     LOG_DEBUG("New Texture: %s, %d x %d, %s", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
@@ -147,7 +147,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 bool Texture::IsValid() const
 {
     return m_NVRHITextureHandle != nullptr
-        && m_NVRHITextureHandle->srvIndexInTable != UINT_MAX
+        && m_SRVIndexInTable != UINT_MAX
         && m_CurrentlyStreamedMip != UINT_MAX;
 }
 

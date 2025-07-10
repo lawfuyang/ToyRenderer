@@ -470,15 +470,14 @@ nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
     return m_SrvUavCbvDescriptorTableManager->GetDescriptorTable();
 }
 
-void Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::TextureSubresourceSet subresources)
+uint32_t Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::TextureSubresourceSet subresources)
 {
-    assert(texture->srvIndexInTable == UINT_MAX); // sanity check: texture not registered yet
-
-    texture->srvIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture, nvrhi::Format::UNKNOWN, subresources));
+    return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture, nvrhi::Format::UNKNOWN, subresources));
 }
 
 uint32_t Graphic::GetIndexInHeap(uint32_t indexInTable) const
 {
+    assert(indexInTable != UINT_MAX);
     const uint32_t indexInHeap = m_SrvUavCbvDescriptorTableManager->GetIndexInHeap(indexInTable);
     assert(indexInHeap != UINT_MAX);
     return indexInHeap;

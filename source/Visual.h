@@ -42,6 +42,8 @@ public:
     nvrhi::HeapHandle m_MipHeaps[8];
     nvrhi::BufferHandle m_MipHeapBuffers[8];
     nvrhi::TextureHandle m_NVRHITextureHandle;
+
+    uint32_t m_SRVIndexInTable = UINT_MAX;
 };
 
 struct MeshLOD
