@@ -470,9 +470,10 @@ nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
     return m_SrvUavCbvDescriptorTableManager->GetDescriptorTable();
 }
 
-uint32_t Graphic::RegisterInSrvUavCbvDescriptorTable(nvrhi::TextureHandle texture, nvrhi::TextureSubresourceSet subresources)
+uint32_t Graphic::RegisterInSrvUavCbvDescriptorTable(const Texture& texture)
 {
-    return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture, nvrhi::Format::UNKNOWN, subresources));
+    const nvrhi::TextureSubresourceSet subresources{ texture.m_CurrentlyStreamedMip, texture.m_NumTextureMips - texture.m_CurrentlyStreamedMip, 0, nvrhi::TextureSubresourceSet::AllArraySlices };
+    return m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle, nvrhi::Format::UNKNOWN, subresources));
 }
 
 uint32_t Graphic::GetIndexInHeap(uint32_t indexInTable) const
