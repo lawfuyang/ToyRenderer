@@ -69,6 +69,7 @@ void Texture::LoadFromFile(std::string_view filePath)
     device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_NumTextureMips, m_TilingsInfo);
 
     const uint32_t packedMipIdx = m_PackedMipDesc.numStandardMips;
+    m_CurrentlyStreamedMip = m_InFlightStreamingMip = packedMipIdx;
 
     nvrhi::HeapDesc packedMipHeapDesc;
     packedMipHeapDesc.capacity = m_PackedMipDesc.numTilesForPackedMips * KB_TO_BYTES(64); // TODO: confirm if Vulkan also uses 64KB tiles
