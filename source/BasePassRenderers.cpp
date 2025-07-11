@@ -10,14 +10,6 @@
 
 #include "shaders/ShaderInterop.h"
 
-static_assert(sizeof(DrawIndirectArguments) == sizeof(nvrhi::DrawIndirectArguments));
-static_assert(sizeof(DrawIndexedIndirectArguments) == sizeof(nvrhi::DrawIndexedIndirectArguments));
-
-static_assert(SamplerIdx_AnisotropicClamp == (int)nvrhi::SamplerAddressMode::Clamp);
-static_assert(SamplerIdx_AnisotropicWrap == (int)nvrhi::SamplerAddressMode::Wrap);
-static_assert(SamplerIdx_AnisotropicBorder == (int)nvrhi::SamplerAddressMode::Border);
-static_assert(SamplerIdx_AnisotropicMirror == (int)nvrhi::SamplerAddressMode::Mirror);
-
 RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
 RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;

@@ -13,6 +13,7 @@
 #include "shaders/ShaderInterop.h"
 
 static_assert(sizeof(Scene::NodeLocalTransformBytes) == sizeof(NodeLocalTransform));
+static_assert(sizeof(TLASInstanceDesc) == sizeof(nvrhi::rt::InstanceDesc));
 
 CommandLineOption<bool> g_DisableRayTracing{ "disableraytracing", false };
 
@@ -412,8 +413,6 @@ void Scene::CreateAccelerationStructures()
     {
         mesh.BuildBLAS(commandList);
     }
-
-    static_assert(sizeof(TLASInstanceDesc) == sizeof(nvrhi::rt::InstanceDesc));
 
     nvrhi::rt::AccelStructDesc tlasDesc;
     tlasDesc.topLevelMaxInstances = m_Primitives.size();
