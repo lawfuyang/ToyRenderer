@@ -113,11 +113,11 @@ public:
 		renderGraph.CreateTransientResource(m_WorkingDepthBufferRDGTextureHandle, desc);
 
 		desc.mipLevels = 1;
-		desc.format = Graphic::kSSAOOutputFormat;
+		desc.format = GraphicConstants::kSSAOOutputFormat;
 		desc.debugName = "SSAO Buffer";
 		renderGraph.CreateTransientResource(g_SSAORDGTextureHandle, desc);
 
-		desc.format = Graphic::kSSAOOutputFormat;
+		desc.format = GraphicConstants::kSSAOOutputFormat;
 		desc.debugName = "Working SSAO Texture";
 		renderGraph.CreateTransientResource(m_WorkingSSAORDGTextureHandle, desc);
 

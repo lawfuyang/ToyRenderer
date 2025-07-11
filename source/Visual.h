@@ -2,6 +2,7 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
+#include "GraphicConstants.h"
 #include "MathUtilities.h"
 #include "DescriptorTableManager.h"
 
@@ -33,9 +34,11 @@ public:
 
     std::string m_StreamingFilePath;
     uint32_t m_NumTextureMips;
-    StreamingMipData m_StreamingMipDatas[16];
-    uint32_t m_PackedMipIdx = 0;
-    uint32_t m_NumPackedMips = 0;
+    StreamingMipData m_StreamingMipDatas[GraphicConstants::kMaxTextureMips];
+    uint32_t m_NumTiles;
+    nvrhi::PackedMipDesc m_PackedMipDesc;
+    nvrhi::TileShape m_TileShape;
+    nvrhi::SubresourceTiling m_TilingsInfo[GraphicConstants::kMaxTextureMips];
     uint32_t m_CurrentlyStreamedMip = 0;
     uint32_t m_InFlightStreamingMip = 0; // index in the m_InFlightTextureStreamingRequests array
 

@@ -737,7 +737,7 @@ public:
             graphicsState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)g_Graphic.m_DisplayResolution.x, (float)g_Graphic.m_DisplayResolution.y });
             graphicsState.bindings = { bindingSet };
             graphicsState.vertexBuffers = { nvrhi::VertexBufferBinding{ g_CommonResources.UnitSphere.m_VertexBuffer } };
-            graphicsState.indexBuffer = nvrhi::IndexBufferBinding{ g_CommonResources.UnitSphere.m_IndexBuffer, Graphic::kIndexBufferFormat };
+            graphicsState.indexBuffer = nvrhi::IndexBufferBinding{ g_CommonResources.UnitSphere.m_IndexBuffer, GraphicConstants::kIndexBufferFormat };
             graphicsState.indirectParams = probeDrawIndirectArgsBuffer;
 
             commandList->setGraphicsState(graphicsState);

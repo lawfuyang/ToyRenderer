@@ -10,14 +10,6 @@
 
 #include "shaders/ShaderInterop.h"
 
-static_assert(Graphic::kMaxThreadGroupsPerDimension == kMaxThreadGroupsPerDimension);
-static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletVertices);
-static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletTriangles);
-static_assert(std::is_same_v<uint32_t, Graphic::IndexBufferFormat_t>);
-static_assert(_countof(Mesh::m_LODs) == Graphic::kMaxNumMeshLODs);
-static_assert(Graphic::kMaxNumMeshLODs == kMaxNumMeshLODs);
-static_assert(_countof(Texture::m_StreamingMipDatas) == Graphic::kMaxTextureMips);
-
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)
 {
     PROFILE_FUNCTION();
@@ -74,54 +66,49 @@ void Texture::LoadFromFile(std::string_view filePath)
     desc.initialState = nvrhi::ResourceStates::ShaderResource;
     m_NVRHITextureHandle = device->createTexture(desc);
 
-    uint32_t numTiles;
-    nvrhi::PackedMipDesc packedMipDesc;
-    nvrhi::TileShape tileShape;
-    nvrhi::SubresourceTiling tilingsInfo[Graphic::kMaxTextureMips];
-    device->getTextureTiling(m_NVRHITextureHandle, &numTiles, &packedMipDesc, &tileShape, &m_NumTextureMips, tilingsInfo);
+    device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_NumTextureMips, m_TilingsInfo);
 
-    m_PackedMipIdx = m_CurrentlyStreamedMip = m_InFlightStreamingMip = packedMipDesc.numStandardMips;
-    m_NumPackedMips = packedMipDesc.numPackedMips;
+    const uint32_t packedMipIdx = m_PackedMipDesc.numStandardMips;
 
     nvrhi::HeapDesc packedMipHeapDesc;
-    packedMipHeapDesc.capacity = packedMipDesc.numTilesForPackedMips * KB_TO_BYTES(64); // TODO: confirm if Vulkan also uses 64KB tiles
+    packedMipHeapDesc.capacity = m_PackedMipDesc.numTilesForPackedMips * KB_TO_BYTES(64); // TODO: confirm if Vulkan also uses 64KB tiles
     packedMipHeapDesc.type = nvrhi::HeapType::DeviceLocal;
     packedMipHeapDesc.debugName = "packed mip heap";
-    m_MipHeaps[m_PackedMipIdx] = device->createHeap(packedMipHeapDesc);
+    m_MipHeaps[packedMipIdx] = device->createHeap(packedMipHeapDesc);
 
     nvrhi::BufferDesc packedMipHeapBufferDesc;
     packedMipHeapBufferDesc.byteSize = packedMipHeapDesc.capacity;
     packedMipHeapBufferDesc.isVirtual = true;
     packedMipHeapBufferDesc.initialState = nvrhi::ResourceStates::CopySource;
     packedMipHeapBufferDesc.keepInitialState = true;
-    m_MipHeapBuffers[m_PackedMipIdx] = device->createBuffer(packedMipHeapBufferDesc);
+    m_MipHeapBuffers[packedMipIdx] = device->createBuffer(packedMipHeapBufferDesc);
 
-    device->bindBufferMemory(m_MipHeapBuffers[m_PackedMipIdx], m_MipHeaps[m_PackedMipIdx], 0);
+    device->bindBufferMemory(m_MipHeapBuffers[packedMipIdx], m_MipHeaps[packedMipIdx], 0);
 
     DDSReadParams readParams;
     readParams.m_File = scopedFile;
     readParams.m_Texture = this;
-    readParams.m_StartMipToRead = m_PackedMipIdx;
-    readParams.m_NumMipsToRead = m_NumPackedMips;
+    readParams.m_StartMipToRead = packedMipIdx;
+    readParams.m_NumMipsToRead = m_PackedMipDesc.numPackedMips;
     ReadPackedDDSMipDatas(ddsFileInfo, readParams);
 
-    std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates(m_NumPackedMips);
-    std::vector<nvrhi::TiledTextureRegion> tiledRegions(m_NumPackedMips);
-    std::vector<uint64_t> byteOffsets(m_NumPackedMips);
-    for (uint32_t i = 0; i < m_NumPackedMips; ++i)
+    std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates(m_PackedMipDesc.numPackedMips);
+    std::vector<nvrhi::TiledTextureRegion> tiledRegions(m_PackedMipDesc.numPackedMips);
+    std::vector<uint64_t> byteOffsets(m_PackedMipDesc.numPackedMips);
+    for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
     {
-        tiledTextureCoordinates[i].mipLevel = m_PackedMipIdx;
+        tiledTextureCoordinates[i].mipLevel = packedMipIdx;
         tiledTextureCoordinates[i].arrayLevel = 0;
         tiledTextureCoordinates[i].x = 0;
         tiledTextureCoordinates[i].y = 0;
         tiledTextureCoordinates[i].z = 0;
 
         tiledRegions[i].tilesNum = 1;
-        tiledRegions[i].width = tilingsInfo[m_PackedMipIdx].widthInTiles;
-        tiledRegions[i].height = tilingsInfo[m_PackedMipIdx].heightInTiles;
-        tiledRegions[i].depth = tilingsInfo[m_PackedMipIdx].depthInTiles;
+        tiledRegions[i].width = m_TilingsInfo[packedMipIdx].widthInTiles;
+        tiledRegions[i].height = m_TilingsInfo[packedMipIdx].heightInTiles;
+        tiledRegions[i].depth = m_TilingsInfo[packedMipIdx].depthInTiles;
 
-        byteOffsets[i] = m_StreamingMipDatas[m_PackedMipIdx + i].m_DataOffset - m_StreamingMipDatas[m_PackedMipIdx].m_DataOffset;
+        byteOffsets[i] = m_StreamingMipDatas[packedMipIdx + i].m_DataOffset - m_StreamingMipDatas[packedMipIdx].m_DataOffset;
     }
 
     nvrhi::TextureTilesMapping tileMapping;
@@ -129,13 +116,13 @@ void Texture::LoadFromFile(std::string_view filePath)
     tileMapping.tiledTextureRegions = tiledRegions.data();
     tileMapping.byteOffsets = byteOffsets.data();
     tileMapping.numTextureRegions = tiledTextureCoordinates.size();
-    tileMapping.heap = m_MipHeaps[m_PackedMipIdx];
+    tileMapping.heap = m_MipHeaps[packedMipIdx];
 
     device->updateTextureTileMappings(m_NVRHITextureHandle, &tileMapping, 1);
 
-    for (uint32_t i = 0; i < m_NumPackedMips; ++i)
+    for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
     {
-        commandList->writeTexture(m_NVRHITextureHandle, 0, m_PackedMipIdx + i, readParams.m_MipDatas[i].m_Data.data(), readParams.m_MipDatas[i].m_MemPitch);
+        commandList->writeTexture(m_NVRHITextureHandle, 0, packedMipIdx + i, readParams.m_MipDatas[i].m_Data.data(), readParams.m_MipDatas[i].m_MemPitch);
     }
 
     m_SRVIndexInTable = g_Graphic.RegisterInSrvUavCbvDescriptorTable(*this);
@@ -210,7 +197,7 @@ void Mesh::Initialize(
     float LODError = 0.0f;
     bool bSimplifySloppy = false;
 
-    for (uint32_t lodIdx = 0; lodIdx < Graphic::kMaxNumMeshLODs; ++lodIdx)
+    for (uint32_t lodIdx = 0; lodIdx < GraphicConstants::kMaxNumMeshLODs; ++lodIdx)
     {
         PROFILE_SCOPED("Process LOD");
 
@@ -415,7 +402,7 @@ void Mesh::BuildBLAS(nvrhi::CommandListHandle commandList)
     nvrhi::rt::GeometryTriangles& geometryTriangle = geometryDesc.geometryData.triangles;
     geometryTriangle.indexBuffer = g_Graphic.m_GlobalIndexBuffer;
     geometryTriangle.vertexBuffer = g_Graphic.m_GlobalVertexBuffer;
-    geometryTriangle.indexFormat = Graphic::kIndexBufferFormat;
+    geometryTriangle.indexFormat = GraphicConstants::kIndexBufferFormat;
     geometryTriangle.vertexFormat = nvrhi::Format::RGB32_FLOAT;
     geometryTriangle.indexOffset = m_GlobalIndexBufferIdx * nvrhi::getFormatInfo(geometryTriangle.indexFormat).bytesPerBlock;
     geometryTriangle.vertexOffset = m_GlobalVertexBufferIdx * sizeof(RawVertexFormat);

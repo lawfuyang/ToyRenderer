@@ -23,7 +23,7 @@ static void CreateUncompressedRawVertexFormatInputLayoutHandle()
     g_CommonResources.m_UncompressedRawVertexFormatInputLayoutHandle = g_Graphic.m_NVRHIDevice->createInputLayout(s_Layout, std::size(s_Layout), dummyVS);
 }
 
-static void ReverseWinding(std::vector<Graphic::IndexBufferFormat_t>& indices, std::vector<UncompressedRawVertexFormat>& vertices)
+static void ReverseWinding(std::vector<GraphicConstants::IndexBufferFormat_t>& indices, std::vector<UncompressedRawVertexFormat>& vertices)
 {
     assert((indices.size() % 3) == 0);
     for (auto it = indices.begin(); it != indices.end(); it += 3)
@@ -47,7 +47,7 @@ static void CreateUnitSphereMesh()
     const uint32_t kHorizontalSegments = kTessellation * 2;
 
     std::vector<UncompressedRawVertexFormat> vertices;
-    std::vector<Graphic::IndexBufferFormat_t> indices;
+    std::vector<GraphicConstants::IndexBufferFormat_t> indices;
 
     // Create rings of vertices at progressively higher latitudes.
     for (uint32_t i = 0; i <= kVerticalSegments; i++)
@@ -112,7 +112,7 @@ static void CreateUnitSphereMesh()
     g_CommonResources.UnitSphere.m_VertexBuffer = device->createBuffer(vbDesc);
 
     nvrhi::BufferDesc ibDesc;
-    ibDesc.byteSize = indices.size() * sizeof(Graphic::IndexBufferFormat_t);
+    ibDesc.byteSize = indices.size() * sizeof(GraphicConstants::IndexBufferFormat_t);
     ibDesc.debugName = "Unit Sphere Index Buffer";
     ibDesc.initialState = nvrhi::ResourceStates::ShaderResource;
     ibDesc.format = nvrhi::Format::R32_UINT;
@@ -287,12 +287,12 @@ static void CreateDefaultDepthStencilStates()
 	g_CommonResources.DepthNoneStencilNone   = CreateDepthStencilstate(false, false, nvrhi::ComparisonFunc::Always, false, 0, 0);
 	g_CommonResources.DepthNoneStencilRead   = CreateDepthStencilstate(false, false, nvrhi::ComparisonFunc::Always, true, 0xFF, 0);
 	g_CommonResources.DepthNoneStencilWrite  = CreateDepthStencilstate(false, false, nvrhi::ComparisonFunc::Always, true, 0, 0xFF);
-	g_CommonResources.DepthReadStencilNone   = CreateDepthStencilstate(true, false, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, false, 0, 0);
-	g_CommonResources.DepthReadStencilRead   = CreateDepthStencilstate(true, false, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0xFF, 0);
-	g_CommonResources.DepthReadStencilWrite  = CreateDepthStencilstate(true, false, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0, 0xFF);
-	g_CommonResources.DepthWriteStencilNone  = CreateDepthStencilstate(true, true, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, false, 0, 0);
-	g_CommonResources.DepthWriteStencilRead  = CreateDepthStencilstate(true, true, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0xFF, 0);
-	g_CommonResources.DepthWriteStencilWrite = CreateDepthStencilstate(true, true, Graphic::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0, 0xFF);
+	g_CommonResources.DepthReadStencilNone   = CreateDepthStencilstate(true, false, GraphicConstants::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, false, 0, 0);
+	g_CommonResources.DepthReadStencilRead   = CreateDepthStencilstate(true, false, GraphicConstants::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0xFF, 0);
+	g_CommonResources.DepthReadStencilWrite  = CreateDepthStencilstate(true, false, GraphicConstants::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0, 0xFF);
+	g_CommonResources.DepthWriteStencilNone  = CreateDepthStencilstate(true, true, GraphicConstants::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, false, 0, 0);
+	g_CommonResources.DepthWriteStencilRead  = CreateDepthStencilstate(true, true, GraphicConstants::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0xFF, 0);
+	g_CommonResources.DepthWriteStencilWrite = CreateDepthStencilstate(true, true, GraphicConstants::kInversedDepthBuffer ? nvrhi::ComparisonFunc::GreaterOrEqual : nvrhi::ComparisonFunc::LessOrEqual, true, 0, 0xFF);
 }
 
 static void CreateDefaultBlendModes()
@@ -335,7 +335,7 @@ static void CreateDefaultRasterStates()
 	g_CommonResources.CullClockwise        = CreateRasterState(nvrhi::RasterCullMode::Back);
 	g_CommonResources.CullCounterClockwise = CreateRasterState(nvrhi::RasterCullMode::Front);
 
-    g_CommonResources.CullBackFace = Graphic::kFrontCCW ? g_CommonResources.CullClockwise : g_CommonResources.CullCounterClockwise;
+    g_CommonResources.CullBackFace = GraphicConstants::kFrontCCW ? g_CommonResources.CullClockwise : g_CommonResources.CullCounterClockwise;
 }
 
 void CommonResources::Initialize()

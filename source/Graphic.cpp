@@ -12,6 +12,12 @@
 
 #include "shaders/ShaderInterop.h"
 
+static_assert(GraphicConstants::kMaxThreadGroupsPerDimension == kMaxThreadGroupsPerDimension);
+static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletVertices);
+static_assert(kMeshletShaderThreadGroupSize >= kMaxMeshletTriangles);
+static_assert(std::is_same_v<uint32_t, GraphicConstants::IndexBufferFormat_t>);
+static_assert(GraphicConstants::kMaxNumMeshLODs == kMaxNumMeshLODs);
+
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
 CommandLineOption<bool> g_ExecuteAndWaitPerCommandList{ "executeandwaitpercommandlist", false };
 

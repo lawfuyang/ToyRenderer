@@ -39,7 +39,7 @@ public:
 		nvrhi::TextureDesc desc;
 		desc.width = g_Graphic.m_RenderResolution.x;
 		desc.height = g_Graphic.m_RenderResolution.y;
-		desc.format = Graphic::kLightingOutputFormat;
+		desc.format = GraphicConstants::kLightingOutputFormat;
 		desc.debugName = "Bloom Texture";
 		desc.mipLevels = m_NbBloomMips;
 		desc.isRenderTarget = true;

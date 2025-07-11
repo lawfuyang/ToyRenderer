@@ -78,8 +78,8 @@ public:
             nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 
             const bool kClearStencil = true;
-            const uint8_t kClearStencilValue = Graphic::kStencilBit_Sky;
-            commandList->clearDepthStencilTexture(depthStencilBuffer, nvrhi::AllSubresources, true, Graphic::kFarDepth, kClearStencil, kClearStencilValue);
+            const uint8_t kClearStencilValue = GraphicConstants::kStencilBit_Sky;
+            commandList->clearDepthStencilTexture(depthStencilBuffer, nvrhi::AllSubresources, true, GraphicConstants::kFarDepth, kClearStencil, kClearStencilValue);
         }
     }
 };
@@ -119,7 +119,7 @@ void View::Update()
     m_WorldToView = m_ViewToWorld.Invert();
 
     m_ViewToClip = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, kKindaBigNumber);
-    ModifyPerspectiveMatrix(m_ViewToClip, m_ZNearP, kKindaBigNumber, Graphic::kInversedDepthBuffer, Graphic::kInfiniteDepthBuffer);
+    ModifyPerspectiveMatrix(m_ViewToClip, m_ZNearP, kKindaBigNumber, GraphicConstants::kInversedDepthBuffer, GraphicConstants::kInfiniteDepthBuffer);
 
     m_WorldToClip = m_WorldToView * m_ViewToClip;
     m_ClipToWorld = m_WorldToClip.Invert();
@@ -151,7 +151,7 @@ void Scene::Initialize()
 {
     m_TextureStreamingAsyncIOProcessingThread = std::thread{&Scene::ProcessTextureStreamingRequestsAsyncIO, this};
 
-    m_View.m_ZNearP = Graphic::kDefaultCameraNearPlane;
+    m_View.m_ZNearP = GraphicConstants::kDefaultCameraNearPlane;
     m_View.m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
     m_View.m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };
     m_View.Update();
@@ -599,7 +599,7 @@ void Scene::UpdateIMGUI()
         ImGui::Checkbox("Enable Occlusion Culling", &m_bEnableOcclusionCulling);
         ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);
         ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
-        ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, Graphic::kMaxNumMeshLODs - 1);
+        ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, GraphicConstants::kMaxNumMeshLODs - 1);
 
         ImGui::Text("Texture Streaming Debug");
         ImGui::SameLine();

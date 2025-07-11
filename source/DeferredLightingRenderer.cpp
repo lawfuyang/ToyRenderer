@@ -25,7 +25,7 @@ public:
 		nvrhi::TextureDesc desc;
 		desc.width = g_Graphic.m_RenderResolution.x;
 		desc.height = g_Graphic.m_RenderResolution.y;
-		desc.format = Graphic::kLightingOutputFormat;
+		desc.format = GraphicConstants::kLightingOutputFormat;
 		desc.debugName = "Lighting Output";
 		desc.isRenderTarget = true;
 		desc.initialState = nvrhi::ResourceStates::ShaderResource;
@@ -105,7 +105,7 @@ public:
 			.depthAttachment.isReadOnly = true;
 
 		nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthNoneStencilRead;
-		depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
+		depthStencilState.stencilRefValue = GraphicConstants::kStencilBit_Opaque;
 		depthStencilState.frontFaceStencil.stencilFunc = nvrhi::ComparisonFunc::Equal;
 
 		const bool bHasDebugView = g_Scene->m_DebugViewMode != 0;

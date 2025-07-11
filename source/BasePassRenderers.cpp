@@ -240,7 +240,7 @@ public:
 
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(MeshletAmplificationData) * Graphic::kMaxThreadGroupsPerDimension;
+            desc.byteSize = sizeof(MeshletAmplificationData) * GraphicConstants::kMaxThreadGroupsPerDimension;
             desc.structStride = sizeof(MeshletAmplificationData);
             desc.canHaveUAVs = true;
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
@@ -518,7 +518,7 @@ public:
 
         MinMaxDownsampleConsts passParameters;
         passParameters.m_OutputDimensions = m_HZBDimensions;
-        passParameters.m_bDownsampleMax = !Graphic::kInversedDepthBuffer;
+        passParameters.m_bDownsampleMax = !GraphicConstants::kInversedDepthBuffer;
 
         nvrhi::TextureHandle depthStencilBuffer = params.m_FrameBufferDesc.depthAttachment.texture;
 
@@ -541,7 +541,7 @@ public:
         g_Graphic.AddComputePass(computePassParams);
 
         // generate HZB mip chain
-        const nvrhi::SamplerReductionType reductionType = Graphic::kInversedDepthBuffer ? nvrhi::SamplerReductionType::Minimum : nvrhi::SamplerReductionType::Maximum;
+        const nvrhi::SamplerReductionType reductionType = GraphicConstants::kInversedDepthBuffer ? nvrhi::SamplerReductionType::Minimum : nvrhi::SamplerReductionType::Maximum;
         m_SPDHelper.Execute(commandList, renderGraph, depthStencilBuffer, g_Scene->m_HZB, reductionType);
     }
 
@@ -604,7 +604,7 @@ public:
 		nvrhi::TextureDesc desc;
 		desc.width = GetNextPow2(g_Graphic.m_RenderResolution.x) >> 1;
 		desc.height = GetNextPow2(g_Graphic.m_RenderResolution.y) >> 1;
-		desc.format = Graphic::kHZBFormat;
+		desc.format = GraphicConstants::kHZBFormat;
 		desc.isUAV = true;
 		desc.debugName = "HZB";
 		desc.mipLevels = ComputeNbMips(desc.width, desc.height);
@@ -616,7 +616,7 @@ public:
 		nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
 		SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "GBufferRenderer::Initialize");
 
-		commandList->clearTextureFloat(g_Scene->m_HZB, nvrhi::AllSubresources, nvrhi::Color{ Graphic::kFarDepth });
+		commandList->clearTextureFloat(g_Scene->m_HZB, nvrhi::AllSubresources, nvrhi::Color{ GraphicConstants::kFarDepth });
 	}
 
     bool Setup(RenderGraph& renderGraph) override
@@ -630,7 +630,7 @@ public:
             desc.isRenderTarget = true;
             desc.setClearValue(nvrhi::Color{ 0.0f });
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            desc.format = Graphic::kGBufferAFormat;
+            desc.format = GraphicConstants::kGBufferAFormat;
             desc.debugName = "GBufferA";
             renderGraph.CreateTransientResource(g_GBufferARDGTextureHandle, desc);
         }
@@ -642,7 +642,7 @@ public:
             desc.isRenderTarget = true;
             desc.setClearValue(nvrhi::Color{ 0.0f });
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            desc.format = Graphic::kGBufferMotionFormat;
+            desc.format = GraphicConstants::kGBufferMotionFormat;
             desc.debugName = "GBufferMotion";
             renderGraph.CreateTransientResource(g_GBufferMotionRDGTextureHandle, desc);
         }
@@ -651,14 +651,14 @@ public:
             nvrhi::TextureDesc desc;
             desc.width = g_Graphic.m_RenderResolution.x;
             desc.height = g_Graphic.m_RenderResolution.y;
-            desc.format = Graphic::kDepthStencilFormat;
+            desc.format = GraphicConstants::kDepthStencilFormat;
             desc.debugName = "Depth Buffer";
             desc.isRenderTarget = true;
-            desc.setClearValue(nvrhi::Color{ Graphic::kFarDepth, Graphic::kStencilBit_Sky, 0.0f, 0.0f });
+            desc.setClearValue(nvrhi::Color{ GraphicConstants::kFarDepth, GraphicConstants::kStencilBit_Sky, 0.0f, 0.0f });
             desc.initialState = nvrhi::ResourceStates::DepthRead;
             renderGraph.CreateTransientResource(g_DepthStencilBufferRDGTextureHandle, desc);
 
-            desc.format = Graphic::kDepthBufferCopyFormat;
+            desc.format = GraphicConstants::kDepthBufferCopyFormat;
             desc.debugName = "Depth Buffer Copy";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
             renderGraph.CreateTransientResource(g_DepthBufferCopyRDGTextureHandle, desc);
@@ -687,7 +687,7 @@ public:
 
         // write 'opaque' to stencil buffer
         nvrhi::DepthStencilState depthStencilState = g_CommonResources.DepthWriteStencilWrite;
-        depthStencilState.stencilRefValue = Graphic::kStencilBit_Opaque;
+        depthStencilState.stencilRefValue = GraphicConstants::kStencilBit_Opaque;
         depthStencilState.frontFaceStencil.passOp = nvrhi::StencilOp::Replace;
 
         RenderBasePassParams params;

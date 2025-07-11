@@ -38,7 +38,7 @@ struct GLTFSceneLoader
     std::vector<Material> m_SceneMaterials;
 
     std::vector<RawVertexFormat> m_GlobalVertices;
-    std::vector<Graphic::IndexBufferFormat_t> m_GlobalIndices;
+    std::vector<GraphicConstants::IndexBufferFormat_t> m_GlobalIndices;
     std::vector<MeshData> m_GlobalMeshData;
     std::vector<MaterialData> m_GlobalMaterialData;
 
@@ -572,7 +572,7 @@ struct GLTFSceneLoader
                         const cgltf_primitive& gltfPrimitive = gltfMesh.primitives[primitiveIdx];
                         assert(gltfPrimitive.type == cgltf_primitive_type_triangles);
 
-                        std::vector<Graphic::IndexBufferFormat_t> indices;
+                        std::vector<GraphicConstants::IndexBufferFormat_t> indices;
                         indices.resize(gltfPrimitive.indices->count);
 
                         static const int indexMap[] = { 0, 1, 2 }; // if CCW, { 0, 2, 1 }
@@ -636,7 +636,7 @@ struct GLTFSceneLoader
                         newSceneMesh->m_MeshDataBufferIdx = sceneMeshIdx;
 
                         memcpy(&m_GlobalVertices[globalVertexBufferIdxOffset], vertices.data(), vertices.size() * sizeof(RawVertexFormat));
-                        memcpy(&m_GlobalIndices[globalIndexBufferIdxOffset], indices.data(), indices.size() * sizeof(Graphic::IndexBufferFormat_t));
+                        memcpy(&m_GlobalIndices[globalIndexBufferIdxOffset], indices.data(), indices.size() * sizeof(GraphicConstants::IndexBufferFormat_t));
 
                         MeshData& meshData = m_GlobalMeshData[sceneMeshIdx];
                         meshData.m_BoundingSphere = Vector4{ newSceneMesh->m_BoundingSphere.Center.x, newSceneMesh->m_BoundingSphere.Center.y, newSceneMesh->m_BoundingSphere.Center.z, newSceneMesh->m_BoundingSphere.Radius };
@@ -725,7 +725,7 @@ struct GLTFSceneLoader
         objectsRead = fread(m_GlobalVertices.data(), sizeof(RawVertexFormat), header.m_NumVertices, cachedDataFile);
         assert(objectsRead == header.m_NumVertices);
 
-        objectsRead = fread(m_GlobalIndices.data(), sizeof(Graphic::IndexBufferFormat_t), header.m_NumIndices, cachedDataFile);
+        objectsRead = fread(m_GlobalIndices.data(), sizeof(GraphicConstants::IndexBufferFormat_t), header.m_NumIndices, cachedDataFile);
         assert(objectsRead == header.m_NumIndices);
 
         objectsRead = fread(m_GlobalMeshData.data(), sizeof(MeshData), header.m_NumMeshes, cachedDataFile);
@@ -1031,7 +1031,7 @@ struct GLTFSceneLoader
 
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = m_GlobalIndices.size() * sizeof(Graphic::IndexBufferFormat_t);
+            desc.byteSize = m_GlobalIndices.size() * sizeof(GraphicConstants::IndexBufferFormat_t);
             desc.structStride = sizeof(uint32_t);
             desc.debugName = "Global Index Buffer";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
@@ -1108,7 +1108,7 @@ struct GLTFSceneLoader
 
         fwrite(&header, sizeof(header), 1, cachedDataFile);
         fwrite(m_GlobalVertices.data(), sizeof(RawVertexFormat), m_GlobalVertices.size(), cachedDataFile);
-        fwrite(m_GlobalIndices.data(), sizeof(Graphic::IndexBufferFormat_t), m_GlobalIndices.size(), cachedDataFile);
+        fwrite(m_GlobalIndices.data(), sizeof(GraphicConstants::IndexBufferFormat_t), m_GlobalIndices.size(), cachedDataFile);
         fwrite(m_GlobalMeshData.data(), sizeof(MeshData), m_GlobalMeshData.size(), cachedDataFile);
         fwrite(m_GlobalMeshletVertexIdxOffsets.data(), sizeof(uint32_t), m_GlobalMeshletVertexIdxOffsets.size(), cachedDataFile);
         fwrite(m_GlobalMeshletIndices.data(), sizeof(uint32_t), m_GlobalMeshletIndices.size(), cachedDataFile);

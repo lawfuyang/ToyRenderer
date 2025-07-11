@@ -12,7 +12,9 @@ void Scene::AddTextureStreamingRequest(uint32_t textureIdx, int32_t targetMip)
         return; // texture is not streamed
     }
 
-    targetMip = std::clamp(targetMip, 0, (int32_t)texture.m_PackedMipIdx);
+    const uint32_t packedMipIdx = texture.m_PackedMipDesc.numStandardMips;
+
+    targetMip = std::clamp(targetMip, 0, (int32_t)packedMipIdx);
 
     if (texture.m_InFlightStreamingMip == targetMip || texture.m_CurrentlyStreamedMip == targetMip)
     {
@@ -37,7 +39,7 @@ void Scene::AddTextureStreamingRequest(uint32_t textureIdx, int32_t targetMip)
     }
     else
     {
-        if (texture.m_CurrentlyStreamedMip == texture.m_PackedMipIdx)
+        if (texture.m_CurrentlyStreamedMip == packedMipIdx)
         {
             return;
         }
