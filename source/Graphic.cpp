@@ -261,7 +261,7 @@ void Graphic::InitDescriptorTables()
 
     nvrhi::BindlessLayoutDesc bindlessLayoutDesc;
     bindlessLayoutDesc.visibility = nvrhi::ShaderType::All;
-    bindlessLayoutDesc.maxCapacity = kSrvUavCbvBindlessLayoutCapacity;
+    bindlessLayoutDesc.maxCapacity = GraphicConstants::kSrvUavCbvBindlessLayoutCapacity;
     bindlessLayoutDesc.layoutType = nvrhi::BindlessLayoutDesc::LayoutType::MutableSrvUavCbv;
     m_SrvUavCbvBindlessLayout = GetOrCreateBindingLayout(bindlessLayoutDesc);
     m_SrvUavCbvDescriptorTableManager = std::make_shared<DescriptorTableManager>(m_SrvUavCbvBindlessLayout);
