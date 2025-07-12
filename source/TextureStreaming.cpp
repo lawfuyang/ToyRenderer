@@ -31,6 +31,7 @@ void Scene::AddTextureStreamingRequest(uint32_t textureIdx, int32_t targetMip)
             return;
         }
 
+        // stream in 1 higher detailed mip at a time
         for (int32_t i = texture.m_CurrentlyStreamedMip - 1; i >= targetMip; --i)
         {
             AUTO_LOCK(m_TextureStreamingRequestsLock);
@@ -45,11 +46,8 @@ void Scene::AddTextureStreamingRequest(uint32_t textureIdx, int32_t targetMip)
         }
 
         // immediately queue to finalize, because all we need to do is to evict the heap for the higher detailed mip(s)
-        for (int32_t i = texture.m_CurrentlyStreamedMip + 1; i <= targetMip; ++i)
-        {
-            AUTO_LOCK(m_TextureStreamingRequestsToFinalizeLock);
-            m_TextureStreamingRequestsToFinalize.push_back(TextureStreamingRequest{ textureIdx, (uint32_t)i });
-        }
+        AUTO_LOCK(m_TextureStreamingRequestsToFinalizeLock);
+        m_TextureStreamingRequestsToFinalize.push_back(TextureStreamingRequest{ textureIdx, (uint32_t)targetMip });
     }
 
     texture.m_InFlightStreamingMip = (uint32_t)targetMip;
