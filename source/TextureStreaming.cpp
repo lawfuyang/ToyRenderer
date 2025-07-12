@@ -127,6 +127,13 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             assert(request.m_MipToStream != UINT_MAX);
             assert(request.m_MipToStream < std::size(texture.m_StreamingMipDatas));
 
+            if (request.m_MipToStream == texture.m_CurrentlyStreamedMip)
+            {
+                // already being streamed
+                // multiple same requests per frame? same mip request in too short time interval? either way, just ignore
+                continue;
+            }
+
             const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_CurrentlyStreamedMip);
             assert(bHigherDetailedMip);
 

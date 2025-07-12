@@ -607,7 +607,7 @@ void Scene::UpdateIMGUI()
             for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
             {
                 Texture& tex = g_Scene->m_Textures[i];
-                AddTextureStreamingRequest(i, tex.m_CurrentlyStreamedMip - 2);
+                AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip - 2);
             }
         }
         ImGui::SameLine();
@@ -616,7 +616,7 @@ void Scene::UpdateIMGUI()
             for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
             {
                 Texture& tex = g_Scene->m_Textures[i];
-                AddTextureStreamingRequest(i, tex.m_CurrentlyStreamedMip - 1);
+                AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip - 1);
             }
         }
         ImGui::SameLine();
@@ -625,7 +625,7 @@ void Scene::UpdateIMGUI()
             for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
             {
                 Texture& tex = g_Scene->m_Textures[i];
-                AddTextureStreamingRequest(i, tex.m_CurrentlyStreamedMip + 1);
+                AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip + 1);
             }
         }
         ImGui::SameLine();
@@ -634,7 +634,7 @@ void Scene::UpdateIMGUI()
             for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
             {
                 Texture& tex = g_Scene->m_Textures[i];
-                AddTextureStreamingRequest(i, tex.m_CurrentlyStreamedMip + 2);
+                AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip + 2);
             }
         }
 
