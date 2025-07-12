@@ -44,10 +44,11 @@ void Scene::AddTextureStreamingRequest(uint32_t textureIdx, int32_t targetMip)
             return;
         }
 
+        // immediately queue to finalize, because all we need to do is to evict the heap for the higher detailed mip(s)
         for (int32_t i = texture.m_CurrentlyStreamedMip + 1; i <= targetMip; ++i)
         {
-            AUTO_LOCK(m_TextureStreamingRequestsLock);
-            m_TextureStreamingRequests.push_back(TextureStreamingRequest{ textureIdx, (uint32_t)i });
+            AUTO_LOCK(m_TextureStreamingRequestsToFinalizeLock);
+            m_TextureStreamingRequestsToFinalize.push_back(TextureStreamingRequest{ textureIdx, (uint32_t)i });
         }
     }
 
@@ -103,7 +104,7 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             // sanity check that the underlying bytes is empty after moving
             assert(request->m_MipBytes.empty());
 
-            //LOG_DEBUG("Texture Streaming Request Completed: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request->m_MipToStream);
+            LOG_DEBUG("Texture Streaming Request Completed: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request->m_MipToStream);
         }
     };
 
@@ -127,33 +128,26 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             assert(request.m_MipToStream < std::size(texture.m_StreamingMipDatas));
 
             const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_CurrentlyStreamedMip);
-            if (bHigherDetailedMip)
-            {
-                const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_MipToStream];
-                assert(streamingMipData.IsValid());
+            assert(bHigherDetailedMip);
 
-                TextureStreamingRequest* inFlightRequest = new TextureStreamingRequest;
-                inFlightRequest->m_TextureIdx = request.m_TextureIdx;
-                inFlightRequest->m_MipToStream = request.m_MipToStream;
-                inFlightRequest->m_MipBytes.resize(streamingMipData.m_NumBytes);
+            const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_MipToStream];
+            assert(streamingMipData.IsValid());
 
-                SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_StreamingFilePath.c_str(), "r");
-                SDL_CALL(asyncIO);
+            TextureStreamingRequest* inFlightRequest = new TextureStreamingRequest;
+            inFlightRequest->m_TextureIdx = request.m_TextureIdx;
+            inFlightRequest->m_MipToStream = request.m_MipToStream;
+            inFlightRequest->m_MipBytes.resize(streamingMipData.m_NumBytes);
 
-                SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest->m_MipBytes.data(), streamingMipData.m_DataOffset, streamingMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)inFlightRequest));
+            SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_StreamingFilePath.c_str(), "r");
+            SDL_CALL(asyncIO);
 
-                // according to the doc, we can close the async IO handle after the read request is submitted
-                SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
+            SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest->m_MipBytes.data(), streamingMipData.m_DataOffset, streamingMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)inFlightRequest));
 
-                // immediately process & discard the SDL_ASYNCIO_TASK_CLOSE result
-                ProcessAsyncIOResults();
-            }
-            else
-            {
-                // immediately queue to finalize, because all we need to do is to evict the heap for the higher detailed mip(s)
-                AUTO_LOCK(m_TextureStreamingRequestsToFinalizeLock);
-                m_TextureStreamingRequestsToFinalize.push_back(std::move(request));
-            }
+            // according to the doc, we can close the async IO handle after the read request is submitted
+            SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
+
+            // immediately process & discard the SDL_ASYNCIO_TASK_CLOSE result
+            ProcessAsyncIOResults();
         }
         textureStreamingRequests.clear();
 
@@ -247,7 +241,7 @@ void Scene::FinalizeTextureStreamingRequests()
             const bool bReregisterInDescTable = true;
             g_Graphic.RegisterInSrvUavCbvDescriptorTable(texture, bReregisterInDescTable);
 
-            //LOG_DEBUG("Texture Streaming Request Finalized: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_MipToStream);
+            LOG_DEBUG("Texture Streaming Request Finalized: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_MipToStream);
         }
 
         // extern void TriggerDumpProfilingCapture(std::string_view fileName);
