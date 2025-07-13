@@ -89,10 +89,6 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             assert(asyncIOOutcome.bytes_requested == streamingMipData.m_NumBytes);
             assert(asyncIOOutcome.bytes_transferred == streamingMipData.m_NumBytes);
             assert(streamingMipData.m_NumBytes == request->m_MipBytes.size());
-            
-            // an IO operation should only be done if the requested mip is higher detailed than the currently streamed mip
-            const bool bHigherDetailedMip = (request->m_MipToStream < texture.m_CurrentlyStreamedMip);
-            assert(bHigherDetailedMip);
 
             {
                 AUTO_LOCK(m_TextureStreamingRequestsToFinalizeLock);
@@ -102,7 +98,7 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             // sanity check that the underlying bytes is empty after moving
             assert(request->m_MipBytes.empty());
 
-            LOG_DEBUG("Texture Streaming Request Completed: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request->m_MipToStream);
+            //LOG_DEBUG("Texture Streaming Request Completed: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request->m_MipToStream);
         }
     };
 
@@ -131,9 +127,6 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
                 // multiple same requests per frame? same mip request in too short time interval? either way, just ignore
                 continue;
             }
-
-            const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_CurrentlyStreamedMip);
-            assert(bHigherDetailedMip);
 
             const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[request.m_MipToStream];
             assert(streamingMipData.IsValid());
@@ -186,6 +179,12 @@ void Scene::FinalizeTextureStreamingRequests()
             Texture& texture = m_Textures.at(request.m_TextureIdx);
             assert(texture.m_StreamingMipDatas[request.m_MipToStream].IsValid());
 
+            // possible wasted streaming request. discard
+            if (texture.m_CurrentlyStreamedMip == request.m_MipToStream)
+            {
+                continue;
+            }
+
             auto GetTileMappingForMip = [](
                 Texture& texture,
                 nvrhi::TiledTextureCoordinate& tiledTextureCoordinate,
@@ -220,25 +219,30 @@ void Scene::FinalizeTextureStreamingRequests()
             const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_CurrentlyStreamedMip);
             if (bHigherDetailedMip)
             {
-                assert(!texture.m_MipHeaps[request.m_MipToStream]);
-                assert(!texture.m_MipHeapBuffers[request.m_MipToStream]);
+                nvrhi::HeapHandle& mipHeap = texture.m_MipHeaps[request.m_MipToStream];
+                if (!mipHeap)
+                {
+                    const uint32_t numTilesForMip = texture.m_TilingsInfo[request.m_MipToStream].widthInTiles * texture.m_TilingsInfo[request.m_MipToStream].heightInTiles;
 
-                const uint32_t numTilesForMip = texture.m_TilingsInfo[request.m_MipToStream].widthInTiles * texture.m_TilingsInfo[request.m_MipToStream].heightInTiles;
+                    nvrhi::HeapDesc mipHeapDesc;
+                    mipHeapDesc.capacity = numTilesForMip * KB_TO_BYTES(64); // TODO: confirm if Vulkan also uses 64KB tiles
+                    mipHeapDesc.type = nvrhi::HeapType::DeviceLocal;
+                    mipHeapDesc.debugName = StringFormat("Mip[%u] Heap", request.m_MipToStream);
+                    texture.m_MipHeaps[request.m_MipToStream] = device->createHeap(mipHeapDesc);
+                }
 
-                nvrhi::HeapDesc mipHeapDesc;
-                mipHeapDesc.capacity = numTilesForMip * KB_TO_BYTES(64); // TODO: confirm if Vulkan also uses 64KB tiles
-                mipHeapDesc.type = nvrhi::HeapType::DeviceLocal;
-                mipHeapDesc.debugName = "packed mip heap";
-                texture.m_MipHeaps[request.m_MipToStream] = device->createHeap(mipHeapDesc);
+                nvrhi::BufferHandle& mipHeapBuffer = texture.m_MipHeapBuffers[request.m_MipToStream];
+                if (!mipHeapBuffer)
+                {
+                    nvrhi::BufferDesc mipHeapBufferDesc;
+                    mipHeapBufferDesc.byteSize = mipHeap->getDesc().capacity;
+                    mipHeapBufferDesc.isVirtual = true;
+                    mipHeapBufferDesc.initialState = nvrhi::ResourceStates::CopySource;
+                    mipHeapBufferDesc.keepInitialState = true;
+                    texture.m_MipHeapBuffers[request.m_MipToStream] = device->createBuffer(mipHeapBufferDesc);
+                }
 
-                nvrhi::BufferDesc mipHeapBufferDesc;
-                mipHeapBufferDesc.byteSize = mipHeapDesc.capacity;
-                mipHeapBufferDesc.isVirtual = true;
-                mipHeapBufferDesc.initialState = nvrhi::ResourceStates::CopySource;
-                mipHeapBufferDesc.keepInitialState = true;
-                texture.m_MipHeapBuffers[request.m_MipToStream] = device->createBuffer(mipHeapBufferDesc);
-
-                device->bindBufferMemory(texture.m_MipHeapBuffers[request.m_MipToStream], texture.m_MipHeaps[request.m_MipToStream], 0);
+                device->bindBufferMemory(texture.m_MipHeapBuffers[request.m_MipToStream], mipHeap, 0);
 
                 nvrhi::TiledTextureCoordinate tiledTextureCoordinate;
                 nvrhi::TiledTextureRegion tiledRegion;
@@ -254,10 +258,18 @@ void Scene::FinalizeTextureStreamingRequests()
             {
                 for (int32_t i = texture.m_CurrentlyStreamedMip; i < request.m_MipToStream; ++i)
                 {
+                    const uint32_t packedMipIdx = texture.m_PackedMipDesc.numStandardMips;
+                    assert(i < packedMipIdx);
+
                     assert(texture.m_MipHeaps[i]);
                     assert(texture.m_MipHeapBuffers[i]);
-                    texture.m_MipHeaps[i].Reset();
-                    texture.m_MipHeapBuffers[i].Reset();
+
+                    // TODO: fix freeing heap at a safe time (frame-fenced??) after lower mip
+                    if constexpr (0)
+                    {
+                        texture.m_MipHeaps[i].Reset();
+                        texture.m_MipHeapBuffers[i].Reset();
+                    }
 
                     nvrhi::TiledTextureCoordinate tiledTextureCoordinate;
                     nvrhi::TiledTextureRegion tiledRegion;
@@ -274,7 +286,7 @@ void Scene::FinalizeTextureStreamingRequests()
             const bool bReregisterInDescTable = true;
             g_Graphic.RegisterInSrvUavCbvDescriptorTable(texture, bReregisterInDescTable);
 
-            LOG_DEBUG("Texture Streaming Request Finalized: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_MipToStream);
+            //LOG_DEBUG("Texture Streaming Request Finalized: Texture[%s] Mip[%u]", texture.m_NVRHITextureHandle->getDesc().debugName.c_str(), request.m_MipToStream);
         }
 
         // extern void TriggerDumpProfilingCapture(std::string_view fileName);
@@ -289,4 +301,24 @@ void Scene::StressTestTextureMipRequests()
         return;
     }
 
+    if (m_Textures.empty())
+    {
+        return;
+    }
+
+    const uint32_t numTextures = std::min(m_Textures.size() - 1, (size_t)(rand() % 10) + 1);
+
+    std::unordered_set<uint32_t> uniqueTextureIndices;
+    while (uniqueTextureIndices.size() < numTextures)
+    {
+        uniqueTextureIndices.insert(rand() % m_Textures.size());
+    }
+
+    for (const uint32_t randomIdx : uniqueTextureIndices)
+    {
+        Texture& tex = m_Textures.at(randomIdx);
+        
+        const int32_t randomMipDelta = ((rand() % 2) * 2 - 1) * ((rand() % 3) + 1);
+        AddTextureStreamingRequest(randomIdx, tex.m_InFlightStreamingMip + randomMipDelta);
+    }
 }
