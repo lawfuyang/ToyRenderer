@@ -186,10 +186,40 @@ void Scene::FinalizeTextureStreamingRequests()
             Texture& texture = m_Textures.at(request.m_TextureIdx);
             assert(texture.m_StreamingMipDatas[request.m_MipToStream].IsValid());
 
+            auto GetTileMappingForMip = [](
+                Texture& texture,
+                nvrhi::TiledTextureCoordinate& tiledTextureCoordinate,
+                nvrhi::TiledTextureRegion& tiledRegion,
+                uint64_t& byteOffset,
+                uint32_t mip,
+                bool bBindHeap)
+            {
+                tiledTextureCoordinate.mipLevel = mip;
+                tiledTextureCoordinate.arrayLevel = 0;
+                tiledTextureCoordinate.x = 0;
+                tiledTextureCoordinate.y = 0;
+                tiledTextureCoordinate.z = 0;
+
+                const uint32_t numTilesForMip = texture.m_TilingsInfo[mip].widthInTiles * texture.m_TilingsInfo[mip].heightInTiles;
+
+                tiledRegion.tilesNum = numTilesForMip;
+                tiledRegion.width = texture.m_TilingsInfo[mip].widthInTiles;
+                tiledRegion.height = texture.m_TilingsInfo[mip].heightInTiles;
+                tiledRegion.depth = 0;
+
+                nvrhi::TextureTilesMapping tileMapping;
+                tileMapping.tiledTextureCoordinates = &tiledTextureCoordinate;
+                tileMapping.tiledTextureRegions = &tiledRegion;
+                tileMapping.byteOffsets = &byteOffset;
+                tileMapping.numTextureRegions = 1;
+                tileMapping.heap = bBindHeap ? texture.m_MipHeaps[mip] : nullptr;
+
+                return tileMapping;
+            };
+
             const bool bHigherDetailedMip = (request.m_MipToStream < texture.m_CurrentlyStreamedMip);
             if (bHigherDetailedMip)
             {
-                // TODO: update tile mapping to heap for mip
                 assert(!texture.m_MipHeaps[request.m_MipToStream]);
                 assert(!texture.m_MipHeapBuffers[request.m_MipToStream]);
 
@@ -213,24 +243,8 @@ void Scene::FinalizeTextureStreamingRequests()
                 nvrhi::TiledTextureCoordinate tiledTextureCoordinate;
                 nvrhi::TiledTextureRegion tiledRegion;
                 uint64_t byteOffset = 0;
-
-                tiledTextureCoordinate.mipLevel = request.m_MipToStream;
-                tiledTextureCoordinate.arrayLevel = 0;
-                tiledTextureCoordinate.x = 0;
-                tiledTextureCoordinate.y = 0;
-                tiledTextureCoordinate.z = 0;
-
-                tiledRegion.tilesNum = numTilesForMip;
-                tiledRegion.width = texture.m_TilingsInfo[request.m_MipToStream].widthInTiles;
-                tiledRegion.height = texture.m_TilingsInfo[request.m_MipToStream].heightInTiles;
-                tiledRegion.depth = 0;
-
-                nvrhi::TextureTilesMapping tileMapping;
-                tileMapping.tiledTextureCoordinates = &tiledTextureCoordinate;
-                tileMapping.tiledTextureRegions = &tiledRegion;
-                tileMapping.byteOffsets = &byteOffset;
-                tileMapping.numTextureRegions = 1;
-                tileMapping.heap = texture.m_MipHeaps[request.m_MipToStream];
+                const bool bBindHeap = true;
+                const nvrhi::TextureTilesMapping tileMapping = GetTileMappingForMip(texture, tiledTextureCoordinate, tiledRegion, byteOffset, request.m_MipToStream, bBindHeap);
 
                 device->updateTextureTileMappings(texture.m_NVRHITextureHandle, &tileMapping, 1);
                 
@@ -238,7 +252,21 @@ void Scene::FinalizeTextureStreamingRequests()
             }
             else
             {
-                // TODO: update tile mapping to null heap to evict memory
+                for (int32_t i = texture.m_CurrentlyStreamedMip; i < request.m_MipToStream; ++i)
+                {
+                    assert(texture.m_MipHeaps[i]);
+                    assert(texture.m_MipHeapBuffers[i]);
+                    texture.m_MipHeaps[i].Reset();
+                    texture.m_MipHeapBuffers[i].Reset();
+
+                    nvrhi::TiledTextureCoordinate tiledTextureCoordinate;
+                    nvrhi::TiledTextureRegion tiledRegion;
+                    uint64_t byteOffset = 0;
+                    const bool bBindHeap = false;
+                    const nvrhi::TextureTilesMapping tileMapping = GetTileMappingForMip(texture, tiledTextureCoordinate, tiledRegion, byteOffset, i, bBindHeap);
+
+                    device->updateTextureTileMappings(texture.m_NVRHITextureHandle, &tileMapping, 1);
+                }
             }
 
             texture.m_CurrentlyStreamedMip = request.m_MipToStream;
