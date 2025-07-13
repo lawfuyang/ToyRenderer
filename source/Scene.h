@@ -75,6 +75,22 @@ struct TextureStreamingRequest
     std::vector<std::byte> m_MipBytes;
 };
 
+class FeedbackManager
+{
+public:
+    std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
+
+    std::vector<nvrhi::HeapHandle> m_Heaps;
+    std::vector<nvrhi::BufferHandle> m_Buffers;
+    std::vector<uint32_t> m_FreeHeapIDs;
+
+    rtxts::Statistics m_Statistics;
+    uint64_t m_HeapAllocationInBytes = 0;
+    float m_CPUTimeBeginFrame = 0.0f;
+    float m_CPUTimeUpdateTileMappings = 0.0f;
+    float m_CPUTimeResolve = 0.0f;
+};
+
 class Scene
 {
 public:
@@ -153,6 +169,8 @@ public:
 
     GIVolumeBase* m_GIVolume = nullptr;
 
+    FeedbackManager m_FeedbackManager;
+
 private:
     void UpdateMainViewCameraControls();
     void UpdateInstanceIDsBuffers();
@@ -178,7 +196,5 @@ private:
 
     std::thread m_TextureStreamingAsyncIOProcessingThread;
     bool m_bShutDownStreamingThread = false;
-
-    std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
 };
 #define g_Scene g_Graphic.m_Scene

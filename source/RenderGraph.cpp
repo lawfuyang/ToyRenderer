@@ -285,7 +285,7 @@ void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
 
 			pass.m_CommandList->endTimerQuery(rendererTimerQuery);
 
-			renderer->m_CPUFrameTime = Timer::SecondsToMilliSeconds(passTimer.GetElapsedSeconds());
+			renderer->m_CPUFrameTime = passTimer.GetElapsedMilliSeconds();
 
 			tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 		});
