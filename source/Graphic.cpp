@@ -8,6 +8,7 @@
 #include "CommonResources.h"
 #include "Engine.h"
 #include "Scene.h"
+#include "TextureFeedbackManager.h"
 #include "Utilities.h"
 
 #include "shaders/ShaderInterop.h"
@@ -631,6 +632,7 @@ void Graphic::Initialize()
 
     m_CommonResources = std::make_shared<CommonResources>();
     m_Scene = std::make_shared<Scene>();
+    m_TextureFeedbackManager = std::make_shared<TextureFeedbackManager>();
 
     InitRenderDocAPI();
     InitDevice();
@@ -641,6 +643,7 @@ void Graphic::Initialize()
     tf::Task initDescriptorTable = tf.emplace([this] { InitDescriptorTables(); });
     tf::Task initCommonResources = tf.emplace([this] { m_CommonResources->Initialize(); });
     tf.emplace([this] { m_Scene->Initialize(); });
+    tf.emplace([this] { m_TextureFeedbackManager->Initialize(); });
 
     for (IRenderer* renderer : IRenderer::ms_AllRenderers)
     {
@@ -683,6 +686,9 @@ void Graphic::Shutdown()
 
     m_Scene->Shutdown();
     m_Scene.reset();
+
+    m_TextureFeedbackManager->Shutdown();
+    m_TextureFeedbackManager.reset();
 
     m_AllShaders.clear();
     m_CachedGraphicPSOs.clear();

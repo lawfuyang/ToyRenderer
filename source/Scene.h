@@ -1,7 +1,6 @@
 #pragma once
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
-#include "extern/nvidia/RTXTS-TTM/include/rtxts-ttm/TiledTextureManager.h"
 
 #include "MathUtilities.h"
 #include "Utilities.h"
@@ -73,22 +72,6 @@ struct TextureStreamingRequest
     uint32_t m_TextureIdx;
     uint32_t m_MipToStream;
     std::vector<std::byte> m_MipBytes;
-};
-
-class FeedbackManager
-{
-public:
-    std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
-
-    std::vector<nvrhi::HeapHandle> m_Heaps;
-    std::vector<nvrhi::BufferHandle> m_Buffers;
-    std::vector<uint32_t> m_FreeHeapIDs;
-
-    rtxts::Statistics m_Statistics;
-    uint64_t m_HeapAllocationInBytes = 0;
-    float m_CPUTimeBeginFrame = 0.0f;
-    float m_CPUTimeUpdateTileMappings = 0.0f;
-    float m_CPUTimeResolve = 0.0f;
 };
 
 class Scene
@@ -168,8 +151,6 @@ public:
     nvrhi::rt::AccelStructHandle m_TLAS;
 
     GIVolumeBase* m_GIVolume = nullptr;
-
-    FeedbackManager m_FeedbackManager;
 
 private:
     void UpdateMainViewCameraControls();

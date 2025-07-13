@@ -9,13 +9,14 @@
 #include "DescriptorTableManager.h"
 #include "GraphicConstants.h"
 #include "MathUtilities.h"
-#include "Visual.h"
 #include "SmallVector.h"
+#include "Visual.h"
 
 class CommonResources;
 class RenderGraph;
 class Scene;
 struct MaterialData;
+class TextureFeedbackManager;
 
 class GraphicRHI
 {
@@ -114,6 +115,7 @@ public:
 
     std::shared_ptr<Scene> m_Scene;
     std::shared_ptr<CommonResources> m_CommonResources;
+    std::shared_ptr<TextureFeedbackManager> m_TextureFeedbackManager;
 
     nvrhi::TextureHandle m_SwapChainTextureHandles[2];
 

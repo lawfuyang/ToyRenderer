@@ -47,6 +47,11 @@ public:
     nvrhi::TextureHandle m_NVRHITextureHandle;
 
     uint32_t m_SRVIndexInTable = UINT_MAX;
+
+    uint32_t m_TiledTextureID = UINT_MAX;
+    nvrhi::SamplerFeedbackTextureHandle m_SamplerFeedbackTextureHandle;
+    nvrhi::BufferHandle m_FeedbackResolveBuffers[2];
+    nvrhi::TextureHandle m_MinMipTextureHandle;
 };
 
 struct MeshLOD

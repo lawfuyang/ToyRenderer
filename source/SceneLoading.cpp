@@ -500,7 +500,7 @@ struct GLTFSceneLoader
                 // need to fix sampler index in top 2 bits of the packed value
                 assert(samplerHeapIdx < (1u << 2));
 
-                return srvIndexInHeap| (samplerHeapIdx << 30);
+                return srvIndexInHeap | (samplerHeapIdx << 30);
             };
 
             MaterialData& materialData = m_GlobalMaterialData[i];

@@ -5,8 +5,9 @@
 #include "Engine.h"
 #include "Graphic.h"
 #include "Scene.h"
-#include "Utilities.h"
+#include "TextureFeedbackManager.h"
 #include "TextureLoading.h"
+#include "Utilities.h"
 
 #include "shaders/ShaderInterop.h"
 
@@ -56,15 +57,15 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     m_NumTextureMips = ddsFileInfo.m_MipCount;
 
-    nvrhi::TextureDesc desc;
-    desc.width = ddsFileInfo.m_Width;
-    desc.height = ddsFileInfo.m_Height;
-    desc.format = ddsFileInfo.m_Format;
-    desc.isTiled = true;
-    desc.mipLevels = m_NumTextureMips;
-    desc.debugName = debugName;
-    desc.initialState = nvrhi::ResourceStates::ShaderResource;
-    m_NVRHITextureHandle = device->createTexture(desc);
+    nvrhi::TextureDesc reservedTexDesc;
+    reservedTexDesc.width = ddsFileInfo.m_Width;
+    reservedTexDesc.height = ddsFileInfo.m_Height;
+    reservedTexDesc.format = ddsFileInfo.m_Format;
+    reservedTexDesc.isTiled = true;
+    reservedTexDesc.mipLevels = m_NumTextureMips;
+    reservedTexDesc.debugName = debugName;
+    reservedTexDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+    m_NVRHITextureHandle = device->createTexture(reservedTexDesc);
 
     device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_NumTextureMips, m_TilingsInfo);
 
@@ -128,8 +129,69 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     m_SRVIndexInTable = g_Graphic.RegisterInSrvUavCbvDescriptorTable(*this);
 
-    const nvrhi::TextureDesc& texDesc = m_NVRHITextureHandle->getDesc();
-    LOG_DEBUG("New Texture: %s, %d x %d, %s", texDesc.debugName.c_str(), texDesc.width, texDesc.height, nvrhi::utils::FormatToString(texDesc.format));
+    rtxts::TiledLevelDesc tiledLevelDescs[16]{};
+    rtxts::TiledTextureDesc tiledTextureDesc;
+    tiledTextureDesc.textureWidth = reservedTexDesc.width;
+    tiledTextureDesc.textureHeight = reservedTexDesc.height;
+    tiledTextureDesc.tiledLevelDescs = tiledLevelDescs;
+    tiledTextureDesc.regularMipLevelsNum = m_PackedMipDesc.numStandardMips;
+    tiledTextureDesc.packedMipLevelsNum = m_PackedMipDesc.numPackedMips;
+    tiledTextureDesc.packedTilesNum = m_PackedMipDesc.numTilesForPackedMips;
+    tiledTextureDesc.tileWidth = m_TileShape.widthInTexels;
+    tiledTextureDesc.tileHeight = m_TileShape.heightInTexels;
+
+    for (uint32_t i = 0; i < tiledTextureDesc.regularMipLevelsNum; ++i)
+    {
+        tiledLevelDescs[i].widthInTiles = m_TilingsInfo[i].widthInTiles;
+        tiledLevelDescs[i].heightInTiles = m_TilingsInfo[i].heightInTiles;
+    }
+
+    rtxts::TextureDesc feedbackDesc;
+    rtxts::TextureDesc minMipDesc;
+
+    {
+        rtxts::TiledTextureManager* tiledTextureManager = g_TextureFeedbackManager->m_TiledTextureManager.get();
+
+        AUTO_LOCK(g_TextureFeedbackManager->m_TiledTextureManagerLock);
+        tiledTextureManager->AddTiledTexture(tiledTextureDesc, m_TiledTextureID);
+        feedbackDesc = tiledTextureManager->GetTextureDesc(m_TiledTextureID, rtxts::eFeedbackTexture);
+        minMipDesc = tiledTextureManager->GetTextureDesc(m_TiledTextureID, rtxts::eMinMipTexture);
+    }
+
+    // Sampler feedback texture
+    nvrhi::SamplerFeedbackTextureDesc samplerFeedbackTextureDesc;
+    samplerFeedbackTextureDesc.samplerFeedbackFormat = nvrhi::SamplerFeedbackFormat::MinMipOpaque;
+    samplerFeedbackTextureDesc.samplerFeedbackMipRegionX = feedbackDesc.textureOrMipRegionWidth;
+    samplerFeedbackTextureDesc.samplerFeedbackMipRegionY = feedbackDesc.textureOrMipRegionHeight;
+    samplerFeedbackTextureDesc.samplerFeedbackMipRegionZ = m_TileShape.depthInTexels;
+    samplerFeedbackTextureDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
+    m_SamplerFeedbackTextureHandle = device->createSamplerFeedbackTexture(m_NVRHITextureHandle, samplerFeedbackTextureDesc);
+
+    // Resolve / Readback buffer
+    for (nvrhi::BufferHandle& resolveBuffer : m_FeedbackResolveBuffers)
+    {
+        uint32_t feedbackTilesX = (reservedTexDesc.width - 1) / feedbackDesc.textureOrMipRegionWidth + 1;
+        uint32_t feedbackTilesY = (reservedTexDesc.height - 1) / feedbackDesc.textureOrMipRegionHeight + 1;
+
+        nvrhi::BufferDesc resolveBufferDesc;
+        resolveBufferDesc.byteSize = feedbackTilesX * feedbackTilesY;
+        resolveBufferDesc.cpuAccess = nvrhi::CpuAccessMode::Read;
+        resolveBufferDesc.initialState = nvrhi::ResourceStates::ResolveDest;
+        resolveBufferDesc.debugName = "Resolve Buffer";
+        resolveBuffer = device->createBuffer(resolveBufferDesc);
+    }
+
+    // MinMip texture
+    nvrhi::TextureDesc minMipTextureDesc{};
+    minMipTextureDesc.width = minMipDesc.textureOrMipRegionWidth;
+    minMipTextureDesc.height = minMipDesc.textureOrMipRegionHeight;
+    minMipTextureDesc.format = nvrhi::Format::R32_FLOAT;
+    minMipTextureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+    minMipTextureDesc.keepInitialState = true;
+    minMipTextureDesc.debugName = "MinMip Texture";
+    m_MinMipTextureHandle = device->createTexture(minMipTextureDesc);
+
+    LOG_DEBUG("New Texture: %s, %d x %d, %s", reservedTexDesc.debugName.c_str(), reservedTexDesc.width, reservedTexDesc.height, nvrhi::utils::FormatToString(reservedTexDesc.format));
 }
 
 bool Texture::IsValid() const
