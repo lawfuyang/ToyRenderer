@@ -223,7 +223,7 @@ void RenderGraph::Compile()
 	m_HeapsToFree.clear();
 }
 
-void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
+void RenderGraph::AddRenderer(IRenderer* renderer)
 {
 	STATIC_MULTITHREAD_DETECTOR();
 
@@ -300,13 +300,6 @@ void RenderGraph::AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed)
 		});
 
     m_CommandListQueueTasks.push_back(queueCommandListTask);
-
-    // schedule dependency for both CPU & GPU, if needed
-	if (taskToSucceed)
-	{
-		renderTask.succeed(*taskToSucceed);
-        queueCommandListTask.succeed(*taskToSucceed);
-	}
 }
 
 void RenderGraph::UpdateIMGUI()

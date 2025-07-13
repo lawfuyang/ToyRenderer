@@ -81,7 +81,7 @@ public:
 	void InitializeForFrame(tf::Taskflow& taskFlow);
 	void Shutdown();
 	void Compile();
-	void AddRenderer(IRenderer* renderer, tf::Task* taskToSucceed = nullptr);
+	void AddRenderer(IRenderer* renderer);
 	void UpdateIMGUI();
 
 	// Setup Phase funcs
