@@ -18,7 +18,8 @@ StructuredBuffer<MeshData> g_MeshDataBuffer : register(t7);
 Texture2D g_BlueNoise : register(t8);
 RWTexture2D<float> g_ShadowDataOutput : register(u0);
 RWTexture2D<float> g_LinearViewDepthOutput : register(u1);
-sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
+sampler g_AnisotropicClampSampler : register(s0);
+sampler g_AnisotropicWrapSampler : register(s1);
 
 float2x3 CreateTangentVectors(float3 normal)
 {
@@ -118,7 +119,8 @@ void CS_ShadowMask(
             args.m_MeshDataBuffer = g_MeshDataBuffer;
             args.m_GlobalIndexIDsBuffer = g_GlobalIndexIDsBuffer;
             args.m_GlobalVertexBuffer = g_GlobalVertexBuffer;
-            args.m_Samplers = g_Samplers;
+            args.m_AnisotropicWrapSampler = g_AnisotropicWrapSampler;
+            args.m_AnisotropicClampSampler = g_AnisotropicClampSampler;
             
             GBufferParams gbufferParams = GetRayHitInstanceGBufferParams(args);
             

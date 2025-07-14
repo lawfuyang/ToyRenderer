@@ -468,10 +468,10 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalMeshletIndicesBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(7, meshletAmplificationDataBuffer),
             nvrhi::BindingSetItem::Texture_SRV(8, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.AnisotropicClampSampler),
+            nvrhi::BindingSetItem::Sampler(1, g_CommonResources.AnisotropicWrapSampler),
+            nvrhi::BindingSetItem::Sampler(2, g_CommonResources.AnisotropicClampMaxReductionSampler),
+            nvrhi::BindingSetItem::Sampler(3, g_CommonResources.AnisotropicWrapMaxReductionSampler),
             nvrhi::BindingSetItem::Sampler(4, g_CommonResources.LinearClampMinReductionSampler)
         };
 

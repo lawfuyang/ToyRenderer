@@ -17,7 +17,10 @@ StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
 StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
 StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
 Texture2D g_HZB : register(t8);
-sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
+sampler g_AnisotropicClampSampler : register(s0);
+sampler g_AnisotropicWrapSampler : register(s1);
+sampler g_AnisotropicClampMaxReductionSampler : register(s2);
+sampler g_AnisotropicWrapMaxReductionSampler : register(s3);
 SamplerState g_LinearClampMinReductionSampler : register(s4);
 
 struct VertexOut
@@ -194,7 +197,11 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     getCommonGBufferParamsArguments.m_WorldPosition = inVertex.m_WorldPosition;
     getCommonGBufferParamsArguments.m_Normal = inVertex.m_Normal;
     getCommonGBufferParamsArguments.m_MaterialData = materialData;
-    getCommonGBufferParamsArguments.m_Samplers = g_Samplers;
+    getCommonGBufferParamsArguments.m_AnisotropicClampSampler = g_AnisotropicClampSampler;
+    getCommonGBufferParamsArguments.m_AnisotropicWrapSampler = g_AnisotropicWrapSampler;
+    getCommonGBufferParamsArguments.m_AnisotropicClampMaxReductionSampler = g_AnisotropicClampMaxReductionSampler;
+    getCommonGBufferParamsArguments.m_AnisotropicWrapMaxReductionSampler = g_AnisotropicWrapMaxReductionSampler;
+    getCommonGBufferParamsArguments.m_bEnableSamplerFeedback = true;
     
     GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments);
     

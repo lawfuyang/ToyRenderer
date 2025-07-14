@@ -144,7 +144,8 @@ struct GetRayHitInstanceGBufferParamsArguments
     StructuredBuffer<MeshData> m_MeshDataBuffer;
     StructuredBuffer<uint> m_GlobalIndexIDsBuffer;
     StructuredBuffer<RawVertexFormat> m_GlobalVertexBuffer;
-    sampler m_Samplers[SamplerIdx_Count];
+    sampler m_AnisotropicWrapSampler;
+    sampler m_AnisotropicClampSampler;
 };
 
 GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArguments inArgs, out float3 rayHitWorldPosition)
@@ -158,7 +159,6 @@ GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArgum
     StructuredBuffer<MeshData> meshDataBuffer = inArgs.m_MeshDataBuffer;
     StructuredBuffer<uint> globalIndexIDsBuffer = inArgs.m_GlobalIndexIDsBuffer;
     StructuredBuffer<RawVertexFormat> globalVertexBuffer = inArgs.m_GlobalVertexBuffer;
-    sampler samplers[SamplerIdx_Count] = inArgs.m_Samplers;
     
     BasePassInstanceConstants instanceConsts = basePassInstanceConstantsBuffer[instanceID];
     MaterialData materialData = materialDataBuffer[instanceConsts.m_MaterialDataIdx];
@@ -190,7 +190,9 @@ GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArgum
     getCommonGBufferParamsArguments.m_WorldPosition = rayHitWorldPosition;
     getCommonGBufferParamsArguments.m_Normal = v.m_Normal;
     getCommonGBufferParamsArguments.m_MaterialData = materialData;
-    getCommonGBufferParamsArguments.m_Samplers = samplers;
+    getCommonGBufferParamsArguments.m_AnisotropicWrapSampler = inArgs.m_AnisotropicWrapSampler;
+    getCommonGBufferParamsArguments.m_AnisotropicClampSampler = inArgs.m_AnisotropicClampSampler;
+    getCommonGBufferParamsArguments.m_bEnableSamplerFeedback = false;
     
     return GetCommonGBufferParams(getCommonGBufferParamsArguments);
 }

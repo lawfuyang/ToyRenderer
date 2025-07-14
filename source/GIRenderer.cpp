@@ -409,11 +409,9 @@ public:
             nvrhi::BindingSetItem::StructuredBuffer_SRV(8, g_Graphic.m_GlobalIndexBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(9, g_Graphic.m_GlobalMeshDataBuffer),
             nvrhi::BindingSetItem::Texture_UAV(0, probeRayDataTexture),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
-            nvrhi::BindingSetItem::Sampler(4, g_CommonResources.LinearWrapSampler),
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.AnisotropicClampSampler),
+            nvrhi::BindingSetItem::Sampler(1, g_CommonResources.AnisotropicWrapSampler),
+            nvrhi::BindingSetItem::Sampler(2, g_CommonResources.LinearWrapSampler),
         };
 
         uint32_t dispatchX, dispatchY, dispatchZ;

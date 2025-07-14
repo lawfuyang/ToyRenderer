@@ -36,12 +36,6 @@ static const uint32_t MaterialFlag_UseNormalTexture            = (1 << 1);
 static const uint32_t MaterialFlag_UseMetallicRoughnessTexture = (1 << 2);
 static const uint32_t MaterialFlag_UseEmissiveTexture          = (1 << 3);
 
-static const uint32_t SamplerIdx_AnisotropicClamp  = 0;
-static const uint32_t SamplerIdx_AnisotropicWrap   = 1;
-static const uint32_t SamplerIdx_AnisotropicBorder = 2;
-static const uint32_t SamplerIdx_AnisotropicMirror = 3;
-static const uint32_t SamplerIdx_Count             = 4;
-
 static const uint32_t kCullingFlagFrustumCullingEnable     = (1 << 0);
 static const uint32_t kCullingFlagOcclusionCullingEnable   = (1 << 1);
 static const uint32_t kCullingFlagMeshletConeCullingEnable = (1 << 2);
@@ -176,9 +170,13 @@ struct MaterialData
     Vector3 m_ConstEmissive;
     float m_AlphaCutoff;
     uint32_t m_AlbedoTextureSamplerAndDescriptorIndex;
+    uint32_t m_AlbedoFeedbackAndMinMapTexturesDescriptorIndex;
     uint32_t m_NormalTextureSamplerAndDescriptorIndex;
+    uint32_t m_NormalFeedbackAndMinMapTexturesDescriptorIndex;
     uint32_t m_MetallicRoughnessTextureSamplerAndDescriptorIndex;
+    uint32_t m_MetallicRoughnessFeedbackAndMinMapTexturesDescriptorIndex;
     uint32_t m_EmissiveTextureSamplerAndDescriptorIndex;
+    uint32_t m_EmissiveFeedbackAndMinMapTexturesDescriptorIndex;
     uint32_t m_MaterialFlags;
     float m_ConstRoughness;
     float m_ConstMetallic;

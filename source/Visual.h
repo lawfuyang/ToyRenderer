@@ -40,7 +40,7 @@ public:
     nvrhi::TileShape m_TileShape;
     nvrhi::SubresourceTiling m_TilingsInfo[GraphicConstants::kMaxTextureMips];
     uint32_t m_CurrentlyStreamedMip = 0;
-    uint32_t m_InFlightStreamingMip = 0; // index in the m_InFlightTextureStreamingRequests array
+    uint32_t m_InFlightStreamingMip = 0;
 
     nvrhi::HeapHandle m_MipHeaps[8];
     nvrhi::BufferHandle m_MipHeapBuffers[8];
@@ -52,6 +52,9 @@ public:
     nvrhi::SamplerFeedbackTextureHandle m_SamplerFeedbackTextureHandle;
     nvrhi::BufferHandle m_FeedbackResolveBuffers[2];
     nvrhi::TextureHandle m_MinMipTextureHandle;
+
+    uint32_t m_SamplerFeedbackIndexInTable = UINT_MAX;
+    uint32_t m_MinMipIndexInTable = UINT_MAX;
 };
 
 struct MeshLOD

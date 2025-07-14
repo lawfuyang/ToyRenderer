@@ -296,10 +296,8 @@ public:
             nvrhi::BindingSetItem::Texture_SRV(8, g_CommonResources.BlueNoise.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::Texture_UAV(0, shadowDataTexture),
             nvrhi::BindingSetItem::Texture_UAV(1, linearViewDepthTexture),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicClamp, g_CommonResources.AnisotropicClampSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicWrap, g_CommonResources.AnisotropicWrapSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicBorder, g_CommonResources.AnisotropicBorderSampler),
-            nvrhi::BindingSetItem::Sampler(SamplerIdx_AnisotropicMirror, g_CommonResources.AnisotropicMirrorSampler),
+            nvrhi::BindingSetItem::Sampler(0, g_CommonResources.AnisotropicClampSampler),
+            nvrhi::BindingSetItem::Sampler(1, g_CommonResources.AnisotropicWrapSampler),
         };
 
         Graphic::ComputePassParams computePassParams;

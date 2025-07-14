@@ -16,8 +16,9 @@ StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t7);
 StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t8);
 StructuredBuffer<MeshData> g_MeshDataBuffer : register(t9);
 RWTexture2DArray<float4> g_OutRayData : register(u0);
-sampler g_Samplers[SamplerIdx_Count] : register(s0); // Anisotropic Clamp, Wrap, Border, Mirror
-sampler g_LinearWrapSampler : register(s4); // Linear Wrap
+sampler g_AnisotropicClampSampler : register(s0);
+sampler g_AnisotropicWrapSampler : register(s1);
+sampler g_LinearWrapSampler : register(s2);
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
 void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
@@ -94,7 +95,8 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     args.m_MeshDataBuffer = g_MeshDataBuffer;
     args.m_GlobalIndexIDsBuffer = g_GlobalIndexIDsBuffer;
     args.m_GlobalVertexBuffer = g_GlobalVertexBuffer;
-    args.m_Samplers = g_Samplers;
+    args.m_AnisotropicWrapSampler = g_AnisotropicWrapSampler;
+    args.m_AnisotropicClampSampler = g_AnisotropicClampSampler;
     
     float3 rayHitWorldPosition;
     GBufferParams rayHitGBufferParams = GetRayHitInstanceGBufferParams(args, rayHitWorldPosition);
