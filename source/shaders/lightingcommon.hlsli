@@ -258,7 +258,7 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
     {
         uint feedbackTextureIdx = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex & 0xFFFF);
         FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
-        // feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, texCoord); // TODO
+        feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, texCoord);
     }
         
     // TODO: use 'SampleGrad' for appropriate mip level

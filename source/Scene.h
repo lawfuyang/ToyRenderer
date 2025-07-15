@@ -162,6 +162,7 @@ private:
     void FinalizeTextureStreamingRequests();
     void ProcessTextureStreamingRequestsAsyncIO();
     void StressTestTextureMipRequests();
+    void ClearAllFeedbackTextures();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;

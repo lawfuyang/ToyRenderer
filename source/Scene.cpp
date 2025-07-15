@@ -475,6 +475,8 @@ void Scene::Update()
 
     tf::Taskflow tf;
 
+    tf.emplace([this] { ClearAllFeedbackTextures(); });
+
     m_RenderGraph->InitializeForFrame(tf);
     {
         PROFILE_SCOPED("Schedule Renderers");
@@ -516,6 +518,19 @@ void Scene::Update()
     m_RenderGraph->Compile();
 
     g_Engine.m_Executor->corun(tf);
+}
+
+void Scene::ClearAllFeedbackTextures()
+{
+    PROFILE_FUNCTION();
+
+    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Clear Feedback Textures");
+
+    for (const Texture& texture : m_Textures)
+    {
+        commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
+    }
 }
 
 void Scene::Shutdown()
