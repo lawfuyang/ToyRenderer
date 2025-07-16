@@ -494,17 +494,22 @@ struct GLTFSceneLoader
 
                 Texture& tex = g_Graphic.m_Textures.at(sceneTextureView.m_TextureIdx);
 
+                uint32_t feedbackSRVIndexInHeap = UINT16_MAX;
+                uint32_t minMipSRVIndexInHeap = UINT16_MAX;
+                if (tex.m_PackedMipDesc.numStandardMips != 0)
+                {
+                    feedbackSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
+                    assert(feedbackSRVIndexInHeap <= UINT16_MAX);
+
+                    minMipSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_MinMipIndexInTable);
+                    assert(minMipSRVIndexInHeap <= UINT16_MAX);
+                }
+
                 // need to fit srv index in bottom 30 bits of the packed value
                 const uint32_t textureSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_SRVIndexInTable);
                 assert(textureSRVIndexInHeap < (1u << 31));
 
                 const uint32_t samplerVal = sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Wrap ? 1 : 0;
-
-                const uint32_t feedbackSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
-                assert(feedbackSRVIndexInHeap < UINT16_MAX);
-
-                const uint32_t minMipSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_MinMipIndexInTable);
-                assert(minMipSRVIndexInHeap < UINT16_MAX);
 
                 textureSamplerAndDescriptorIndex = textureSRVIndexInHeap | (samplerVal << 31);
                 feedbackAndMinMiptextureDescriptorIndex = (feedbackSRVIndexInHeap & 0xFFFF) | (minMipSRVIndexInHeap << 16);

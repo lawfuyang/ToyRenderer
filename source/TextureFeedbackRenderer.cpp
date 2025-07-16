@@ -32,7 +32,10 @@ public:
                 const uint32_t textureIdx = (g_Scene->m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
                 Texture& texture = g_Graphic.m_Textures[textureIdx];
 
-                commandList->decodeSamplerFeedbackTexture(texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2], texture.m_SamplerFeedbackTextureHandle, nvrhi::Format::R8_UINT);
+                if (texture.m_SamplerFeedbackTextureHandle)
+                {
+                    commandList->decodeSamplerFeedbackTexture(texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2], texture.m_SamplerFeedbackTextureHandle, nvrhi::Format::R8_UINT);
+                }
             }
         }
     }

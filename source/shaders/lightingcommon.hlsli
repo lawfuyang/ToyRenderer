@@ -257,8 +257,11 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
     if (inArgs.m_bEnableSamplerFeedback)
     {
         uint feedbackTextureIdx = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex & 0xFFFF);
-        FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
-        feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, texCoord);
+        if (feedbackTextureIdx != 0xFFFF)
+        {
+            FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
+            feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, texCoord);
+        }
     }
         
     // TODO: use 'SampleGrad' for appropriate mip level
@@ -268,14 +271,19 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
     }
     else
     {
-        uint minMipTextureDescriptorIndex = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex >> 16);
-        Texture2D<float> minMipTexture = ResourceDescriptorHeap[minMipTextureDescriptorIndex];
+        float mipClamp = 0;
 
-        sampler minMipSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
-        float clamp = minMipTexture.Sample(minMipSampler, texCoord);
+        uint minMipTextureDescriptorIndex = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex >> 16);
+        if (minMipTextureDescriptorIndex != 0xFFFF)
+        {
+            Texture2D<float> minMipTexture = ResourceDescriptorHeap[minMipTextureDescriptorIndex];
+
+            sampler minMipSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
+            mipClamp = minMipTexture.Sample(minMipSampler, texCoord);
+        }
 
         const int2 offsetZero = int2(0, 0);
-        //return materialTexture.Sample(materialSampler, texCoord, offsetZero, clamp); // TODO
+        //return materialTexture.Sample(materialSampler, texCoord, offsetZero, mipClamp); // TODO
 
         return materialTexture.Sample(materialSampler, texCoord);
     }

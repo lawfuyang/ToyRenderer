@@ -539,7 +539,11 @@ void Scene::ClearFeedbackTextures()
     {
         const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
         Texture& texture = g_Graphic.m_Textures[textureIdx];
-        commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
+
+        if (texture.m_SamplerFeedbackTextureHandle)
+        {
+            commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
+        }
     }
 }
 
