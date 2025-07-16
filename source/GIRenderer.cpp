@@ -710,8 +710,9 @@ public:
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(0, probePositionsBuffer),
                 nvrhi::BindingSetItem::Texture_SRV(1, gs_GIRenderer.m_GIVolume.m_ProbeData),
                 nvrhi::BindingSetItem::Texture_SRV(2, gs_GIRenderer.m_GIVolume.m_ProbeIrradiance),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(3, GIVolumeDescsBuffer),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, instanceIDToProbeIndexBuffer),
+                nvrhi::BindingSetItem::Texture_SRV(3, gs_GIRenderer.m_GIVolume.m_ProbeDistance),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, GIVolumeDescsBuffer),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(5, instanceIDToProbeIndexBuffer),
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearWrapSampler),
             };
 
