@@ -475,7 +475,7 @@ void Scene::Update()
 
     tf::Taskflow tf;
 
-    tf.emplace([this] { ClearAllFeedbackTextures(); });
+    tf.emplace([this] { ClearFeedbackTextures(); });
 
     m_RenderGraph->InitializeForFrame(tf);
     {
@@ -518,17 +518,21 @@ void Scene::Update()
     m_RenderGraph->Compile();
 
     g_Engine.m_Executor->corun(tf);
+
+    m_ResolveFeedbackTexturesCounter = m_ResolveFeedbackTexturesCounter + (m_NumFeedbackTexturesToResolvePerFrame % m_Textures.size());
 }
 
-void Scene::ClearAllFeedbackTextures()
+void Scene::ClearFeedbackTextures()
 {
     PROFILE_FUNCTION();
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Clear Feedback Textures");
 
-    for (const Texture& texture : m_Textures)
+    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
     {
+        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % m_Textures.size();
+        Texture& texture = m_Textures[textureIdx];
         commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
     }
 }

@@ -121,6 +121,8 @@ public:
     int m_ForceMeshLOD = -1;
     bool m_bStressTestTextureMipRequests = false;
     bool m_bEnableSamplerFeedback = true;
+    uint32_t m_ResolveFeedbackTexturesCounter = 0;
+    int m_NumFeedbackTexturesToResolvePerFrame = 10;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;
@@ -162,7 +164,7 @@ private:
     void FinalizeTextureStreamingRequests();
     void ProcessTextureStreamingRequestsAsyncIO();
     void StressTestTextureMipRequests();
-    void ClearAllFeedbackTextures();
+    void ClearFeedbackTextures();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;
