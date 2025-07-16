@@ -17,6 +17,11 @@ public:
         ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &g_Scene->m_NumFeedbackTexturesToResolvePerFrame, 1, g_Graphic.m_Textures.size());
     }
 
+    bool Setup(RenderGraph& renderGraph) override
+    {
+        return !g_Graphic.m_Textures.empty();
+    }
+
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
         {

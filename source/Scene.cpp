@@ -475,7 +475,10 @@ void Scene::Update()
 
     tf::Taskflow tf;
 
-    tf.emplace([this] { ClearFeedbackTextures(); });
+    if (!g_Graphic.m_Textures.empty())
+    {
+        tf.emplace([this] { ClearFeedbackTextures(); });
+    }
 
     m_RenderGraph->InitializeForFrame(tf);
     {
