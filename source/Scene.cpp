@@ -8,6 +8,7 @@
 #include "Engine.h"
 #include "Graphic.h"
 #include "RenderGraph.h"
+#include "TextureFeedbackManager.h"
 #include "Visual.h"
 
 #include "shaders/ShaderInterop.h"
@@ -597,6 +598,12 @@ void Scene::UpdateIMGUI()
 
         ImGui::Checkbox("Stress test texture mip requests", &m_bStressTestTextureMipRequests);
 
+        ImGui::TreePop();
+    }
+    
+    if (ImGui::TreeNode("Texture Feedback Manager"))
+    {
+        g_Graphic.m_TextureFeedbackManager->UpdateIMGUI();
         ImGui::TreePop();
     }
 

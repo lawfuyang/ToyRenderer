@@ -200,8 +200,6 @@ void Texture::LoadFromFile(std::string_view filePath)
     minMipTextureDesc.debugName = "MinMip Texture";
     m_MinMipTextureHandle = device->createTexture(minMipTextureDesc);
 
-    commandList->clearTextureFloat(m_MinMipTextureHandle, nvrhi::AllSubresources, nvrhi::Color{ packedMipIdx });
-
     m_SamplerFeedbackIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::SamplerFeedbackTexture_UAV(0, m_SamplerFeedbackTextureHandle));
     m_MinMipIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_MinMipTextureHandle, nvrhi::Format::R32_FLOAT));
 }
