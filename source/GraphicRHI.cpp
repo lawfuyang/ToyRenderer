@@ -192,7 +192,8 @@ public:
 
         nvrhi::DeviceHandle device = nvrhi::d3d12::createDevice(deviceDesc);
 
-        if (g_CVarEnableGraphicRHIValidation.Get())
+        // TODO: in release mode, the device ALWAYS gets released on launch when nvrhi validation layer is not used. did not investigate, and i frankly dont care
+        //if (g_CVarEnableGraphicRHIValidation.Get())
         {
             device = nvrhi::validation::createValidationLayer(device);
         }
