@@ -174,6 +174,8 @@ void Texture::LoadFromFile(std::string_view filePath)
     samplerFeedbackTextureDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
     m_SamplerFeedbackTextureHandle = device->createSamplerFeedbackTexture(m_NVRHITextureHandle, samplerFeedbackTextureDesc);
 
+    commandList->clearSamplerFeedbackTexture(m_SamplerFeedbackTextureHandle);
+
     // Resolve / Readback buffer
     for (nvrhi::BufferHandle& resolveBuffer : m_FeedbackResolveBuffers)
     {
@@ -192,11 +194,13 @@ void Texture::LoadFromFile(std::string_view filePath)
     nvrhi::TextureDesc minMipTextureDesc{};
     minMipTextureDesc.width = minMipDesc.textureOrMipRegionWidth;
     minMipTextureDesc.height = minMipDesc.textureOrMipRegionHeight;
-    minMipTextureDesc.format = nvrhi::Format::R32_FLOAT;
+    minMipTextureDesc.format = nvrhi::Format::R32_FLOAT; // TODO: check if i really need R32? the Feedback spec works with R8
     minMipTextureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
     minMipTextureDesc.keepInitialState = true;
     minMipTextureDesc.debugName = "MinMip Texture";
     m_MinMipTextureHandle = device->createTexture(minMipTextureDesc);
+
+    commandList->clearTextureFloat(m_MinMipTextureHandle, nvrhi::AllSubresources, nvrhi::Color{ packedMipIdx });
 
     m_SamplerFeedbackIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::SamplerFeedbackTexture_UAV(0, m_SamplerFeedbackTextureHandle));
     m_MinMipIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_MinMipTextureHandle, nvrhi::Format::R32_FLOAT));
