@@ -19,7 +19,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     assert(textureDesc.depth == 1);
 
     m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-    m_SRVIndexInTable = g_Graphic.RegisterInSrvUavCbvDescriptorTable(*this);
+    m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle));
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
@@ -129,7 +129,7 @@ void Texture::LoadFromFile(std::string_view filePath)
         commandList->writeTexture(m_NVRHITextureHandle, 0, packedMipIdx + i, readParams.m_MipDatas[i].m_Data.data(), readParams.m_MipDatas[i].m_MemPitch);
     }
 
-    m_SRVIndexInTable = g_Graphic.RegisterInSrvUavCbvDescriptorTable(*this);
+    m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle));
 
     if (m_PackedMipDesc.numStandardMips == 0)
     {

@@ -58,7 +58,6 @@ public:
     [[nodiscard]] nvrhi::ComputePipelineHandle GetOrCreatePSO(const nvrhi::ComputePipelineDesc& psoDesc);
 
     nvrhi::IDescriptorTable* GetSrvUavCbvDescriptorTable();
-    uint32_t RegisterInSrvUavCbvDescriptorTable(const Texture& texture, bool bReregister = false);
     uint32_t GetIndexInHeap(uint32_t indexInTable) const;
 
     void CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetDesc, nvrhi::BindingSetHandle& outBindingSetHandle, nvrhi::BindingLayoutHandle& outLayoutHandle, uint32_t registerSpace = 0);

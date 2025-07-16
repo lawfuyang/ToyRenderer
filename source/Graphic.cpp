@@ -479,25 +479,6 @@ nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
     return m_SrvUavCbvDescriptorTableManager->GetDescriptorTable();
 }
 
-uint32_t Graphic::RegisterInSrvUavCbvDescriptorTable(const Texture& texture, bool bReregister)
-{
-    const uint32_t oldIndexInTable = texture.m_SRVIndexInTable;
-    if (bReregister)
-    {
-        m_SrvUavCbvDescriptorTableManager->ReleaseDescriptor(texture.m_SRVIndexInTable);
-    }
-
-    const nvrhi::TextureSubresourceSet subresources{ texture.m_CurrentlyStreamedMip, texture.m_NumTextureMips - texture.m_CurrentlyStreamedMip, 0, nvrhi::TextureSubresourceSet::AllArraySlices };
-    const uint32_t newIndexInTable = m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle, nvrhi::Format::UNKNOWN, subresources));
-
-    if (bReregister)
-    {
-        assert(oldIndexInTable == newIndexInTable);
-    }
-
-    return newIndexInTable;
-}
-
 uint32_t Graphic::GetIndexInHeap(uint32_t indexInTable) const
 {
     assert(indexInTable != UINT_MAX);
@@ -777,7 +758,12 @@ void Graphic::Update()
                    m_NVRHIDevice->runGarbageCollection();
                });
 
-    tf.emplace([this] { m_Scene->Update(); });
+    tf::Task feedbackManagerBeginFrameTask = tf.emplace([this] { m_TextureFeedbackManager->BeginFrame(); });
+    tf::Task sceneUpdateTask = tf.emplace([this] { m_Scene->Update(); });
+    tf::Task feedbackManagerResolveTask = tf.emplace([this] { m_TextureFeedbackManager->ResolveFeedback(); });
+
+    sceneUpdateTask.succeed(feedbackManagerBeginFrameTask);
+    feedbackManagerResolveTask.succeed(sceneUpdateTask);
 
     // MT execute all graphic update tasks
     g_Engine.m_Executor->corun(tf);

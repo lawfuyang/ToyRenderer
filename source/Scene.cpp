@@ -150,8 +150,6 @@ void View::UpdateVectors(float yaw, float pitch)
 
 void Scene::Initialize()
 {
-    m_TextureStreamingAsyncIOProcessingThread = std::thread{&Scene::ProcessTextureStreamingRequestsAsyncIO, this};
-
     m_View.m_ZNearP = GraphicConstants::kDefaultCameraNearPlane;
     m_View.m_AspectRatio = (float)g_Graphic.m_RenderResolution.x / g_Graphic.m_RenderResolution.y;
     m_View.m_Eye = Vector3{ 0.0f, 10.0f, -10.0f };
@@ -470,15 +468,7 @@ void Scene::Update()
         UpdateAnimations();
     }
 
-    StressTestTextureMipRequests();
-    FinalizeTextureStreamingRequests();
-
     tf::Taskflow tf;
-
-    if (!g_Graphic.m_Textures.empty())
-    {
-        tf.emplace([this] { ClearFeedbackTextures(); });
-    }
 
     m_RenderGraph->InitializeForFrame(tf);
     {
@@ -498,8 +488,7 @@ void Scene::Update()
         extern IRenderer* g_AmbientOcclusionRenderer;
         extern IRenderer* g_BloomRenderer;
         extern IRenderer* g_GIDebugRenderer;
-        extern IRenderer* g_TextureFeedbackRenderer;
-
+        
         m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
         m_RenderGraph->AddRenderer(g_UpdateInstanceConstsRenderer);
         m_RenderGraph->AddRenderer(g_GIRenderer);
@@ -515,7 +504,6 @@ void Scene::Update()
 
         // DisplayResolution Debug Passes
         m_RenderGraph->AddRenderer(g_GIDebugRenderer);
-        m_RenderGraph->AddRenderer(g_TextureFeedbackRenderer);
         m_RenderGraph->AddRenderer(g_IMGUIRenderer);
     }
     m_RenderGraph->Compile();
@@ -528,30 +516,8 @@ void Scene::Update()
     }
 }
 
-void Scene::ClearFeedbackTextures()
-{
-    PROFILE_FUNCTION();
-
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Clear Feedback Textures");
-
-    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
-    {
-        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
-        Texture& texture = g_Graphic.m_Textures[textureIdx];
-
-        if (texture.m_SamplerFeedbackTextureHandle)
-        {
-            commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
-        }
-    }
-}
-
 void Scene::Shutdown()
 {
-    m_bShutDownStreamingThread = true;
-    m_TextureStreamingAsyncIOProcessingThread.join();   
-
     m_RenderGraph->Shutdown();
 }
 
@@ -628,44 +594,6 @@ void Scene::UpdateIMGUI()
         ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);
         ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
         ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, GraphicConstants::kMaxNumMeshLODs - 1);
-
-        ImGui::Text("Texture Streaming Debug");
-        ImGui::SameLine();
-        if (ImGui::Button("- -"))
-        {
-            for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
-            {
-                Texture& tex = g_Graphic.m_Textures[i];
-                AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip - 2);
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("-"))
-        {
-            for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
-            {
-                Texture& tex = g_Graphic.m_Textures[i];
-                AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip - 1);
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("+"))
-        {
-            for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
-            {
-                Texture& tex = g_Graphic.m_Textures[i];
-                AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip + 1);
-            }
-        }
-        ImGui::SameLine();
-        if  (ImGui::Button("+ +"))
-        {
-            for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
-            {
-                Texture& tex = g_Graphic.m_Textures[i];
-                AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip + 2);
-            }
-        }
 
         ImGui::Checkbox("Stress test texture mip requests", &m_bStressTestTextureMipRequests);
 

@@ -159,25 +159,11 @@ private:
     void UpdateDirectionalLightVector();
     void UpdateAnimations();
     void CreateAccelerationStructures();
-    void AddTextureStreamingRequest(uint32_t textureIdx, int32_t targetMip);
-    void FinalizeTextureStreamingRequests();
-    void ProcessTextureStreamingRequestsAsyncIO();
-    void StressTestTextureMipRequests();
-    void ClearFeedbackTextures();
 
     // TODO: move this shit to some sort of camera class
     Vector2 m_CurrentMousePos;
     Vector2 m_MouseLastPos;
     float m_Yaw = 0.0f;
     float m_Pitch = 0.0f;
-
-    std::vector<TextureStreamingRequest> m_TextureStreamingRequests;
-    std::mutex m_TextureStreamingRequestsLock;
-
-    std::vector<TextureStreamingRequest> m_TextureStreamingRequestsToFinalize;
-    std::mutex m_TextureStreamingRequestsToFinalizeLock;
-
-    std::thread m_TextureStreamingAsyncIOProcessingThread;
-    bool m_bShutDownStreamingThread = false;
 };
 #define g_Scene g_Graphic.m_Scene

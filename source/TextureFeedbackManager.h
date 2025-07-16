@@ -10,6 +10,8 @@ public:
 
     void Initialize();
     void Shutdown();
+    void BeginFrame();
+    void ResolveFeedback();
 
     std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
     std::mutex m_TiledTextureManagerLock;
