@@ -344,7 +344,7 @@ struct GLTFSceneLoader
 
         tf::Taskflow taskflow;
 
-        g_Scene->m_Textures.resize(m_GLTFData->textures_count);
+        g_Graphic.m_Textures.resize(m_GLTFData->textures_count);
         for (uint32_t i = 0; i < m_GLTFData->textures_count; ++i)
         {
             taskflow.emplace([&, i]()
@@ -361,7 +361,7 @@ struct GLTFSceneLoader
                     // force DDS format for all textures
                     filePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
 
-                    g_Scene->m_Textures[i].LoadFromFile(filePath);
+                    g_Graphic.m_Textures[i].LoadFromFile(filePath);
                 });
         }
 
@@ -492,7 +492,7 @@ struct GLTFSceneLoader
                     return; // no texture
                 }
 
-                Texture& tex = g_Scene->m_Textures.at(sceneTextureView.m_TextureIdx);
+                Texture& tex = g_Graphic.m_Textures.at(sceneTextureView.m_TextureIdx);
 
                 // need to fit srv index in bottom 30 bits of the packed value
                 const uint32_t textureSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_SRVIndexInTable);

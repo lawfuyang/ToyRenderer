@@ -14,7 +14,7 @@ public:
 
     void UpdateImgui() override
     {
-        ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &g_Scene->m_NumFeedbackTexturesToResolvePerFrame, 1, g_Scene->m_Textures.size());
+        ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &g_Scene->m_NumFeedbackTexturesToResolvePerFrame, 1, g_Graphic.m_Textures.size());
     }
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
@@ -24,8 +24,8 @@ public:
 
             for (uint32_t i = 0; i < g_Scene->m_NumFeedbackTexturesToResolvePerFrame; ++i)
             {
-                const uint32_t textureIdx = (g_Scene->m_ResolveFeedbackTexturesCounter + i) % g_Scene->m_Textures.size();
-                Texture& texture = g_Scene->m_Textures[textureIdx];
+                const uint32_t textureIdx = (g_Scene->m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
+                Texture& texture = g_Graphic.m_Textures[textureIdx];
 
                 commandList->decodeSamplerFeedbackTexture(texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2], texture.m_SamplerFeedbackTextureHandle, nvrhi::Format::R8_UINT);
             }

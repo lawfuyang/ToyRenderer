@@ -130,7 +130,6 @@ public:
 
     std::vector<Node> m_Nodes;
     std::vector<Primitive> m_Primitives;
-    std::vector<Texture> m_Textures;
     std::vector<uint32_t> m_OpaquePrimitiveIDs;
     std::vector<uint32_t> m_AlphaMaskPrimitiveIDs;
     std::vector<uint32_t> m_TransparentPrimitiveIDs;

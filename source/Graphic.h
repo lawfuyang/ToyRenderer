@@ -123,6 +123,7 @@ public:
     std::shared_ptr<DescriptorTableManager> m_SrvUavCbvDescriptorTableManager;
 
     std::vector<Mesh> m_Meshes;
+    std::vector<Texture> m_Textures;
 
     nvrhi::BufferHandle m_GlobalVertexBuffer;
     nvrhi::BufferHandle m_GlobalIndexBuffer;

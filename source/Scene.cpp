@@ -519,7 +519,7 @@ void Scene::Update()
 
     g_Engine.m_Executor->corun(tf);
 
-    m_ResolveFeedbackTexturesCounter = m_ResolveFeedbackTexturesCounter + (m_NumFeedbackTexturesToResolvePerFrame % m_Textures.size());
+    m_ResolveFeedbackTexturesCounter = m_ResolveFeedbackTexturesCounter + (m_NumFeedbackTexturesToResolvePerFrame % g_Graphic.m_Textures.size());
 }
 
 void Scene::ClearFeedbackTextures()
@@ -531,8 +531,8 @@ void Scene::ClearFeedbackTextures()
 
     for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
     {
-        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % m_Textures.size();
-        Texture& texture = m_Textures[textureIdx];
+        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
+        Texture& texture = g_Graphic.m_Textures[textureIdx];
         commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
     }
 }
@@ -540,7 +540,7 @@ void Scene::ClearFeedbackTextures()
 void Scene::Shutdown()
 {
     m_bShutDownStreamingThread = true;
-    m_TextureStreamingAsyncIOProcessingThread.join();
+    m_TextureStreamingAsyncIOProcessingThread.join();   
 
     m_RenderGraph->Shutdown();
 }
@@ -623,36 +623,36 @@ void Scene::UpdateIMGUI()
         ImGui::SameLine();
         if (ImGui::Button("- -"))
         {
-            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
+            for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
             {
-                Texture& tex = g_Scene->m_Textures[i];
+                Texture& tex = g_Graphic.m_Textures[i];
                 AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip - 2);
             }
         }
         ImGui::SameLine();
         if (ImGui::Button("-"))
         {
-            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
+            for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
             {
-                Texture& tex = g_Scene->m_Textures[i];
+                Texture& tex = g_Graphic.m_Textures[i];
                 AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip - 1);
             }
         }
         ImGui::SameLine();
         if (ImGui::Button("+"))
         {
-            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
+            for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
             {
-                Texture& tex = g_Scene->m_Textures[i];
+                Texture& tex = g_Graphic.m_Textures[i];
                 AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip + 1);
             }
         }
         ImGui::SameLine();
         if  (ImGui::Button("+ +"))
         {
-            for (uint32_t i = 0; i < g_Scene->m_Textures.size(); ++i)
+            for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
             {
-                Texture& tex = g_Scene->m_Textures[i];
+                Texture& tex = g_Graphic.m_Textures[i];
                 AddTextureStreamingRequest(i, tex.m_InFlightStreamingMip + 2);
             }
         }

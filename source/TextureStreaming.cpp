@@ -5,7 +5,7 @@
 
 void Scene::AddTextureStreamingRequest(uint32_t textureIdx, int32_t targetMip)
 {
-    Texture& texture = m_Textures.at(textureIdx);
+    Texture& texture = g_Graphic.m_Textures.at(textureIdx);
 
     if (texture.m_StreamingFilePath.empty())
     {
@@ -75,7 +75,7 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
             TextureStreamingRequest* request = (TextureStreamingRequest*)asyncIOOutcome.userdata;
             assert(asyncIOOutcome.buffer == request->m_MipBytes.data());
 
-            Texture& texture = m_Textures.at(request->m_TextureIdx);
+            Texture& texture = g_Graphic.m_Textures.at(request->m_TextureIdx);
             assert(texture.IsValid());
 
             assert(request->m_MipToStream != UINT_MAX);
@@ -114,7 +114,7 @@ void Scene::ProcessTextureStreamingRequestsAsyncIO()
 
         for (TextureStreamingRequest& request : textureStreamingRequests)
         {
-            Texture& texture = m_Textures.at(request.m_TextureIdx);
+            Texture& texture = g_Graphic.m_Textures.at(request.m_TextureIdx);
 
             assert(texture.IsValid());
             assert(!texture.m_StreamingFilePath.empty());
@@ -176,7 +176,7 @@ void Scene::FinalizeTextureStreamingRequests()
         {
             PROFILE_SCOPED("Finalize Texture Streaming Request");
 
-            Texture& texture = m_Textures.at(request.m_TextureIdx);
+            Texture& texture = g_Graphic.m_Textures.at(request.m_TextureIdx);
             assert(texture.m_StreamingMipDatas[request.m_MipToStream].IsValid());
 
             // possible wasted streaming request. discard
@@ -301,22 +301,22 @@ void Scene::StressTestTextureMipRequests()
         return;
     }
 
-    if (m_Textures.empty())
+    if (g_Graphic.m_Textures.empty())
     {
         return;
     }
 
-    const uint32_t numTextures = std::min(m_Textures.size() - 1, (size_t)(rand() % 10) + 1);
+    const uint32_t numTextures = std::min(g_Graphic.m_Textures.size() - 1, (size_t)(rand() % 10) + 1);
 
     std::unordered_set<uint32_t> uniqueTextureIndices;
     while (uniqueTextureIndices.size() < numTextures)
     {
-        uniqueTextureIndices.insert(rand() % m_Textures.size());
+        uniqueTextureIndices.insert(rand() % g_Graphic.m_Textures.size());
     }
 
     for (const uint32_t randomIdx : uniqueTextureIndices)
     {
-        Texture& tex = m_Textures.at(randomIdx);
+        Texture& tex = g_Graphic.m_Textures.at(randomIdx);
         
         const int32_t randomMipDelta = ((rand() % 2) * 2 - 1) * ((rand() % 3) + 1);
         AddTextureStreamingRequest(randomIdx, tex.m_InFlightStreamingMip + randomMipDelta);
