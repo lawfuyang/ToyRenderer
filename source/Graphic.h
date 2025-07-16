@@ -10,13 +10,14 @@
 #include "GraphicConstants.h"
 #include "MathUtilities.h"
 #include "SmallVector.h"
+#include "Utilities.h"
 #include "Visual.h"
 
 class CommonResources;
 class RenderGraph;
 class Scene;
-struct MaterialData;
 class TextureFeedbackManager;
+struct MaterialData;
 
 class GraphicRHI
 {
@@ -145,6 +146,8 @@ public:
     std::mutex m_FreeCommandListsLock;
 
     int m_GPUQueueLogs[(uint32_t)nvrhi::CommandQueue::Count];
+
+    Timer m_GraphicTimer;
 
 private:
     std::unique_ptr<GraphicRHI> m_GraphicRHI;
