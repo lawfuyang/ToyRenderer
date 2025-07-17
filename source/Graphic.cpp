@@ -759,15 +759,13 @@ void Graphic::Update()
                });
 
     // TODO: schedule the feedback manager nicely together with required prerequisite renderers (only those that need Materials)
-    tf::Task feedbackManagerBeginFrameTask = tf.emplace([this] { m_TextureFeedbackManager->BeginFrame(); });
-    tf::Task sceneUpdateTask = tf.emplace([this] { m_Scene->Update(); });
-    tf::Task feedbackManagerResolveTask = tf.emplace([this] { m_TextureFeedbackManager->ResolveFeedback(); });
-
-    sceneUpdateTask.succeed(feedbackManagerBeginFrameTask);
-    feedbackManagerResolveTask.succeed(sceneUpdateTask);
+    m_TextureFeedbackManager->BeginFrame();
+    m_Scene->Update();
 
     // MT execute all graphic update tasks
     g_Engine.m_Executor->corun(tf);
+
+    m_TextureFeedbackManager->EndFrame();
 
     {
         nvrhi::CommandListHandle commandList = AllocateCommandList();

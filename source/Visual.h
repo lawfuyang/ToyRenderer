@@ -32,6 +32,8 @@ public:
 
     bool IsValid() const;
 
+    bool IsTilePacked(uint32_t tileIdx) const;
+
     std::string m_StreamingFilePath;
     uint32_t m_NumTextureMips;
     StreamingMipData m_StreamingMipDatas[GraphicConstants::kMaxTextureMips];

@@ -121,8 +121,6 @@ public:
     int m_ForceMeshLOD = -1;
     bool m_bStressTestTextureMipRequests = false;
     bool m_bEnableSamplerFeedback = true;
-    uint32_t m_ResolveFeedbackTexturesCounter = 0;
-    int m_NumFeedbackTexturesToResolvePerFrame = 10;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;

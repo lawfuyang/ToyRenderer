@@ -211,6 +211,11 @@ bool Texture::IsValid() const
         && m_CurrentlyStreamedMip != UINT_MAX;
 }
 
+bool Texture::IsTilePacked(uint32_t tileIdx) const
+{
+    return (m_TiledTextureID == UINT_MAX) || tileIdx >= m_PackedMipDesc.startTileIndexInOverallResource;
+}
+
 bool Primitive::IsValid() const
 {
     return m_NodeID != UINT_MAX

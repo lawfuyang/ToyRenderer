@@ -510,11 +510,6 @@ void Scene::Update()
     m_RenderGraph->Compile();
 
     g_Engine.m_Executor->corun(tf);
-
-    if (!g_Graphic.m_Textures.empty())
-    {
-        m_ResolveFeedbackTexturesCounter = m_ResolveFeedbackTexturesCounter + (m_NumFeedbackTexturesToResolvePerFrame % g_Graphic.m_Textures.size());
-    }
 }
 
 void Scene::Shutdown()
