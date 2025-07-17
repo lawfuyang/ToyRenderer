@@ -469,6 +469,9 @@ void Scene::Update()
         UpdateAnimations();
     }
 
+    // TODO: schedule the feedback manager nicely together with required prerequisite renderers (only those that need Materials)
+    g_Graphic.m_TextureFeedbackManager->BeginFrame();
+
     tf::Taskflow tf;
 
     m_RenderGraph->InitializeForFrame(tf);
@@ -510,6 +513,8 @@ void Scene::Update()
     m_RenderGraph->Compile();
 
     g_Engine.m_Executor->corun(tf);
+
+    g_Graphic.m_TextureFeedbackManager->EndFrame();
 }
 
 void Scene::Shutdown()

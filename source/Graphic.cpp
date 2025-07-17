@@ -757,16 +757,11 @@ void Graphic::Update()
                    PROFILE_SCOPED("Graphics Garbage Collection");
                    m_NVRHIDevice->runGarbageCollection();
                });
-
-    // TODO: schedule the feedback manager nicely together with required prerequisite renderers (only those that need Materials)
-    m_TextureFeedbackManager->BeginFrame();
-    m_Scene->Update();
+    
+    tf.emplace([this] { m_Scene->Update(); });
 
     // MT execute all graphic update tasks
     g_Engine.m_Executor->corun(tf);
-
-    m_TextureFeedbackManager->EndFrame();
-
     {
         nvrhi::CommandListHandle commandList = AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "End Frame Timer Query");
