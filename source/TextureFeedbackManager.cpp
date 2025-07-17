@@ -7,7 +7,6 @@
 #include "Scene.h"
 
 static const uint32_t kHeapSizeInTiles = 1024; // 64MiB heap size
-static const uint32_t kHeapSizeInBytes = kHeapSizeInTiles * KB_TO_BYTES(64); // TODO: get 64kb value (tile resource tile size in bytes) from GraphicRHI class
 
 void TextureFeedbackManager::AsyncIOThreadFunc()
 {
@@ -345,7 +344,7 @@ void TextureFeedbackManager::BeginFrame()
                 std::vector<nvrhi::TiledTextureRegion> tiledTextureRegions;
                 std::vector<uint64_t> byteOffsets;
 
-                for (UINT i = 0; i < heapTiles.size(); i++)
+                for (uint32_t i = 0; i < heapTiles.size(); i++)
                 {
                     uint32_t tileIndex = heapTiles[i];
 
@@ -360,7 +359,7 @@ void TextureFeedbackManager::BeginFrame()
                     tiledTextureRegion.tilesNum = 1;
                     tiledTextureRegions.push_back(tiledTextureRegion);
 
-                    byteOffsets.push_back(tilesAllocations[tileIndex].heapTileIndex * KB_TO_BYTES(64));
+                    byteOffsets.push_back(tilesAllocations[tileIndex].heapTileIndex * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes());
                 }
 
                 nvrhi::TextureTilesMapping textureTilesMapping = {};
@@ -414,15 +413,17 @@ uint32_t TextureFeedbackManager::AllocateHeap()
     
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
+    const uint32_t heapSizeInBytes = kHeapSizeInTiles * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes();
+
     nvrhi::HeapDesc heapDesc = {};
-    heapDesc.capacity = kHeapSizeInBytes;
+    heapDesc.capacity = heapSizeInBytes;
     heapDesc.type = nvrhi::HeapType::DeviceLocal;
 
     // TODO: Calling createHeap should ideally be called asynchronously to offload the critical path
     nvrhi::HeapHandle heap = device->createHeap(heapDesc);
 
     nvrhi::BufferDesc bufferDesc = {};
-    bufferDesc.byteSize = kHeapSizeInBytes;
+    bufferDesc.byteSize = heapSizeInBytes;
     bufferDesc.isVirtual = true;
     bufferDesc.initialState = nvrhi::ResourceStates::CopySource;
     bufferDesc.keepInitialState = true;
@@ -445,7 +446,7 @@ uint32_t TextureFeedbackManager::AllocateHeap()
         m_Buffers[heapID] = buffer;
     }
 
-    m_HeapAllocationInBytes += kHeapSizeInBytes;
+    m_HeapAllocationInBytes += heapSizeInBytes;
     ++m_NumHeaps;
 
     LOG_DEBUG("Allocated heap %u, total allocated: %.2f MB", heapID, BYTES_TO_MB(m_HeapAllocationInBytes));
@@ -460,7 +461,9 @@ void TextureFeedbackManager::ReleaseHeap(uint32_t heapID)
     m_Heaps[heapID] = nullptr;
     m_Buffers[heapID] = nullptr;
 
-    m_HeapAllocationInBytes -= kHeapSizeInBytes;
+    const uint32_t heapSizeInBytes = kHeapSizeInTiles * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes();
+
+    m_HeapAllocationInBytes -= heapSizeInBytes;
     m_NumHeaps--;
 
     LOG_DEBUG("Released heap %u, total allocated: %.2f MB", heapID, BYTES_TO_MB(m_HeapAllocationInBytes));

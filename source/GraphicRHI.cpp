@@ -282,6 +282,11 @@ public:
         return commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
     }
 
+    uint32_t GetTiledResourceSizeInBytes() override
+    {
+        return D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    }
+
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override
     {
         ID3D12GraphicsCommandList *D3D12CommandList = commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
@@ -422,6 +427,7 @@ public:
     uint32_t GetCurrentBackBufferIndex() override { assert(false && "Not Implemented!"); return UINT32_MAX; }
     void SwapChainPresent() override { assert(false && "Not Implemented!"); }
     void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override { assert(false && "Not Implemented!"); return nullptr; }
+    uint32_t GetTiledResourceSizeInBytes() override { assert(false && "Not Implemented!"); return 0; }
 
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override { assert(false && "Not Implemented!"); }
     void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override { assert(false && "Not Implemented!"); }

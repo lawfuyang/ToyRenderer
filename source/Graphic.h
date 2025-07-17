@@ -31,6 +31,7 @@ public:
     virtual uint32_t GetCurrentBackBufferIndex() = 0;
     virtual void SwapChainPresent() = 0;
     virtual void* GetNativeCommandList(nvrhi::CommandListHandle commandList) = 0;
+    virtual uint32_t GetTiledResourceSizeInBytes() = 0;
 
     virtual void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) = 0;
     virtual void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) = 0;
@@ -110,6 +111,8 @@ public:
 
     Vector2 GetCurrentJitterOffset();
 
+    std::unique_ptr<GraphicRHI> m_GraphicRHI;
+
     nvrhi::DeviceHandle m_NVRHIDevice;
     RENDERDOC_API_1_6_0* m_RenderDocAPI = nullptr;
 
@@ -150,8 +153,6 @@ public:
     Timer m_GraphicTimer;
 
 private:
-    std::unique_ptr<GraphicRHI> m_GraphicRHI;
-
     bool m_bTearingSupported = false;
     
     std::unordered_map<size_t, nvrhi::ShaderHandle> m_AllShaders;
