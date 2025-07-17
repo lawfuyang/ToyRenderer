@@ -6,14 +6,75 @@
 #include "Graphic.h"
 #include "Scene.h"
 
+void TextureFeedbackManager::AsyncIOThreadFunc()
+{
+    auto ProcessAsyncIOResults = [this]()
+    {
+        SDL_AsyncIOOutcome asyncIOOutcome{};
+        while (SDL_GetAsyncIOResult(g_Engine.m_AsyncIOQueue, &asyncIOOutcome))
+        {
+            if (asyncIOOutcome.type == SDL_ASYNCIO_TASK_CLOSE)
+            {
+                // this is a close request, we can ignore it
+                continue;
+            }
+
+            PROFILE_SCOPED("Process Async IO Result");
+
+            assert(asyncIOOutcome.type == SDL_ASYNCIO_TASK_READ);
+            assert(asyncIOOutcome.result == SDL_ASYNCIO_COMPLETE);
+
+            assert(asyncIOOutcome.userdata);
+
+            // TODO
+        }
+    };
+
+    while (!m_bShutDownAsyncIOThread)
+    {
+        ProcessAsyncIOResults();
+
+        // TODO
+    #if 0
+        for (TextureStreamingRequest& request : textureStreamingRequests)
+        {
+            Texture& texture = g_Graphic.m_Textures.at(request.m_TextureIdx);
+
+            assert(texture.IsValid());
+            assert(!texture.m_StreamingFilePath.empty());
+
+            SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_StreamingFilePath.c_str(), "r");
+            SDL_CALL(asyncIO);
+
+
+            SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest->m_MipBytes.data(), streamingMipData.m_DataOffset, streamingMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)inFlightRequest));
+
+            // according to the doc, we can close the async IO handle after the read request is submitted
+            SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
+
+            // immediately process & discard the SDL_ASYNCIO_TASK_CLOSE result
+            ProcessAsyncIOResults();
+
+        }
+    #endif
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // yield to avoid busy waiting
+    }
+}
+
 void TextureFeedbackManager::Initialize()
 {
     m_TiledTextureManager = std::unique_ptr<rtxts::TiledTextureManager>{ rtxts::CreateTiledTextureManager(rtxts::TiledTextureManagerDesc{}) };
+
+    m_AsyncIOThread = std::thread(&TextureFeedbackManager::AsyncIOThreadFunc, this);
 }
 
 void TextureFeedbackManager::Shutdown()
 {
     m_TiledTextureManager.reset();
+
+    m_bShutDownAsyncIOThread = true;
+    m_AsyncIOThread.join();
 }
 
 void TextureFeedbackManager::UpdateIMGUI()

@@ -758,6 +758,7 @@ void Graphic::Update()
                    m_NVRHIDevice->runGarbageCollection();
                });
 
+    // TODO: schedule the feedback manager nicely together with required prerequisite renderers (only those that need Materials)
     tf::Task feedbackManagerBeginFrameTask = tf.emplace([this] { m_TextureFeedbackManager->BeginFrame(); });
     tf::Task sceneUpdateTask = tf.emplace([this] { m_Scene->Update(); });
     tf::Task feedbackManagerResolveTask = tf.emplace([this] { m_TextureFeedbackManager->ResolveFeedback(); });

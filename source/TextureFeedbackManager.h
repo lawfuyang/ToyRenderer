@@ -32,5 +32,9 @@ public:
 
 private:
     void AllocateHeap(uint32_t& heapId);
+
+    void AsyncIOThreadFunc();
+    std::thread m_AsyncIOThread;
+    bool m_bShutDownAsyncIOThread = false;
 };
 #define g_TextureFeedbackManager g_Graphic.m_TextureFeedbackManager
