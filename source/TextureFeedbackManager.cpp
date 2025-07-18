@@ -107,6 +107,7 @@ void TextureFeedbackManager::BeginFrame()
 
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
+    // Begin frame, readback feedback
     for (uint32_t textureIdx : m_TexturesToReadback)
     {
         Texture& texture = g_Graphic.m_Textures.at(textureIdx);
@@ -123,6 +124,7 @@ void TextureFeedbackManager::BeginFrame()
     }
     m_TexturesToReadback.clear();
 
+    // Collect textures to read back
     const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
     for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
     {
@@ -149,6 +151,7 @@ void TextureFeedbackManager::BeginFrame()
     {
         PROFILE_SCOPED("Add/Release Heaps");
 
+        // Now check how many heaps the tiled texture manager needs
         const uint32_t numRequiredHeaps = m_TiledTextureManager->GetNumDesiredHeaps();
         if (numRequiredHeaps > m_NumHeaps)
         {
@@ -184,7 +187,7 @@ void TextureFeedbackManager::BeginFrame()
     // TODO: The current code does not merge unmapping and mapping tiles for the same textures. It would be more optimal.
     std::vector<uint32_t> tilesToMap;
     std::vector<uint32_t> tilesToUnmap;
-    std::unordered_set<nvrhi::TextureHandle> minMipDirtyTextures;
+    std::unordered_set<uint32_t> minMipDirtyTextures;
     for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
     {
         Texture& texture = g_Graphic.m_Textures[i];
@@ -206,8 +209,13 @@ void TextureFeedbackManager::BeginFrame()
 
             nvrhi::TextureTilesMapping textureTilesMapping;
             textureTilesMapping.numTextureRegions = tileToUnmapNum;
-            std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates(textureTilesMapping.numTextureRegions);
-            std::vector<nvrhi::TiledTextureRegion> tiledTextureRegions(textureTilesMapping.numTextureRegions, tiledTextureRegion);
+
+            std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates;
+            tiledTextureCoordinates.resize(tileToUnmapNum);
+
+            std::vector<nvrhi::TiledTextureRegion> tiledTextureRegions;
+            tiledTextureRegions.resize(tileToUnmapNum, tiledTextureRegion);
+            
             textureTilesMapping.tiledTextureCoordinates = tiledTextureCoordinates.data();
             textureTilesMapping.tiledTextureRegions = tiledTextureRegions.data();
             textureTilesMapping.heap = nullptr; // nullptr for heap == unmap
@@ -228,7 +236,7 @@ void TextureFeedbackManager::BeginFrame()
 
             device->updateTextureTileMappings(texture.m_NVRHITextureHandle, &textureTilesMapping, 1);
 
-            minMipDirtyTextures.insert(texture.m_MinMipTextureHandle);
+            minMipDirtyTextures.insert(i);
         }
 
         if (!tilesToMap.empty())
@@ -242,6 +250,14 @@ void TextureFeedbackManager::BeginFrame()
                 feedbackTextureUpdate.m_TileIndices.push_back(tileIndex);
             }
         }
+    }
+    
+    // Defragment up to 16 tiles per frame
+    {
+        PROFILE_SCOPED("Defragment Tiles");
+
+        const uint32_t kNumTilesToDefragment = 16;
+        m_TiledTextureManager->DefragmentTiles(kNumTilesToDefragment);
     }
 
     struct RequestedTile
@@ -266,14 +282,6 @@ void TextureFeedbackManager::BeginFrame()
             else
                 requestedTiles.push_back(reqTile);
         }
-    }
-    
-    // Defragment up to 16 tiles per frame
-    {
-        PROFILE_SCOPED("Defragment Tiles");
-
-        const uint32_t kNumTilesToDefragment = 16;
-        m_TiledTextureManager->DefragmentTiles(kNumTilesToDefragment);
     }
 
     // Figure out which tiles to map and upload this frame
@@ -323,7 +331,7 @@ void TextureFeedbackManager::BeginFrame()
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
-            minMipDirtyTextures.insert(texture.m_MinMipTextureHandle);
+            minMipDirtyTextures.insert(texUpdate.m_TextureIdx);
 
             m_TiledTextureManager->UpdateTilesMapping(texture.m_TiledTextureID, texUpdate.m_TileIndices);
 
@@ -371,6 +379,70 @@ void TextureFeedbackManager::BeginFrame()
 
                 device->updateTextureTileMappings(texture.m_NVRHITextureHandle, &textureTilesMapping, 1);
             }
+        }
+
+        if (!minMipDirtyTextures.empty())
+        {
+            // check why the sample chose to do manual barriers
+            const bool kbUseAutomaticBarriers = true;
+            if constexpr (!kbUseAutomaticBarriers)
+            {
+                commandList->setEnableAutomaticBarriers(kbUseAutomaticBarriers);
+
+                for (uint32_t textureIdx : minMipDirtyTextures)
+                {
+                    commandList->setTextureState(g_Graphic.m_Textures.at(textureIdx).m_MinMipTextureHandle, nvrhi::AllSubresources, nvrhi::ResourceStates::CopyDest);
+                }
+            }
+
+            std::vector<uint8_t> minMipData;
+            minMipData.resize(4096);
+            std::vector<uint8_t> uploadData;
+            uploadData.resize(4096 * 4); // 4096 is the size of the min mip texture, 4 bytes per pixel (R32_FLOAT)
+            for (uint32_t textureIdx : minMipDirtyTextures)
+            {
+                Texture& texture = g_Graphic.m_Textures.at(textureIdx);
+
+                m_TiledTextureManager->WriteMinMipData(texture.m_TiledTextureID, minMipData.data());
+                const rtxts::TextureDesc desc = m_TiledTextureManager->GetTextureDesc(texture.m_TiledTextureID, rtxts::TextureTypes::eMinMipTexture);
+                const uint32_t rowPitch = (desc.textureOrMipRegionWidth * sizeof(float) + 0xFF) & ~0xFF;
+
+                uint8_t* pUploadData = uploadData.data();
+                for (uint32_t y = 0; y < desc.textureOrMipRegionHeight; ++y)
+                {
+                    float* pDataFloat = reinterpret_cast<float*>(pUploadData);
+                    for (uint32_t x = 0; x < desc.textureOrMipRegionWidth; ++x)
+                    {
+                        pDataFloat[x] = minMipData[y * desc.textureOrMipRegionWidth + x];
+                    }
+
+                    pUploadData += rowPitch;
+                }
+
+                commandList->writeTexture(texture.m_MinMipTextureHandle, 0, 0, uploadData.data(), rowPitch);
+            }
+
+            if constexpr (!kbUseAutomaticBarriers)
+            {
+                for (uint32_t textureIdx : minMipDirtyTextures)
+                {
+                    commandList->setTextureState(g_Graphic.m_Textures.at(textureIdx).m_MinMipTextureHandle, nvrhi::AllSubresources, nvrhi::ResourceStates::ShaderResource);
+                }
+
+                // Restore the automatic barriers mode
+                commandList->setEnableAutomaticBarriers(true);
+            }
+        }
+    }
+
+    // Upload the tiles to the GPU and copy them into the resources
+    if (!tilesThisFrame.empty())
+    {
+        std::vector<FeedbackTextureTileInfo> tiles;
+
+        for (const FeedbackTextureUpdate& texUpdate : tilesThisFrame)
+        {
+            const Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
         }
     }
 }

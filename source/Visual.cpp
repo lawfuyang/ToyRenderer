@@ -211,9 +211,9 @@ void Texture::GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInf
     else
     {
         const std::vector<rtxts::TileCoord>& tileCoord = g_TextureFeedbackManager->m_TiledTextureManager->GetTileCoordinates(m_TiledTextureID);
-        uint32_t tileX = tileCoord[tileIndex].x;
-        uint32_t tileY = tileCoord[tileIndex].y;
-        uint32_t mip = tileCoord[tileIndex].mipLevel;
+        const uint32_t tileX = tileCoord.at(tileIndex).x;
+        const uint32_t tileY = tileCoord.at(tileIndex).y;
+        const uint32_t mip = tileCoord.at(tileIndex).mipLevel;
         uint32_t width = m_TileShape.widthInTexels;
         uint32_t height = m_TileShape.heightInTexels;
 
@@ -228,14 +228,18 @@ void Texture::GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInf
             subresourceHeight = ((subresourceHeight + 3) / 4) * 4;
         }
 
-        uint32_t x = tileX * width;
-        uint32_t y = tileY * height;
+        const uint32_t x = tileX * width;
+        const uint32_t y = tileY * height;
 
         // Make sure the tile (for filling out the data) doesn't extend past the actual subresource
         if (x + width > subresourceWidth)
+        {
             width = subresourceWidth - x;
+        }
         if (y + height > subresourceHeight)
+        {
             height = subresourceHeight - y;
+        }
 
         FeedbackTextureTileInfo tile;
         tile.m_XInTexels = x;
