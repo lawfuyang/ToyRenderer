@@ -11,6 +11,15 @@
 
 #include "shaders/ShaderInterop.h"
 
+Texture::~Texture()
+{
+    if (m_ImageFile)
+    {
+        fclose(m_ImageFile);
+        m_ImageFile = nullptr;
+    }
+}
+
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)
 {
     PROFILE_FUNCTION();
@@ -44,100 +53,43 @@ void Texture::LoadFromFile(std::string_view filePath)
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
     const std::string debugName = std::filesystem::path{ filePath }.stem().string();
-    m_StreamingFilePath = filePath;
 
-    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
+    m_ImageFile = fopen(filePath.data(), "rb");
+    assert(m_ImageFile);
+    assert(IsDDSImage(m_ImageFile));
 
-    ScopedFile scopedFile{filePath.data(), "rb"};
-    assert(scopedFile);
-    assert(IsDDSImage(scopedFile));
-
-    const DDSFileInfo ddsFileInfo = GetDDSFileInfo(scopedFile);
-
-    m_NumTextureMips = ddsFileInfo.m_MipCount;
+    const DDSFileHeader DDSFileHeader = ReadDDSFileHeader(m_ImageFile);
+    m_NumTextureMips = DDSFileHeader.m_MipCount;
 
     nvrhi::TextureDesc reservedTexDesc;
-    reservedTexDesc.width = ddsFileInfo.m_Width;
-    reservedTexDesc.height = ddsFileInfo.m_Height;
-    reservedTexDesc.format = ddsFileInfo.m_Format;
+    reservedTexDesc.width = DDSFileHeader.m_Width;
+    reservedTexDesc.height = DDSFileHeader.m_Height;
+    reservedTexDesc.format = DDSFileHeader.m_Format;
     reservedTexDesc.isTiled = true;
     reservedTexDesc.mipLevels = m_NumTextureMips;
     reservedTexDesc.debugName = debugName;
     reservedTexDesc.initialState = nvrhi::ResourceStates::ShaderResource;
     m_NVRHITextureHandle = device->createTexture(reservedTexDesc);
 
-    LOG_DEBUG("New Texture: %s, %d x %d, %s", reservedTexDesc.debugName.c_str(), reservedTexDesc.width, reservedTexDesc.height, nvrhi::utils::FormatToString(reservedTexDesc.format));
-
     device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_NumTextureMips, m_TilingsInfo);
 
-    const uint32_t packedMipIdx = m_PackedMipDesc.numStandardMips;
-    m_CurrentlyStreamedMip = m_InFlightStreamingMip = packedMipIdx;
+    LOG_DEBUG("New Texture: %s, %d x %d, %s", reservedTexDesc.debugName.c_str(), reservedTexDesc.width, reservedTexDesc.height, nvrhi::utils::FormatToString(reservedTexDesc.format));
 
-    nvrhi::HeapDesc packedMipHeapDesc;
-    packedMipHeapDesc.capacity = m_PackedMipDesc.numTilesForPackedMips * KB_TO_BYTES(64); // TODO: confirm if Vulkan also uses 64KB tiles
-    packedMipHeapDesc.type = nvrhi::HeapType::DeviceLocal;
-    packedMipHeapDesc.debugName = "packed mip heap";
-    m_MipHeaps[packedMipIdx] = device->createHeap(packedMipHeapDesc);
+    ON_EXIT_SCOPE_LAMBDA([this] { m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle)); } );
 
-    nvrhi::BufferDesc packedMipHeapBufferDesc;
-    packedMipHeapBufferDesc.byteSize = packedMipHeapDesc.capacity;
-    packedMipHeapBufferDesc.isVirtual = true;
-    packedMipHeapBufferDesc.initialState = nvrhi::ResourceStates::CopySource;
-    packedMipHeapBufferDesc.keepInitialState = true;
-    m_MipHeapBuffers[packedMipIdx] = device->createBuffer(packedMipHeapBufferDesc);
-
-    device->bindBufferMemory(m_MipHeapBuffers[packedMipIdx], m_MipHeaps[packedMipIdx], 0);
-
-    DDSReadParams readParams;
-    readParams.m_File = scopedFile;
-    readParams.m_Texture = this;
-    readParams.m_StartMipToRead = packedMipIdx;
-    readParams.m_NumMipsToRead = m_PackedMipDesc.numPackedMips;
-    ReadPackedDDSMipDatas(ddsFileInfo, readParams);
-
-    std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates(m_PackedMipDesc.numPackedMips);
-    std::vector<nvrhi::TiledTextureRegion> tiledRegions(m_PackedMipDesc.numPackedMips);
-    std::vector<uint64_t> byteOffsets(m_PackedMipDesc.numPackedMips);
-    for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
-    {
-        tiledTextureCoordinates[i].mipLevel = packedMipIdx;
-        tiledTextureCoordinates[i].arrayLevel = 0;
-        tiledTextureCoordinates[i].x = 0;
-        tiledTextureCoordinates[i].y = 0;
-        tiledTextureCoordinates[i].z = 0;
-
-        tiledRegions[i].tilesNum = 1;
-        tiledRegions[i].width = m_TilingsInfo[packedMipIdx].widthInTiles;
-        tiledRegions[i].height = m_TilingsInfo[packedMipIdx].heightInTiles;
-        tiledRegions[i].depth = m_TilingsInfo[packedMipIdx].depthInTiles;
-
-        byteOffsets[i] = m_StreamingMipDatas[packedMipIdx + i].m_DataOffset - m_StreamingMipDatas[packedMipIdx].m_DataOffset;
-    }
-
-    nvrhi::TextureTilesMapping tileMapping;
-    tileMapping.tiledTextureCoordinates = tiledTextureCoordinates.data();
-    tileMapping.tiledTextureRegions = tiledRegions.data();
-    tileMapping.byteOffsets = byteOffsets.data();
-    tileMapping.numTextureRegions = tiledTextureCoordinates.size();
-    tileMapping.heap = m_MipHeaps[packedMipIdx];
-
-    device->updateTextureTileMappings(m_NVRHITextureHandle, &tileMapping, 1);
-
-    for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
-    {
-        commandList->writeTexture(m_NVRHITextureHandle, 0, packedMipIdx + i, readParams.m_MipDatas[i].m_Data.data(), readParams.m_MipDatas[i].m_MemPitch);
-    }
-
-    m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle));
-
+    // texture is very low resolution, means all packed mips, don't bother with tiling nor streaming
     if (m_PackedMipDesc.numStandardMips == 0)
     {
+        reservedTexDesc.isTiled = false;
+        m_NVRHITextureHandle = device->createTexture(reservedTexDesc);
+
         return;
     }
 
+    ReadDDSStreamingMipDatas(DDSFileHeader, *this);
+
     rtxts::TiledLevelDesc tiledLevelDescs[16]{};
-    rtxts::TiledTextureDesc tiledTextureDesc;
+    rtxts::TiledTextureDesc tiledTextureDesc{};
     tiledTextureDesc.textureWidth = reservedTexDesc.width;
     tiledTextureDesc.textureHeight = reservedTexDesc.height;
     tiledTextureDesc.tiledLevelDescs = tiledLevelDescs;
@@ -174,8 +126,6 @@ void Texture::LoadFromFile(std::string_view filePath)
     samplerFeedbackTextureDesc.initialState = nvrhi::ResourceStates::UnorderedAccess;
     m_SamplerFeedbackTextureHandle = device->createSamplerFeedbackTexture(m_NVRHITextureHandle, samplerFeedbackTextureDesc);
 
-    commandList->clearSamplerFeedbackTexture(m_SamplerFeedbackTextureHandle);
-
     // Resolve / Readback buffer
     for (nvrhi::BufferHandle& resolveBuffer : m_FeedbackResolveBuffers)
     {
@@ -206,9 +156,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 
 bool Texture::IsValid() const
 {
-    return m_NVRHITextureHandle != nullptr
-        && m_SRVIndexInTable != UINT_MAX
-        && m_CurrentlyStreamedMip != UINT_MAX;
+    return m_NVRHITextureHandle != nullptr && m_SRVIndexInTable != UINT_MAX;
 }
 
 bool Texture::IsTilePacked(uint32_t tileIdx) const

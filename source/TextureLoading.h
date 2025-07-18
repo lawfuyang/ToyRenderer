@@ -2,7 +2,7 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
-struct DDSFileInfo
+struct DDSFileHeader
 {
     uint32_t m_FileSize;
     uint32_t m_Width;
@@ -13,25 +13,7 @@ struct DDSFileInfo
     uint32_t m_ImageDataByteOffset;
 };
 
-struct MipData
-{
-    uint32_t m_Mip;
-    uint32_t m_Width;
-    uint32_t m_Height;
-    uint32_t m_MemPitch;
-    uint32_t m_MemSlicePitch;
-    std::vector<std::byte> m_Data;
-};
-
-struct DDSReadParams
-{
-    FILE* m_File;
-    class Texture* m_Texture;
-    std::vector<MipData> m_MipDatas;
-    uint32_t m_StartMipToRead;
-    uint32_t m_NumMipsToRead;
-};
-
 bool IsDDSImage(FILE* file);
-DDSFileInfo GetDDSFileInfo(FILE* file);
-void ReadPackedDDSMipDatas(const DDSFileInfo& fileInfo, DDSReadParams& params);
+DDSFileHeader ReadDDSFileHeader(FILE* file);
+void ReadDDSStreamingMipDatas(const DDSFileHeader& fileInfo, class Texture& texture);
+void ReadDDSMipData(const DDSFileHeader& fileInfo, class Texture& texture, uint32_t mip, std::vector<std::byte>& data);

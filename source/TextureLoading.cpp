@@ -532,7 +532,7 @@ static uint32_t GetBitsPerPixel(DXGI_FORMAT fmt)
     }
 }
 
-static void GetImageInfo(uint32_t w, uint32_t h, DXGI_FORMAT fmt, uint32_t* outNumBytes, uint32_t* outRowBytes, uint32_t* outNumRows)
+static void GetImageInfo(uint32_t w, uint32_t h, DXGI_FORMAT fmt, uint32_t& outNumBytes, uint32_t& outRowBytes, uint32_t& outNumRows)
 {
     uint32_t numBytes = 0;
     uint32_t rowBytes = 0;
@@ -643,21 +643,12 @@ static void GetImageInfo(uint32_t w, uint32_t h, DXGI_FORMAT fmt, uint32_t* outN
         numBytes = rowBytes * h;
     }
 
-    if (outNumBytes)
-    {
-        *outNumBytes = numBytes;
-    }
-    if (outRowBytes)
-    {
-        *outRowBytes = rowBytes;
-    }
-    if (outNumRows)
-    {
-        *outNumRows = numRows;
-    }
+    outNumBytes = numBytes;
+    outRowBytes = rowBytes;
+    outNumRows = numRows;
 }
 
-DDSFileInfo GetDDSFileInfo(FILE* f)
+DDSFileHeader ReadDDSFileHeader(FILE* f)
 {
     assert(f);
 
@@ -746,7 +737,7 @@ DDSFileInfo GetDDSFileInfo(FILE* f)
         assert(!(header.m_caps2 & uint32_t(HeaderCaps2FlagBits::CubemapAllFaces)));
     }
 
-    DDSFileInfo info;
+    DDSFileHeader info;
     info.m_FileSize = fileSize;
     info.m_Width = header.m_width;
     info.m_Height = header.m_height;
@@ -758,28 +749,21 @@ DDSFileInfo GetDDSFileInfo(FILE* f)
     return info;
 }
 
-void ReadPackedDDSMipDatas(const DDSFileInfo& fileInfo, DDSReadParams& params)
+void ReadDDSStreamingMipDatas(const DDSFileHeader& fileInfo, Texture& texture)
 {
-    FILE* f = params.m_File;
-    assert(f);
-    fseek(f, fileInfo.m_ImageDataByteOffset, SEEK_SET);
+    PROFILE_FUNCTION();
 
-    Texture& texture = *params.m_Texture;
     uint32_t fileReadOffset = fileInfo.m_ImageDataByteOffset;
-    uint32_t mipsToRead = fileInfo.m_MipCount;
 
-    // offset the file read position to the start of the first mip to read
-    for (uint32_t i = 0; i < params.m_StartMipToRead; ++i)
+    for (uint32_t i = 0; i < fileInfo.m_MipCount; ++i)
     {
         const uint32_t mipWidth = std::max<uint32_t>(1, fileInfo.m_Width >> i);
         const uint32_t mipHeight = std::max<uint32_t>(1, fileInfo.m_Height >> i);
 
         uint32_t numBytes;
         uint32_t rowBytes;
-        GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, &numBytes, &rowBytes, nullptr);
-
-        const int seekResult = fseek(f, numBytes, SEEK_CUR);
-        assert(seekResult == 0);
+        uint32_t numRows;
+        GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, numBytes, rowBytes, numRows);
 
         StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[i];
         streamingMipData.m_Resolution = { mipWidth, mipHeight };
@@ -791,50 +775,39 @@ void ReadPackedDDSMipDatas(const DDSFileInfo& fileInfo, DDSReadParams& params)
         assert(fileReadOffset <= fileInfo.m_FileSize);
     }
 
-    const bool bIsCompressedFormat = nvrhi::getFormatInfo(fileInfo.m_Format).blockSize != 1;
+    assert(fileReadOffset == fileInfo.m_FileSize);
+}
 
-    std::vector<MipData>& mipDatas = params.m_MipDatas;
-    mipDatas.resize(params.m_NumMipsToRead);
+void ReadDDSMipData(const DDSFileHeader& fileInfo, Texture& texture, uint32_t mip, std::vector<std::byte>& data)
+{
+    PROFILE_FUNCTION();
 
-    for (uint32_t i = 0; i < mipDatas.size(); ++i)
+    const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[mip];
+    assert(streamingMipData.IsValid());
+
+    const bool bIsCompressedFormat = nvrhi::getFormatInfo(fileInfo.m_Format).blockSize > 1;
+
+    uint32_t mipWidth = std::max<uint32_t>(1, fileInfo.m_Width >> mip);
+    uint32_t mipHeight = std::max<uint32_t>(1, fileInfo.m_Height >> mip);
+
+    // pad dimensions to multiple of 4 for compressed formats
+    if (bIsCompressedFormat)
     {
-        PROFILE_SCOPED("Read mip bytes from file");
-
-        const uint32_t mipToRead = params.m_StartMipToRead + i;
-
-        uint32_t mipWidth = std::max<uint32_t>(1, fileInfo.m_Width >> mipToRead);
-        uint32_t mipHeight = std::max<uint32_t>(1, fileInfo.m_Height >> mipToRead);
-
-        // pad dimensions to multiple of 4 for compressed formats
-        if (bIsCompressedFormat)
-        {
-            mipWidth = (mipWidth + 3) & ~3;
-            mipHeight = (mipHeight + 3) & ~3;
-        }
-
-        uint32_t numBytes;
-        uint32_t rowBytes;
-        GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, &numBytes, &rowBytes, nullptr);
-
-        mipDatas[i].m_Mip = mipToRead;
-        mipDatas[i].m_Width = mipWidth;
-        mipDatas[i].m_Height = mipHeight;
-        mipDatas[i].m_MemPitch = rowBytes;
-        mipDatas[i].m_MemSlicePitch = numBytes;
-
-        mipDatas[i].m_Data.resize(numBytes);
-        const uint32_t bytesRead = fread(mipDatas[i].m_Data.data(), sizeof(std::byte), numBytes, f);
-        assert(bytesRead == numBytes);
-
-        StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[mipToRead];
-        streamingMipData.m_Resolution = { mipWidth, mipHeight };
-        streamingMipData.m_DataOffset = fileReadOffset;
-        streamingMipData.m_NumBytes = numBytes;
-        streamingMipData.m_RowPitch = rowBytes;
-
-        fileReadOffset += numBytes;
-        assert(fileReadOffset <= fileInfo.m_FileSize);
+        mipWidth = (mipWidth + 3) & ~3;
+        mipHeight = (mipHeight + 3) & ~3;
     }
 
-    assert(fileReadOffset == fileInfo.m_FileSize);
+    uint32_t numBytes;
+    uint32_t rowBytes;
+    uint32_t numRows;
+    GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, numBytes, rowBytes, numRows);
+
+    data.resize(numBytes);
+
+    FILE* f = texture.m_ImageFile;
+    assert(f);
+    fseek(f, streamingMipData.m_DataOffset, SEEK_SET);
+
+    const uint32_t bytesRead = fread(data.data(), sizeof(std::byte), numBytes, f);
+    assert(bytesRead == numBytes);
 }

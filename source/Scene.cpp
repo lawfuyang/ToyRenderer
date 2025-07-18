@@ -682,4 +682,15 @@ void Scene::PostSceneLoad()
 
 	UpdateInstanceIDsBuffers();
     CreateAccelerationStructures();
+
+    nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Clear Sampler Feedback Textures");
+
+    for (Texture& texture : g_Graphic.m_Textures)
+    {
+        if (texture.m_SamplerFeedbackTextureHandle)
+        {
+            commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
+        }
+    }
 }

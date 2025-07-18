@@ -27,6 +27,8 @@ struct StreamingMipData
 class Texture
 {
 public:
+    ~Texture();
+
     void LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc);
     void LoadFromFile(std::string_view filePath);
 
@@ -34,20 +36,17 @@ public:
 
     bool IsTilePacked(uint32_t tileIdx) const;
 
-    std::string m_StreamingFilePath;
+    FILE* m_ImageFile = nullptr;
     uint32_t m_NumTextureMips;
+
     StreamingMipData m_StreamingMipDatas[GraphicConstants::kMaxTextureMips];
+    
     uint32_t m_NumTiles;
     nvrhi::PackedMipDesc m_PackedMipDesc;
     nvrhi::TileShape m_TileShape;
     nvrhi::SubresourceTiling m_TilingsInfo[GraphicConstants::kMaxTextureMips];
-    uint32_t m_CurrentlyStreamedMip = 0;
-    uint32_t m_InFlightStreamingMip = 0;
 
-    nvrhi::HeapHandle m_MipHeaps[8];
-    nvrhi::BufferHandle m_MipHeapBuffers[8];
     nvrhi::TextureHandle m_NVRHITextureHandle;
-
     uint32_t m_SRVIndexInTable = UINT_MAX;
 
     uint32_t m_TiledTextureID = UINT_MAX;
