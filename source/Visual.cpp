@@ -59,6 +59,7 @@ void Texture::LoadFromFile(std::string_view filePath)
     assert(IsDDSImage(m_ImageFile));
 
     const DDSFileHeader DDSFileHeader = ReadDDSFileHeader(m_ImageFile);
+    ReadDDSStreamingMipDatas(DDSFileHeader, *this);
     m_NumTextureMips = DDSFileHeader.m_MipCount;
 
     nvrhi::TextureDesc reservedTexDesc;
@@ -80,13 +81,25 @@ void Texture::LoadFromFile(std::string_view filePath)
     // texture is very low resolution, means all packed mips, don't bother with tiling nor streaming
     if (m_PackedMipDesc.numStandardMips == 0)
     {
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Write small res texture data");
+
         reservedTexDesc.isTiled = false;
         m_NVRHITextureHandle = device->createTexture(reservedTexDesc);
 
+        std::vector<std::byte> data;
+        for (uint32_t mip = 0; mip < m_NumTextureMips; ++mip)
+        {
+            data.clear();
+
+            uint32_t memPitch;
+            ReadDDSMipData(DDSFileHeader, *this, mip, data, memPitch);
+
+            commandList->writeTexture(m_NVRHITextureHandle, 0, mip, data.data(), memPitch);
+        }
+
         return;
     }
-
-    ReadDDSStreamingMipDatas(DDSFileHeader, *this);
 
     rtxts::TiledLevelDesc tiledLevelDescs[16]{};
     rtxts::TiledTextureDesc tiledTextureDesc{};
@@ -162,6 +175,76 @@ bool Texture::IsValid() const
 bool Texture::IsTilePacked(uint32_t tileIdx) const
 {
     return (m_TiledTextureID == UINT_MAX) || tileIdx >= m_PackedMipDesc.startTileIndexInOverallResource;
+}
+
+void Texture::GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInfo>& tiles) const
+{
+    tiles.clear();
+
+    const nvrhi::TextureDesc& textureDesc = m_NVRHITextureHandle->getDesc();
+    const bool bIsBlockCompressed = (textureDesc.format >= nvrhi::Format::BC1_UNORM && textureDesc.format <= nvrhi::Format::BC7_UNORM_SRGB);
+
+    if (IsTilePacked(tileIndex))
+    {
+        for (uint32_t mip = m_PackedMipDesc.numStandardMips; mip < uint32_t(m_PackedMipDesc.numStandardMips + m_PackedMipDesc.numPackedMips); mip++)
+        {
+            uint32_t width = std::max(textureDesc.width >> mip, 1u);
+            uint32_t height = std::max(textureDesc.height >> mip, 1u);
+
+            // Round up subresource size for BC compressed formats to match block sizes
+            if (bIsBlockCompressed)
+            {
+                // Round up to 4x4 blocks
+                width = ((width + 3) / 4) * 4;
+                height = ((height + 3) / 4) * 4;
+            }
+
+            FeedbackTextureTileInfo tile;
+            tile.m_XInTexels = 0;
+            tile.m_YInTexels = 0;
+            tile.m_Mip = mip;
+            tile.m_WidthInTexels = width;
+            tile.m_HeightInTexels = height;
+            tiles.push_back(tile);  
+        }
+    }
+    else
+    {
+        const std::vector<rtxts::TileCoord>& tileCoord = g_TextureFeedbackManager->m_TiledTextureManager->GetTileCoordinates(m_TiledTextureID);
+        uint32_t tileX = tileCoord[tileIndex].x;
+        uint32_t tileY = tileCoord[tileIndex].y;
+        uint32_t mip = tileCoord[tileIndex].mipLevel;
+        uint32_t width = m_TileShape.widthInTexels;
+        uint32_t height = m_TileShape.heightInTexels;
+
+        uint32_t subresourceWidth = std::max(textureDesc.width >> mip, 1u);
+        uint32_t subresourceHeight = std::max(textureDesc.height >> mip, 1u);
+
+        // Round up subresource size for BC compressed formats to match block sizes
+        if (bIsBlockCompressed)
+        {
+            // Round up to 4x4 blocks
+            subresourceWidth = ((subresourceWidth + 3) / 4) * 4;
+            subresourceHeight = ((subresourceHeight + 3) / 4) * 4;
+        }
+
+        uint32_t x = tileX * width;
+        uint32_t y = tileY * height;
+
+        // Make sure the tile (for filling out the data) doesn't extend past the actual subresource
+        if (x + width > subresourceWidth)
+            width = subresourceWidth - x;
+        if (y + height > subresourceHeight)
+            height = subresourceHeight - y;
+
+        FeedbackTextureTileInfo tile;
+        tile.m_XInTexels = x;
+        tile.m_YInTexels = y;
+        tile.m_Mip = mip;
+        tile.m_WidthInTexels = width;
+        tile.m_HeightInTexels = height;
+        tiles.push_back(tile);
+    }
 }
 
 bool Primitive::IsValid() const

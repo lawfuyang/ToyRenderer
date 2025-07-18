@@ -778,7 +778,7 @@ void ReadDDSStreamingMipDatas(const DDSFileHeader& fileInfo, Texture& texture)
     assert(fileReadOffset == fileInfo.m_FileSize);
 }
 
-void ReadDDSMipData(const DDSFileHeader& fileInfo, Texture& texture, uint32_t mip, std::vector<std::byte>& data)
+void ReadDDSMipData(const DDSFileHeader& fileInfo, Texture& texture, uint32_t mip, std::vector<std::byte>& data, uint32_t& memPitch)
 {
     PROFILE_FUNCTION();
 
@@ -801,6 +801,8 @@ void ReadDDSMipData(const DDSFileHeader& fileInfo, Texture& texture, uint32_t mi
     uint32_t rowBytes;
     uint32_t numRows;
     GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, numBytes, rowBytes, numRows);
+
+    memPitch = rowBytes;
 
     data.resize(numBytes);
 

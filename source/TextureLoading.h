@@ -16,4 +16,4 @@ struct DDSFileHeader
 bool IsDDSImage(FILE* file);
 DDSFileHeader ReadDDSFileHeader(FILE* file);
 void ReadDDSStreamingMipDatas(const DDSFileHeader& fileInfo, class Texture& texture);
-void ReadDDSMipData(const DDSFileHeader& fileInfo, class Texture& texture, uint32_t mip, std::vector<std::byte>& data);
+void ReadDDSMipData(const DDSFileHeader& fileInfo, class Texture& texture, uint32_t mip, std::vector<std::byte>& data, uint32_t& memPitch);
