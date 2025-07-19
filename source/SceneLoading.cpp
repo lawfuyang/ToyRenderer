@@ -498,6 +498,9 @@ struct GLTFSceneLoader
                 uint32_t minMipSRVIndexInHeap = UINT16_MAX;
                 if (tex.m_PackedMipDesc.numStandardMips != 0)
                 {
+                    assert(tex.m_SamplerFeedbackTextureHandle);
+                    assert(tex.m_MinMipTextureHandle);
+
                     feedbackSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
                     assert(feedbackSRVIndexInHeap <= UINT16_MAX);
 
