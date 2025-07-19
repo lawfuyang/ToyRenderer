@@ -50,6 +50,8 @@ public:
     uint32_t m_NumTextureMips;
 
     StreamingMipData m_StreamingMipDatas[GraphicConstants::kMaxTextureMips];
+
+    std::vector<std::byte> m_PackedMipsBytes;
     
     uint32_t m_NumTiles;
     nvrhi::PackedMipDesc m_PackedMipDesc;

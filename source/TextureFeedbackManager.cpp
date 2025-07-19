@@ -6,7 +6,61 @@
 #include "Graphic.h"
 #include "Scene.h"
 
-static const uint32_t kHeapSizeInTiles = 1024; // 64MiB heap size
+static void UploadTile(
+    nvrhi::CommandListHandle commandList,
+    nvrhi::TextureHandle destTexture,
+    const FeedbackTextureTileInfo& tile,
+    const std::byte* dataMipBase,
+    const nvrhi::TileShape& tileShape,
+    uint32_t rowPitchSource)
+{
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+    nvrhi::TextureDesc stagingTextureDesc;
+    stagingTextureDesc.width = tile.m_WidthInTexels;
+    stagingTextureDesc.height = tile.m_HeightInTexels;
+    stagingTextureDesc.format = destTexture->getDesc().format;
+    nvrhi::StagingTextureHandle stagingTexture = device->createStagingTexture(stagingTextureDesc, nvrhi::CpuAccessMode::Write);
+
+    size_t rowPitch;
+    std::byte* mappedData = (std::byte*)device->mapStagingTexture(stagingTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Write, &rowPitch);
+
+    // Compute pitches and offsets in 4x4 blocks
+    // Note: The "tile" being copied here might be smaller than a tiled resource tile, for example non-pow2 textures
+    const uint32_t tileBlocksWidth = tile.m_WidthInTexels / 4;
+    const uint32_t tileBlocksHeight = tile.m_HeightInTexels / 4;
+    const uint32_t shapeBlocksWidth = tileShape.widthInTexels / 4;
+    const uint32_t shapeBlocksHeight = tileShape.heightInTexels / 4;
+    const uint32_t bytesPerBlock = g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes() / (shapeBlocksWidth * shapeBlocksHeight);
+    const uint32_t sourceBlockX = tile.m_XInTexels / 4;
+    const uint32_t sourceBlockY = tile.m_YInTexels / 4;
+    const uint32_t rowPitchTile = tileBlocksWidth * bytesPerBlock;
+    for (uint32_t blockRow = 0; blockRow < tileBlocksHeight; blockRow++)
+    {
+        const int32_t readOffset = (sourceBlockY + blockRow) * rowPitchSource + sourceBlockX * bytesPerBlock;
+        const int32_t writeOffset = blockRow * rowPitchTile;
+        memcpy(mappedData + writeOffset, dataMipBase + readOffset, rowPitchTile);
+    }
+
+    device->unmapStagingTexture(stagingTexture);
+
+    nvrhi::TextureSlice destSlice;
+    destSlice.x = tile.m_XInTexels;
+    destSlice.y = tile.m_YInTexels;
+    destSlice.z = 0;
+    destSlice.width = stagingTextureDesc.width;
+    destSlice.height = stagingTextureDesc.height;
+    destSlice.depth = 1;
+    destSlice.mipLevel = tile.m_Mip;
+
+    commandList->copyTexture(destTexture, destSlice, stagingTexture, nvrhi::TextureSlice{});
+}
+
+struct TextureStreamingRequest
+{
+    uint32_t m_TextureIdx;
+    uint32_t m_Mip;
+};
 
 void TextureFeedbackManager::AsyncIOThreadFunc()
 {
@@ -443,6 +497,29 @@ void TextureFeedbackManager::BeginFrame()
         for (const FeedbackTextureUpdate& texUpdate : tilesThisFrame)
         {
             const Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
+
+            for (uint32_t tileIndex : texUpdate.m_TileIndices)
+            {
+                tiles.clear();
+                texture.GetTileInfo(tileIndex, tiles);
+
+                for (const FeedbackTextureTileInfo& tile : tiles)
+                {
+                    // const TextureSubresourceData& layout = textureData->dataLayout[0][tile.m_Mip];
+                    // const std::byte* dataPointer = static_cast<const std::byte*>(textureData->data->data()) + layout.dataOffset;
+
+                    if (texture.IsTilePacked(tileIndex))
+                    {
+                        // Flexible, but slower, path for uploading packed mips
+                        //commandList->writeTexture(texture.m_NVRHITextureHandle, 0, tile.m_Mip, dataPointer + layout.dataOffset, layout.rowPitch, layout.depthPitch);
+                    }
+                    else
+                    {
+                        // More efficient path for uploading regular tiles
+                        //UploadTile(commandList, texture.m_NVRHITextureHandle, tile, dataPointer, texture.m_TileShape, (uint32_t)layout.rowPitch);
+                    }
+                }
+            }
         }
     }
 }
@@ -478,6 +555,8 @@ void TextureFeedbackManager::EndFrame()
 
     m_ResolveFeedbackTexturesCounter = m_ResolveFeedbackTexturesCounter + (m_NumFeedbackTexturesToResolvePerFrame % g_Graphic.m_Textures.size());
 }
+
+static const uint32_t kHeapSizeInTiles = 1024; // 64MiB heap size
 
 uint32_t TextureFeedbackManager::AllocateHeap()
 {

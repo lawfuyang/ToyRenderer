@@ -101,6 +101,22 @@ void Texture::LoadFromFile(std::string_view filePath)
         return;
     }
 
+    // read packed mip bytes
+    // TODO: dont think it's a good idea to store packed mip data in memory persistently
+    if constexpr (false)
+    {
+        for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
+        {
+            const uint32_t mipToRead = m_PackedMipDesc.numStandardMips + i;
+            std::vector<std::byte> mipData;
+            uint32_t memPitch;
+            ReadDDSMipData(DDSFileHeader, *this, mipToRead, mipData, memPitch);
+
+            m_PackedMipsBytes.insert(m_PackedMipsBytes.end(), mipData.begin(), mipData.end());
+        }
+        assert(m_PackedMipsBytes.size() <= g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes() * m_PackedMipDesc.numTilesForPackedMips);
+    }
+
     rtxts::TiledLevelDesc tiledLevelDescs[16]{};
     rtxts::TiledTextureDesc tiledTextureDesc{};
     tiledTextureDesc.textureWidth = reservedTexDesc.width;
@@ -179,8 +195,6 @@ bool Texture::IsTilePacked(uint32_t tileIdx) const
 
 void Texture::GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInfo>& tiles) const
 {
-    tiles.clear();
-
     const nvrhi::TextureDesc& textureDesc = m_NVRHITextureHandle->getDesc();
     const bool bIsBlockCompressed = (textureDesc.format >= nvrhi::Format::BC1_UNORM && textureDesc.format <= nvrhi::Format::BC7_UNORM_SRGB);
 
