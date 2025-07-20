@@ -499,13 +499,10 @@ void TextureFeedbackManager::BeginFrame()
 
                 for (const FeedbackTextureTileInfo& tile : tiles)
                 {
-                    // const TextureSubresourceData& layout = textureData->dataLayout[0][tile.m_Mip];
-                    // const std::byte* dataPointer = static_cast<const std::byte*>(textureData->data->data()) + layout.dataOffset;
-
                     if (texture.IsTilePacked(tileIndex))
                     {
-                        // Flexible, but slower, path for uploading packed mips
-                        //commandList->writeTexture(texture.m_NVRHITextureHandle, 0, tile.m_Mip, dataPointer + layout.dataOffset, layout.rowPitch, layout.depthPitch);
+                        const TextureMipData& mipData = texture.m_TextureMipDatas[tile.m_Mip];
+                        commandList->writeTexture(texture.m_NVRHITextureHandle, 0, tile.m_Mip, mipData.m_Data.data(), mipData.m_RowPitch);
                     }
                     else
                     {
