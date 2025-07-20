@@ -4,7 +4,6 @@
 #include "Graphic.h"
 #include "Scene.h"
 #include "Utilities.h"
-#include "Visual.h"
 
 static const char kDDSMagic[] = { 'D', 'D', 'S', ' ' };
 
@@ -19,21 +18,6 @@ static bool IsDDSImage(const void* data)
     }
 
     return true;
-}
-
-bool IsDDSImage(FILE* f)
-{
-    assert(f);
-
-    ON_EXIT_SCOPE_LAMBDA([&] { fseek(f, 0, SEEK_SET); });
-
-    char magic[4];
-    if (fread(magic, sizeof(char), sizeof(kDDSMagic), f) != std::size(kDDSMagic))
-    {
-        return false; // read error
-    }
-
-    return IsDDSImage(magic);
 }
 
 static nvrhi::Format ConvertFromDXGIFormat(DXGI_FORMAT format)
@@ -648,7 +632,7 @@ static void GetImageInfo(uint32_t w, uint32_t h, DXGI_FORMAT fmt, uint32_t& outN
     outNumRows = numRows;
 }
 
-DDSFileHeader ReadDDSFileHeader(FILE* f)
+void ReadDDSTextureFileHeader(FILE* f, Texture& texture)
 {
     assert(f);
 
@@ -737,22 +721,21 @@ DDSFileHeader ReadDDSFileHeader(FILE* f)
         assert(!(header.m_caps2 & uint32_t(HeaderCaps2FlagBits::CubemapAllFaces)));
     }
 
-    DDSFileHeader info;
-    info.m_FileSize = fileSize;
-    info.m_Width = header.m_width;
-    info.m_Height = header.m_height;
-    info.m_MipCount = header.m_mipMapCount;
-    info.m_Format = ConvertFromDXGIFormat(dxgiFormat);
-    info.m_DXGIFormat = dxgiFormat;
-    info.m_ImageDataByteOffset = fileReadOffset;
-
-    return info;
+    TextureFileHeader& outHeader = texture.m_TextureFileHeader;
+    outHeader.m_FileSize = fileSize;
+    outHeader.m_Width = header.m_width;
+    outHeader.m_Height = header.m_height;
+    outHeader.m_MipCount = header.m_mipMapCount;
+    outHeader.m_Format = ConvertFromDXGIFormat(dxgiFormat);
+    outHeader.m_DXGIFormat = dxgiFormat;
+    outHeader.m_ImageDataByteOffset = fileReadOffset;
 }
 
-void ReadDDSStreamingMipDatas(const DDSFileHeader& fileInfo, Texture& texture)
+void ReadDDSMipInfos(Texture& texture)
 {
     PROFILE_FUNCTION();
 
+    const TextureFileHeader& fileInfo = texture.m_TextureFileHeader;
     uint32_t fileReadOffset = fileInfo.m_ImageDataByteOffset;
 
     for (uint32_t i = 0; i < fileInfo.m_MipCount; ++i)
@@ -765,11 +748,11 @@ void ReadDDSStreamingMipDatas(const DDSFileHeader& fileInfo, Texture& texture)
         uint32_t numRows;
         GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, numBytes, rowBytes, numRows);
 
-        StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[i];
-        streamingMipData.m_Resolution = { mipWidth, mipHeight };
-        streamingMipData.m_DataOffset = fileReadOffset;
-        streamingMipData.m_NumBytes = numBytes;
-        streamingMipData.m_RowPitch = rowBytes;
+        TextureMipData& TextureMipData = texture.m_TextureMipDatas[i];
+        TextureMipData.m_Resolution = { mipWidth, mipHeight };
+        TextureMipData.m_DataOffset = fileReadOffset;
+        TextureMipData.m_NumBytes = numBytes;
+        TextureMipData.m_RowPitch = rowBytes;
 
         fileReadOffset += numBytes;
         assert(fileReadOffset <= fileInfo.m_FileSize);
@@ -778,38 +761,21 @@ void ReadDDSStreamingMipDatas(const DDSFileHeader& fileInfo, Texture& texture)
     assert(fileReadOffset == fileInfo.m_FileSize);
 }
 
-void ReadDDSMipData(const DDSFileHeader& fileInfo, Texture& texture, uint32_t mip, std::vector<std::byte>& data, uint32_t& memPitch)
+void ReadDDSMipData(Texture& texture, uint32_t mip)
 {
     PROFILE_FUNCTION();
 
-    const StreamingMipData& streamingMipData = texture.m_StreamingMipDatas[mip];
-    assert(streamingMipData.IsValid());
+    const TextureFileHeader& fileInfo = texture.m_TextureFileHeader;
+    TextureMipData& TextureMipData = texture.m_TextureMipDatas[mip];
+    assert(TextureMipData.IsValid());
 
-    const bool bIsCompressedFormat = nvrhi::getFormatInfo(fileInfo.m_Format).blockSize > 1;
-
-    uint32_t mipWidth = std::max<uint32_t>(1, fileInfo.m_Width >> mip);
-    uint32_t mipHeight = std::max<uint32_t>(1, fileInfo.m_Height >> mip);
-
-    // pad dimensions to multiple of 4 for compressed formats
-    if (bIsCompressedFormat)
-    {
-        mipWidth = (mipWidth + 3) & ~3;
-        mipHeight = (mipHeight + 3) & ~3;
-    }
-
-    uint32_t numBytes;
-    uint32_t rowBytes;
-    uint32_t numRows;
-    GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, numBytes, rowBytes, numRows);
-
-    memPitch = rowBytes;
-
-    data.resize(numBytes);
+    assert(TextureMipData.m_Data.empty());
+    TextureMipData.m_Data.resize(TextureMipData.m_NumBytes);
 
     FILE* f = texture.m_ImageFile;
     assert(f);
-    fseek(f, streamingMipData.m_DataOffset, SEEK_SET);
+    fseek(f, TextureMipData.m_DataOffset, SEEK_SET);
 
-    const uint32_t bytesRead = fread(data.data(), sizeof(std::byte), numBytes, f);
-    assert(bytesRead == numBytes);
+    const uint32_t bytesRead = fread(TextureMipData.m_Data.data(), sizeof(std::byte), TextureMipData.m_NumBytes, f);
+    assert(bytesRead == TextureMipData.m_NumBytes);
 }

@@ -97,7 +97,7 @@ void TextureFeedbackManager::AsyncIOThreadFunc()
             SDL_CALL(asyncIO);
 
 
-            SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest->m_MipBytes.data(), streamingMipData.m_DataOffset, streamingMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)inFlightRequest));
+            SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest->m_MipBytes.data(), TextureMipData.m_DataOffset, TextureMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)inFlightRequest));
 
             // according to the doc, we can close the async IO handle after the read request is submitted
             SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));

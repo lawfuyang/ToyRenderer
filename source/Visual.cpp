@@ -56,23 +56,21 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     m_ImageFile = fopen(filePath.data(), "rb");
     assert(m_ImageFile);
-    assert(IsDDSImage(m_ImageFile));
 
-    const DDSFileHeader DDSFileHeader = ReadDDSFileHeader(m_ImageFile);
-    ReadDDSStreamingMipDatas(DDSFileHeader, *this);
-    m_NumTextureMips = DDSFileHeader.m_MipCount;
+    ReadDDSTextureFileHeader(m_ImageFile, *this);
+    ReadDDSMipInfos(*this);
 
     nvrhi::TextureDesc reservedTexDesc;
-    reservedTexDesc.width = DDSFileHeader.m_Width;
-    reservedTexDesc.height = DDSFileHeader.m_Height;
-    reservedTexDesc.format = DDSFileHeader.m_Format;
+    reservedTexDesc.width = m_TextureFileHeader.m_Width;
+    reservedTexDesc.height = m_TextureFileHeader.m_Height;
+    reservedTexDesc.format = m_TextureFileHeader.m_Format;
     reservedTexDesc.isTiled = true;
-    reservedTexDesc.mipLevels = m_NumTextureMips;
+    reservedTexDesc.mipLevels = m_TextureFileHeader.m_MipCount;
     reservedTexDesc.debugName = debugName;
     reservedTexDesc.initialState = nvrhi::ResourceStates::ShaderResource;
     m_NVRHITextureHandle = device->createTexture(reservedTexDesc);
 
-    device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_NumTextureMips, m_TilingsInfo);
+    device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_TextureFileHeader.m_MipCount, m_TilingsInfo);
 
     LOG_DEBUG("New Texture: %s, %d x %d, %s", reservedTexDesc.debugName.c_str(), reservedTexDesc.width, reservedTexDesc.height, nvrhi::utils::FormatToString(reservedTexDesc.format));
 
@@ -87,34 +85,20 @@ void Texture::LoadFromFile(std::string_view filePath)
         reservedTexDesc.isTiled = false;
         m_NVRHITextureHandle = device->createTexture(reservedTexDesc);
 
-        std::vector<std::byte> data;
-        for (uint32_t mip = 0; mip < m_NumTextureMips; ++mip)
+        for (uint32_t mip = 0; mip < m_TextureFileHeader.m_MipCount; ++mip)
         {
-            data.clear();
-
-            uint32_t memPitch;
-            ReadDDSMipData(DDSFileHeader, *this, mip, data, memPitch);
-
-            commandList->writeTexture(m_NVRHITextureHandle, 0, mip, data.data(), memPitch);
+            ReadDDSMipData(*this, mip);
+            commandList->writeTexture(m_NVRHITextureHandle, 0, mip, m_TextureMipDatas[mip].m_Data.data(), m_TextureMipDatas[mip].m_RowPitch);
         }
 
         return;
     }
 
     // read packed mip bytes
-    // TODO: dont think it's a good idea to store packed mip data in memory persistently
-    if constexpr (false)
+    for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
     {
-        for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
-        {
-            const uint32_t mipToRead = m_PackedMipDesc.numStandardMips + i;
-            std::vector<std::byte> mipData;
-            uint32_t memPitch;
-            ReadDDSMipData(DDSFileHeader, *this, mipToRead, mipData, memPitch);
-
-            m_PackedMipsBytes.insert(m_PackedMipsBytes.end(), mipData.begin(), mipData.end());
-        }
-        assert(m_PackedMipsBytes.size() <= g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes() * m_PackedMipDesc.numTilesForPackedMips);
+        const uint32_t mipToRead = m_PackedMipDesc.numStandardMips + i;
+        ReadDDSMipData(*this, mipToRead);
     }
 
     rtxts::TiledLevelDesc tiledLevelDescs[16]{};

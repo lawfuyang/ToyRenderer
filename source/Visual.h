@@ -14,12 +14,24 @@ enum class AlphaMode
     Blend
 };
 
-struct StreamingMipData
+struct TextureFileHeader
+{
+    uint32_t m_FileSize;
+    uint32_t m_Width;
+    uint32_t m_Height;
+    uint32_t m_MipCount;
+    nvrhi::Format m_Format;
+    uint32_t m_DXGIFormat; // DXGI_FORMAT enum value
+    uint32_t m_ImageDataByteOffset;
+};
+
+struct TextureMipData
 {
     Vector2U m_Resolution = { 0, 0 };
     uint32_t m_DataOffset = 0;
     uint32_t m_NumBytes = 0;
     uint32_t m_RowPitch = 0;
+    std::vector<std::byte> m_Data;
 
     bool IsValid() const { return m_Resolution.x > 0 && m_Resolution.y > 0 && m_NumBytes > 0; }
 };
@@ -47,11 +59,8 @@ public:
     void GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInfo>& tiles) const;
 
     FILE* m_ImageFile = nullptr;
-    uint32_t m_NumTextureMips;
-
-    StreamingMipData m_StreamingMipDatas[GraphicConstants::kMaxTextureMips];
-
-    std::vector<std::byte> m_PackedMipsBytes;
+    TextureFileHeader m_TextureFileHeader;
+    TextureMipData m_TextureMipDatas[GraphicConstants::kMaxTextureMips];
     
     uint32_t m_NumTiles;
     nvrhi::PackedMipDesc m_PackedMipDesc;
