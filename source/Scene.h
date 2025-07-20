@@ -67,13 +67,6 @@ public:
     Frustum m_Frustum;
 };
 
-struct TextureStreamingRequest
-{
-    uint32_t m_TextureIdx;
-    uint32_t m_MipToStream;
-    std::vector<std::byte> m_MipBytes;
-};
-
 class Scene
 {
 public:

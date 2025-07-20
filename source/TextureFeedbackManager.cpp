@@ -56,12 +56,6 @@ static void UploadTile(
     commandList->copyTexture(destTexture, destSlice, stagingTexture, nvrhi::TextureSlice{});
 }
 
-struct TextureStreamingRequest
-{
-    uint32_t m_TextureIdx;
-    uint32_t m_Mip;
-};
-
 void TextureFeedbackManager::AsyncIOThreadFunc()
 {
     auto ProcessAsyncIOResults = [this]()
