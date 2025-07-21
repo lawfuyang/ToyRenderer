@@ -223,7 +223,7 @@ void Scene::UpdateMainViewCameraControls()
     {
         s_CameraMoveSpeed *= (g_Engine.m_MouseWheelY > 0.0f) ? 2.0f : 0.5f;
         s_CameraMoveSpeed = std::max(kKindaSmallNumber, s_CameraMoveSpeed);
-        LOG_DEBUG("CameraMoveSpeed is now: %f", s_CameraMoveSpeed);
+        //LOG_DEBUG("CameraMoveSpeed is now: %f", s_CameraMoveSpeed);
     }
 
     m_MouseLastPos = m_CurrentMousePos;
