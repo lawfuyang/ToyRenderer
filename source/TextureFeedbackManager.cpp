@@ -6,20 +6,16 @@
 #include "Graphic.h"
 #include "Scene.h"
 
-static void UploadTile(
-    nvrhi::CommandListHandle commandList,
-    nvrhi::TextureHandle destTexture,
-    const FeedbackTextureTileInfo& tile,
-    const std::byte* dataMipBase,
-    const nvrhi::TileShape& tileShape,
-    uint32_t rowPitchSource)
+static void UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextureIdx, const FeedbackTextureTileInfo& tile)
 {
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+    const Texture& destTexture = g_Graphic.m_Textures.at(destTextureIdx);
+    const TextureMipData& mipData = destTexture.m_TextureMipDatas[tile.m_Mip];
 
     nvrhi::TextureDesc stagingTextureDesc;
     stagingTextureDesc.width = tile.m_WidthInTexels;
     stagingTextureDesc.height = tile.m_HeightInTexels;
-    stagingTextureDesc.format = destTexture->getDesc().format;
+    stagingTextureDesc.format = destTexture.m_NVRHITextureHandle->getDesc().format;
     nvrhi::StagingTextureHandle stagingTexture = device->createStagingTexture(stagingTextureDesc, nvrhi::CpuAccessMode::Write);
 
     size_t rowPitch;
@@ -29,17 +25,20 @@ static void UploadTile(
     // Note: The "tile" being copied here might be smaller than a tiled resource tile, for example non-pow2 textures
     const uint32_t tileBlocksWidth = tile.m_WidthInTexels / 4;
     const uint32_t tileBlocksHeight = tile.m_HeightInTexels / 4;
-    const uint32_t shapeBlocksWidth = tileShape.widthInTexels / 4;
-    const uint32_t shapeBlocksHeight = tileShape.heightInTexels / 4;
+    const uint32_t shapeBlocksWidth = destTexture.m_TileShape.widthInTexels / 4;
+    const uint32_t shapeBlocksHeight = destTexture.m_TileShape.heightInTexels / 4;
     const uint32_t bytesPerBlock = g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes() / (shapeBlocksWidth * shapeBlocksHeight);
     const uint32_t sourceBlockX = tile.m_XInTexels / 4;
     const uint32_t sourceBlockY = tile.m_YInTexels / 4;
     const uint32_t rowPitchTile = tileBlocksWidth * bytesPerBlock;
+
+    assert(rowPitch == rowPitchTile);
+
     for (uint32_t blockRow = 0; blockRow < tileBlocksHeight; blockRow++)
     {
-        const int32_t readOffset = (sourceBlockY + blockRow) * rowPitchSource + sourceBlockX * bytesPerBlock;
+        const int32_t readOffset = (sourceBlockY + blockRow) * mipData.m_RowPitch + sourceBlockX * bytesPerBlock;
         const int32_t writeOffset = blockRow * rowPitchTile;
-        memcpy(mappedData + writeOffset, dataMipBase + readOffset, rowPitchTile);
+        memcpy(mappedData + writeOffset, mipData.m_Data.data() + readOffset, rowPitchTile);
     }
 
     device->unmapStagingTexture(stagingTexture);
@@ -48,12 +47,12 @@ static void UploadTile(
     destSlice.x = tile.m_XInTexels;
     destSlice.y = tile.m_YInTexels;
     destSlice.z = 0;
-    destSlice.width = stagingTextureDesc.width;
-    destSlice.height = stagingTextureDesc.height;
+    destSlice.width = tile.m_WidthInTexels;
+    destSlice.height = tile.m_HeightInTexels;
     destSlice.depth = 1;
     destSlice.mipLevel = tile.m_Mip;
 
-    commandList->copyTexture(destTexture, destSlice, stagingTexture, nvrhi::TextureSlice{});
+    commandList->copyTexture(destTexture.m_NVRHITextureHandle, destSlice, stagingTexture, nvrhi::TextureSlice{});
 }
 
 void TextureFeedbackManager::AsyncIOThreadFunc()
@@ -73,10 +72,16 @@ void TextureFeedbackManager::AsyncIOThreadFunc()
 
             assert(asyncIOOutcome.type == SDL_ASYNCIO_TASK_READ);
             assert(asyncIOOutcome.result == SDL_ASYNCIO_COMPLETE);
-
             assert(asyncIOOutcome.userdata);
 
-            // TODO
+            MipIORequest* inFlightRequest = static_cast<MipIORequest*>(asyncIOOutcome.userdata);
+            ON_EXIT_SCOPE_LAMBDA([inFlightRequest] { delete inFlightRequest; });
+
+            MipIORequest deferredTileToUpload;
+            memcpy(&deferredTileToUpload, inFlightRequest, sizeof(MipIORequest));
+
+            AUTO_LOCK(m_DeferredTilesToUploadLock);
+            m_DeferredTilesToUpload.push_back(deferredTileToUpload);
         }
     };
 
@@ -84,29 +89,37 @@ void TextureFeedbackManager::AsyncIOThreadFunc()
     {
         ProcessAsyncIOResults();
 
-        // TODO
-    #if 0
-        for (TextureStreamingRequest& request : textureStreamingRequests)
+        std::vector<MipIORequest> mipIORequests;
+        {
+            AUTO_LOCK(m_MipIORequestsLock);
+            mipIORequests = std::move(m_MipIORequests);
+        }
+
+        for (const MipIORequest& request : mipIORequests)
         {
             Texture& texture = g_Graphic.m_Textures.at(request.m_TextureIdx);
 
             assert(texture.IsValid());
-            assert(!texture.m_StreamingFilePath.empty());
+            assert(!texture.m_ImageFilePath.empty());
 
-            SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_StreamingFilePath.c_str(), "r");
+            TextureMipData& textureMipData = texture.m_TextureMipDatas[request.m_TileInfo.m_Mip];
+            assert(textureMipData.IsValid());
+            assert(!textureMipData.m_Data.empty()); // caller must alloc memory before submitting the request
+
+            SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_ImageFilePath.c_str(), "r");
             SDL_CALL(asyncIO);
 
+            MipIORequest* inFlightRequest = new MipIORequest;
+            memcpy(inFlightRequest, &request, sizeof(MipIORequest));
 
-            SDL_CALL(SDL_ReadAsyncIO(asyncIO, inFlightRequest->m_MipBytes.data(), TextureMipData.m_DataOffset, TextureMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)inFlightRequest));
+            SDL_CALL(SDL_ReadAsyncIO(asyncIO, textureMipData.m_Data.data(), textureMipData.m_DataOffset, textureMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)inFlightRequest));
 
             // according to the doc, we can close the async IO handle after the read request is submitted
             SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
 
             // immediately process & discard the SDL_ASYNCIO_TASK_CLOSE result
             ProcessAsyncIOResults();
-
         }
-    #endif
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1)); // yield to avoid busy waiting
     }
@@ -129,7 +142,7 @@ void TextureFeedbackManager::Shutdown()
 
 void TextureFeedbackManager::UpdateIMGUI()
 {
-    rtxts::Statistics statistics = m_TiledTextureManager->GetStatistics();
+    const rtxts::Statistics statistics = m_TiledTextureManager->GetStatistics();
 
     ImGui::Text("Heap allocation: %.2f MB", BYTES_TO_MB(m_HeapAllocationInBytes));
     ImGui::Text("Total tiles: %u", statistics.totalTilesNum);
@@ -201,15 +214,8 @@ void TextureFeedbackManager::BeginFrame()
 
         // Now check how many heaps the tiled texture manager needs
         const uint32_t numRequiredHeaps = m_TiledTextureManager->GetNumDesiredHeaps();
-        if (numRequiredHeaps > m_NumHeaps)
-        {
-            while (m_NumHeaps < numRequiredHeaps)
-            {
-                const uint32_t heapID = AllocateHeap();
-                m_TiledTextureManager->AddHeap(heapID);
-            }
-        }
-        else
+
+        if (m_NumHeaps > (numRequiredHeaps + 2))
         {
             std::vector<uint32_t> emptyHeaps;
             m_TiledTextureManager->GetEmptyHeaps(emptyHeaps);
@@ -218,6 +224,12 @@ void TextureFeedbackManager::BeginFrame()
                 m_TiledTextureManager->RemoveHeap(heapID);
                 ReleaseHeap(heapID);
             }
+        }
+
+        while (m_NumHeaps < numRequiredHeaps)
+        {
+            const uint32_t heapID = AllocateHeap();
+            m_TiledTextureManager->AddHeap(heapID);
         }
     }
 
@@ -249,6 +261,9 @@ void TextureFeedbackManager::BeginFrame()
 
         if (!tilesToUnmap.empty())
         {
+            LOG_DEBUG("Unmapping %u tiles for texture %u", (uint32_t)tilesToUnmap.size(), i);
+
+            // TODO: keep track of mapped & unmapped tiles in Texture class, and free the TextureMipData memory when all tiles in mip gets unmapped
             const std::vector<rtxts::TileCoord>& tilesCoordinates = m_TiledTextureManager->GetTileCoordinates(texture.m_TiledTextureID);
             const uint32_t tileToUnmapNum = (uint32_t)tilesToUnmap.size();
 
@@ -289,6 +304,8 @@ void TextureFeedbackManager::BeginFrame()
 
         if (!tilesToMap.empty())
         {
+            LOG_DEBUG("Mapping %u tiles for texture %u", (uint32_t)tilesToMap.size(), i);
+            
             FeedbackTextureUpdate& feedbackTextureUpdate = feedbackTextureUpdates.emplace_back();
 
             feedbackTextureUpdate.m_TextureIdx = i;
@@ -431,17 +448,7 @@ void TextureFeedbackManager::BeginFrame()
 
         if (!minMipDirtyTextures.empty())
         {
-            // check why the sample chose to do manual barriers
-            const bool kbUseAutomaticBarriers = true;
-            if constexpr (!kbUseAutomaticBarriers)
-            {
-                commandList->setEnableAutomaticBarriers(kbUseAutomaticBarriers);
-
-                for (uint32_t textureIdx : minMipDirtyTextures)
-                {
-                    commandList->setTextureState(g_Graphic.m_Textures.at(textureIdx).m_MinMipTextureHandle, nvrhi::AllSubresources, nvrhi::ResourceStates::CopyDest);
-                }
-            }
+            PROFILE_SCOPED("Update Min Mip Textures");
 
             std::vector<uint8_t> minMipData;
             minMipData.resize(4096);
@@ -469,28 +476,19 @@ void TextureFeedbackManager::BeginFrame()
 
                 commandList->writeTexture(texture.m_MinMipTextureHandle, 0, 0, uploadData.data(), rowPitch);
             }
-
-            if constexpr (!kbUseAutomaticBarriers)
-            {
-                for (uint32_t textureIdx : minMipDirtyTextures)
-                {
-                    commandList->setTextureState(g_Graphic.m_Textures.at(textureIdx).m_MinMipTextureHandle, nvrhi::AllSubresources, nvrhi::ResourceStates::ShaderResource);
-                }
-
-                // Restore the automatic barriers mode
-                commandList->setEnableAutomaticBarriers(true);
-            }
         }
     }
 
     // Upload the tiles to the GPU and copy them into the resources
     if (!tilesThisFrame.empty())
     {
+        PROFILE_SCOPED("Upload Tiles");
+
         std::vector<FeedbackTextureTileInfo> tiles;
 
         for (const FeedbackTextureUpdate& texUpdate : tilesThisFrame)
         {
-            const Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
+            Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
             for (uint32_t tileIndex : texUpdate.m_TileIndices)
             {
@@ -499,18 +497,48 @@ void TextureFeedbackManager::BeginFrame()
 
                 for (const FeedbackTextureTileInfo& tile : tiles)
                 {
+                    TextureMipData& mipData = texture.m_TextureMipDatas[tile.m_Mip];
                     if (texture.IsTilePacked(tileIndex))
                     {
-                        const TextureMipData& mipData = texture.m_TextureMipDatas[tile.m_Mip];
+                        // packed mips are persistently loaded in memory. immediately upload
                         commandList->writeTexture(texture.m_NVRHITextureHandle, 0, tile.m_Mip, mipData.m_Data.data(), mipData.m_RowPitch);
                     }
                     else
                     {
-                        // More efficient path for uploading regular tiles
-                        //UploadTile(commandList, texture.m_NVRHITextureHandle, tile, dataPointer, texture.m_TileShape, (uint32_t)layout.rowPitch);
+                        if (mipData.m_Data.empty())
+                        {
+                            // not read yet, schedule for async IO
+                            mipData.m_Data.resize(mipData.m_NumBytes);
+                            AUTO_LOCK(m_MipIORequestsLock);
+                            m_MipIORequests.push_back({ texUpdate.m_TextureIdx, tile });
+                            //LOG_DEBUG("Scheduling mip IO for texture: %d, mip: %d", texUpdate.m_TextureIdx, tile.m_Mip);
+                        }
+                        else
+                        {
+                            // already in system memory. upload tile immediately to GPU
+                            UploadTile(commandList, texUpdate.m_TextureIdx, tile);
+                            //LOG_DEBUG("Uploading tile: texture: %d, mip: %d, tileIndex: %d", texUpdate.m_TextureIdx, tile.m_Mip, tileIndex);
+                        }
                     }
                 }
             }
+        }
+    }
+
+    {
+        PROFILE_SCOPED("Upload Deferred Tile Uploads");
+
+        std::vector<MipIORequest> deferredTilesToUpload;
+        {
+            AUTO_LOCK(m_DeferredTilesToUploadLock);
+            deferredTilesToUpload = std::move(m_DeferredTilesToUpload);
+        }
+
+        for (const MipIORequest& request : deferredTilesToUpload)
+        {
+            // Process each deferred tile upload request
+            //LOG_DEBUG("Processing deferred tile upload: texture: %d, mip: %d", request.m_TextureIdx, request.m_TileInfo.m_Mip);
+            UploadTile(commandList, request.m_TextureIdx, request.m_TileInfo);
         }
     }
 }

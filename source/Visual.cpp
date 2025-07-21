@@ -11,15 +11,6 @@
 
 #include "shaders/ShaderInterop.h"
 
-Texture::~Texture()
-{
-    if (m_ImageFile)
-    {
-        fclose(m_ImageFile);
-        m_ImageFile = nullptr;
-    }
-}
-
 void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc)
 {
     PROFILE_FUNCTION();
@@ -50,14 +41,15 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     assert(!IsValid());
 
+    m_ImageFilePath = filePath;
+
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
     const std::string debugName = std::filesystem::path{ filePath }.stem().string();
 
-    m_ImageFile = fopen(filePath.data(), "rb");
-    assert(m_ImageFile);
+    ScopedFile imageFile{ filePath.data(), "rb" };
 
-    ReadDDSTextureFileHeader(m_ImageFile, *this);
+    ReadDDSTextureFileHeader(imageFile, *this);
     ReadDDSMipInfos(*this);
 
     nvrhi::TextureDesc reservedTexDesc;
@@ -87,7 +79,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 
         for (uint32_t mip = 0; mip < m_TextureFileHeader.m_MipCount; ++mip)
         {
-            ReadDDSMipData(*this, mip);
+            ReadDDSMipData(*this, imageFile, mip);
             commandList->writeTexture(m_NVRHITextureHandle, 0, mip, m_TextureMipDatas[mip].m_Data.data(), m_TextureMipDatas[mip].m_RowPitch);
         }
 
@@ -98,7 +90,7 @@ void Texture::LoadFromFile(std::string_view filePath)
     for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
     {
         const uint32_t mipToRead = m_PackedMipDesc.numStandardMips + i;
-        ReadDDSMipData(*this, mipToRead);
+        ReadDDSMipData(*this, imageFile, mipToRead);
     }
 
     rtxts::TiledLevelDesc tiledLevelDescs[16]{};
@@ -164,7 +156,7 @@ void Texture::LoadFromFile(std::string_view filePath)
     m_MinMipTextureHandle = device->createTexture(minMipTextureDesc);
 
     m_SamplerFeedbackIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::SamplerFeedbackTexture_UAV(0, m_SamplerFeedbackTextureHandle));
-    m_MinMipIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_MinMipTextureHandle, nvrhi::Format::R32_FLOAT));
+    m_MinMipIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_MinMipTextureHandle));
 }
 
 bool Texture::IsValid() const

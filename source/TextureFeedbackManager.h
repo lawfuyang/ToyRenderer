@@ -3,6 +3,8 @@
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 #include "extern/nvidia/RTXTS-TTM/include/rtxts-ttm/TiledTextureManager.h"
 
+#include "Visual.h"
+
 class TextureFeedbackManager
 {
 public:
@@ -18,6 +20,12 @@ public:
     std::mutex m_TiledTextureManagerLock;
 
 private:
+    struct MipIORequest
+    {
+        uint32_t m_TextureIdx;
+        FeedbackTextureTileInfo m_TileInfo;
+    };
+
     uint32_t AllocateHeap();
     void ReleaseHeap(uint32_t heapId);
 
@@ -29,6 +37,12 @@ private:
     std::vector<nvrhi::HeapHandle> m_Heaps;
     std::vector<nvrhi::BufferHandle> m_Buffers;
     std::vector<uint32_t> m_FreeHeapIDs;
+
+    std::vector<MipIORequest> m_MipIORequests;
+    std::mutex m_MipIORequestsLock;
+
+    std::vector<MipIORequest> m_DeferredTilesToUpload;
+    std::mutex m_DeferredTilesToUploadLock;
 
     float m_TileTimeoutSeconds = 1.0f;
     uint32_t m_NumHeaps = 0;

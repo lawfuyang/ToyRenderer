@@ -48,8 +48,6 @@ struct FeedbackTextureTileInfo
 class Texture
 {
 public:
-    ~Texture();
-
     void LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc);
     void LoadFromFile(std::string_view filePath);
 
@@ -58,7 +56,7 @@ public:
     bool IsTilePacked(uint32_t tileIdx) const;
     void GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInfo>& tiles) const;
 
-    FILE* m_ImageFile = nullptr;
+    std::string m_ImageFilePath;
     TextureFileHeader m_TextureFileHeader;
     TextureMipData m_TextureMipDatas[GraphicConstants::kMaxTextureMips];
     

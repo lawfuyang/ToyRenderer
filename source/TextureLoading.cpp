@@ -761,7 +761,7 @@ void ReadDDSMipInfos(Texture& texture)
     assert(fileReadOffset == fileInfo.m_FileSize);
 }
 
-void ReadDDSMipData(Texture& texture, uint32_t mip)
+void ReadDDSMipData(Texture& texture, FILE* f, uint32_t mip)
 {
     PROFILE_FUNCTION();
 
@@ -772,7 +772,6 @@ void ReadDDSMipData(Texture& texture, uint32_t mip)
     assert(TextureMipData.m_Data.empty());
     TextureMipData.m_Data.resize(TextureMipData.m_NumBytes);
 
-    FILE* f = texture.m_ImageFile;
     assert(f);
     fseek(f, TextureMipData.m_DataOffset, SEEK_SET);
 
