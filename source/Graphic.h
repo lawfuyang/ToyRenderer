@@ -159,7 +159,6 @@ private:
     std::unordered_map<size_t, nvrhi::GraphicsPipelineHandle> m_CachedGraphicPSOs;
     std::unordered_map<size_t, nvrhi::MeshletPipelineHandle> m_CachedMeshletPSOs;
     std::unordered_map<size_t, nvrhi::ComputePipelineHandle> m_CachedComputePSOs;
-    std::unordered_map<size_t, nvrhi::rt::PipelineHandle> m_CachedRTPSOs;
     std::unordered_map<size_t, nvrhi::BindingLayoutHandle> m_CachedBindingLayouts;
     
     std::mutex m_PendingCommandListsLock;

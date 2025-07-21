@@ -710,7 +710,6 @@ void Graphic::Update()
         m_CachedGraphicPSOs.clear();
         m_CachedMeshletPSOs.clear();
         m_CachedComputePSOs.clear();
-        m_CachedRTPSOs.clear();
 
         // run as a task due to the usage of "corun" in the InitShaders function
         tf::Taskflow tf;
