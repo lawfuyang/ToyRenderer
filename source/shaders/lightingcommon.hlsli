@@ -254,6 +254,7 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
     uint bIsWrapSampler = textureSamplerAndDescriptorIndex >> 31;
     sampler materialSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapSampler, inArgs.m_AnisotropicClampSampler);
 
+    // TODO: frame slice this according to the feedback manager
     if (inArgs.m_bEnableSamplerFeedback)
     {
         uint feedbackTextureIdx = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex & 0xFFFF);
