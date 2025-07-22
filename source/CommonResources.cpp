@@ -200,6 +200,28 @@ static void CreateDefaultTextures()
 
         g_CommonResources.BlueNoise.LoadFromMemory(blueNoiseData->m_Data, desc);
     }
+
+    {
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+        nvrhi::TextureDesc textureDesc;
+        textureDesc.width = 8;
+        textureDesc.height = 8;
+        textureDesc.format = nvrhi::Format::R32_FLOAT;
+        textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+        textureDesc.keepInitialState = true;
+        g_CommonResources.DummyMinMipTexture = device->createTexture(textureDesc);
+
+        nvrhi::SamplerFeedbackTextureDesc samplerFeedbackTextureDesc;
+        samplerFeedbackTextureDesc.samplerFeedbackFormat = nvrhi::SamplerFeedbackFormat::MinMipOpaque;
+        samplerFeedbackTextureDesc.samplerFeedbackMipRegionX = 4;
+        samplerFeedbackTextureDesc.samplerFeedbackMipRegionY = 4;
+        samplerFeedbackTextureDesc.samplerFeedbackMipRegionZ = 1;
+        g_CommonResources.DummySamplerFeedbackTexture = device->createSamplerFeedbackTexture(g_CommonResources.DummyMinMipTexture, samplerFeedbackTextureDesc);
+
+        g_CommonResources.DummyMinMipIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, g_CommonResources.DummyMinMipTexture));
+        g_CommonResources.DummySamplerFeedbackIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::SamplerFeedbackTexture_UAV(0, g_CommonResources.DummySamplerFeedbackTexture));
+    }
 }
 
 static void CreateDefaultBuffers()

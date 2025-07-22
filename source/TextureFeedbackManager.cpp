@@ -156,7 +156,7 @@ void TextureFeedbackManager::UpdateIMGUI()
 
 void TextureFeedbackManager::BeginFrame()
 {
-    if (g_Graphic.m_Textures.empty())
+    if (g_Graphic.m_Textures.empty() || !g_Scene->m_bEnableTextureStreaming)
     {
         return;
     }
@@ -305,7 +305,7 @@ void TextureFeedbackManager::BeginFrame()
         if (!tilesToMap.empty())
         {
             LOG_DEBUG("Mapping %u tiles for texture %u", (uint32_t)tilesToMap.size(), i);
-            
+
             FeedbackTextureUpdate& feedbackTextureUpdate = feedbackTextureUpdates.emplace_back();
 
             feedbackTextureUpdate.m_TextureIdx = i;
@@ -545,7 +545,7 @@ void TextureFeedbackManager::BeginFrame()
 
 void TextureFeedbackManager::EndFrame()
 {
-    if (g_Graphic.m_Textures.empty())
+    if (g_Graphic.m_Textures.empty() || !g_Scene->m_bEnableTextureStreaming)
     {
         return;
     }

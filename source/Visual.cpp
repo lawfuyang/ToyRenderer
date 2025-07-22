@@ -2,6 +2,7 @@
 
 #include "extern/meshoptimizer/src/meshoptimizer.h"
 
+#include "CommonResources.h"
 #include "Engine.h"
 #include "Graphic.h"
 #include "Scene.h"
@@ -19,7 +20,9 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     assert(textureDesc.depth == 1);
 
     m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
-    m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle));
+
+    const nvrhi::BindingSetItem item = textureDesc.isUAV ? nvrhi::BindingSetItem::Texture_UAV(0, m_NVRHITextureHandle) : nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle);
+    m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(item);
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
@@ -69,10 +72,10 @@ void Texture::LoadFromFile(std::string_view filePath)
     ON_EXIT_SCOPE_LAMBDA([this] { m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle)); } );
 
     // texture is very low resolution, means all packed mips, don't bother with tiling nor streaming
-    if (m_PackedMipDesc.numStandardMips == 0)
+    if ((m_PackedMipDesc.numStandardMips == 0) || !g_Scene->m_bEnableTextureStreaming)
     {
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Write small res texture data");
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Write texture data");
 
         reservedTexDesc.isTiled = false;
         m_NVRHITextureHandle = device->createTexture(reservedTexDesc);
@@ -82,6 +85,12 @@ void Texture::LoadFromFile(std::string_view filePath)
             ReadDDSMipData(*this, imageFile, mip);
             commandList->writeTexture(m_NVRHITextureHandle, 0, mip, m_TextureMipDatas[mip].m_Data.data(), m_TextureMipDatas[mip].m_RowPitch);
         }
+
+        m_MinMipTextureHandle = g_CommonResources.DummyMinMipTexture;
+        m_SamplerFeedbackTextureHandle = g_CommonResources.DummySamplerFeedbackTexture;
+
+        m_MinMipIndexInTable = g_CommonResources.DummyMinMipIndexInTable;
+        m_SamplerFeedbackIndexInTable = g_CommonResources.DummySamplerFeedbackIndexInTable;
 
         return;
     }
@@ -298,7 +307,6 @@ void Mesh::Initialize(
 
     std::vector<uint32_t> LODIndices = indices;
     float LODError = 0.0f;
-    bool bSimplifySloppy = false;
 
     for (uint32_t lodIdx = 0; lodIdx < GraphicConstants::kMaxNumMeshLODs; ++lodIdx)
     {
@@ -426,47 +434,36 @@ void Mesh::Initialize(
 
             float resultError = 0.0f;
 
-            size_t numSimplifiedIndices = 0;
             const size_t targetIndexCount = (size_t(double(LODIndices.size()) * kTargetIndexCountPercentage) / 3) * 3;
-            if (bSimplifySloppy)
-            {
-                numSimplifiedIndices = meshopt_simplifySloppy(
-                    LODIndices.data(),
-                    LODIndices.data(),
-                    LODIndices.size(),
-                    (const float*)vertices.data(),
-                    vertices.size(),
-                    sizeof(RawVertexFormat),
-                    targetIndexCount,
-                    kTargetError,
-                    &resultError);
-            }
-            else
-            {
-                numSimplifiedIndices = meshopt_simplifyWithAttributes(
-                    LODIndices.data(),
-                    LODIndices.data(),
-                    LODIndices.size(),
-                    (const float*)vertices.data(),
-                    vertices.size(),
-                    sizeof(RawVertexFormat),
-                    (const float*)unpackedNormals.data(),
-                    sizeof(Vector3),
-                    &kAttributeWeights.x,
-                    sizeof(Vector3) / sizeof(float),
-                    kVertexLock,
-                    targetIndexCount,
-                    kTargetError,
-                    kSimplifyOptions,
-                    &resultError);
-            }
+            const size_t numSimplifiedIndices = meshopt_simplifyWithAttributes(
+                LODIndices.data(),
+                LODIndices.data(),
+                LODIndices.size(),
+                (const float*)vertices.data(),
+                vertices.size(),
+                sizeof(RawVertexFormat),
+                (const float*)unpackedNormals.data(),
+                sizeof(Vector3),
+                &kAttributeWeights.x,
+                sizeof(Vector3) / sizeof(float),
+                kVertexLock,
+                targetIndexCount,
+                kTargetError,
+                kSimplifyOptions,
+                &resultError);
 
             assert(numSimplifiedIndices <= LODIndices.size());
 
-            // we've reached the error bound, next LOD onwards will use sloppy simplification
-            if (numSimplifiedIndices == LODIndices.size() || numSimplifiedIndices == 0 || (numSimplifiedIndices >= size_t(double(LODIndices.size()) * kMinIndexReductionPercentage)))
+            // we've reached the error bound
+            if (numSimplifiedIndices == LODIndices.size() || numSimplifiedIndices == 0)
             {
-                bSimplifySloppy = true;
+                break;
+            }
+
+            // while we could keep this LOD, it's too close to the last one (and it can't go below that due to constant error bound above)
+            if (numSimplifiedIndices >= size_t(double(LODIndices.size()) * kMinIndexReductionPercentage))
+            {
+                break;
             }
             
             LODIndices.resize(numSimplifiedIndices);

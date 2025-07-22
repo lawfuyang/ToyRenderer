@@ -23,6 +23,7 @@ static_assert(std::is_same_v<uint32_t, GraphicConstants::IndexBufferFormat_t>);
 
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
 CommandLineOption<bool> g_ExecuteAndWaitPerCommandList{ "executeandwaitpercommandlist", false };
+CommandLineOption<bool> g_DisableTextureStreaming{ "disabletextureStreaming", false };
 
 void Graphic::InitRenderDocAPI()
 {
@@ -78,7 +79,7 @@ void Graphic::InitDevice()
         }
         else
         {
-            g_Scene->m_bEnableSamplerFeedback = false;
+            g_Scene->m_bEnableTextureStreaming = false;
         }
 
         if (feature.first == nvrhi::Feature::WaveLaneCountMinMax)
@@ -610,6 +611,8 @@ void Graphic::Initialize()
     m_CommonResources = std::make_shared<CommonResources>();
     m_Scene = std::make_shared<Scene>();
     m_TextureFeedbackManager = std::make_shared<TextureFeedbackManager>();
+
+    m_Scene->m_bEnableTextureStreaming = !g_DisableTextureStreaming.Get();
 
     InitRenderDocAPI();
     InitDevice();

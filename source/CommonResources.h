@@ -31,6 +31,11 @@ public:
     Texture R8UIntMax2DTexture;
     Texture BlueNoise;
 
+    nvrhi::TextureHandle DummyMinMipTexture;
+    nvrhi::SamplerFeedbackTextureHandle DummySamplerFeedbackTexture;
+    uint32_t DummyMinMipIndexInTable = UINT_MAX;
+    uint32_t DummySamplerFeedbackIndexInTable = UINT_MAX;
+
     // Materials
     Material DefaultMaterial;
 
