@@ -78,6 +78,7 @@ void VS_FullScreenCube(
 }
 
 Texture2D g_Input : register(t0);
+sampler g_LinearClampSampler : register(s0);
 
 void PS_Passthrough(
     in float4 inPosition : SV_POSITION,
@@ -88,5 +89,5 @@ void PS_Passthrough(
     // TODO: add support for different formats?
     // TODO: add support for different samplers?
     // TODO: add support for different input & output resolutions?
-    outColor = g_Input[inPosition.xy];
+    outColor = g_Input.Sample(g_LinearClampSampler, inUV);
 }

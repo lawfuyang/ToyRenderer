@@ -698,6 +698,7 @@ public:
             bindingSetDesc.bindings =
             {
                 nvrhi::BindingSetItem::Texture_SRV(0, depthStencilBuffer),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
             };
 
             nvrhi::TextureHandle depthBufferCopy = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
