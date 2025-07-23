@@ -186,21 +186,15 @@ void TextureFeedbackManager::BeginFrame()
     m_TexturesToReadback.clear();
 
     // Collect textures to read back
-    const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
-    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
+    // TODO: frame slice this
+    for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
     {
-        if ((i > 0) && (i == startIdx))
-        {
-            break;
-        }
-
-        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
-        Texture& texture = g_Graphic.m_Textures[textureIdx];
+        Texture& texture = g_Graphic.m_Textures[i];
 
         if (texture.m_SamplerFeedbackTextureHandle)
         {
             commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
-            m_TexturesToReadback.push_back(textureIdx);
+            m_TexturesToReadback.push_back(i);
         }
     }
 
@@ -555,16 +549,10 @@ void TextureFeedbackManager::EndFrame()
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
 
-    const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
-    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
+    // TODO: frame-slice this
+    for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
     {
-        if ((i > 0) && (i == startIdx))
-        {
-            break;
-        }
-
-        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
-        Texture& texture = g_Graphic.m_Textures[textureIdx];
+        Texture& texture = g_Graphic.m_Textures[i];
 
         if (texture.m_SamplerFeedbackTextureHandle)
         {
@@ -572,7 +560,7 @@ void TextureFeedbackManager::EndFrame()
         }
     }
 
-    m_ResolveFeedbackTexturesCounter = m_ResolveFeedbackTexturesCounter + (m_NumFeedbackTexturesToResolvePerFrame % g_Graphic.m_Textures.size());
+    m_ResolveFeedbackTexturesCounter = (m_ResolveFeedbackTexturesCounter + m_NumFeedbackTexturesToResolvePerFrame) % g_Graphic.m_Textures.size();
 }
 
 static const uint32_t kHeapSizeInTiles = 1024; // 64MiB heap size

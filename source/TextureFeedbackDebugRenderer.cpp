@@ -9,7 +9,7 @@ class TextureFeedbackDebugRenderer : public IRenderer
 {
     uint32_t m_SelectedTextureIdx = 0;
     bool m_bVisualizeStreamingStates = false;
-    float m_Mip0Size = 400.0f;
+    float m_ZoomLevel = 400.0f;
 
 public:
     TextureFeedbackDebugRenderer() : IRenderer{ "TextureFeedbackDebugRenderer" } {}
@@ -36,7 +36,7 @@ public:
         }
 
         ImGui::Checkbox("Visualize Streaming States", &m_bVisualizeStreamingStates);
-        ImGui::SliderFloat("Mip 0 Size", &m_Mip0Size, 100.0f, 1000.0f);
+        ImGui::SliderFloat("Mip 0 Size", &m_ZoomLevel, 100.0f, 1000.0f);
     }
 
     bool Setup(RenderGraph& renderGraph) override
@@ -51,7 +51,7 @@ public:
 
         const Texture& texture = g_Graphic.m_Textures.at(m_SelectedTextureIdx);
 
-        float size = m_Mip0Size;
+        float size = m_ZoomLevel;
         const float margin = 10.0f;
         float x = margin;
 
@@ -90,8 +90,8 @@ public:
         {
             const nvrhi::Viewport viewport{
                 std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x),
-                std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + m_Mip0Size),
-                std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - m_Mip0Size - margin),
+                std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + m_ZoomLevel),
+                std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - m_ZoomLevel - margin),
                 std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - margin),
                 0.f, 1.f
             };
