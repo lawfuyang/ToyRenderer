@@ -141,11 +141,10 @@ void Texture::LoadFromFile(std::string_view filePath)
     m_SamplerFeedbackTextureHandle = device->createSamplerFeedbackTexture(m_NVRHITextureHandle, samplerFeedbackTextureDesc);
 
     // Resolve / Readback buffer
+    const uint32_t feedbackTilesX = (reservedTexDesc.width - 1) / feedbackDesc.textureOrMipRegionWidth + 1;
+    const uint32_t feedbackTilesY = (reservedTexDesc.height - 1) / feedbackDesc.textureOrMipRegionHeight + 1;
     for (nvrhi::BufferHandle& resolveBuffer : m_FeedbackResolveBuffers)
     {
-        uint32_t feedbackTilesX = (reservedTexDesc.width - 1) / feedbackDesc.textureOrMipRegionWidth + 1;
-        uint32_t feedbackTilesY = (reservedTexDesc.height - 1) / feedbackDesc.textureOrMipRegionHeight + 1;
-
         nvrhi::BufferDesc resolveBufferDesc;
         resolveBufferDesc.byteSize = feedbackTilesX * feedbackTilesY;
         resolveBufferDesc.cpuAccess = nvrhi::CpuAccessMode::Read;
