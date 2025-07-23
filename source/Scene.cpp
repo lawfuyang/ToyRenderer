@@ -492,7 +492,7 @@ void Scene::Update()
         extern IRenderer* g_AmbientOcclusionRenderer;
         extern IRenderer* g_BloomRenderer;
         extern IRenderer* g_GIDebugRenderer;
-        extern IRenderer* g_TextureFeedbackRenderer;
+        extern IRenderer* g_TextureFeedbackDebugRenderer;
         
         m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
         m_RenderGraph->AddRenderer(g_UpdateInstanceConstsRenderer);
@@ -509,7 +509,7 @@ void Scene::Update()
 
         // DisplayResolution Debug Passes
         m_RenderGraph->AddRenderer(g_GIDebugRenderer);
-        m_RenderGraph->AddRenderer(g_TextureFeedbackRenderer);
+        m_RenderGraph->AddRenderer(g_TextureFeedbackDebugRenderer);
         m_RenderGraph->AddRenderer(g_IMGUIRenderer);
     }
     m_RenderGraph->Compile();

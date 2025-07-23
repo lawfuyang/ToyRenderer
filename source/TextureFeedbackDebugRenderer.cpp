@@ -5,14 +5,14 @@
 
 #include "extern/imgui/imgui.h"
 
-class TextureFeedbackRenderer : public IRenderer
+class TextureFeedbackDebugRenderer : public IRenderer
 {
     uint32_t m_SelectedTextureIdx = 0;
     bool m_bVisualizeStreamingStates = false;
     float m_Mip0Size = 400.0f;
 
 public:
-    TextureFeedbackRenderer() : IRenderer{ "TextureFeedbackRenderer" } {}
+    TextureFeedbackDebugRenderer() : IRenderer{ "TextureFeedbackDebugRenderer" } {}
 
     void UpdateImgui() override
     {
@@ -114,5 +114,5 @@ public:
         }
     }
 };
-static TextureFeedbackRenderer gs_TextureFeedbackRenderer;
-IRenderer* g_TextureFeedbackRenderer = &gs_TextureFeedbackRenderer;
+static TextureFeedbackDebugRenderer gs_TextureFeedbackDebugRenderer;
+IRenderer* g_TextureFeedbackDebugRenderer = &gs_TextureFeedbackDebugRenderer;
