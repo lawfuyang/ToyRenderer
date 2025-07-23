@@ -44,6 +44,9 @@ private:
     std::vector<MipIORequest> m_DeferredTilesToUpload;
     std::mutex m_DeferredTilesToUploadLock;
 
+    bool m_bTrimStandyTiles = false; // TODO: enable
+    bool m_bFreeEmptyHeaps = false; // TODO: enable
+    bool m_bDefragmentTiles = false; // TODO: enable
     float m_TileTimeoutSeconds = 1.0f;
     uint32_t m_NumHeaps = 0;
     uint64_t m_HeapAllocationInBytes = 0;

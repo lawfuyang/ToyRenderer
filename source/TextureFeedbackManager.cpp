@@ -151,6 +151,9 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::Text("Free tiles in heaps: %u", statistics.heapFreeTilesNum);
 
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 10, 100);
+    ImGui::Checkbox("Trim Standby Tiles", &m_bTrimStandyTiles);
+    ImGui::Checkbox("Free Empty Heaps", &m_bFreeEmptyHeaps);
+    ImGui::Checkbox("Defragment Tiles", &m_bDefragmentTiles);
     ImGui::SliderFloat("Tile Timeout (seconds)", &m_TileTimeoutSeconds, 0.1f, 5.0f);
 }
 
@@ -198,6 +201,7 @@ void TextureFeedbackManager::BeginFrame()
         }
     }
 
+    if (m_bTrimStandyTiles)
     {
         PROFILE_SCOPED("Trim Standby Tiles");
         m_TiledTextureManager->TrimStandbyTiles();
@@ -209,7 +213,7 @@ void TextureFeedbackManager::BeginFrame()
         // Now check how many heaps the tiled texture manager needs
         const uint32_t numRequiredHeaps = m_TiledTextureManager->GetNumDesiredHeaps();
 
-        if (m_NumHeaps > (numRequiredHeaps + 2))
+        if (m_bFreeEmptyHeaps)
         {
             std::vector<uint32_t> emptyHeaps;
             m_TiledTextureManager->GetEmptyHeaps(emptyHeaps);
@@ -311,7 +315,7 @@ void TextureFeedbackManager::BeginFrame()
         }
     }
     
-    // Defragment up to 16 tiles per frame
+    if (m_bDefragmentTiles)
     {
         PROFILE_SCOPED("Defragment Tiles");
 
@@ -337,9 +341,13 @@ void TextureFeedbackManager::BeginFrame()
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
             reqTile.m_TileIndex = texUpdate.m_TileIndices[i];
             if (texture.IsTilePacked(reqTile.m_TileIndex))
+            {
                 requestedPackedTiles.push_back(reqTile);
+            }
             else
+            {
                 requestedTiles.push_back(reqTile);
+            }
         }
     }
 
