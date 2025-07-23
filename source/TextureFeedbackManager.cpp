@@ -178,7 +178,7 @@ void TextureFeedbackManager::BeginFrame()
         nvrhi::BufferHandle resolveBuffer = texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2];
         void* pReadbackData = device->mapBuffer(resolveBuffer, nvrhi::CpuAccessMode::Read);
 
-        rtxts::SamplerFeedbackDesc samplerFeedbackDesc = {};
+        rtxts::SamplerFeedbackDesc samplerFeedbackDesc;
         samplerFeedbackDesc.pMinMipData = (uint8_t*)pReadbackData;
         m_TiledTextureManager->UpdateWithSamplerFeedback(texture.m_TiledTextureID, samplerFeedbackDesc, g_Graphic.m_GraphicTimer.GetElapsedSeconds(), m_TileTimeoutSeconds);
 
@@ -423,21 +423,21 @@ void TextureFeedbackManager::BeginFrame()
                 {
                     uint32_t tileIndex = heapTiles[i];
 
-                    nvrhi::TiledTextureCoordinate tiledTextureCoordinate = {};
+                    nvrhi::TiledTextureCoordinate tiledTextureCoordinate;
                     tiledTextureCoordinate.mipLevel = tilesCoordinates[tileIndex].mipLevel;
                     tiledTextureCoordinate.x = tilesCoordinates[tileIndex].x;
                     tiledTextureCoordinate.y = tilesCoordinates[tileIndex].y;
                     tiledTextureCoordinate.z = 0;
                     tiledTextureCoordinates.push_back(tiledTextureCoordinate);
 
-                    nvrhi::TiledTextureRegion tiledTextureRegion = {};
+                    nvrhi::TiledTextureRegion tiledTextureRegion;
                     tiledTextureRegion.tilesNum = 1;
                     tiledTextureRegions.push_back(tiledTextureRegion);
 
                     byteOffsets.push_back(tilesAllocations[tileIndex].heapTileIndex * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes());
                 }
 
-                nvrhi::TextureTilesMapping textureTilesMapping = {};
+                nvrhi::TextureTilesMapping textureTilesMapping;
                 textureTilesMapping.numTextureRegions = (uint32_t)tiledTextureCoordinates.size();
                 textureTilesMapping.tiledTextureCoordinates = tiledTextureCoordinates.data();
                 textureTilesMapping.tiledTextureRegions = tiledTextureRegions.data();
@@ -581,14 +581,14 @@ uint32_t TextureFeedbackManager::AllocateHeap()
 
     const uint32_t heapSizeInBytes = kHeapSizeInTiles * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes();
 
-    nvrhi::HeapDesc heapDesc = {};
+    nvrhi::HeapDesc heapDesc;
     heapDesc.capacity = heapSizeInBytes;
     heapDesc.type = nvrhi::HeapType::DeviceLocal;
 
     // TODO: Calling createHeap should ideally be called asynchronously to offload the critical path
     nvrhi::HeapHandle heap = device->createHeap(heapDesc);
 
-    nvrhi::BufferDesc bufferDesc = {};
+    nvrhi::BufferDesc bufferDesc;
     bufferDesc.byteSize = heapSizeInBytes;
     bufferDesc.isVirtual = true;
     bufferDesc.initialState = nvrhi::ResourceStates::CopySource;
