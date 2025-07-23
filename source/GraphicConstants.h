@@ -27,6 +27,7 @@ namespace GraphicConstants
     static constexpr nvrhi::Format kIndexBufferFormat = nvrhi::Format::R32_UINT;
     static constexpr nvrhi::Format kLightingOutputFormat = nvrhi::Format::R11G11B10_FLOAT;
     static constexpr nvrhi::Format kSSAOOutputFormat = nvrhi::Format::R8_UINT;
+    static constexpr nvrhi::Format kMinMipFormat = nvrhi::Format::R32_FLOAT; // TODO: check if i really need R32? the Feedback spec works with R8
 
     using IndexBufferFormat_t = uint32_t;
 

@@ -154,10 +154,10 @@ void Texture::LoadFromFile(std::string_view filePath)
     }
 
     // MinMip texture
-    nvrhi::TextureDesc minMipTextureDesc{};
+    nvrhi::TextureDesc minMipTextureDesc;
     minMipTextureDesc.width = minMipDesc.textureOrMipRegionWidth;
     minMipTextureDesc.height = minMipDesc.textureOrMipRegionHeight;
-    minMipTextureDesc.format = nvrhi::Format::R32_FLOAT; // TODO: check if i really need R32? the Feedback spec works with R8
+    minMipTextureDesc.format = GraphicConstants::kMinMipFormat;
     minMipTextureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
     minMipTextureDesc.keepInitialState = true;
     minMipTextureDesc.debugName = "MinMip Texture";
