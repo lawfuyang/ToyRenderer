@@ -226,8 +226,8 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
         return defaultValue;
     }
     
-    uint textureSamplerAndDescriptorIndex;
-    uint feedbackAndMinMiptextureDescriptorIndex;
+    uint textureSamplerAndDescriptorIndex = 0xFFFFFFFF;
+    uint feedbackAndMinMiptextureDescriptorIndex = 0xFFFFFFFF;
     switch (materialFlag)
     {
         case MaterialFlag_UseDiffuseTexture:
@@ -284,9 +284,7 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
         }
 
         const int2 offsetZero = int2(0, 0);
-        //return materialTexture.Sample(materialSampler, texCoord, offsetZero, mipClamp); // TODO
-
-        return materialTexture.Sample(materialSampler, texCoord);
+        return materialTexture.Sample(materialSampler, texCoord, offsetZero, mipClamp);
     }
 }
 

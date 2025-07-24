@@ -212,6 +212,12 @@ static void CreateDefaultTextures()
         textureDesc.keepInitialState = true;
         g_CommonResources.DummyMinMipTexture = device->createTexture(textureDesc);
 
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Create Dummy MinMip Texture");
+
+        float dummyData[8 * 8]{};
+        commandList->writeTexture(g_CommonResources.DummyMinMipTexture, 0, 0, dummyData, textureDesc.width * nvrhi::getFormatInfo(textureDesc.format).bytesPerBlock);
+
         nvrhi::SamplerFeedbackTextureDesc samplerFeedbackTextureDesc;
         samplerFeedbackTextureDesc.samplerFeedbackFormat = nvrhi::SamplerFeedbackFormat::MinMipOpaque;
         samplerFeedbackTextureDesc.samplerFeedbackMipRegionX = 4;

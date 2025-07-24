@@ -155,6 +155,11 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::Checkbox("Free Empty Heaps", &m_bFreeEmptyHeaps);
     ImGui::Checkbox("Defragment Tiles", &m_bDefragmentTiles);
     ImGui::SliderFloat("Tile Timeout (seconds)", &m_TileTimeoutSeconds, 0.1f, 5.0f);
+    ImGui::Checkbox("Override Feedback Data", &m_bOverrideFeedbackData);
+    if (m_bOverrideFeedbackData)
+    {
+        ImGui::SliderInt("Overridden Mip Level", &m_OverridenFeedbackMip, 0, 16);
+    }
 }
 
 void TextureFeedbackManager::BeginFrame()
@@ -172,19 +177,31 @@ void TextureFeedbackManager::BeginFrame()
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
     // Begin frame, readback feedback
-    for (uint32_t textureIdx : m_TexturesToReadback)
     {
-        Texture& texture = g_Graphic.m_Textures.at(textureIdx);
-        nvrhi::BufferHandle resolveBuffer = texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2];
-        void* pReadbackData = device->mapBuffer(resolveBuffer, nvrhi::CpuAccessMode::Read);
+        std::vector<uint8_t> feedbackData;
+        for (uint32_t textureIdx : m_TexturesToReadback)
+        {
+            Texture& texture = g_Graphic.m_Textures.at(textureIdx);
+            nvrhi::BufferHandle resolveBuffer = texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2];
+            feedbackData.resize(resolveBuffer->getDesc().byteSize);
 
-        rtxts::SamplerFeedbackDesc samplerFeedbackDesc;
-        samplerFeedbackDesc.pMinMipData = (uint8_t*)pReadbackData;
-        m_TiledTextureManager->UpdateWithSamplerFeedback(texture.m_TiledTextureID, samplerFeedbackDesc, g_Graphic.m_GraphicTimer.GetElapsedSeconds(), m_TileTimeoutSeconds);
+            rtxts::SamplerFeedbackDesc samplerFeedbackDesc;
+            if (m_bOverrideFeedbackData)
+            {
+                feedbackData.insert(feedbackData.begin(), feedbackData.size(), std::min<uint8_t>(m_OverridenFeedbackMip, texture.m_NVRHITextureHandle->getDesc().mipLevels));
+            }
+            else
+            {
+                void* pReadbackData = device->mapBuffer(resolveBuffer, nvrhi::CpuAccessMode::Read);
+                memcpy(feedbackData.data(), pReadbackData, feedbackData.size());
+                device->unmapBuffer(resolveBuffer);
+            }
+            samplerFeedbackDesc.pMinMipData = feedbackData.data();
 
-        device->unmapBuffer(resolveBuffer);
+            m_TiledTextureManager->UpdateWithSamplerFeedback(texture.m_TiledTextureID, samplerFeedbackDesc, g_Graphic.m_GraphicTimer.GetElapsedSeconds(), m_TileTimeoutSeconds);
 
-        // TODO: call 'MatchPrimaryTexture' if necessary, whatever it means?
+            // TODO: call 'MatchPrimaryTexture' if necessary, whatever it means?
+        }
     }
     m_TexturesToReadback.clear();
 
@@ -192,21 +209,23 @@ void TextureFeedbackManager::BeginFrame()
     m_NumFeedbackTexturesToResolvePerFrame = g_Graphic.m_Textures.size();
 
     // Collect textures to read back
-    const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
-    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
     {
-        if ((i > 0) && (i == startIdx))
+        const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
+        for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
         {
-            break;
-        }
+            if ((i > 0) && (i == startIdx))
+            {
+                break;
+            }
 
-        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
-        Texture& texture = g_Graphic.m_Textures[textureIdx];
+            const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
+            Texture& texture = g_Graphic.m_Textures[textureIdx];
 
-        if (texture.m_TiledTextureID != UINT_MAX)
-        {
-            commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
-            m_TexturesToReadback.push_back(textureIdx);
+            if (texture.m_TiledTextureID != UINT_MAX)
+            {
+                commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
+                m_TexturesToReadback.push_back(textureIdx);
+            }
         }
     }
 

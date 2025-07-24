@@ -511,7 +511,7 @@ void Scene::Update()
 
         // DisplayResolution Debug Passes
         m_RenderGraph->AddRenderer(g_GIDebugRenderer);
-        m_RenderGraph->AddRenderer(g_TextureFeedbackDebugRenderer);
+        m_RenderGraph->AddRenderer(g_TextureFeedbackDebugRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
         m_RenderGraph->AddRenderer(g_IMGUIRenderer);
     }
     m_RenderGraph->Compile();
