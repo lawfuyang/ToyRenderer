@@ -40,7 +40,7 @@ public:
 
         ImGui::Checkbox("Visualize Streaming States", &m_bVisualizeStreamingStates);
         ImGui::Checkbox("Visualize With Color", &m_bVisualizeWithColor);
-        ImGui::SliderFloat("Mip 0 Size", &m_ZoomLevel, 100.0f, 1000.0f);
+        ImGui::SliderFloat("Zoom Level", &m_ZoomLevel, 100.0f, 1000.0f);
     }
 
     bool Setup(RenderGraph& renderGraph) override
