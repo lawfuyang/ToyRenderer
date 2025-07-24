@@ -150,7 +150,7 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::Text("Standby tiles: %u", statistics.standbyTilesNum);
     ImGui::Text("Free tiles in heaps: %u", statistics.heapFreeTilesNum);
 
-    ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 10, 100);
+    ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 10, g_Graphic.m_Textures.size());
     ImGui::Checkbox("Trim Standby Tiles", &m_bTrimStandyTiles);
     ImGui::Checkbox("Free Empty Heaps", &m_bFreeEmptyHeaps);
     ImGui::Checkbox("Defragment Tiles", &m_bDefragmentTiles);
@@ -188,16 +188,25 @@ void TextureFeedbackManager::BeginFrame()
     }
     m_TexturesToReadback.clear();
 
+    // TODO: delete this & enable frame slicing
+    m_NumFeedbackTexturesToResolvePerFrame = g_Graphic.m_Textures.size();
+
     // Collect textures to read back
-    // TODO: frame slice this
-    for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
+    const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
+    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
     {
-        Texture& texture = g_Graphic.m_Textures[i];
+        if ((i > 0) && (i == startIdx))
+        {
+            break;
+        }
+
+        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
+        Texture& texture = g_Graphic.m_Textures[textureIdx];
 
         if (texture.m_SamplerFeedbackTextureHandle)
         {
             commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
-            m_TexturesToReadback.push_back(i);
+            m_TexturesToReadback.push_back(textureIdx);
         }
     }
 
@@ -557,10 +566,16 @@ void TextureFeedbackManager::EndFrame()
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
 
-    // TODO: frame-slice this
-    for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
+    const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
+    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
     {
-        Texture& texture = g_Graphic.m_Textures[i];
+        if ((i > 0) && (i == startIdx))
+        {
+            break;
+        }
+
+        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
+        Texture& texture = g_Graphic.m_Textures[textureIdx];
 
         if (texture.m_SamplerFeedbackTextureHandle)
         {
