@@ -211,23 +211,24 @@ void PS_VisualizeMinMip(
     out float4 outColor : SV_Target
 )
 {
+    static const float3 kMipColors[8] =
+    {
+        { 1.0f, 0.0f, 0.0f }, // Mip 0 - Red
+        { 1.0f, 0.5f, 0.0f }, // Mip 1 - Orange
+        { 1.0f, 1.0f, 0.0f }, // Mip 2 - Yellow
+        { 0.5f, 1.0f, 0.0f }, // Mip 3 - Light Green
+        { 0.0f, 1.0f, 0.0f }, // Mip 4 - Green
+        { 0.0f, 0.5f, 1.0f }, // Mip 5 - Light Blue
+        { 0.0f, 0.0f, 1.0f }, // Mip 6 - Blue
+        { 0.5f, 0.0f, 1.0f }  // Mip 7 - Purple
+    };
+
     float minMipData = g_Input.Sample(g_LinearClampSampler, inUV).r;
     uint mip = min(7, (uint)(minMipData));
     float2 tileUV = frac(inUV * g_VisualizeMinMipParameters.m_TextureDimensions);
 
-    if (g_VisualizeMinMipParameters.m_bVisualizeWithColor)
+    if (g_VisualizeMinMipParameters.m_bVisualizeWithColorOnly)
     {
-        static const float3 kMipColors[8] =
-        {
-            { 1.0f, 0.0f, 0.0f }, // Mip 0 - Red
-            { 1.0f, 0.5f, 0.0f }, // Mip 1 - Orange
-            { 1.0f, 1.0f, 0.0f }, // Mip 2 - Yellow
-            { 0.5f, 1.0f, 0.0f }, // Mip 3 - Light Green
-            { 0.0f, 1.0f, 0.0f }, // Mip 4 - Green
-            { 0.0f, 0.5f, 1.0f }, // Mip 5 - Light Blue
-            { 0.0f, 0.0f, 1.0f }, // Mip 6 - Blue
-            { 0.5f, 0.0f, 1.0f }  // Mip 7 - Purple
-        };
         outColor = float4(kMipColors[mip], 1.0f);
 
         if (tileUV.x > 0.9 || tileUV.x < 0.1 || tileUV.y > 0.9 || tileUV.y < 0.1)
@@ -238,7 +239,7 @@ void PS_VisualizeMinMip(
     else
     {
         float SDF = DrawDigit(tileUV, mip);
-        outColor.rgb = SDF.xxx;
+        outColor.rgb = SDF.xxx * kMipColors[mip];
         outColor.a = 1.0f;
     }
 }

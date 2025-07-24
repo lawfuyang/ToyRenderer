@@ -11,7 +11,7 @@ class TextureFeedbackDebugRenderer : public IRenderer
 {
     uint32_t m_SelectedTextureIdx = 0;
     bool m_bVisualizeStreamingStates = false;
-    bool m_bVisualizeWithColor = false;
+    bool m_bVisualizeWithColorOnly = false;
     float m_ZoomLevel = 512.0f;
 
 public:
@@ -39,7 +39,7 @@ public:
         }
 
         ImGui::Checkbox("Visualize Streaming States", &m_bVisualizeStreamingStates);
-        ImGui::Checkbox("Visualize With Color", &m_bVisualizeWithColor);
+        ImGui::Checkbox("Visualize with Color Only", &m_bVisualizeWithColorOnly);
         ImGui::SliderFloat("Zoom Level", &m_ZoomLevel, 100.0f, 1000.0f);
     }
 
@@ -94,7 +94,7 @@ public:
         {
             VisualizeMinMipParameters passParameters;
             passParameters.m_TextureDimensions = Vector2U{ texture.m_MinMipTextureHandle->getDesc().width, texture.m_MinMipTextureHandle->getDesc().height };
-            passParameters.m_bVisualizeWithColor = m_bVisualizeWithColor;
+            passParameters.m_bVisualizeWithColorOnly = m_bVisualizeWithColorOnly;
 
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =

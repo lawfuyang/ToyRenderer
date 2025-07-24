@@ -203,7 +203,7 @@ void TextureFeedbackManager::BeginFrame()
         const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
         Texture& texture = g_Graphic.m_Textures[textureIdx];
 
-        if (texture.m_SamplerFeedbackTextureHandle)
+        if (texture.m_TiledTextureID != UINT_MAX)
         {
             commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
             m_TexturesToReadback.push_back(textureIdx);
@@ -577,7 +577,7 @@ void TextureFeedbackManager::EndFrame()
         const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
         Texture& texture = g_Graphic.m_Textures[textureIdx];
 
-        if (texture.m_SamplerFeedbackTextureHandle)
+        if (texture.m_TiledTextureID != UINT_MAX)
         {
             commandList->decodeSamplerFeedbackTexture(texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2], texture.m_SamplerFeedbackTextureHandle, nvrhi::Format::R8_UINT);
         }

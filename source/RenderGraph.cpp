@@ -223,7 +223,7 @@ void RenderGraph::Compile()
 	m_HeapsToFree.clear();
 }
 
-void RenderGraph::AddRenderer(IRenderer* renderer)
+tf::Task RenderGraph::AddRenderer(IRenderer* renderer)
 {
 	STATIC_MULTITHREAD_DETECTOR();
 
@@ -247,7 +247,7 @@ void RenderGraph::AddRenderer(IRenderer* renderer)
 		renderer->m_CPUFrameTime = 0.0f;
 		renderer->m_GPUFrameTime = 0.0f;
 
-		return;
+		return m_TaskFlow->placeholder();
 	}
 
 	newPass.m_Renderer = renderer;
@@ -300,6 +300,8 @@ void RenderGraph::AddRenderer(IRenderer* renderer)
 		});
 
     m_CommandListQueueTasks.push_back(queueCommandListTask);
+	
+	return renderTask;
 }
 
 void RenderGraph::UpdateIMGUI()

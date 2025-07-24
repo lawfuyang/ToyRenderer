@@ -469,10 +469,12 @@ void Scene::Update()
         UpdateAnimations();
     }
 
-    // TODO: schedule the feedback manager nicely together with required prerequisite renderers (only those that need Materials)
-    g_Graphic.m_TextureFeedbackManager->BeginFrame();
-
     tf::Taskflow tf;
+
+    tf::Task materialTexturesRequiredBeginTask = tf.placeholder();
+    tf::Task materialTexturesRequiredEndTask = tf.placeholder().succeed(materialTexturesRequiredBeginTask);
+
+    tf.emplace([] { g_Graphic.m_TextureFeedbackManager->BeginFrame(); }).precede(materialTexturesRequiredBeginTask);
 
     m_RenderGraph->InitializeForFrame(tf);
     {
@@ -496,14 +498,14 @@ void Scene::Update()
         
         m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
         m_RenderGraph->AddRenderer(g_UpdateInstanceConstsRenderer);
-        m_RenderGraph->AddRenderer(g_GIRenderer);
-        m_RenderGraph->AddRenderer(g_GBufferRenderer);
+        m_RenderGraph->AddRenderer(g_GIRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
+        m_RenderGraph->AddRenderer(g_GBufferRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
         m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
-        m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
+        m_RenderGraph->AddRenderer(g_ShadowMaskRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
         m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
         m_RenderGraph->AddRenderer(g_SkyRenderer);
         m_RenderGraph->AddRenderer(g_BloomRenderer);
-        m_RenderGraph->AddRenderer(g_TransparentForwardRenderer);
+        m_RenderGraph->AddRenderer(g_TransparentForwardRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
         m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
         m_RenderGraph->AddRenderer(g_PostProcessRenderer);
 
@@ -516,7 +518,7 @@ void Scene::Update()
 
     g_Engine.m_Executor->corun(tf);
 
-    g_Graphic.m_TextureFeedbackManager->EndFrame();
+    tf.emplace([] { g_Graphic.m_TextureFeedbackManager->EndFrame(); }).succeed(materialTexturesRequiredEndTask);
 }
 
 void Scene::Shutdown()
