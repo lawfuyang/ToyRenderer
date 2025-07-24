@@ -3,13 +3,16 @@
 #include "CommonResources.h"
 #include "Engine.h"
 
+#include "shaders/ShaderInterop.h"
+
 #include "extern/imgui/imgui.h"
 
 class TextureFeedbackDebugRenderer : public IRenderer
 {
     uint32_t m_SelectedTextureIdx = 0;
     bool m_bVisualizeStreamingStates = false;
-    float m_ZoomLevel = 400.0f;
+    bool m_bVisualizeWithColor = false;
+    float m_ZoomLevel = 512.0f;
 
 public:
     TextureFeedbackDebugRenderer() : IRenderer{ "TextureFeedbackDebugRenderer" } {}
@@ -36,6 +39,7 @@ public:
         }
 
         ImGui::Checkbox("Visualize Streaming States", &m_bVisualizeStreamingStates);
+        ImGui::Checkbox("Visualize With Color", &m_bVisualizeWithColor);
         ImGui::SliderFloat("Mip 0 Size", &m_ZoomLevel, 100.0f, 1000.0f);
     }
 
@@ -88,6 +92,18 @@ public:
 
         // minmip
         {
+            VisualizeMinMipParameters passParameters;
+            passParameters.m_TextureDimensions = Vector2U{ texture.m_MinMipTextureHandle->getDesc().width, texture.m_MinMipTextureHandle->getDesc().height };
+            passParameters.m_bVisualizeWithColor = m_bVisualizeWithColor;
+
+            nvrhi::BindingSetDesc bindingSetDesc;
+            bindingSetDesc.bindings =
+            {
+                nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
+                nvrhi::BindingSetItem::Texture_SRV(0, texture.m_MinMipTextureHandle),
+                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
+            };
+
             const nvrhi::Viewport viewport{
                 std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x),
                 std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + m_ZoomLevel),
@@ -96,19 +112,14 @@ public:
                 0.f, 1.f
             };
 
-            nvrhi::BindingSetDesc bindingSetDesc;
-            bindingSetDesc.bindings =
-            {
-                nvrhi::BindingSetItem::Texture_SRV(0, texture.m_MinMipTextureHandle),
-                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
-            };
-
             Graphic::FullScreenPassParams fullScreenPassParams;
             fullScreenPassParams.m_CommandList = commandList;
             fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
             fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
             fullScreenPassParams.m_ShaderName = "visualizeminmip_PS_VisualizeMinMip";
             fullScreenPassParams.m_ViewPort = &viewport;
+            fullScreenPassParams.m_PushConstantsData = &passParameters;
+            fullScreenPassParams.m_PushConstantsBytes = sizeof(passParameters);
 
             g_Graphic.AddFullScreenPass(fullScreenPassParams);
         }

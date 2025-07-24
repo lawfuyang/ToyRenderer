@@ -341,4 +341,10 @@ struct XeGTAODenoiseConstants
     uint32_t m_FinalApply;
 };
 
+struct VisualizeMinMipParameters
+{
+    Vector2U m_TextureDimensions;
+    uint32_t m_bVisualizeWithColor;
+};
+
 #endif // #define _SHADER_INTEROP_H_
