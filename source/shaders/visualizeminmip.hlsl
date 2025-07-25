@@ -196,6 +196,19 @@ float DrawDigit(float2 uv, int digit)
                 abs(p.y - 0.1) * (p.x > 0.2 && p.x < 0.8 ? 1.0 : 1000.0)
             );
     }
+    else
+    {
+        // "X": Two diagonal lines crossing in the center
+        bool diagonal1 = abs(p.x - p.y) < thickness && (p.x > 0.2 && p.x < 0.8) && (p.y > 0.05 && p.y < 0.95);
+        bool diagonal2 = abs(p.x + p.y - 1.0) < thickness && (p.x > 0.2 && p.x < 0.8) && (p.y > 0.05 && p.y < 0.95);
+        if (diagonal1 || diagonal2)
+            dist = 0.0;
+        else
+            dist = min(
+                abs(p.x - p.y) * (p.x > 0.2 && p.x < 0.8 && p.y > 0.05 && p.y < 0.95 ? 1.0 : 1000.0),
+                abs(p.x + p.y - 1.0) * (p.x > 0.2 && p.x < 0.8 && p.y > 0.05 && p.y < 0.95 ? 1.0 : 1000.0)
+            );
+    }
 
     // Apply anti-aliasing
     return smoothstep(halfThickness + aa, halfThickness - aa, dist);
@@ -208,27 +221,38 @@ sampler g_LinearClampSampler : register(s0);
 void PS_VisualizeMinMip(
     in float4 inPosition : SV_POSITION,
     in float2 inUV : TEXCOORD0,
-    out float4 outColor : SV_Target
-)
+    out float4 outColor : SV_Target)
 {
-    static const float3 kMipColors[8] =
+    static const float3 kMipColors[] =
     {
-        { 1.0f, 0.0f, 0.0f }, // Mip 0 - Red
-        { 1.0f, 0.5f, 0.0f }, // Mip 1 - Orange
-        { 1.0f, 1.0f, 0.0f }, // Mip 2 - Yellow
-        { 0.5f, 1.0f, 0.0f }, // Mip 3 - Light Green
-        { 0.0f, 1.0f, 0.0f }, // Mip 4 - Green
-        { 0.0f, 0.5f, 1.0f }, // Mip 5 - Light Blue
-        { 0.0f, 0.0f, 1.0f }, // Mip 6 - Blue
-        { 0.5f, 0.0f, 1.0f }  // Mip 7 - Purple
+        { 1, 1, 1 },             // white
+        { 1, 0.25f, 0.25f },     // light red
+        { 0.25f, 1, 0.25f },     // light green
+        { 0.25f, 0.25f, 1 },     // light blue
+
+        { 1, 0.25f, 1 },         // light magenta
+        { 1, 1, 0.25f },         // light yellow
+        { 0.25f, 1, 1 },         // light cyan
+        { 0.9f, 0.5f, 0.2f },    // orange
+
+        { 0.59f, 0.48f, 0.8f },  // dark magenta
+        { 0.53f, 0.25f, 0.11f }, 
+        { 0.8f, 0.48f, 0.53f },
+        { 0.64f, 0.8f, 0.48f },
+        
+        { 0.48f, 0.75f, 0.8f },
+        { 0.5f, 0.25f, 0.75f },
+        { 0.99f, 0.68f, 0.42f },
+        { 0.4f, 0.5f, 0.6f },
     };
 
     uint minMip = g_Input.Sample(g_LinearClampSampler, inUV);
+    uint colorIdx = min(15, minMip);
     float2 tileUV = frac(inUV * g_VisualizeMinMipParameters.m_TextureDimensions);
 
     if (g_VisualizeMinMipParameters.m_bVisualizeWithColorOnly)
     {
-        outColor = float4(kMipColors[minMip], 1.0f);
+        outColor = float4(kMipColors[colorIdx], 1.0f);
 
         if (tileUV.x > 0.9 || tileUV.x < 0.1 || tileUV.y > 0.9 || tileUV.y < 0.1)
         {
@@ -238,7 +262,7 @@ void PS_VisualizeMinMip(
     else
     {
         float SDF = DrawDigit(tileUV, minMip);
-        outColor.rgb = SDF.xxx * kMipColors[minMip];
+        outColor.rgb = SDF.xxx * kMipColors[colorIdx];
         outColor.a = 1.0f;
     }
 }

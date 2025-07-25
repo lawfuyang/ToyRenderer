@@ -2,6 +2,7 @@
 
 #include "CommonResources.h"
 #include "Engine.h"
+#include "RenderGraph.h"
 
 #include "shaders/ShaderInterop.h"
 
@@ -9,10 +10,15 @@
 
 class TextureFeedbackDebugRenderer : public IRenderer
 {
+    enum class DebugMode { TextureMips, FeedbackAndMinMip };
+
+    DebugMode m_DebugMode = DebugMode::TextureMips;
     uint32_t m_SelectedTextureIdx = 0;
     bool m_bVisualizeStreamingStates = false;
     bool m_bVisualizeWithColorOnly = false;
     float m_ZoomLevel = 512.0f;
+
+    RenderGraph::ResourceHandle m_FeedbackTextureHandle;
 
 public:
     TextureFeedbackDebugRenderer() : IRenderer{ "TextureFeedbackDebugRenderer" } {}
@@ -39,13 +45,24 @@ public:
         }
 
         ImGui::Checkbox("Visualize Streaming States", &m_bVisualizeStreamingStates);
+        ImGui::Combo("Debug Mode", reinterpret_cast<int*>(&m_DebugMode), "Texture Mips\0Feedback and Min Mip\0");
         ImGui::Checkbox("Visualize with Color Only", &m_bVisualizeWithColorOnly);
         ImGui::SliderFloat("Zoom Level", &m_ZoomLevel, 100.0f, 1000.0f);
     }
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        return m_bVisualizeStreamingStates;
+        if (!m_bVisualizeStreamingStates)
+        {
+            return false;
+        }
+
+        if (m_DebugMode == DebugMode::FeedbackAndMinMip)
+        {
+            renderGraph.CreateTransientResource(m_FeedbackTextureHandle, g_Graphic.m_Textures[m_SelectedTextureIdx].m_MinMipTextureHandle->getDesc());
+        }
+
+        return true;
     }
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
@@ -60,68 +77,99 @@ public:
         float x = margin;
 
         // mips
-        for (uint32_t mip = 0; mip < texture.m_NVRHITextureHandle->getDesc().mipLevels; mip++)
+        if (m_DebugMode == DebugMode::TextureMips)
         {
-            const nvrhi::Viewport viewport{
-                std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x),
-                std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + size),
-                std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - size - margin),
-                std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - margin),
-                0.f, 1.f
-            };
-
-            x += size + margin;
-            size *= 0.5f;
-
-            nvrhi::BindingSetDesc bindingSetDesc;
-            bindingSetDesc.bindings =
+            for (uint32_t mip = 0; mip < texture.m_NVRHITextureHandle->getDesc().mipLevels; mip++)
             {
-                nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle, nvrhi::Format::UNKNOWN, nvrhi::TextureSubresourceSet{ mip, 1, 0, 1 }),
-                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
-            };
+                const nvrhi::Viewport viewport{
+                    std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x),
+                    std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + size),
+                    std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - size - margin),
+                    std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - margin),
+                    0.f, 1.f
+                };
 
-            Graphic::FullScreenPassParams fullScreenPassParams;
-            fullScreenPassParams.m_CommandList = commandList;
-            fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-            fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
-            fullScreenPassParams.m_ShaderName = "fullscreen_PS_Passthrough";
-            fullScreenPassParams.m_ViewPort = &viewport;
+                x += size + margin;
+                size *= 0.5f;
 
-            g_Graphic.AddFullScreenPass(fullScreenPassParams);
+                nvrhi::BindingSetDesc bindingSetDesc;
+                bindingSetDesc.bindings =
+                {
+                    nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle, nvrhi::Format::UNKNOWN, nvrhi::TextureSubresourceSet{ mip, 1, 0, 1 }),
+                    nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
+                };
+
+                Graphic::FullScreenPassParams fullScreenPassParams;
+                fullScreenPassParams.m_CommandList = commandList;
+                fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
+                fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
+                fullScreenPassParams.m_ShaderName = "fullscreen_PS_Passthrough";
+                fullScreenPassParams.m_ViewPort = &viewport;
+
+                g_Graphic.AddFullScreenPass(fullScreenPassParams);
+            }
         }
-
-        // minmip
+        else if (m_DebugMode == DebugMode::FeedbackAndMinMip)
         {
-            VisualizeMinMipParameters passParameters;
-            passParameters.m_TextureDimensions = Vector2U{ texture.m_MinMipTextureHandle->getDesc().width, texture.m_MinMipTextureHandle->getDesc().height };
-            passParameters.m_bVisualizeWithColorOnly = m_bVisualizeWithColorOnly;
+            auto VisualizeCommon = [&](nvrhi::TextureHandle inputTexture)
+                {
+                    VisualizeMinMipParameters passParameters;
+                    passParameters.m_TextureDimensions = Vector2U{ inputTexture->getDesc().width, inputTexture->getDesc().height };
+                    passParameters.m_bVisualizeWithColorOnly = m_bVisualizeWithColorOnly;
 
-            nvrhi::BindingSetDesc bindingSetDesc;
-            bindingSetDesc.bindings =
+                    nvrhi::BindingSetDesc bindingSetDesc;
+                    bindingSetDesc.bindings =
+                    {
+                        nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
+                        nvrhi::BindingSetItem::Texture_SRV(0, inputTexture),
+                        nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
+                    };
+
+                    const nvrhi::Viewport viewport{
+                        std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x),
+                        std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + m_ZoomLevel),
+                        std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - m_ZoomLevel - margin),
+                        std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - margin),
+                        0.f, 1.f
+                    };
+
+                    Graphic::FullScreenPassParams fullScreenPassParams;
+                    fullScreenPassParams.m_CommandList = commandList;
+                    fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
+                    fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
+                    fullScreenPassParams.m_ShaderName = "visualizeminmip_PS_VisualizeMinMip";
+                    fullScreenPassParams.m_ViewPort = &viewport;
+                    fullScreenPassParams.m_PushConstantsData = &passParameters;
+                    fullScreenPassParams.m_PushConstantsBytes = sizeof(passParameters);
+
+                    g_Graphic.AddFullScreenPass(fullScreenPassParams);
+            };
+
+            // feedback
             {
-                nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
-                nvrhi::BindingSetItem::Texture_SRV(0, texture.m_MinMipTextureHandle),
-                nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
-            };
+                nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-            const nvrhi::Viewport viewport{
-                std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x),
-                std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + m_ZoomLevel),
-                std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - m_ZoomLevel - margin),
-                std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - margin),
-                0.f, 1.f
-            };
+                nvrhi::TextureHandle feedbackTextureHandle = renderGraph.GetTexture(m_FeedbackTextureHandle);
 
-            Graphic::FullScreenPassParams fullScreenPassParams;
-            fullScreenPassParams.m_CommandList = commandList;
-            fullScreenPassParams.m_FrameBufferDesc = frameBufferDesc;
-            fullScreenPassParams.m_BindingSetDesc = bindingSetDesc;
-            fullScreenPassParams.m_ShaderName = "visualizeminmip_PS_VisualizeMinMip";
-            fullScreenPassParams.m_ViewPort = &viewport;
-            fullScreenPassParams.m_PushConstantsData = &passParameters;
-            fullScreenPassParams.m_PushConstantsBytes = sizeof(passParameters);
+                nvrhi::BufferHandle resolveBuffer = texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2];
+                void* pReadbackData = device->mapBuffer(resolveBuffer, nvrhi::CpuAccessMode::Read);
 
-            g_Graphic.AddFullScreenPass(fullScreenPassParams);
+                std::vector<uint8_t> feedbackData;
+                feedbackData.resize(resolveBuffer->getDesc().byteSize);
+                memcpy(feedbackData.data(), pReadbackData, feedbackData.size());
+                device->unmapBuffer(resolveBuffer);
+
+                commandList->writeTexture(feedbackTextureHandle, 0, 0, feedbackData.data(), feedbackTextureHandle->getDesc().width);
+
+                VisualizeCommon(feedbackTextureHandle);
+            }
+
+            x += m_ZoomLevel + margin;
+
+            // minmip
+            {
+                VisualizeCommon(texture.m_MinMipTextureHandle);
+            }
         }
     }
 };

@@ -47,6 +47,7 @@ public:
     nvrhi::SamplerHandle PointClampSampler;
     nvrhi::SamplerHandle LinearClampSampler;
     nvrhi::SamplerHandle LinearClampMinReductionSampler;
+    nvrhi::SamplerHandle LinearClampMaxReductionSampler;
     nvrhi::SamplerHandle LinearWrapSampler;
     nvrhi::SamplerHandle AnisotropicClampSampler;
     nvrhi::SamplerHandle AnisotropicWrapSampler;

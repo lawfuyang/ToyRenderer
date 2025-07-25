@@ -33,7 +33,7 @@ private:
     std::thread m_AsyncIOThread;
     bool m_bShutDownAsyncIOThread = false;
 
-    std::vector<uint32_t> m_TexturesToReadback;
+    std::vector<uint32_t> m_TexturesToReadback[2];
     std::vector<nvrhi::HeapHandle> m_Heaps;
     std::vector<nvrhi::BufferHandle> m_Buffers;
     std::vector<uint32_t> m_FreeHeapIDs;
@@ -44,14 +44,13 @@ private:
     std::vector<MipIORequest> m_DeferredTilesToUpload;
     std::mutex m_DeferredTilesToUploadLock;
 
-    bool m_bTrimStandyTiles = false; // TODO: enable
-    bool m_bFreeEmptyHeaps = false; // TODO: enable
-    bool m_bDefragmentTiles = false; // TODO: enable
+    bool m_bCompactMemory = false;
     bool m_bOverrideFeedbackData = false;
     int m_OverridenFeedbackMip = 4;
     float m_TileTimeoutSeconds = 1.0f;
     uint32_t m_NumHeaps = 0;
     uint64_t m_HeapAllocationInBytes = 0;
+    int m_MaxTilesUploadPerFrame = 256;
 
     int m_NumFeedbackTexturesToResolvePerFrame = 10;
     uint32_t m_ResolveFeedbackTexturesCounter = 0;

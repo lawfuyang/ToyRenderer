@@ -471,10 +471,11 @@ void Scene::Update()
 
     tf::Taskflow tf;
 
-    tf::Task materialTexturesRequiredBeginTask = tf.placeholder();
-    tf::Task materialTexturesRequiredEndTask = tf.placeholder().succeed(materialTexturesRequiredBeginTask);
+    tf::Task materialTexturesRequiredBeginGate = tf.placeholder();
+    tf::Task materialTexturesRequiredEndGate = tf.placeholder().succeed(materialTexturesRequiredBeginGate);
 
-    tf.emplace([] { g_Graphic.m_TextureFeedbackManager->BeginFrame(); }).precede(materialTexturesRequiredBeginTask);
+    tf.emplace([] { g_Graphic.m_TextureFeedbackManager->BeginFrame(); }).precede(materialTexturesRequiredBeginGate);
+    tf.emplace([] { g_Graphic.m_TextureFeedbackManager->EndFrame(); }).succeed(materialTexturesRequiredEndGate);
 
     m_RenderGraph->InitializeForFrame(tf);
     {
@@ -498,27 +499,25 @@ void Scene::Update()
         
         m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
         m_RenderGraph->AddRenderer(g_UpdateInstanceConstsRenderer);
-        m_RenderGraph->AddRenderer(g_GIRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
-        m_RenderGraph->AddRenderer(g_GBufferRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
+        m_RenderGraph->AddRenderer(g_GIRenderer).succeed(materialTexturesRequiredBeginGate).precede(materialTexturesRequiredEndGate);
+        m_RenderGraph->AddRenderer(g_GBufferRenderer).succeed(materialTexturesRequiredBeginGate).precede(materialTexturesRequiredEndGate);
         m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
-        m_RenderGraph->AddRenderer(g_ShadowMaskRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
+        m_RenderGraph->AddRenderer(g_ShadowMaskRenderer).succeed(materialTexturesRequiredBeginGate).precede(materialTexturesRequiredEndGate);
         m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
         m_RenderGraph->AddRenderer(g_SkyRenderer);
         m_RenderGraph->AddRenderer(g_BloomRenderer);
-        m_RenderGraph->AddRenderer(g_TransparentForwardRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
+        m_RenderGraph->AddRenderer(g_TransparentForwardRenderer).succeed(materialTexturesRequiredBeginGate).precede(materialTexturesRequiredEndGate);
         m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
         m_RenderGraph->AddRenderer(g_PostProcessRenderer);
 
         // DisplayResolution Debug Passes
         m_RenderGraph->AddRenderer(g_GIDebugRenderer);
-        m_RenderGraph->AddRenderer(g_TextureFeedbackDebugRenderer).succeed(materialTexturesRequiredBeginTask).precede(materialTexturesRequiredEndTask);
+        m_RenderGraph->AddRenderer(g_TextureFeedbackDebugRenderer).succeed(materialTexturesRequiredBeginGate).precede(materialTexturesRequiredEndGate);
         m_RenderGraph->AddRenderer(g_IMGUIRenderer);
     }
     m_RenderGraph->Compile();
 
     g_Engine.m_Executor->corun(tf);
-
-    tf.emplace([] { g_Graphic.m_TextureFeedbackManager->EndFrame(); }).succeed(materialTexturesRequiredEndTask);
 }
 
 void Scene::Shutdown()

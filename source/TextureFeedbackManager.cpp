@@ -151,15 +151,14 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::Text("Free tiles in heaps: %u", statistics.heapFreeTilesNum);
 
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 10, g_Graphic.m_Textures.size());
-    ImGui::Checkbox("Trim Standby Tiles", &m_bTrimStandyTiles);
-    ImGui::Checkbox("Free Empty Heaps", &m_bFreeEmptyHeaps);
-    ImGui::Checkbox("Defragment Tiles", &m_bDefragmentTiles);
+    ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 16, 1024);
     ImGui::SliderFloat("Tile Timeout (seconds)", &m_TileTimeoutSeconds, 0.1f, 5.0f);
     ImGui::Checkbox("Override Feedback Data", &m_bOverrideFeedbackData);
     if (m_bOverrideFeedbackData)
     {
         ImGui::SliderInt("Overridden Mip Level", &m_OverridenFeedbackMip, 0, 16);
     }
+    ImGui::Checkbox("Compact Memory", &m_bCompactMemory);
 }
 
 void TextureFeedbackManager::BeginFrame()
@@ -179,7 +178,7 @@ void TextureFeedbackManager::BeginFrame()
     // Begin frame, readback feedback
     {
         std::vector<uint8_t> feedbackData;
-        for (uint32_t textureIdx : m_TexturesToReadback)
+        for (uint32_t textureIdx : m_TexturesToReadback[g_Graphic.m_FrameCounter % 2])
         {
             Texture& texture = g_Graphic.m_Textures.at(textureIdx);
             nvrhi::BufferHandle resolveBuffer = texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2];
@@ -188,7 +187,10 @@ void TextureFeedbackManager::BeginFrame()
             rtxts::SamplerFeedbackDesc samplerFeedbackDesc;
             if (m_bOverrideFeedbackData)
             {
-                feedbackData.insert(feedbackData.begin(), feedbackData.size(), std::min<uint8_t>(m_OverridenFeedbackMip, texture.m_NVRHITextureHandle->getDesc().mipLevels));
+                for (uint8_t& value : feedbackData)
+                {
+                    value = std::min<uint8_t>(m_OverridenFeedbackMip, texture.m_NVRHITextureHandle->getDesc().mipLevels);
+                }
             }
             else
             {
@@ -203,7 +205,7 @@ void TextureFeedbackManager::BeginFrame()
             // TODO: call 'MatchPrimaryTexture' if necessary, whatever it means?
         }
     }
-    m_TexturesToReadback.clear();
+    m_TexturesToReadback[g_Graphic.m_FrameCounter % 2].clear();
 
     // TODO: delete this & enable frame slicing
     m_NumFeedbackTexturesToResolvePerFrame = g_Graphic.m_Textures.size();
@@ -223,13 +225,13 @@ void TextureFeedbackManager::BeginFrame()
 
             if (texture.m_TiledTextureID != UINT_MAX)
             {
-                commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
-                m_TexturesToReadback.push_back(textureIdx);
+                //commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
+                m_TexturesToReadback[g_Graphic.m_FrameCounter % 2].push_back(textureIdx);
             }
         }
     }
 
-    if (m_bTrimStandyTiles)
+    if (m_bCompactMemory)
     {
         PROFILE_SCOPED("Trim Standby Tiles");
         m_TiledTextureManager->TrimStandbyTiles();
@@ -240,8 +242,15 @@ void TextureFeedbackManager::BeginFrame()
 
         // Now check how many heaps the tiled texture manager needs
         const uint32_t numRequiredHeaps = m_TiledTextureManager->GetNumDesiredHeaps();
-
-        if (m_bFreeEmptyHeaps)
+        if (numRequiredHeaps > m_NumHeaps)
+        {
+            while (m_NumHeaps < numRequiredHeaps)
+            {
+                const uint32_t heapID = AllocateHeap();
+                m_TiledTextureManager->AddHeap(heapID);
+            }
+        }
+        else if (m_bCompactMemory)
         {
             std::vector<uint32_t> emptyHeaps;
             m_TiledTextureManager->GetEmptyHeaps(emptyHeaps);
@@ -250,12 +259,6 @@ void TextureFeedbackManager::BeginFrame()
                 m_TiledTextureManager->RemoveHeap(heapID);
                 ReleaseHeap(heapID);
             }
-        }
-
-        while (m_NumHeaps < numRequiredHeaps)
-        {
-            const uint32_t heapID = AllocateHeap();
-            m_TiledTextureManager->AddHeap(heapID);
         }
     }
 
@@ -342,8 +345,8 @@ void TextureFeedbackManager::BeginFrame()
             }
         }
     }
-    
-    if (m_bDefragmentTiles)
+
+    if (m_bCompactMemory)
     {
         PROFILE_SCOPED("Defragment Tiles");
 
@@ -353,8 +356,8 @@ void TextureFeedbackManager::BeginFrame()
 
     struct RequestedTile
     {
-        uint32_t m_TextureIdx = UINT_MAX;
-        uint32_t m_TileIndex = UINT_MAX;
+        const uint32_t m_TextureIdx;
+        const uint32_t m_TileIndex;
     };
     std::vector<RequestedTile> requestedTiles;
     std::vector<RequestedTile> requestedPackedTiles;
@@ -362,12 +365,11 @@ void TextureFeedbackManager::BeginFrame()
     // Collect all tiles and store them in the queue
     for (FeedbackTextureUpdate& texUpdate : feedbackTextureUpdates)
     {
-        RequestedTile reqTile;
-        reqTile.m_TextureIdx = texUpdate.m_TextureIdx;
         for (uint32_t i = 0; i < texUpdate.m_TileIndices.size(); i++)
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
-            reqTile.m_TileIndex = texUpdate.m_TileIndices[i];
+            const RequestedTile reqTile{ texUpdate.m_TextureIdx, texUpdate.m_TileIndices[i] };
+            
             if (texture.IsTilePacked(reqTile.m_TileIndex))
             {
                 requestedPackedTiles.push_back(reqTile);
@@ -412,11 +414,14 @@ void TextureFeedbackManager::BeginFrame()
         ScheduleTileForUpload(packedTile);
     }
 
-    // Upload only countUpload regular tiles
-    // TODO: frame slice this
-    for (const RequestedTile& regularTile : requestedTiles)
+    // Compute how many tiles we will upload this frame
     {
-        ScheduleTileForUpload(regularTile);
+        m_MaxTilesUploadPerFrame = INT_MAX; // TODO: delete this and enable frame slicing
+        const uint32_t countUpload = std::min<uint32_t>(requestedTiles.size(), m_MaxTilesUploadPerFrame);
+        for (uint32_t i = 0; i < countUpload; i++)
+        {
+            ScheduleTileForUpload(requestedTiles[i]);
+        }
     }
 
     {
@@ -425,6 +430,8 @@ void TextureFeedbackManager::BeginFrame()
         for (FeedbackTextureUpdate& texUpdate : tilesThisFrame)
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
+
+            LOG_DEBUG("Updating %d tiles for texture: %s", texUpdate.m_TileIndices.size(), texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
 
             minMipDirtyTextures.insert(texUpdate.m_TextureIdx);
 
@@ -481,13 +488,18 @@ void TextureFeedbackManager::BeginFrame()
             PROFILE_SCOPED("Update Min Mip Textures");
 
             std::vector<uint8_t> minMipData;
-            minMipData.resize(4096);
             for (uint32_t textureIdx : minMipDirtyTextures)
             {
-                Texture& texture = g_Graphic.m_Textures.at(textureIdx);
+                const Texture& texture = g_Graphic.m_Textures.at(textureIdx);
 
+                LOG_DEBUG("Updating MinMip texture for texture: %s", texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
+
+                const nvrhi::TextureDesc& minMipTexDesc = texture.m_MinMipTextureHandle->getDesc();
+
+                minMipData.resize(minMipTexDesc.width * minMipTexDesc.height);
                 m_TiledTextureManager->WriteMinMipData(texture.m_TiledTextureID, minMipData.data());
-                const uint32_t rowPitch = texture.m_MinMipTextureHandle->getDesc().width;
+
+                const uint32_t rowPitch = minMipTexDesc.width;
                 commandList->writeTexture(texture.m_MinMipTextureHandle, 0, 0, minMipData.data(), rowPitch);
             }
         }
