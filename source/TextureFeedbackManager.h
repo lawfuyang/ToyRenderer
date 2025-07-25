@@ -47,7 +47,7 @@ private:
     bool m_bTrimStandyTiles = false; // TODO: enable
     bool m_bFreeEmptyHeaps = false; // TODO: enable
     bool m_bDefragmentTiles = false; // TODO: enable
-    bool m_bOverrideFeedbackData = true;
+    bool m_bOverrideFeedbackData = false;
     int m_OverridenFeedbackMip = 4;
     float m_TileTimeoutSeconds = 1.0f;
     uint32_t m_NumHeaps = 0;
