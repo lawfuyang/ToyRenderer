@@ -202,7 +202,7 @@ float DrawDigit(float2 uv, int digit)
 }
 
 cbuffer g_VisualizeMinMipParametersBuffer : register(b0) { VisualizeMinMipParameters g_VisualizeMinMipParameters; }
-Texture2D g_Input : register(t0);
+Texture2D<uint> g_Input : register(t0);
 sampler g_LinearClampSampler : register(s0);
 
 void PS_VisualizeMinMip(
@@ -223,13 +223,12 @@ void PS_VisualizeMinMip(
         { 0.5f, 0.0f, 1.0f }  // Mip 7 - Purple
     };
 
-    float minMipData = g_Input.Sample(g_LinearClampSampler, inUV).r;
-    uint mip = min(7, (uint)(minMipData));
+    uint minMip = g_Input.Sample(g_LinearClampSampler, inUV);
     float2 tileUV = frac(inUV * g_VisualizeMinMipParameters.m_TextureDimensions);
 
     if (g_VisualizeMinMipParameters.m_bVisualizeWithColorOnly)
     {
-        outColor = float4(kMipColors[mip], 1.0f);
+        outColor = float4(kMipColors[minMip], 1.0f);
 
         if (tileUV.x > 0.9 || tileUV.x < 0.1 || tileUV.y > 0.9 || tileUV.y < 0.1)
         {
@@ -238,8 +237,8 @@ void PS_VisualizeMinMip(
     }
     else
     {
-        float SDF = DrawDigit(tileUV, mip);
-        outColor.rgb = SDF.xxx * kMipColors[mip];
+        float SDF = DrawDigit(tileUV, minMip);
+        outColor.rgb = SDF.xxx * kMipColors[minMip];
         outColor.a = 1.0f;
     }
 }

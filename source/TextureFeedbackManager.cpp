@@ -482,29 +482,13 @@ void TextureFeedbackManager::BeginFrame()
 
             std::vector<uint8_t> minMipData;
             minMipData.resize(4096);
-            std::vector<uint8_t> uploadData;
-            uploadData.resize(4096 * 4); // 4096 is the size of the min mip texture, 4 bytes per pixel (R32_FLOAT)
             for (uint32_t textureIdx : minMipDirtyTextures)
             {
                 Texture& texture = g_Graphic.m_Textures.at(textureIdx);
 
                 m_TiledTextureManager->WriteMinMipData(texture.m_TiledTextureID, minMipData.data());
-                const rtxts::TextureDesc desc = m_TiledTextureManager->GetTextureDesc(texture.m_TiledTextureID, rtxts::TextureTypes::eMinMipTexture);
-                const uint32_t rowPitch = (desc.textureOrMipRegionWidth * sizeof(float) + 0xFF) & ~0xFF;
-
-                uint8_t* pUploadData = uploadData.data();
-                for (uint32_t y = 0; y < desc.textureOrMipRegionHeight; ++y)
-                {
-                    float* pDataFloat = reinterpret_cast<float*>(pUploadData);
-                    for (uint32_t x = 0; x < desc.textureOrMipRegionWidth; ++x)
-                    {
-                        pDataFloat[x] = minMipData[y * desc.textureOrMipRegionWidth + x];
-                    }
-
-                    pUploadData += rowPitch;
-                }
-
-                commandList->writeTexture(texture.m_MinMipTextureHandle, 0, 0, uploadData.data(), rowPitch);
+                const uint32_t rowPitch = texture.m_MinMipTextureHandle->getDesc().width;
+                commandList->writeTexture(texture.m_MinMipTextureHandle, 0, 0, minMipData.data(), rowPitch);
             }
         }
     }

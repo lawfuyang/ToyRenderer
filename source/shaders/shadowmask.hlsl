@@ -18,8 +18,8 @@ StructuredBuffer<MeshData> g_MeshDataBuffer : register(t7);
 Texture2D g_BlueNoise : register(t8);
 RWTexture2D<float> g_ShadowDataOutput : register(u0);
 RWTexture2D<float> g_LinearViewDepthOutput : register(u1);
-sampler g_AnisotropicClampSampler : register(s0);
-sampler g_AnisotropicWrapSampler : register(s1);
+SamplerState g_AnisotropicClampSampler : register(s0);
+SamplerState g_AnisotropicWrapSampler : register(s1);
 
 float2x3 CreateTangentVectors(float3 normal)
 {

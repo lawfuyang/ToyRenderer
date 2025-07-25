@@ -16,9 +16,9 @@ StructuredBuffer<MaterialData> g_MaterialDataBuffer : register(t7);
 StructuredBuffer<uint> g_GlobalIndexIDsBuffer : register(t8);
 StructuredBuffer<MeshData> g_MeshDataBuffer : register(t9);
 RWTexture2DArray<float4> g_OutRayData : register(u0);
-sampler g_AnisotropicClampSampler : register(s0);
-sampler g_AnisotropicWrapSampler : register(s1);
-sampler g_LinearWrapSampler : register(s2);
+SamplerState g_AnisotropicClampSampler : register(s0);
+SamplerState g_AnisotropicWrapSampler : register(s1);
+SamplerState g_LinearWrapSampler : register(s2);
 
 [numthreads(kNumThreadsPerWave, 1, 1)]
 void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)

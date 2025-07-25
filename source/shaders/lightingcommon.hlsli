@@ -204,10 +204,10 @@ struct SampleMaterialValueArguments
     float2 m_TexCoord;
     uint m_MaterialFlag; // preferably compile-time const
     MaterialData m_MaterialData;
-    sampler m_AnisotropicClampSampler;
-    sampler m_AnisotropicWrapSampler;
-    sampler m_AnisotropicClampMaxReductionSampler;
-    sampler m_AnisotropicWrapMaxReductionSampler;
+    SamplerState m_AnisotropicClampSampler;
+    SamplerState m_AnisotropicWrapSampler;
+    SamplerState m_AnisotropicClampMaxReductionSampler;
+    SamplerState m_AnisotropicWrapMaxReductionSampler;
     float4 m_DefaultValue; // preferably compile-time const
     float m_OveriddenSampleLevel; // preferably compile-time const. Set to a negative value to use hardware mip level
     bool m_bEnableSamplerFeedback; // 100% must be compile-time const (only from non-compute shaders)
@@ -252,7 +252,31 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
     Texture2D materialTexture = ResourceDescriptorHeap[texIdx];
 
     uint bIsWrapSampler = textureSamplerAndDescriptorIndex >> 31;
-    sampler materialSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapSampler, inArgs.m_AnisotropicClampSampler);
+    SamplerState materialSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapSampler, inArgs.m_AnisotropicClampSampler);
+
+    float4 value;
+        
+    // TODO: use 'SampleGrad' for appropriate mip level
+    if (overridenSampleLevel >= 0.0f)
+    {
+        value = materialTexture.SampleLevel(materialSampler, texCoord, overridenSampleLevel);
+    }
+    else
+    {
+        float mipClamp = 0;
+
+        uint minMipTextureDescriptorIndex = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex >> 16);
+        if (minMipTextureDescriptorIndex != 0xFFFF)
+        {
+            Texture2D<uint> minMipTexture = ResourceDescriptorHeap[minMipTextureDescriptorIndex];
+
+            SamplerState minMipSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
+            mipClamp = minMipTexture.Sample(minMipSampler, texCoord);
+        }
+
+        const int2 offsetZero = int2(0, 0);
+        value = materialTexture.Sample(materialSampler, texCoord, offsetZero, mipClamp);
+    }
 
     // TODO: frame slice this according to the feedback manager
     if (inArgs.m_bEnableSamplerFeedback)
@@ -264,28 +288,8 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
             feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, texCoord);
         }
     }
-        
-    // TODO: use 'SampleGrad' for appropriate mip level
-    if (overridenSampleLevel >= 0.0f)
-    {
-        return materialTexture.SampleLevel(materialSampler, texCoord, overridenSampleLevel);
-    }
-    else
-    {
-        float mipClamp = 0;
 
-        uint minMipTextureDescriptorIndex = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex >> 16);
-        if (minMipTextureDescriptorIndex != 0xFFFF)
-        {
-            Texture2D<float> minMipTexture = ResourceDescriptorHeap[minMipTextureDescriptorIndex];
-
-            sampler minMipSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
-            mipClamp = minMipTexture.Sample(minMipSampler, texCoord);
-        }
-
-        const int2 offsetZero = int2(0, 0);
-        return materialTexture.Sample(materialSampler, texCoord, offsetZero, mipClamp);
-    }
+    return value;
 }
 
 struct GetCommonGBufferParamsArguments
@@ -294,10 +298,10 @@ struct GetCommonGBufferParamsArguments
     float3 m_WorldPosition;
     float3 m_Normal;
     MaterialData m_MaterialData;
-    sampler m_AnisotropicClampSampler;
-    sampler m_AnisotropicWrapSampler;
-    sampler m_AnisotropicClampMaxReductionSampler;
-    sampler m_AnisotropicWrapMaxReductionSampler;
+    SamplerState m_AnisotropicClampSampler;
+    SamplerState m_AnisotropicWrapSampler;
+    SamplerState m_AnisotropicClampMaxReductionSampler;
+    SamplerState m_AnisotropicWrapMaxReductionSampler;
     bool m_bEnableSamplerFeedback;
 };
 

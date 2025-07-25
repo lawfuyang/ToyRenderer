@@ -17,10 +17,10 @@ StructuredBuffer<uint> g_MeshletVertexIDsBuffer : register(t5);
 StructuredBuffer<uint> g_MeshletIndexIDsBuffer : register(t6);
 StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : register(t7);
 Texture2D g_HZB : register(t8);
-sampler g_AnisotropicClampSampler : register(s0);
-sampler g_AnisotropicWrapSampler : register(s1);
-sampler g_AnisotropicClampMaxReductionSampler : register(s2);
-sampler g_AnisotropicWrapMaxReductionSampler : register(s3);
+SamplerState g_AnisotropicClampSampler : register(s0);
+SamplerState g_AnisotropicWrapSampler : register(s1);
+SamplerState g_AnisotropicClampMaxReductionSampler : register(s2);
+SamplerState g_AnisotropicWrapMaxReductionSampler : register(s3);
 SamplerState g_LinearClampMinReductionSampler : register(s4);
 
 struct VertexOut
