@@ -114,6 +114,7 @@ void Engine::Initialize(int argc, char** argv)
 
     uint32_t nbWorkerThreads = g_MaxWorkerThreads.Get();
     nbWorkerThreads = nbWorkerThreads == 0 ? std::thread::hardware_concurrency() : nbWorkerThreads;
+    nbWorkerThreads = std::min<uint32_t>(MICROPROFILE_MAX_THREADS - 1, nbWorkerThreads);
 
     // create threadpool executor
     m_Executor = std::make_shared<tf::Executor>(nbWorkerThreads);

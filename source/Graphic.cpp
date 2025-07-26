@@ -99,8 +99,6 @@ void Graphic::InitDevice()
     {
         m_FrameTimerQuery[i] = m_NVRHIDevice->createTimerQuery();
     }
-
-    m_GPUThreadLogs.reserve(g_Engine.m_Executor->num_workers() + 1); // +1 because main thread is index 0
 }
 
 void Graphic::InitShaders()
@@ -564,6 +562,12 @@ void Graphic::FreeCommandList(nvrhi::CommandListHandle cmdList)
     m_FreeCommandLists[(uint32_t)cmdList->getDesc().queueType].push_back(cmdList);
 }
 
+MicroProfileThreadLogGpu*& Graphic::GetGPULogForCurrentThread()
+{
+    thread_local MicroProfileThreadLogGpu* tl_GPULog = nullptr;
+    return tl_GPULog;
+}
+
 void Graphic::BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_view name)
 {
     PROFILE_FUNCTION();
@@ -572,24 +576,20 @@ void Graphic::BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_vie
 
     m_GraphicRHI->SetRHIObjectDebugName(cmdList, name);
 
-    MicroProfileThreadLogGpu*& gpuLog = m_GPUThreadLogs[std::this_thread::get_id()];
-
-    // create gpu log on first use
-    if (!gpuLog)
+    if (!GetGPULogForCurrentThread())
     {
-		LOG_DEBUG("Init GPU Thread Log for Thread: %d", std::this_thread::get_id());
-        gpuLog = MicroProfileThreadLogGpuAlloc();
+        GetGPULogForCurrentThread() = MicroProfileThreadLogGpuAlloc();
     }
 
-    MicroProfileGpuBegin(m_GraphicRHI->GetNativeCommandList(cmdList), gpuLog);
+    MicroProfileGpuBegin(m_GraphicRHI->GetNativeCommandList(cmdList), GetGPULogForCurrentThread());
 }
 
 void Graphic::EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist)
 {
     PROFILE_FUNCTION();
 
-    const uint64_t GPULog = MicroProfileGpuEnd(m_GPUThreadLogs.at(std::this_thread::get_id()));
-    cmdList->m_GPULog = GPULog;
+    assert(GetGPULogForCurrentThread());
+    cmdList->m_GPULog = MicroProfileGpuEnd(GetGPULogForCurrentThread());
 
     cmdList->close();
 
@@ -814,11 +814,6 @@ void Graphic::ExecuteAllCommandLists()
         }
 
         m_PendingCommandLists.clear();
-    }
-
-    for (const auto& [threadID, log] : m_GPUThreadLogs)
-    {
-        MicroProfileThreadLogGpuReset(log);
     }
 }
 

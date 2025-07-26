@@ -79,6 +79,8 @@ public:
     void ExecuteAllCommandLists();
     void QueueCommandList(nvrhi::CommandListHandle commandList) { AUTO_LOCK(m_PendingCommandListsLock); m_PendingCommandLists.push_back(commandList); }
 
+    static MicroProfileThreadLogGpu*& GetGPULogForCurrentThread();
+
     struct AddPassParamsCommon
     {
         nvrhi::CommandListHandle m_CommandList;
@@ -142,8 +144,6 @@ public:
     uint32_t m_FrameCounter = 0;
     bool m_bTriggerReloadShaders = false;
 
-    std::unordered_map<std::thread::id, MicroProfileThreadLogGpu*> m_GPUThreadLogs;
-
     std::vector<nvrhi::CommandListHandle> m_AllCommandLists[(uint32_t)nvrhi::CommandQueue::Count];
     std::deque<nvrhi::CommandListHandle> m_FreeCommandLists[(uint32_t)nvrhi::CommandQueue::Count];
     std::mutex m_FreeCommandListsLock;
@@ -153,8 +153,6 @@ public:
     Timer m_GraphicTimer;
 
 private:
-    bool m_bTearingSupported = false;
-    
     std::unordered_map<size_t, nvrhi::ShaderHandle> m_AllShaders;
     std::unordered_map<size_t, nvrhi::GraphicsPipelineHandle> m_CachedGraphicPSOs;
     std::unordered_map<size_t, nvrhi::MeshletPipelineHandle> m_CachedMeshletPSOs;
@@ -232,7 +230,7 @@ constexpr uint32_t ComputeNbMips(uint32_t width, uint32_t height)
 #define PROFILE_GPU_SCOPED(cmdList, NAME) \
     nvrhi::utils::ScopedMarker GENERATE_UNIQUE_VARIABLE(nvrhi_utils_ScopedMarker){ cmdList, NAME }; \
     MicroProfileToken MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__) = MicroProfileGetToken("GPU", NAME, (uint32_t)std::hash<std::string_view>{}(NAME), MicroProfileTokenTypeGpu, 0); \
-    MicroProfileScopeGpuHandler GENERATE_UNIQUE_VARIABLE(MicroProfileScopeGpuHandler){ MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__), g_Graphic.m_GPUThreadLogs.at(std::this_thread::get_id()) };
+    MicroProfileScopeGpuHandler GENERATE_UNIQUE_VARIABLE(MicroProfileScopeGpuHandler){ MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__), Graphic::GetGPULogForCurrentThread() };
 
 #define SCOPED_COMMAND_LIST(commandList, NAME) \
     ScopedCommandList GENERATE_UNIQUE_VARIABLE(scopedCommandList){ commandList, NAME, false /*bAutoQueue*/ }; \
