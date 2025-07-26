@@ -1111,6 +1111,8 @@ struct GLTFSceneLoader
             return;
         }
 
+        PROFILE_FUNCTION();
+
         ScopedFile cachedDataFile{ m_CachedDataFilePath, "wb" };
 
         CachedData::Header header;
