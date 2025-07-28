@@ -211,40 +211,53 @@ struct SampleMaterialValueArguments
     float4 m_DefaultValue; // preferably compile-time const
     float m_OveriddenSampleLevel; // preferably compile-time const. Set to a negative value to use hardware mip level
     bool m_bEnableSamplerFeedback; // 100% must be compile-time const (only from non-compute shaders)
+    bool m_bUseSampleGrad; // generally used in RT Shaders
+    float2 m_SampleGradDDX;
+    float2 m_SampleGradDDY;
 };
+
+SampleMaterialValueArguments CreateDefaultSampleMaterialValueArguments()
+{
+    SampleMaterialValueArguments args;
+
+    args.m_TexCoord = float2(0.0f, 0.0f);
+    args.m_MaterialFlag = 0;
+    args.m_DefaultValue = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    args.m_OveriddenSampleLevel = -1.0f;
+    args.m_bEnableSamplerFeedback = false;
+    args.m_bUseSampleGrad = false;
+    args.m_SampleGradDDX = float2(0.0f, 0.0f);
+    args.m_SampleGradDDY = float2(0.0f, 0.0f);
+
+    return args;
+}
 
 float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
 {
-    float2 texCoord = inArgs.m_TexCoord;
-    uint materialFlag = inArgs.m_MaterialFlag;
-    MaterialData materialData = inArgs.m_MaterialData;
-    float4 defaultValue = inArgs.m_DefaultValue;
-    float overridenSampleLevel = inArgs.m_OveriddenSampleLevel;
-    
-    if (!(materialData.m_MaterialFlags & materialFlag))
+    if (!(inArgs.m_MaterialData.m_MaterialFlags & inArgs.m_MaterialFlag))
     {
-        return defaultValue;
+        return inArgs.m_DefaultValue;
     }
     
     uint textureSamplerAndDescriptorIndex = 0xFFFFFFFF;
     uint feedbackAndMinMiptextureDescriptorIndex = 0xFFFFFFFF;
-    switch (materialFlag)
+    switch (inArgs.m_MaterialFlag)
     {
         case MaterialFlag_UseDiffuseTexture:
-            textureSamplerAndDescriptorIndex = materialData.m_AlbedoTextureSamplerAndDescriptorIndex;
-            feedbackAndMinMiptextureDescriptorIndex = materialData.m_AlbedoFeedbackAndMinMapTexturesDescriptorIndex;
+            textureSamplerAndDescriptorIndex = inArgs.m_MaterialData.m_AlbedoTextureSamplerAndDescriptorIndex;
+            feedbackAndMinMiptextureDescriptorIndex = inArgs.m_MaterialData.m_AlbedoFeedbackAndMinMapTexturesDescriptorIndex;
             break;
         case MaterialFlag_UseNormalTexture:
-            textureSamplerAndDescriptorIndex = materialData.m_NormalTextureSamplerAndDescriptorIndex;
-            feedbackAndMinMiptextureDescriptorIndex = materialData.m_NormalFeedbackAndMinMapTexturesDescriptorIndex;
+            textureSamplerAndDescriptorIndex = inArgs.m_MaterialData.m_NormalTextureSamplerAndDescriptorIndex;
+            feedbackAndMinMiptextureDescriptorIndex = inArgs.m_MaterialData.m_NormalFeedbackAndMinMapTexturesDescriptorIndex;
             break;
         case MaterialFlag_UseMetallicRoughnessTexture:
-            textureSamplerAndDescriptorIndex = materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex;
-            feedbackAndMinMiptextureDescriptorIndex = materialData.m_MetallicRoughnessFeedbackAndMinMapTexturesDescriptorIndex;
+            textureSamplerAndDescriptorIndex = inArgs.m_MaterialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex;
+            feedbackAndMinMiptextureDescriptorIndex = inArgs.m_MaterialData.m_MetallicRoughnessFeedbackAndMinMapTexturesDescriptorIndex;
             break;
         case MaterialFlag_UseEmissiveTexture:
-            textureSamplerAndDescriptorIndex = materialData.m_EmissiveTextureSamplerAndDescriptorIndex;
-            feedbackAndMinMiptextureDescriptorIndex = materialData.m_EmissiveFeedbackAndMinMapTexturesDescriptorIndex;
+            textureSamplerAndDescriptorIndex = inArgs.m_MaterialData.m_EmissiveTextureSamplerAndDescriptorIndex;
+            feedbackAndMinMiptextureDescriptorIndex = inArgs.m_MaterialData.m_EmissiveFeedbackAndMinMapTexturesDescriptorIndex;
             break;
     }
         
@@ -264,14 +277,24 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
     float4 value;
         
     // TODO: use 'SampleGrad' for appropriate mip level
-    if (overridenSampleLevel >= 0.0f)
+    if (inArgs.m_OveriddenSampleLevel >= 0.0f)
     {
-        value = materialTexture.SampleLevel(materialSampler, texCoord, overridenSampleLevel);
+        value = materialTexture.SampleLevel(materialSampler, inArgs.m_TexCoord, inArgs.m_OveriddenSampleLevel);
 
         if (feedbackTextureIdx != 0xFFFF)
         {
             FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
-            feedbackTexture.WriteSamplerFeedbackLevel(materialTexture, materialSampler, texCoord, overridenSampleLevel);
+            feedbackTexture.WriteSamplerFeedbackLevel(materialTexture, materialSampler, inArgs.m_TexCoord, inArgs.m_OveriddenSampleLevel);
+        }
+    }
+    else if (inArgs.m_bUseSampleGrad)
+    {
+        value = materialTexture.SampleGrad(materialSampler, inArgs.m_TexCoord, inArgs.m_SampleGradDDX, inArgs.m_SampleGradDDY);
+
+        if (feedbackTextureIdx != 0xFFFF)
+        {
+            FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
+            feedbackTexture.WriteSamplerFeedbackGrad(materialTexture, materialSampler, inArgs.m_TexCoord, inArgs.m_SampleGradDDX, inArgs.m_SampleGradDDY);
         }
     }
     else
@@ -284,16 +307,16 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
             Texture2D<uint> minMipTexture = ResourceDescriptorHeap[minMipTextureDescriptorIndex];
 
             SamplerState minMipSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
-            mipClamp = minMipTexture.Sample(minMipSampler, texCoord);
+            mipClamp = minMipTexture.SampleLevel(minMipSampler, inArgs.m_TexCoord, 0);
         }
 
         const int2 offsetZero = int2(0, 0);
-        value = materialTexture.Sample(materialSampler, texCoord, offsetZero, mipClamp);
+        value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, offsetZero, mipClamp);
 
         if (feedbackTextureIdx != 0xFFFF)
         {
             FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
-            feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, texCoord);
+            feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, inArgs.m_TexCoord);
         }
     }
 
@@ -315,28 +338,22 @@ struct GetCommonGBufferParamsArguments
 
 GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs)
 {
-    float2 texCoord = inArgs.m_TexCoord;
-    float3 worldPosition = inArgs.m_WorldPosition;
-    float3 normal = inArgs.m_Normal;
-    MaterialData materialData = inArgs.m_MaterialData;
-
     GBufferParams result = (GBufferParams) 0;
     
-    SampleMaterialValueArguments sampleArgs;
-    sampleArgs.m_TexCoord = texCoord;
-    sampleArgs.m_MaterialData = materialData;
+    SampleMaterialValueArguments sampleArgs = CreateDefaultSampleMaterialValueArguments();
+    sampleArgs.m_TexCoord = inArgs.m_TexCoord;
+    sampleArgs.m_MaterialData = inArgs.m_MaterialData;
     sampleArgs.m_AnisotropicClampSampler = inArgs.m_AnisotropicClampSampler;
     sampleArgs.m_AnisotropicWrapSampler = inArgs.m_AnisotropicWrapSampler;
     sampleArgs.m_AnisotropicClampMaxReductionSampler = inArgs.m_AnisotropicClampMaxReductionSampler;
     sampleArgs.m_AnisotropicWrapMaxReductionSampler = inArgs.m_AnisotropicWrapMaxReductionSampler;
-    sampleArgs.m_OveriddenSampleLevel = -1.0f;
     sampleArgs.m_bEnableSamplerFeedback = inArgs.m_bEnableSamplerFeedback;
     
     sampleArgs.m_MaterialFlag = MaterialFlag_UseDiffuseTexture;
     sampleArgs.m_DefaultValue = float4(1, 1, 1, 1);
     float4 albedoSample = SampleMaterialValue(sampleArgs);
-    result.m_Albedo = materialData.m_ConstAlbedo * albedoSample;
-    
+    result.m_Albedo = inArgs.m_MaterialData.m_ConstAlbedo * albedoSample;
+
     sampleArgs.m_MaterialFlag = MaterialFlag_UseNormalTexture;
     sampleArgs.m_DefaultValue = float4(0.5f, 0.5f, 1.0f, 0.0f);
     float4 normalSample = SampleMaterialValue(sampleArgs);
@@ -351,18 +368,18 @@ GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs)
     
     result.m_Roughness = metalRoughnessSample.g;
     result.m_Metallic = metalRoughnessSample.b;
-    result.m_Emissive = materialData.m_ConstEmissive * emissiveSample.rgb;
-    
-    result.m_Normal = normal;
-    if (materialData.m_MaterialFlags & MaterialFlag_UseNormalTexture)
+    result.m_Emissive = inArgs.m_MaterialData.m_ConstEmissive * emissiveSample.rgb;
+
+    result.m_Normal = inArgs.m_Normal;
+    if (inArgs.m_MaterialData.m_MaterialFlags & MaterialFlag_UseNormalTexture)
     {
         float3 unpackedNormal = TwoChannelNormalX2(normalSample.xy);
-        float3x3 TBN = CalculateTBNWithoutTangent(worldPosition, normal, texCoord);
+        float3x3 TBN = CalculateTBNWithoutTangent(inArgs.m_WorldPosition, inArgs.m_Normal, inArgs.m_TexCoord);
         result.m_Normal = normalize(mul(unpackedNormal, TBN));
     }
-    
-    result.m_AlphaCutoff = materialData.m_AlphaCutoff;
-    
+
+    result.m_AlphaCutoff = inArgs.m_MaterialData.m_AlphaCutoff;
+
     return result;
 }
 

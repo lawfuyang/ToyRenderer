@@ -144,47 +144,37 @@ struct GetRayHitInstanceGBufferParamsArguments
     StructuredBuffer<MeshData> m_MeshDataBuffer;
     StructuredBuffer<uint> m_GlobalIndexIDsBuffer;
     StructuredBuffer<RawVertexFormat> m_GlobalVertexBuffer;
-    sampler m_AnisotropicWrapSampler;
-    sampler m_AnisotropicClampSampler;
+    SamplerState m_AnisotropicWrapSampler;
+    SamplerState m_AnisotropicClampSampler;
 };
 
 GBufferParams GetRayHitInstanceGBufferParams(GetRayHitInstanceGBufferParamsArguments inArgs, out float3 rayHitWorldPosition)
 {
-    uint instanceID = inArgs.m_InstanceID;
-    uint primitiveIndex = inArgs.m_PrimitiveIndex;
-    float2 attribBarycentrics = inArgs.m_AttribBarycentrics;
-    float3x4 objectToWorld3x4 = inArgs.m_ObjectToWorld3x4;
-    StructuredBuffer<BasePassInstanceConstants> basePassInstanceConstantsBuffer = inArgs.m_BasePassInstanceConstantsBuffer;
-    StructuredBuffer<MaterialData> materialDataBuffer = inArgs.m_MaterialDataBuffer;
-    StructuredBuffer<MeshData> meshDataBuffer = inArgs.m_MeshDataBuffer;
-    StructuredBuffer<uint> globalIndexIDsBuffer = inArgs.m_GlobalIndexIDsBuffer;
-    StructuredBuffer<RawVertexFormat> globalVertexBuffer = inArgs.m_GlobalVertexBuffer;
-    
-    BasePassInstanceConstants instanceConsts = basePassInstanceConstantsBuffer[instanceID];
-    MaterialData materialData = materialDataBuffer[instanceConsts.m_MaterialDataIdx];
-    
+    BasePassInstanceConstants instanceConsts = inArgs.m_BasePassInstanceConstantsBuffer[inArgs.m_InstanceID];
+    MaterialData materialData = inArgs.m_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
+
     // TODO: pick appropriate mesh LOD?
-    MeshData meshData = meshDataBuffer[instanceConsts.m_MeshDataIdx];
-        
+    MeshData meshData = inArgs.m_MeshDataBuffer[instanceConsts.m_MeshDataIdx];
+
     uint indices[3] =
     {
-        globalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 0],
-        globalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 1],
-        globalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + primitiveIndex * 3 + 2],
+        inArgs.m_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + inArgs.m_PrimitiveIndex * 3 + 0],
+        inArgs.m_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + inArgs.m_PrimitiveIndex * 3 + 1],
+        inArgs.m_GlobalIndexIDsBuffer[meshData.m_GlobalIndexBufferIdx + inArgs.m_PrimitiveIndex * 3 + 2],
     };
     
     RawVertexFormat vertices[3] =
     {
-        globalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[0]],
-        globalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[1]],
-        globalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[2]],
+        inArgs.m_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[0]],
+        inArgs.m_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[1]],
+        inArgs.m_GlobalVertexBuffer[meshData.m_GlobalVertexBufferIdx + indices[2]],
     };
     
-    float3 barycentrics = { (1.0f - attribBarycentrics.x - attribBarycentrics.y), attribBarycentrics.x, attribBarycentrics.y };
+    float3 barycentrics = { (1.0f - inArgs.m_AttribBarycentrics.x - inArgs.m_AttribBarycentrics.y), inArgs.m_AttribBarycentrics.x, inArgs.m_AttribBarycentrics.y };
     UncompressedRawVertexFormat v = InterpolateVertex(vertices, barycentrics);
-    
-    rayHitWorldPosition = mul(objectToWorld3x4, float4(v.m_Position, 1.0f)).xyz;
-    
+
+    rayHitWorldPosition = mul(inArgs.m_ObjectToWorld3x4, float4(v.m_Position, 1.0f)).xyz;
+
     GetCommonGBufferParamsArguments getCommonGBufferParamsArguments;
     getCommonGBufferParamsArguments.m_TexCoord = v.m_TexCoord;
     getCommonGBufferParamsArguments.m_WorldPosition = rayHitWorldPosition;
