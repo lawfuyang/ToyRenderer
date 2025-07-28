@@ -267,52 +267,53 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
     uint bIsWrapSampler = textureSamplerAndDescriptorIndex >> 31;
     SamplerState materialSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapSampler, inArgs.m_AnisotropicClampSampler);
 
-    // TODO: frame slice this according to the feedback manager
     uint feedbackTextureIdx = 0xFFFF;
     if (inArgs.m_bEnableSamplerFeedback)
     {
         feedbackTextureIdx = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex & 0xFFFF);
     }
+    uint minMipTextureIdx = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex >> 16);
 
     float4 value;
-        
-    // TODO: use 'SampleGrad' for appropriate mip level
     if (inArgs.m_OveriddenSampleLevel >= 0.0f)
     {
         value = materialTexture.SampleLevel(materialSampler, inArgs.m_TexCoord, inArgs.m_OveriddenSampleLevel);
-
-        if (feedbackTextureIdx != 0xFFFF)
-        {
-            FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
-            feedbackTexture.WriteSamplerFeedbackLevel(materialTexture, materialSampler, inArgs.m_TexCoord, inArgs.m_OveriddenSampleLevel);
-        }
     }
     else if (inArgs.m_bUseSampleGrad)
     {
         value = materialTexture.SampleGrad(materialSampler, inArgs.m_TexCoord, inArgs.m_SampleGradDDX, inArgs.m_SampleGradDDY);
-
-        if (feedbackTextureIdx != 0xFFFF)
-        {
-            FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
-            feedbackTexture.WriteSamplerFeedbackGrad(materialTexture, materialSampler, inArgs.m_TexCoord, inArgs.m_SampleGradDDX, inArgs.m_SampleGradDDY);
-        }
     }
     else
     {
-        float mipClamp = 0;
-
-        uint minMipTextureDescriptorIndex = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex >> 16);
-        if (minMipTextureDescriptorIndex != 0xFFFF)
+        const int2 kOffsetZero = int2(0, 0);
+        const float kClampZero = 0.0f;
+        uint sampleStatus;
+        value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, kOffsetZero, kClampZero, sampleStatus); // Opportunistic sample
+        if (!CheckAccessFullyMapped(sampleStatus))
         {
-            Texture2D<uint> minMipTexture = ResourceDescriptorHeap[minMipTextureDescriptorIndex];
+            float mipClamp = 0.0f;
+            if (minMipTextureIdx != 0xFFFF)
+            {
+                Texture2D<uint> minMipTexture = ResourceDescriptorHeap[minMipTextureIdx];
 
-            SamplerState minMipSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
-            mipClamp = minMipTexture.SampleLevel(minMipSampler, inArgs.m_TexCoord, 0);
+                SamplerState minMipSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
+                mipClamp = minMipTexture.SampleLevel(minMipSampler, inArgs.m_TexCoord, 0);
+            }
+
+            value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, kOffsetZero, mipClamp);
+
+            const bool kbShowUnmappedRegions = true;
+            if (kbShowUnmappedRegions)
+            {
+                const bool bIsAlbedo = (inArgs.m_MaterialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture) != 0;
+                if (bIsAlbedo)
+                {
+                    value.rgb = float3(1, 0, 0);
+                }
+            }
         }
 
-        const int2 offsetZero = int2(0, 0);
-        value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, offsetZero, mipClamp);
-
+        // TODO: frame slice this according to the feedback manager
         if (feedbackTextureIdx != 0xFFFF)
         {
             FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];

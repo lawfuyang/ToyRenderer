@@ -44,14 +44,13 @@ private:
     std::vector<MipIORequest> m_DeferredTilesToUpload;
     std::mutex m_DeferredTilesToUploadLock;
 
-    bool m_bCompactMemory = false;
-    bool m_bOverrideFeedbackData = false;
-    int m_OverridenFeedbackMip = 4;
-    float m_TileTimeoutSeconds = 1.0f;
+    bool m_bCompactMemory = true;
+    int m_NumExtraStandbyTiles = 0; // TODO: set to default of 1000
+    float m_TileTimeoutSeconds = 0.0f; // TODO: set to 1.0f
+    int m_MaxTilesUploadPerFrame = 256;
     uint32_t m_NumHeaps = 0;
     uint64_t m_HeapAllocationInBytes = 0;
-    int m_MaxTilesUploadPerFrame = 256;
-
+    
     int m_NumFeedbackTexturesToResolvePerFrame = 10;
     uint32_t m_ResolveFeedbackTexturesCounter = 0;
 };

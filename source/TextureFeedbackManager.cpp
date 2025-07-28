@@ -23,13 +23,14 @@ static void UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextur
 
     // Compute pitches and offsets in 4x4 blocks
     // Note: The "tile" being copied here might be smaller than a tiled resource tile, for example non-pow2 textures
-    const uint32_t tileBlocksWidth = tile.m_WidthInTexels / 4;
-    const uint32_t tileBlocksHeight = tile.m_HeightInTexels / 4;
-    const uint32_t shapeBlocksWidth = destTexture.m_TileShape.widthInTexels / 4;
-    const uint32_t shapeBlocksHeight = destTexture.m_TileShape.heightInTexels / 4;
+    const uint32_t blockSize = nvrhi::getFormatInfo(destTexture.m_NVRHITextureHandle->getDesc().format).blockSize;
+    const uint32_t tileBlocksWidth = tile.m_WidthInTexels / blockSize;
+    const uint32_t tileBlocksHeight = tile.m_HeightInTexels / blockSize;
+    const uint32_t shapeBlocksWidth = destTexture.m_TileShape.widthInTexels / blockSize;
+    const uint32_t shapeBlocksHeight = destTexture.m_TileShape.heightInTexels / blockSize;
     const uint32_t bytesPerBlock = g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes() / (shapeBlocksWidth * shapeBlocksHeight);
-    const uint32_t sourceBlockX = tile.m_XInTexels / 4;
-    const uint32_t sourceBlockY = tile.m_YInTexels / 4;
+    const uint32_t sourceBlockX = tile.m_XInTexels / blockSize;
+    const uint32_t sourceBlockY = tile.m_YInTexels / blockSize;
     const uint32_t rowPitchTile = tileBlocksWidth * bytesPerBlock;
 
     assert(rowPitch == rowPitchTile);
@@ -144,20 +145,16 @@ void TextureFeedbackManager::UpdateIMGUI()
 {
     const rtxts::Statistics statistics = m_TiledTextureManager->GetStatistics();
 
+    ImGui::Text("Tiles Total: %u (%.0f MB)", statistics.totalTilesNum, BYTES_TO_MB(statistics.totalTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
+    ImGui::Text("Tiles Allocated: %u (%.0f MB)", statistics.allocatedTilesNum, BYTES_TO_MB(statistics.allocatedTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
+    ImGui::Text("Tiles Standby: %u (%.0f MB)", statistics.standbyTilesNum, BYTES_TO_MB(statistics.standbyTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
     ImGui::Text("Heap allocation: %.2f MB", BYTES_TO_MB(m_HeapAllocationInBytes));
-    ImGui::Text("Total tiles: %u", statistics.totalTilesNum);
-    ImGui::Text("Allocated tiles: %u", statistics.allocatedTilesNum);
-    ImGui::Text("Standby tiles: %u", statistics.standbyTilesNum);
-    ImGui::Text("Free tiles in heaps: %u", statistics.heapFreeTilesNum);
+    ImGui::Text("Heap Free Tiles: %d (%.0f MB)", statistics.heapFreeTilesNum, BYTES_TO_MB(statistics.heapFreeTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
 
+    ImGui::SliderInt("Extra Standby Tiles", &m_NumExtraStandbyTiles, 0, 2000);
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 10, g_Graphic.m_Textures.size());
     ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 16, 1024);
-    ImGui::SliderFloat("Tile Timeout (seconds)", &m_TileTimeoutSeconds, 0.1f, 5.0f);
-    ImGui::Checkbox("Override Feedback Data", &m_bOverrideFeedbackData);
-    if (m_bOverrideFeedbackData)
-    {
-        ImGui::SliderInt("Overridden Mip Level", &m_OverridenFeedbackMip, 0, 16);
-    }
+    ImGui::SliderFloat("Tile Timeout (seconds)", &m_TileTimeoutSeconds, 0.0f, 3.0f);
     ImGui::Checkbox("Compact Memory", &m_bCompactMemory);
 }
 
@@ -175,37 +172,26 @@ void TextureFeedbackManager::BeginFrame()
 
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
+    m_TiledTextureManager->SetConfig(rtxts::TiledTextureManagerConfig{ (uint32_t)m_NumExtraStandbyTiles });
+
     // Begin frame, readback feedback
+    std::vector<uint32_t>& texturesToReadback = m_TexturesToReadback[g_Graphic.m_FrameCounter % 2];
+    for (uint32_t textureIdx : texturesToReadback)
     {
-        std::vector<uint8_t> feedbackData;
-        for (uint32_t textureIdx : m_TexturesToReadback[g_Graphic.m_FrameCounter % 2])
-        {
-            Texture& texture = g_Graphic.m_Textures.at(textureIdx);
-            nvrhi::BufferHandle resolveBuffer = texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2];
-            feedbackData.resize(resolveBuffer->getDesc().byteSize);
+        Texture& texture = g_Graphic.m_Textures.at(textureIdx);
+        nvrhi::BufferHandle resolveBuffer = texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2];
 
-            rtxts::SamplerFeedbackDesc samplerFeedbackDesc;
-            if (m_bOverrideFeedbackData)
-            {
-                for (uint8_t& value : feedbackData)
-                {
-                    value = std::min<uint8_t>(m_OverridenFeedbackMip, texture.m_NVRHITextureHandle->getDesc().mipLevels);
-                }
-            }
-            else
-            {
-                void* pReadbackData = device->mapBuffer(resolveBuffer, nvrhi::CpuAccessMode::Read);
-                memcpy(feedbackData.data(), pReadbackData, feedbackData.size());
-                device->unmapBuffer(resolveBuffer);
-            }
-            samplerFeedbackDesc.pMinMipData = feedbackData.data();
+        void* pReadbackData = device->mapBuffer(resolveBuffer, nvrhi::CpuAccessMode::Read);
 
-            m_TiledTextureManager->UpdateWithSamplerFeedback(texture.m_TiledTextureID, samplerFeedbackDesc, g_Graphic.m_GraphicTimer.GetElapsedSeconds(), m_TileTimeoutSeconds);
+        rtxts::SamplerFeedbackDesc samplerFeedbackDesc;
+        samplerFeedbackDesc.pMinMipData = (uint8_t*)pReadbackData;
+        m_TiledTextureManager->UpdateWithSamplerFeedback(texture.m_TiledTextureID, samplerFeedbackDesc, g_Graphic.m_GraphicTimer.GetElapsedSeconds(), m_TileTimeoutSeconds);
 
-            // TODO: call 'MatchPrimaryTexture' if necessary, whatever it means?
-        }
+        device->unmapBuffer(resolveBuffer);
+
+        // TODO: call 'MatchPrimaryTexture' if necessary, whatever it means?
     }
-    m_TexturesToReadback[g_Graphic.m_FrameCounter % 2].clear();
+    texturesToReadback.clear();
 
     // TODO: delete this & enable frame slicing
     m_NumFeedbackTexturesToResolvePerFrame = g_Graphic.m_Textures.size();
@@ -225,8 +211,8 @@ void TextureFeedbackManager::BeginFrame()
 
             if (texture.m_TiledTextureID != UINT_MAX)
             {
-                //commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
-                m_TexturesToReadback[g_Graphic.m_FrameCounter % 2].push_back(textureIdx);
+                commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
+                texturesToReadback.push_back(textureIdx);
             }
         }
     }

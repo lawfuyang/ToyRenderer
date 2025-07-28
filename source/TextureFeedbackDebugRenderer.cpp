@@ -46,7 +46,12 @@ public:
 
         ImGui::Checkbox("Visualize Streaming States", &m_bVisualizeStreamingStates);
         ImGui::Combo("Debug Mode", reinterpret_cast<int*>(&m_DebugMode), "Texture Mips\0Feedback and Min Mip\0");
-        ImGui::Checkbox("Visualize with Color Only", &m_bVisualizeWithColorOnly);
+
+        if (m_DebugMode == DebugMode::FeedbackAndMinMip)
+        {
+            ImGui::Checkbox("Visualize with Color Only", &m_bVisualizeWithColorOnly);
+        }
+        
         ImGui::SliderFloat("Zoom Level", &m_ZoomLevel, 100.0f, 1000.0f);
     }
 
