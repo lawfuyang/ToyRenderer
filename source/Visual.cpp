@@ -36,6 +36,12 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
 
     commandList->setPermanentTextureState(m_NVRHITextureHandle, textureDesc.isUAV ? nvrhi::ResourceStates::UnorderedAccess : nvrhi::ResourceStates::ShaderResource);
     commandList->commitBarriers();
+
+    m_MinMipTextureHandle = g_CommonResources.DummyMinMipTexture;
+    m_SamplerFeedbackTextureHandle = g_CommonResources.DummySamplerFeedbackTexture;
+
+    m_MinMipIndexInTable = g_CommonResources.DummyMinMipIndexInTable;
+    m_SamplerFeedbackIndexInTable = g_CommonResources.DummySamplerFeedbackIndexInTable;
 }
 
 void Texture::LoadFromFile(std::string_view filePath)

@@ -502,10 +502,10 @@ struct GLTFSceneLoader
                     assert(tex.m_MinMipTextureHandle);
 
                     feedbackSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
-                    assert(feedbackSRVIndexInHeap <= UINT16_MAX);
+                    assert(feedbackSRVIndexInHeap < UINT16_MAX);
 
                     minMipSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_MinMipIndexInTable);
-                    assert(minMipSRVIndexInHeap <= UINT16_MAX);
+                    assert(minMipSRVIndexInHeap < UINT16_MAX);
                 }
 
                 // need to fit srv index in bottom 30 bits of the packed value
