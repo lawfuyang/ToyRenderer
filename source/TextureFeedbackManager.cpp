@@ -168,7 +168,7 @@ void TextureFeedbackManager::BeginFrame()
     PROFILE_FUNCTION();
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
+    g_Graphic.BeginCommandList(commandList, __FUNCTION__);
 
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
@@ -276,7 +276,7 @@ void TextureFeedbackManager::BeginFrame()
 
         if (!tilesToUnmap.empty())
         {
-            LOG_DEBUG("Unmapping %u tiles for texture %u", (uint32_t)tilesToUnmap.size(), i);
+            //LOG_DEBUG("Unmapping %u tiles for texture %u", (uint32_t)tilesToUnmap.size(), i);
 
             // TODO: keep track of mapped & unmapped tiles in Texture class, and free the TextureMipData memory when all tiles in mip gets unmapped
             const std::vector<rtxts::TileCoord>& tilesCoordinates = m_TiledTextureManager->GetTileCoordinates(texture.m_TiledTextureID);
@@ -319,7 +319,7 @@ void TextureFeedbackManager::BeginFrame()
 
         if (!tilesToMap.empty())
         {
-            LOG_DEBUG("Mapping %u tiles for texture %u", (uint32_t)tilesToMap.size(), i);
+            //LOG_DEBUG("Mapping %u tiles for texture %u", (uint32_t)tilesToMap.size(), i);
 
             FeedbackTextureUpdate& feedbackTextureUpdate = feedbackTextureUpdates.emplace_back();
 
@@ -417,7 +417,7 @@ void TextureFeedbackManager::BeginFrame()
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
-            LOG_DEBUG("Updating %d tiles for texture: %s", texUpdate.m_TileIndices.size(), texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
+            //LOG_DEBUG("Updating %d tiles for texture: %s", texUpdate.m_TileIndices.size(), texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
 
             minMipDirtyTextures.insert(texUpdate.m_TextureIdx);
 
@@ -478,7 +478,7 @@ void TextureFeedbackManager::BeginFrame()
             {
                 const Texture& texture = g_Graphic.m_Textures.at(textureIdx);
 
-                LOG_DEBUG("Updating MinMip texture for texture: %s", texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
+                //LOG_DEBUG("Updating MinMip texture for texture: %s", texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
 
                 const nvrhi::TextureDesc& minMipTexDesc = texture.m_MinMipTextureHandle->getDesc();
 
@@ -553,6 +553,9 @@ void TextureFeedbackManager::BeginFrame()
             UploadTile(commandList, request.m_TextureIdx, request.m_TileInfo);
         }
     }
+
+    g_Graphic.EndCommandList(commandList, false);
+    device->executeCommandList(commandList);
 }
 
 void TextureFeedbackManager::EndFrame()
