@@ -235,22 +235,24 @@ public:
             return;
         }
 
+        const Vector3 sceneProbeAABBExtents = Vector3{ g_Scene->m_AABB.Extents } *1.1f; // add some padding to the scene AABB
+
         // enforce minimum of 10x10x10 probes
-        m_ProbeSpacing.x = std::min(m_ProbeSpacing.x, g_Scene->m_AABB.Extents.x * 0.2f);
-        m_ProbeSpacing.y = std::min(m_ProbeSpacing.y, g_Scene->m_AABB.Extents.y * 0.2f);
-        m_ProbeSpacing.z = std::min(m_ProbeSpacing.z, g_Scene->m_AABB.Extents.z * 0.2f);
+        m_ProbeSpacing.x = std::min(m_ProbeSpacing.x, sceneProbeAABBExtents.x * 0.2f);
+        m_ProbeSpacing.y = std::min(m_ProbeSpacing.y, sceneProbeAABBExtents.y * 0.2f);
+        m_ProbeSpacing.z = std::min(m_ProbeSpacing.z, sceneProbeAABBExtents.z * 0.2f);
 
         // enforce maximum of 128 probes per axis
-        m_ProbeSpacing.x = std::max(m_ProbeSpacing.x, g_Scene->m_AABB.Extents.x / 64.0f);
-        m_ProbeSpacing.y = std::max(m_ProbeSpacing.y, g_Scene->m_AABB.Extents.y / 64.0f);
-        m_ProbeSpacing.z = std::max(m_ProbeSpacing.z, g_Scene->m_AABB.Extents.z / 64.0f);
+        m_ProbeSpacing.x = std::max(m_ProbeSpacing.x, sceneProbeAABBExtents.x / 64.0f);
+        m_ProbeSpacing.y = std::max(m_ProbeSpacing.y, sceneProbeAABBExtents.y / 64.0f);
+        m_ProbeSpacing.z = std::max(m_ProbeSpacing.z, sceneProbeAABBExtents.z / 64.0f);
 
         // XY = horizontal plane, Z = vertical plane
         const rtxgi::int3 volumeProbeCounts =
         {
-            (int)std::ceil(g_Scene->m_AABB.Extents.x * 2 / m_ProbeSpacing.x),
-            (int)std::ceil(g_Scene->m_AABB.Extents.y * 2 / m_ProbeSpacing.y),
-            (int)std::ceil(g_Scene->m_AABB.Extents.z * 2 / m_ProbeSpacing.z)
+            (int)std::ceil(sceneProbeAABBExtents.x * 2 / m_ProbeSpacing.x),
+            (int)std::ceil(sceneProbeAABBExtents.y * 2 / m_ProbeSpacing.y),
+            (int)std::ceil(sceneProbeAABBExtents.z * 2 / m_ProbeSpacing.z)
         };
 
         rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.m_Desc;
