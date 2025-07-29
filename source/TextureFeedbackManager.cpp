@@ -261,7 +261,7 @@ void TextureFeedbackManager::BeginFrame()
     // TODO: The current code does not merge unmapping and mapping tiles for the same textures. It would be more optimal.
     std::vector<uint32_t> tilesToMap;
     std::vector<uint32_t> tilesToUnmap;
-    std::unordered_set<uint32_t> minMipDirtyTextures;
+    std::vector<uint32_t> minMipDirtyTextures;
     for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
     {
         Texture& texture = g_Graphic.m_Textures[i];
@@ -312,8 +312,6 @@ void TextureFeedbackManager::BeginFrame()
             }
 
             device->updateTextureTileMappings(texture.m_NVRHITextureHandle, &textureTilesMapping, 1);
-
-            minMipDirtyTextures.insert(i);
         }
 
         if (!tilesToMap.empty())
@@ -328,6 +326,11 @@ void TextureFeedbackManager::BeginFrame()
                 assert(std::find(feedbackTextureUpdate.m_TileIndices.begin(), feedbackTextureUpdate.m_TileIndices.end(), tileIndex) == feedbackTextureUpdate.m_TileIndices.end());
                 feedbackTextureUpdate.m_TileIndices.push_back(tileIndex);
             }
+        }
+
+        if (!tilesToUnmap.empty() || !tilesToMap.empty())
+        {
+            minMipDirtyTextures.push_back(i);
         }
     }
 
@@ -417,8 +420,6 @@ void TextureFeedbackManager::BeginFrame()
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
             //LOG_DEBUG("Updating %d tiles for texture: %s", texUpdate.m_TileIndices.size(), texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
-
-            minMipDirtyTextures.insert(texUpdate.m_TextureIdx);
 
             m_TiledTextureManager->UpdateTilesMapping(texture.m_TiledTextureID, texUpdate.m_TileIndices);
 
