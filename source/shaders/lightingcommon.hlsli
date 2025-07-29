@@ -293,9 +293,9 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
         if (!CheckAccessFullyMapped(sampleStatus))
         {
             float mipClamp = 0.0f;
-            if (textureMinMipTextureDescriptorIndex != 0xFFFF)
+            if (textureMinMipTextureDescriptorIndex != 0xFFFFFFFF)
             {
-                Texture2D<uint> minMipTexture = ResourceDescriptorHeap[textureMinMipTextureDescriptorIndex];
+                Texture2D<uint> minMipTexture = ResourceDescriptorHeap[NonUniformResourceIndex(textureMinMipTextureDescriptorIndex)];
 
                 SamplerState minMipSampler = select(bTextureIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
                 mipClamp = minMipTexture.SampleLevel(minMipSampler, inArgs.m_TexCoord, 0);
@@ -303,7 +303,7 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
 
             value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, kOffsetZero, mipClamp);
 
-            const bool kbShowUnmappedRegions = false;
+            const bool kbShowUnmappedRegions = true;
             if (kbShowUnmappedRegions)
             {
                 const bool bIsAlbedo = (inArgs.m_MaterialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture) != 0;
@@ -316,7 +316,7 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
 
         if (inArgs.m_bEnableSamplerFeedback && textureFeedbackTextureDescriptorIndex != 0xFFFFFFFF)
         {
-            FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[textureFeedbackTextureDescriptorIndex];
+            FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[NonUniformResourceIndex(textureFeedbackTextureDescriptorIndex)];
             feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, inArgs.m_TexCoord);
         }
     }

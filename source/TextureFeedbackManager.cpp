@@ -273,25 +273,29 @@ void TextureFeedbackManager::BeginFrame()
         m_TiledTextureManager->GetTilesToMap(texture.m_TiledTextureID, tilesToMap);
         m_TiledTextureManager->GetTilesToUnmap(texture.m_TiledTextureID, tilesToUnmap);
 
+        if (!tilesToUnmap.empty() || !tilesToMap.empty())
+        {
+            minMipDirtyTextures.push_back(i);
+        }
+
         if (!tilesToUnmap.empty())
         {
             //LOG_DEBUG("Unmapping %u tiles for texture %u", (uint32_t)tilesToUnmap.size(), i);
 
             // TODO: keep track of mapped & unmapped tiles in Texture class, and free the TextureMipData memory when all tiles in mip gets unmapped
             const std::vector<rtxts::TileCoord>& tilesCoordinates = m_TiledTextureManager->GetTileCoordinates(texture.m_TiledTextureID);
-            const uint32_t tileToUnmapNum = (uint32_t)tilesToUnmap.size();
 
             nvrhi::TiledTextureRegion tiledTextureRegion;
             tiledTextureRegion.tilesNum = 1;
 
             nvrhi::TextureTilesMapping textureTilesMapping;
-            textureTilesMapping.numTextureRegions = tileToUnmapNum;
+            textureTilesMapping.numTextureRegions = tilesToUnmap.size();
 
             std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates;
-            tiledTextureCoordinates.resize(tileToUnmapNum);
+            tiledTextureCoordinates.resize(tilesToUnmap.size());
 
             std::vector<nvrhi::TiledTextureRegion> tiledTextureRegions;
-            tiledTextureRegions.resize(tileToUnmapNum, tiledTextureRegion);
+            tiledTextureRegions.resize(tilesToUnmap.size(), tiledTextureRegion);
             
             textureTilesMapping.tiledTextureCoordinates = tiledTextureCoordinates.data();
             textureTilesMapping.tiledTextureRegions = tiledTextureRegions.data();
@@ -319,18 +323,8 @@ void TextureFeedbackManager::BeginFrame()
             //LOG_DEBUG("Mapping %u tiles for texture %u", (uint32_t)tilesToMap.size(), i);
 
             FeedbackTextureUpdate& feedbackTextureUpdate = feedbackTextureUpdates.emplace_back();
-
             feedbackTextureUpdate.m_TextureIdx = i;
-            for (uint32_t tileIndex : tilesToMap)
-            {
-                assert(std::find(feedbackTextureUpdate.m_TileIndices.begin(), feedbackTextureUpdate.m_TileIndices.end(), tileIndex) == feedbackTextureUpdate.m_TileIndices.end());
-                feedbackTextureUpdate.m_TileIndices.push_back(tileIndex);
-            }
-        }
-
-        if (!tilesToUnmap.empty() || !tilesToMap.empty())
-        {
-            minMipDirtyTextures.push_back(i);
+            feedbackTextureUpdate.m_TileIndices = std::move(tilesToMap);
         }
     }
 
