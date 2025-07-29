@@ -482,49 +482,38 @@ struct GLTFSceneLoader
 
             sceneMaterial.m_MaterialDataBufferIdx = i;
 
-            auto GetPackedSamplerAndDescriptorIndices = [this](uint32_t& textureSamplerAndDescriptorIndex, uint32_t& feedbackAndMinMiptextureDescriptorIndex, const Material::TextureView& sceneTextureView)
+            auto SetTextureValues = [this](uint32_t& textureIdx, uint32_t& feedbackIdx, uint32_t& minMipIdx, uint32_t& bIsSamplerWrap, const Material::TextureView& sceneTextureView)
             {
-                textureSamplerAndDescriptorIndex = 0xFFFFFFFF; // invalid value
-                feedbackAndMinMiptextureDescriptorIndex = 0xFFFFFFFF; // invalid value
+                textureIdx = feedbackIdx = minMipIdx = UINT32_MAX;
+                bIsSamplerWrap = 0;
                 if (!sceneTextureView.IsValid())
                 {
                     return; // no texture
                 }
 
                 Texture& tex = g_Graphic.m_Textures.at(sceneTextureView.m_TextureIdx);
+                textureIdx = g_Graphic.GetIndexInHeap(tex.m_SRVIndexInTable);
 
-                uint32_t feedbackSRVIndexInHeap = UINT16_MAX;
-                uint32_t minMipSRVIndexInHeap = UINT16_MAX;
                 if (tex.m_PackedMipDesc.numStandardMips != 0)
                 {
                     assert(tex.m_SamplerFeedbackTextureHandle);
                     assert(tex.m_MinMipTextureHandle);
 
-                    feedbackSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
-                    assert(feedbackSRVIndexInHeap < UINT16_MAX);
-
-                    minMipSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_MinMipIndexInTable);
-                    assert(minMipSRVIndexInHeap < UINT16_MAX);
+                    feedbackIdx = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
+                    minMipIdx = g_Graphic.GetIndexInHeap(tex.m_MinMipIndexInTable);
                 }
 
-                // need to fit srv index in bottom 30 bits of the packed value
-                const uint32_t textureSRVIndexInHeap = g_Graphic.GetIndexInHeap(tex.m_SRVIndexInTable);
-                assert(textureSRVIndexInHeap < (1u << 31));
-
-                const uint32_t samplerVal = sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Wrap ? 1 : 0;
-
-                textureSamplerAndDescriptorIndex = textureSRVIndexInHeap | (samplerVal << 31);
-                feedbackAndMinMiptextureDescriptorIndex = (feedbackSRVIndexInHeap & 0xFFFF) | (minMipSRVIndexInHeap << 16);
+                bIsSamplerWrap = sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Wrap ? 1 : 0;
             };
 
             MaterialData& materialData = m_GlobalMaterialData[i];
             materialData.m_ConstAlbedo = sceneMaterial.m_ConstAlbedo;
 			materialData.m_ConstEmissive = sceneMaterial.m_ConstEmissive;
             materialData.m_MaterialFlags = sceneMaterial.m_MaterialFlags;
-            GetPackedSamplerAndDescriptorIndices(materialData.m_AlbedoTextureSamplerAndDescriptorIndex, materialData.m_AlbedoFeedbackAndMinMapTexturesDescriptorIndex, sceneMaterial.m_Albedo);
-            GetPackedSamplerAndDescriptorIndices(materialData.m_NormalTextureSamplerAndDescriptorIndex, materialData.m_NormalFeedbackAndMinMapTexturesDescriptorIndex, sceneMaterial.m_Normal);
-            GetPackedSamplerAndDescriptorIndices(materialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex, materialData.m_MetallicRoughnessFeedbackAndMinMapTexturesDescriptorIndex, sceneMaterial.m_MetallicRoughness);
-            GetPackedSamplerAndDescriptorIndices(materialData.m_EmissiveTextureSamplerAndDescriptorIndex, materialData.m_EmissiveFeedbackAndMinMapTexturesDescriptorIndex, sceneMaterial.m_Emissive);
+            SetTextureValues(materialData.m_AlbedoTextureDescriptorIndex, materialData.m_AlbedoFeedbackTextureDescriptorIndex, materialData.m_AlbedoMinMapTextureDescriptorIndex, materialData.m_AlbedoTextureIsWrapSampler, sceneMaterial.m_Albedo);
+            SetTextureValues(materialData.m_NormalTextureDescriptorIndex, materialData.m_NormalFeedbackTextureDescriptorIndex, materialData.m_NormalMinMapTextureDescriptorIndex, materialData.m_NormalTextureIsWrapSampler, sceneMaterial.m_Normal);
+            SetTextureValues(materialData.m_MetallicRoughnessTextureDescriptorIndex, materialData.m_MetallicRoughnessFeedbackTextureDescriptorIndex, materialData.m_MetallicRoughnessMinMapTextureDescriptorIndex, materialData.m_MetallicRoughnessTextureIsWrapSampler, sceneMaterial.m_MetallicRoughness);
+            SetTextureValues(materialData.m_EmissiveTextureDescriptorIndex, materialData.m_EmissiveFeedbackTextureDescriptorIndex, materialData.m_EmissiveMinMapTextureDescriptorIndex, materialData.m_EmissiveTextureIsWrapSampler, sceneMaterial.m_Emissive);
             materialData.m_ConstRoughness = sceneMaterial.m_ConstRoughness;
             materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;

@@ -238,41 +238,42 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
     {
         return inArgs.m_DefaultValue;
     }
+
+    bool bTextureIsWrapSampler = false;
+    uint textureDescriptorIndex = 0xFFFFFFFF;
+    uint textureFeedbackTextureDescriptorIndex = 0xFFFFFFFF;
+    uint textureMinMipTextureDescriptorIndex = 0xFFFFFFFF;
     
-    uint textureSamplerAndDescriptorIndex = 0xFFFFFFFF;
-    uint feedbackAndMinMiptextureDescriptorIndex = 0xFFFFFFFF;
     switch (inArgs.m_MaterialFlag)
     {
         case MaterialFlag_UseDiffuseTexture:
-            textureSamplerAndDescriptorIndex = inArgs.m_MaterialData.m_AlbedoTextureSamplerAndDescriptorIndex;
-            feedbackAndMinMiptextureDescriptorIndex = inArgs.m_MaterialData.m_AlbedoFeedbackAndMinMapTexturesDescriptorIndex;
+            bTextureIsWrapSampler = inArgs.m_MaterialData.m_AlbedoTextureIsWrapSampler;
+            textureDescriptorIndex = inArgs.m_MaterialData.m_AlbedoTextureDescriptorIndex;
+            textureFeedbackTextureDescriptorIndex = inArgs.m_MaterialData.m_AlbedoFeedbackTextureDescriptorIndex;
+            textureMinMipTextureDescriptorIndex = inArgs.m_MaterialData.m_AlbedoMinMapTextureDescriptorIndex;
             break;
         case MaterialFlag_UseNormalTexture:
-            textureSamplerAndDescriptorIndex = inArgs.m_MaterialData.m_NormalTextureSamplerAndDescriptorIndex;
-            feedbackAndMinMiptextureDescriptorIndex = inArgs.m_MaterialData.m_NormalFeedbackAndMinMapTexturesDescriptorIndex;
+            bTextureIsWrapSampler = inArgs.m_MaterialData.m_NormalTextureIsWrapSampler;
+            textureDescriptorIndex = inArgs.m_MaterialData.m_NormalTextureDescriptorIndex;
+            textureFeedbackTextureDescriptorIndex = inArgs.m_MaterialData.m_NormalFeedbackTextureDescriptorIndex;
+            textureMinMipTextureDescriptorIndex = inArgs.m_MaterialData.m_NormalMinMapTextureDescriptorIndex;
             break;
         case MaterialFlag_UseMetallicRoughnessTexture:
-            textureSamplerAndDescriptorIndex = inArgs.m_MaterialData.m_MetallicRoughnessTextureSamplerAndDescriptorIndex;
-            feedbackAndMinMiptextureDescriptorIndex = inArgs.m_MaterialData.m_MetallicRoughnessFeedbackAndMinMapTexturesDescriptorIndex;
+            bTextureIsWrapSampler = inArgs.m_MaterialData.m_MetallicRoughnessTextureIsWrapSampler;
+            textureDescriptorIndex = inArgs.m_MaterialData.m_MetallicRoughnessTextureDescriptorIndex;
+            textureFeedbackTextureDescriptorIndex = inArgs.m_MaterialData.m_MetallicRoughnessFeedbackTextureDescriptorIndex;
+            textureMinMipTextureDescriptorIndex = inArgs.m_MaterialData.m_MetallicRoughnessMinMapTextureDescriptorIndex;
             break;
         case MaterialFlag_UseEmissiveTexture:
-            textureSamplerAndDescriptorIndex = inArgs.m_MaterialData.m_EmissiveTextureSamplerAndDescriptorIndex;
-            feedbackAndMinMiptextureDescriptorIndex = inArgs.m_MaterialData.m_EmissiveFeedbackAndMinMapTexturesDescriptorIndex;
+            bTextureIsWrapSampler = inArgs.m_MaterialData.m_EmissiveTextureIsWrapSampler;
+            textureDescriptorIndex = inArgs.m_MaterialData.m_EmissiveTextureDescriptorIndex;
+            textureFeedbackTextureDescriptorIndex = inArgs.m_MaterialData.m_EmissiveFeedbackTextureDescriptorIndex;
+            textureMinMipTextureDescriptorIndex = inArgs.m_MaterialData.m_EmissiveMinMapTextureDescriptorIndex;
             break;
     }
-        
-    uint texIdx = NonUniformResourceIndex(textureSamplerAndDescriptorIndex & 0x7FFFFFFF);
-    Texture2D materialTexture = ResourceDescriptorHeap[texIdx];
 
-    uint bIsWrapSampler = textureSamplerAndDescriptorIndex >> 31;
-    SamplerState materialSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapSampler, inArgs.m_AnisotropicClampSampler);
-
-    uint feedbackTextureIdx = 0xFFFF;
-    if (inArgs.m_bEnableSamplerFeedback)
-    {
-        feedbackTextureIdx = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex & 0xFFFF);
-    }
-    uint minMipTextureIdx = NonUniformResourceIndex(feedbackAndMinMiptextureDescriptorIndex >> 16);
+    Texture2D materialTexture = ResourceDescriptorHeap[NonUniformResourceIndex(textureDescriptorIndex)];
+    SamplerState materialSampler = select(bTextureIsWrapSampler, inArgs.m_AnisotropicWrapSampler, inArgs.m_AnisotropicClampSampler);
 
     float4 value;
     if (inArgs.m_OveriddenSampleLevel >= 0.0f)
@@ -292,11 +293,11 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
         if (!CheckAccessFullyMapped(sampleStatus))
         {
             float mipClamp = 0.0f;
-            if (minMipTextureIdx != 0xFFFF)
+            if (textureMinMipTextureDescriptorIndex != 0xFFFF)
             {
-                Texture2D<uint> minMipTexture = ResourceDescriptorHeap[minMipTextureIdx];
+                Texture2D<uint> minMipTexture = ResourceDescriptorHeap[textureMinMipTextureDescriptorIndex];
 
-                SamplerState minMipSampler = select(bIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
+                SamplerState minMipSampler = select(bTextureIsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
                 mipClamp = minMipTexture.SampleLevel(minMipSampler, inArgs.m_TexCoord, 0);
             }
 
@@ -313,10 +314,9 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
             }
         }
 
-        // TODO: frame slice this according to the feedback manager
-        if (feedbackTextureIdx != 0xFFFF)
+        if (inArgs.m_bEnableSamplerFeedback && textureFeedbackTextureDescriptorIndex != 0xFFFFFFFF)
         {
-            FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[feedbackTextureIdx];
+            FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[textureFeedbackTextureDescriptorIndex];
             feedbackTexture.WriteSamplerFeedback(materialTexture, materialSampler, inArgs.m_TexCoord);
         }
     }

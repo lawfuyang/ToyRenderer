@@ -169,14 +169,27 @@ struct MaterialData
     Vector4 m_ConstAlbedo;
     Vector3 m_ConstEmissive;
     float m_AlphaCutoff;
-    uint32_t m_AlbedoTextureSamplerAndDescriptorIndex;
-    uint32_t m_AlbedoFeedbackAndMinMapTexturesDescriptorIndex;
-    uint32_t m_NormalTextureSamplerAndDescriptorIndex;
-    uint32_t m_NormalFeedbackAndMinMapTexturesDescriptorIndex;
-    uint32_t m_MetallicRoughnessTextureSamplerAndDescriptorIndex;
-    uint32_t m_MetallicRoughnessFeedbackAndMinMapTexturesDescriptorIndex;
-    uint32_t m_EmissiveTextureSamplerAndDescriptorIndex;
-    uint32_t m_EmissiveFeedbackAndMinMapTexturesDescriptorIndex;
+
+    uint32_t m_AlbedoTextureIsWrapSampler;
+    uint32_t m_AlbedoTextureDescriptorIndex;
+    uint32_t m_AlbedoFeedbackTextureDescriptorIndex;
+    uint32_t m_AlbedoMinMapTextureDescriptorIndex;
+
+    uint32_t m_NormalTextureIsWrapSampler;
+    uint32_t m_NormalTextureDescriptorIndex;
+    uint32_t m_NormalFeedbackTextureDescriptorIndex;
+    uint32_t m_NormalMinMapTextureDescriptorIndex;
+
+    uint32_t m_MetallicRoughnessTextureIsWrapSampler;
+    uint32_t m_MetallicRoughnessTextureDescriptorIndex;
+    uint32_t m_MetallicRoughnessFeedbackTextureDescriptorIndex;
+    uint32_t m_MetallicRoughnessMinMapTextureDescriptorIndex;
+
+    uint32_t m_EmissiveTextureIsWrapSampler;
+    uint32_t m_EmissiveTextureDescriptorIndex;
+    uint32_t m_EmissiveFeedbackTextureDescriptorIndex;
+    uint32_t m_EmissiveMinMapTextureDescriptorIndex;
+    
     uint32_t m_MaterialFlags;
     float m_ConstRoughness;
     float m_ConstMetallic;
