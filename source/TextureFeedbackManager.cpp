@@ -28,7 +28,7 @@ static void UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextur
     const uint32_t tileBlocksHeight = tile.m_HeightInTexels / blockSize;
     const uint32_t shapeBlocksWidth = destTexture.m_TileShape.widthInTexels / blockSize;
     const uint32_t shapeBlocksHeight = destTexture.m_TileShape.heightInTexels / blockSize;
-    const uint32_t bytesPerBlock = g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes() / (shapeBlocksWidth * shapeBlocksHeight);
+    const uint32_t bytesPerBlock = g_TextureFeedbackManager->m_TiledResourceSizeInBytes / (shapeBlocksWidth * shapeBlocksHeight);
     const uint32_t sourceBlockX = tile.m_XInTexels / blockSize;
     const uint32_t sourceBlockY = tile.m_YInTexels / blockSize;
     const uint32_t rowPitchTile = tileBlocksWidth * bytesPerBlock;
@@ -129,8 +129,12 @@ void TextureFeedbackManager::AsyncIOThreadFunc()
 void TextureFeedbackManager::Initialize()
 {
     m_TiledTextureManager = std::unique_ptr<rtxts::TiledTextureManager>{ rtxts::CreateTiledTextureManager(rtxts::TiledTextureManagerDesc{}) };
+    m_TiledTextureManager->SetConfig(rtxts::TiledTextureManagerConfig{ 0 }); // no extra standby tiles
 
     m_AsyncIOThread = std::thread(&TextureFeedbackManager::AsyncIOThreadFunc, this);
+
+    m_TiledResourceSizeInBytes = g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes();
+    m_HeapSizeInBytes = rtxts::TiledTextureManagerDesc{}.heapTilesCapacity * m_TiledResourceSizeInBytes;
 }
 
 void TextureFeedbackManager::Shutdown()
@@ -145,13 +149,11 @@ void TextureFeedbackManager::UpdateIMGUI()
 {
     const rtxts::Statistics statistics = m_TiledTextureManager->GetStatistics();
 
-    ImGui::Text("Tiles Total: %u (%.0f MB)", statistics.totalTilesNum, BYTES_TO_MB(statistics.totalTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
-    ImGui::Text("Tiles Allocated: %u (%.0f MB)", statistics.allocatedTilesNum, BYTES_TO_MB(statistics.allocatedTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
-    ImGui::Text("Tiles Standby: %u (%.0f MB)", statistics.standbyTilesNum, BYTES_TO_MB(statistics.standbyTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
-    ImGui::Text("Heap allocation: %.2f MB", BYTES_TO_MB(m_HeapAllocationInBytes));
-    ImGui::Text("Heap Free Tiles: %d (%.0f MB)", statistics.heapFreeTilesNum, BYTES_TO_MB(statistics.heapFreeTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
+    ImGui::Text("Tiles Total: %u (%.0f MB)", statistics.totalTilesNum, BYTES_TO_MB(statistics.totalTilesNum * m_TiledResourceSizeInBytes));
+    ImGui::Text("Tiles Allocated: %u (%.0f MB)", statistics.allocatedTilesNum, BYTES_TO_MB(statistics.allocatedTilesNum * m_TiledResourceSizeInBytes));
+    ImGui::Text("Heaps: %u (%.2f MB)", m_NumHeaps, BYTES_TO_MB(m_NumHeaps * m_HeapSizeInBytes));
+    ImGui::Text("Heap Free Tiles: %d (%.0f MB)", statistics.heapFreeTilesNum, BYTES_TO_MB(statistics.heapFreeTilesNum * m_TiledResourceSizeInBytes));
 
-    ImGui::SliderInt("Extra Standby Tiles", &m_NumExtraStandbyTiles, 0, 2000);
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 1, 32);
     ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 1, 256);
     ImGui::Checkbox("Compact Memory", &m_bCompactMemory);
@@ -170,8 +172,6 @@ void TextureFeedbackManager::BeginFrame()
     g_Graphic.BeginCommandList(commandList, __FUNCTION__);
 
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-    m_TiledTextureManager->SetConfig(rtxts::TiledTextureManagerConfig{ (uint32_t)m_NumExtraStandbyTiles });
 
     // Begin frame, readback feedback
     std::vector<uint32_t>& texturesToReadback = m_TexturesToReadback[g_Graphic.m_FrameCounter % 2];
@@ -454,7 +454,7 @@ void TextureFeedbackManager::BeginFrame()
                     tiledTextureRegion.tilesNum = 1;
                     tiledTextureRegions.push_back(tiledTextureRegion);
 
-                    byteOffsets.push_back(tilesAllocations[tileIndex].heapTileIndex * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes());
+                    byteOffsets.push_back(tilesAllocations[tileIndex].heapTileIndex * m_TiledResourceSizeInBytes);
                 }
 
                 nvrhi::TextureTilesMapping textureTilesMapping;
@@ -597,17 +597,15 @@ uint32_t TextureFeedbackManager::AllocateHeap()
     
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-    const uint32_t heapSizeInBytes = kHeapSizeInTiles * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes();
-
     nvrhi::HeapDesc heapDesc;
-    heapDesc.capacity = heapSizeInBytes;
+    heapDesc.capacity = m_HeapSizeInBytes;
     heapDesc.type = nvrhi::HeapType::DeviceLocal;
 
     // TODO: Calling createHeap should ideally be called asynchronously to offload the critical path
     nvrhi::HeapHandle heap = device->createHeap(heapDesc);
 
     nvrhi::BufferDesc bufferDesc;
-    bufferDesc.byteSize = heapSizeInBytes;
+    bufferDesc.byteSize = m_HeapSizeInBytes;
     bufferDesc.isVirtual = true;
     bufferDesc.initialState = nvrhi::ResourceStates::CopySource;
     bufferDesc.keepInitialState = true;
@@ -630,10 +628,7 @@ uint32_t TextureFeedbackManager::AllocateHeap()
         m_Buffers[heapID] = buffer;
     }
 
-    m_HeapAllocationInBytes += heapSizeInBytes;
     ++m_NumHeaps;
-
-    LOG_DEBUG("Allocated heap %u, total allocated: %.2f MB", heapID, BYTES_TO_MB(m_HeapAllocationInBytes));
 
     return heapID;
 }
@@ -645,10 +640,5 @@ void TextureFeedbackManager::ReleaseHeap(uint32_t heapID)
     m_Heaps[heapID] = nullptr;
     m_Buffers[heapID] = nullptr;
 
-    const uint32_t heapSizeInBytes = kHeapSizeInTiles * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes();
-
-    m_HeapAllocationInBytes -= heapSizeInBytes;
     m_NumHeaps--;
-
-    LOG_DEBUG("Released heap %u, total allocated: %.2f MB", heapID, BYTES_TO_MB(m_HeapAllocationInBytes));
 }

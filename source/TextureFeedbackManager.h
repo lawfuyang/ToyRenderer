@@ -19,6 +19,9 @@ public:
     std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
     std::mutex m_TiledTextureManagerLock;
 
+    uint32_t m_TiledResourceSizeInBytes;
+    uint32_t m_HeapSizeInBytes;
+
 private:
     struct MipIORequest
     {
@@ -45,10 +48,8 @@ private:
     std::mutex m_DeferredTilesToUploadLock;
 
     bool m_bCompactMemory = true;
-    int m_NumExtraStandbyTiles = 0; // TODO: set to default of 1000
     int m_MaxTilesUploadPerFrame = 256;
     uint32_t m_NumHeaps = 0;
-    uint64_t m_HeapAllocationInBytes = 0;
     
     int m_NumFeedbackTexturesToResolvePerFrame = 10;
     uint32_t m_ResolveFeedbackTexturesCounter = 0;
