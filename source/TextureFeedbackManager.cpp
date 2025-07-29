@@ -192,6 +192,9 @@ void TextureFeedbackManager::BeginFrame()
     }
     texturesToReadback.clear();
 
+    // TODO: delete this & enable frame slicing
+    m_NumFeedbackTexturesToResolvePerFrame = g_Graphic.m_Textures.size();
+
     // Collect textures to read back
     {
         const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
