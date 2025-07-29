@@ -9,7 +9,6 @@
 #include "DescriptorTableManager.h"
 #include "Graphic.h"
 #include "Scene.h"
-#include "SmallVector.h"
 #include "Utilities.h"
 #include "Visual.h"
 

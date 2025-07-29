@@ -97,13 +97,10 @@ void RenderGraph::Compile()
 	for (size_t i = 0; i < m_Passes.size(); i++)
 	{
 		const Pass& pass = m_Passes.at(i);
-		const ResourceAccessesArray& resourceAccesses = pass.m_ResourceAccesses;
 
 		const PassID passID = i;
-		for (const ResourceAccess& resourceAccess : resourceAccesses)
+		for (const ResourceAccess& resourceAccess : pass.m_ResourceAccesses)
 		{
-			assert(resourceAccess.m_ResourceHandle);
-
 			ResourceHandle& resource = *resourceAccess.m_ResourceHandle;
 
 			// update first and last access
@@ -373,7 +370,7 @@ void RenderGraph::AddDependencyInternal(ResourceHandle& resourceHandle, Resource
 {
 	assert(m_CurrentPhase == Phase::Setup);
 
-	ResourceAccessesArray& accesses = m_Passes.back().m_ResourceAccesses;
+	std::vector<ResourceAccess>& accesses = m_Passes.back().m_ResourceAccesses;
 
 	// check if resource already requested a dependency
 #if _DEBUG
@@ -394,7 +391,7 @@ nvrhi::IResource* RenderGraph::GetResourceInternal(const ResourceHandle& resourc
 	assert(tl_CurrentThreadPassID != kInvalidPassID);
 
 #if _DEBUG
-	const ResourceAccessesArray& accesses = m_Passes.at(tl_CurrentThreadPassID).m_ResourceAccesses;
+	const std::vector<ResourceAccess>& accesses = m_Passes.at(tl_CurrentThreadPassID).m_ResourceAccesses;
 
 	// check if resource is requested by the current Pass
 	auto it = std::ranges::find_if(accesses, [&resourceHandle](const ResourceAccess& access) { return access.m_ResourceHandle == &resourceHandle; });

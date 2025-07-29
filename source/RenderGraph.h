@@ -3,8 +3,6 @@
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 #include "extern/taskflow/taskflow/taskflow.hpp"
 
-#include "SmallVector.h"
-
 class IRenderer;
 
 class RenderGraph
@@ -47,12 +45,10 @@ public:
 		ResourceHandle::AccessType m_AccessType;
 	};
 
-	using ResourceAccessesArray = SmallVector<ResourceAccess, 8>;
-
 	struct Pass
 	{
 		IRenderer* m_Renderer;
-		ResourceAccessesArray m_ResourceAccesses;
+		std::vector<ResourceAccess> m_ResourceAccesses;
 		nvrhi::CommandListHandle m_CommandList;
 	};
 

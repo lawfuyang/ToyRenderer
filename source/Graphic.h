@@ -9,7 +9,6 @@
 #include "DescriptorTableManager.h"
 #include "GraphicConstants.h"
 #include "MathUtilities.h"
-#include "SmallVector.h"
 #include "Utilities.h"
 #include "Visual.h"
 
@@ -86,8 +85,8 @@ public:
         nvrhi::CommandListHandle m_CommandList;
         std::string m_ShaderName;
         nvrhi::BindingSetDesc m_BindingSetDesc;
-        SmallVector<nvrhi::BindingSetHandle, 1> m_ExtraBindingSets;
-        SmallVector<nvrhi::BindingLayoutHandle, 1> m_ExtraBindingLayouts;
+        std::vector<nvrhi::BindingSetHandle> m_ExtraBindingSets;
+        std::vector<nvrhi::BindingLayoutHandle> m_ExtraBindingLayouts;
         const void* m_PushConstantsData = nullptr;
         size_t m_PushConstantsBytes = 0;
     };

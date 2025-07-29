@@ -6,7 +6,6 @@
 
 #include "Engine.h"
 #include "Utilities.h"
-#include "SmallVector.h"
 #include "Graphic.h"
 
 #include "CommonResources.h"
