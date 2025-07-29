@@ -149,8 +149,6 @@ public:
 
     int m_GPUQueueLogs[(uint32_t)nvrhi::CommandQueue::Count];
 
-    Timer m_GraphicTimer;
-
 private:
     std::unordered_map<size_t, nvrhi::ShaderHandle> m_AllShaders;
     std::unordered_map<size_t, nvrhi::GraphicsPipelineHandle> m_CachedGraphicPSOs;

@@ -152,9 +152,8 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::Text("Heap Free Tiles: %d (%.0f MB)", statistics.heapFreeTilesNum, BYTES_TO_MB(statistics.heapFreeTilesNum * g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes()));
 
     ImGui::SliderInt("Extra Standby Tiles", &m_NumExtraStandbyTiles, 0, 2000);
-    ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 10, g_Graphic.m_Textures.size());
-    ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 16, 1024);
-    ImGui::SliderFloat("Tile Timeout (seconds)", &m_TileTimeoutSeconds, 0.0f, 3.0f);
+    ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 1, 32);
+    ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 1, 256);
     ImGui::Checkbox("Compact Memory", &m_bCompactMemory);
 }
 
@@ -185,16 +184,13 @@ void TextureFeedbackManager::BeginFrame()
 
         rtxts::SamplerFeedbackDesc samplerFeedbackDesc;
         samplerFeedbackDesc.pMinMipData = (uint8_t*)pReadbackData;
-        m_TiledTextureManager->UpdateWithSamplerFeedback(texture.m_TiledTextureID, samplerFeedbackDesc, g_Graphic.m_GraphicTimer.GetElapsedSeconds(), m_TileTimeoutSeconds);
+        m_TiledTextureManager->UpdateWithSamplerFeedback(texture.m_TiledTextureID, samplerFeedbackDesc, 0.0f, 0.0f);
 
         device->unmapBuffer(resolveBuffer);
 
         // TODO: call 'MatchPrimaryTexture' if necessary, whatever it means?
     }
     texturesToReadback.clear();
-
-    // TODO: delete this & enable frame slicing
-    m_NumFeedbackTexturesToResolvePerFrame = g_Graphic.m_Textures.size();
 
     // Collect textures to read back
     {

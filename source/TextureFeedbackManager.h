@@ -46,7 +46,6 @@ private:
 
     bool m_bCompactMemory = true;
     int m_NumExtraStandbyTiles = 0; // TODO: set to default of 1000
-    float m_TileTimeoutSeconds = 0.0f; // TODO: set to 1.0f
     int m_MaxTilesUploadPerFrame = 256;
     uint32_t m_NumHeaps = 0;
     uint64_t m_HeapAllocationInBytes = 0;
