@@ -250,10 +250,10 @@ void TextureFeedbackManager::BeginFrame()
 
     struct TextureAndTiles
     {
-        uint32_t m_TextureIdx = UINT_MAX;
+        const uint32_t m_TextureIdx;
         std::vector<uint32_t> m_TileIndices;
     };
-    std::vector<TextureAndTiles> feedbackTextureUpdates;
+    std::vector<TextureAndTiles> textureAndTilesToMap;
 
     // Get tiles to unmap and map from the tiled texture manager
     // TODO: The current code does not merge unmapping and mapping tiles for the same textures. It would be more optimal.
@@ -320,95 +320,15 @@ void TextureFeedbackManager::BeginFrame()
         if (!tilesToMap.empty())
         {
             //LOG_DEBUG("Mapping %u tiles for texture %u", (uint32_t)tilesToMap.size(), i);
-
-            TextureAndTiles& feedbackTextureUpdate = feedbackTextureUpdates.emplace_back();
-            feedbackTextureUpdate.m_TextureIdx = i;
-            feedbackTextureUpdate.m_TileIndices = std::move(tilesToMap);
-        }
-    }
-
-    if (m_bCompactMemory)
-    {
-        PROFILE_SCOPED("Defragment Tiles");
-
-        const uint32_t kNumTilesToDefragment = 16;
-        m_TiledTextureManager->DefragmentTiles(kNumTilesToDefragment);
-    }
-
-    struct RequestedTile
-    {
-        const uint32_t m_TextureIdx;
-        const uint32_t m_TileIndex;
-    };
-    std::vector<RequestedTile> requestedTiles;
-    std::vector<RequestedTile> requestedPackedTiles;
-
-    // Collect all tiles and store them in the queue
-    for (TextureAndTiles& texUpdate : feedbackTextureUpdates)
-    {
-        for (uint32_t i = 0; i < texUpdate.m_TileIndices.size(); i++)
-        {
-            Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
-            const RequestedTile reqTile{ texUpdate.m_TextureIdx, texUpdate.m_TileIndices[i] };
-            
-            if (texture.IsTilePacked(reqTile.m_TileIndex))
-            {
-                requestedPackedTiles.push_back(reqTile);
-            }
-            else
-            {
-                requestedTiles.push_back(reqTile);
-            }
-        }
-    }
-
-    // Figure out which tiles to map and upload this frame
-    std::vector<TextureAndTiles> tilesThisFrame;
-    auto ScheduleTileForUpload = [&](const RequestedTile& reqTile)
-        {
-            // Find if we already have this texture in tilesThisFrame
-            TextureAndTiles* pTexUpdate = nullptr;
-            for (uint32_t t = 0; t < tilesThisFrame.size(); t++)
-            {
-                if (tilesThisFrame[t].m_TextureIdx == reqTile.m_TextureIdx)
-                {
-                    pTexUpdate = &tilesThisFrame[t];
-                    break;
-                }
-            }
-
-            if (pTexUpdate == nullptr)
-            {
-                // First time we see this texture this frame
-                TextureAndTiles texUpdate;
-                texUpdate.m_TextureIdx = reqTile.m_TextureIdx;
-                tilesThisFrame.push_back(texUpdate);
-                pTexUpdate = &tilesThisFrame.back();
-            }
-
-            pTexUpdate->m_TileIndices.push_back(reqTile.m_TileIndex);
-        };
-
-    // Upload all packed tiles this frame
-    for (const RequestedTile& packedTile : requestedPackedTiles)
-    {
-        ScheduleTileForUpload(packedTile);
-    }
-
-    // Compute how many tiles we will upload this frame
-    {
-        m_MaxTilesUploadPerFrame = INT_MAX; // TODO: delete this and enable frame slicing
-        const uint32_t countUpload = std::min<uint32_t>(requestedTiles.size(), m_MaxTilesUploadPerFrame);
-        for (uint32_t i = 0; i < countUpload; i++)
-        {
-            ScheduleTileForUpload(requestedTiles[i]);
+            // TODO: frame-slice this
+            textureAndTilesToMap.push_back({ i, std::move(tilesToMap) });
         }
     }
 
     {
         PROFILE_SCOPED("Update Tile Mappings");
 
-        for (TextureAndTiles& texUpdate : tilesThisFrame)
+        for (TextureAndTiles& texUpdate : textureAndTilesToMap)
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
@@ -433,10 +353,8 @@ void TextureFeedbackManager::BeginFrame()
                 std::vector<nvrhi::TiledTextureRegion> tiledTextureRegions;
                 std::vector<uint64_t> byteOffsets;
 
-                for (uint32_t i = 0; i < heapTiles.size(); i++)
+                for (uint32_t tileIndex : heapTiles)
                 {
-                    uint32_t tileIndex = heapTiles[i];
-
                     nvrhi::TiledTextureCoordinate tiledTextureCoordinate;
                     tiledTextureCoordinate.mipLevel = tilesCoordinates[tileIndex].mipLevel;
                     tiledTextureCoordinate.x = tilesCoordinates[tileIndex].x;
@@ -485,13 +403,11 @@ void TextureFeedbackManager::BeginFrame()
     }
 
     // Upload the tiles to the GPU and copy them into the resources
-    if (!tilesThisFrame.empty())
     {
         PROFILE_SCOPED("Upload Tiles");
 
         std::vector<FeedbackTextureTileInfo> tiles;
-
-        for (const TextureAndTiles& texUpdate : tilesThisFrame)
+        for (const TextureAndTiles& texUpdate : textureAndTilesToMap)
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
@@ -545,6 +461,14 @@ void TextureFeedbackManager::BeginFrame()
             //LOG_DEBUG("Processing deferred tile upload: texture: %d, mip: %d", request.m_TextureIdx, request.m_TileInfo.m_Mip);
             UploadTile(commandList, request.m_TextureIdx, request.m_TileInfo);
         }
+    }
+
+    if (m_bCompactMemory)
+    {
+        PROFILE_SCOPED("Defragment Tiles");
+
+        const uint32_t kNumTilesToDefragment = 16;
+        m_TiledTextureManager->DefragmentTiles(kNumTilesToDefragment);
     }
 
     g_Graphic.EndCommandList(commandList, false);

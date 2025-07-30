@@ -180,7 +180,7 @@ bool Texture::IsValid() const
 
 bool Texture::IsTilePacked(uint32_t tileIdx) const
 {
-    return (m_TiledTextureID == UINT_MAX) || tileIdx >= m_PackedMipDesc.startTileIndexInOverallResource;
+    return tileIdx >= m_PackedMipDesc.startTileIndexInOverallResource;
 }
 
 void Texture::GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInfo>& tiles) const
