@@ -428,17 +428,13 @@ void TextureFeedbackManager::BeginFrame()
                     {
                         if (m_bAsyncIOMipStreaming)
                         {
+                            // TODO: need to somehow "delay" the results of 'WriteMinMipData' until after the mips are streamed in, else the mapped tiles will potentially render garbage
                             if (mipData.m_Data.empty())
                             {
                                 mipData.m_Data.resize(mipData.m_NumBytes);
-                                AUTO_LOCK(m_MipIORequestsLock);
-                                m_MipIORequests.push_back({ texUpdate.m_TextureIdx, tile });
                             }
-                            else
-                            {
-                                // already in system memory. upload tile immediately to GPU
-                                UploadTile(commandList, texUpdate.m_TextureIdx, tile);
-                            }
+                            AUTO_LOCK(m_MipIORequestsLock);
+                            m_MipIORequests.push_back({ texUpdate.m_TextureIdx, tile });
                         }
                         else
                         {
@@ -504,8 +500,6 @@ void TextureFeedbackManager::EndFrame()
 
     m_ResolveFeedbackTexturesCounter = (m_ResolveFeedbackTexturesCounter + m_NumFeedbackTexturesToResolvePerFrame) % g_Graphic.m_Textures.size();
 }
-
-static const uint32_t kHeapSizeInTiles = 1024; // 64MiB heap size
 
 uint32_t TextureFeedbackManager::AllocateHeap()
 {
