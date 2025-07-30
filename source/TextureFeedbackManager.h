@@ -36,6 +36,7 @@ private:
     std::thread m_AsyncIOThread;
     bool m_bShutDownAsyncIOThread = false;
 
+    std::vector<uint32_t> m_TexturesToProcessThisFrame;
     std::vector<uint32_t> m_TexturesToReadback[2];
     std::vector<nvrhi::HeapHandle> m_Heaps;
     std::vector<nvrhi::BufferHandle> m_Buffers;

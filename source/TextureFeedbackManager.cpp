@@ -190,30 +190,28 @@ void TextureFeedbackManager::BeginFrame()
 
         // TODO: call 'MatchPrimaryTexture' if necessary, whatever it means?
     }
+
+    // get textures to process this frame
     texturesToReadback.clear();
-
-    // TODO: delete this & enable frame slicing
-    m_NumFeedbackTexturesToResolvePerFrame = g_Graphic.m_Textures.size();
-
-    // Collect textures to read back
+    m_TexturesToProcessThisFrame.clear();
+    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
     {
-        const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
-        for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
+        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
+
+        if (!m_TexturesToProcessThisFrame.empty() && m_TexturesToProcessThisFrame[0] == textureIdx)
         {
-            if ((i > 0) && (i == startIdx))
-            {
-                break;
-            }
-
-            const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
-            Texture& texture = g_Graphic.m_Textures[textureIdx];
-
-            if (texture.m_TiledTextureID != UINT_MAX)
-            {
-                commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
-                texturesToReadback.push_back(textureIdx);
-            }
+            break;
         }
+
+        Texture& texture = g_Graphic.m_Textures.at(textureIdx);
+        if (texture.m_TiledTextureID == UINT_MAX)
+        {
+            continue; // not a tiled texture
+        }
+
+        commandList->clearSamplerFeedbackTexture(texture.m_SamplerFeedbackTextureHandle);
+        m_TexturesToProcessThisFrame.push_back(textureIdx);
+        texturesToReadback.push_back(textureIdx);
     }
 
     if (m_bCompactMemory)
@@ -259,6 +257,7 @@ void TextureFeedbackManager::BeginFrame()
 
     // Get tiles to unmap and map from the tiled texture manager
     // TODO: The current code does not merge unmapping and mapping tiles for the same textures. It would be more optimal.
+    // TODO: frame-slice this too?
     std::vector<uint32_t> tilesToMap;
     std::vector<uint32_t> tilesToUnmap;
     std::vector<uint32_t> minMipDirtyTextures;
@@ -564,21 +563,10 @@ void TextureFeedbackManager::EndFrame()
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
     SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, __FUNCTION__);
 
-    const uint32_t startIdx = m_ResolveFeedbackTexturesCounter % g_Graphic.m_Textures.size();
-    for (uint32_t i = 0; i < m_NumFeedbackTexturesToResolvePerFrame; ++i)
+    for (uint32_t i : m_TexturesToProcessThisFrame)
     {
-        if ((i > 0) && (i == startIdx))
-        {
-            break;
-        }
-
-        const uint32_t textureIdx = (m_ResolveFeedbackTexturesCounter + i) % g_Graphic.m_Textures.size();
-        Texture& texture = g_Graphic.m_Textures[textureIdx];
-
-        if (texture.m_TiledTextureID != UINT_MAX)
-        {
-            commandList->decodeSamplerFeedbackTexture(texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2], texture.m_SamplerFeedbackTextureHandle, nvrhi::Format::R8_UINT);
-        }
+        Texture& texture = g_Graphic.m_Textures.at(i);
+        commandList->decodeSamplerFeedbackTexture(texture.m_FeedbackResolveBuffers[g_Graphic.m_FrameCounter % 2], texture.m_SamplerFeedbackTextureHandle, nvrhi::Format::R8_UINT);
     }
 
     m_ResolveFeedbackTexturesCounter = (m_ResolveFeedbackTexturesCounter + m_NumFeedbackTexturesToResolvePerFrame) % g_Graphic.m_Textures.size();
