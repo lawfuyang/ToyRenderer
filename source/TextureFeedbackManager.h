@@ -48,6 +48,7 @@ private:
     std::vector<MipIORequest> m_DeferredTilesToUpload;
     std::mutex m_DeferredTilesToUploadLock;
 
+    bool m_bAsyncIOMipStreaming = false;
     bool m_bCompactMemory = true;
     int m_MaxTilesUploadPerFrame = 256;
     uint32_t m_NumHeaps = 0;

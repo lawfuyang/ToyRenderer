@@ -5,6 +5,7 @@
 #include "Engine.h"
 #include "Graphic.h"
 #include "Scene.h"
+#include "TextureLoading.h"
 
 static void UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextureIdx, const FeedbackTextureTileInfo& tile)
 {
@@ -157,6 +158,7 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 1, 32);
     ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 1, 256);
     ImGui::Checkbox("Compact Memory", &m_bCompactMemory);
+    ImGui::Checkbox("Async IO Mip Streaming", &m_bAsyncIOMipStreaming);
 }
 
 void TextureFeedbackManager::BeginFrame()
@@ -424,19 +426,28 @@ void TextureFeedbackManager::BeginFrame()
                     }
                     else
                     {
-                        if (mipData.m_Data.empty())
+                        if (m_bAsyncIOMipStreaming)
                         {
-                            // not read yet, schedule for async IO
-                            mipData.m_Data.resize(mipData.m_NumBytes);
-                            AUTO_LOCK(m_MipIORequestsLock);
-                            m_MipIORequests.push_back({ texUpdate.m_TextureIdx, tile });
-                            //LOG_DEBUG("Scheduling mip IO for texture: %d, mip: %d", texUpdate.m_TextureIdx, tile.m_Mip);
+                            if (mipData.m_Data.empty())
+                            {
+                                mipData.m_Data.resize(mipData.m_NumBytes);
+                                AUTO_LOCK(m_MipIORequestsLock);
+                                m_MipIORequests.push_back({ texUpdate.m_TextureIdx, tile });
+                            }
+                            else
+                            {
+                                // already in system memory. upload tile immediately to GPU
+                                UploadTile(commandList, texUpdate.m_TextureIdx, tile);
+                            }
                         }
                         else
                         {
-                            // already in system memory. upload tile immediately to GPU
+                            if (mipData.m_Data.empty())
+                            {
+                                ScopedFile f{ texture.m_ImageFilePath, "rb" };
+                                ReadDDSMipData(texture, f, tile.m_Mip);
+                            }
                             UploadTile(commandList, texUpdate.m_TextureIdx, tile);
-                            //LOG_DEBUG("Uploading tile: texture: %d, mip: %d, tileIndex: %d", texUpdate.m_TextureIdx, tile.m_Mip, tileIndex);
                         }
                     }
                 }
