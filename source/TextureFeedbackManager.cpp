@@ -248,12 +248,12 @@ void TextureFeedbackManager::BeginFrame()
     // Now let the tiled texture manager allocate
     m_TiledTextureManager->AllocateRequestedTiles();
 
-    struct FeedbackTextureUpdate
+    struct TextureAndTiles
     {
         uint32_t m_TextureIdx = UINT_MAX;
         std::vector<uint32_t> m_TileIndices;
     };
-    std::vector<FeedbackTextureUpdate> feedbackTextureUpdates;
+    std::vector<TextureAndTiles> feedbackTextureUpdates;
 
     // Get tiles to unmap and map from the tiled texture manager
     // TODO: The current code does not merge unmapping and mapping tiles for the same textures. It would be more optimal.
@@ -321,7 +321,7 @@ void TextureFeedbackManager::BeginFrame()
         {
             //LOG_DEBUG("Mapping %u tiles for texture %u", (uint32_t)tilesToMap.size(), i);
 
-            FeedbackTextureUpdate& feedbackTextureUpdate = feedbackTextureUpdates.emplace_back();
+            TextureAndTiles& feedbackTextureUpdate = feedbackTextureUpdates.emplace_back();
             feedbackTextureUpdate.m_TextureIdx = i;
             feedbackTextureUpdate.m_TileIndices = std::move(tilesToMap);
         }
@@ -344,7 +344,7 @@ void TextureFeedbackManager::BeginFrame()
     std::vector<RequestedTile> requestedPackedTiles;
 
     // Collect all tiles and store them in the queue
-    for (FeedbackTextureUpdate& texUpdate : feedbackTextureUpdates)
+    for (TextureAndTiles& texUpdate : feedbackTextureUpdates)
     {
         for (uint32_t i = 0; i < texUpdate.m_TileIndices.size(); i++)
         {
@@ -363,11 +363,11 @@ void TextureFeedbackManager::BeginFrame()
     }
 
     // Figure out which tiles to map and upload this frame
-    std::vector<FeedbackTextureUpdate> tilesThisFrame;
+    std::vector<TextureAndTiles> tilesThisFrame;
     auto ScheduleTileForUpload = [&](const RequestedTile& reqTile)
         {
             // Find if we already have this texture in tilesThisFrame
-            FeedbackTextureUpdate* pTexUpdate = nullptr;
+            TextureAndTiles* pTexUpdate = nullptr;
             for (uint32_t t = 0; t < tilesThisFrame.size(); t++)
             {
                 if (tilesThisFrame[t].m_TextureIdx == reqTile.m_TextureIdx)
@@ -380,7 +380,7 @@ void TextureFeedbackManager::BeginFrame()
             if (pTexUpdate == nullptr)
             {
                 // First time we see this texture this frame
-                FeedbackTextureUpdate texUpdate;
+                TextureAndTiles texUpdate;
                 texUpdate.m_TextureIdx = reqTile.m_TextureIdx;
                 tilesThisFrame.push_back(texUpdate);
                 pTexUpdate = &tilesThisFrame.back();
@@ -408,7 +408,7 @@ void TextureFeedbackManager::BeginFrame()
     {
         PROFILE_SCOPED("Update Tile Mappings");
 
-        for (FeedbackTextureUpdate& texUpdate : tilesThisFrame)
+        for (TextureAndTiles& texUpdate : tilesThisFrame)
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
@@ -491,7 +491,7 @@ void TextureFeedbackManager::BeginFrame()
 
         std::vector<FeedbackTextureTileInfo> tiles;
 
-        for (const FeedbackTextureUpdate& texUpdate : tilesThisFrame)
+        for (const TextureAndTiles& texUpdate : tilesThisFrame)
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
