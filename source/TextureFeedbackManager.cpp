@@ -355,16 +355,14 @@ void TextureFeedbackManager::BeginFrame()
 
                 for (uint32_t tileIndex : heapTiles)
                 {
-                    nvrhi::TiledTextureCoordinate tiledTextureCoordinate;
+                    nvrhi::TiledTextureCoordinate& tiledTextureCoordinate = tiledTextureCoordinates.emplace_back();
                     tiledTextureCoordinate.mipLevel = tilesCoordinates[tileIndex].mipLevel;
                     tiledTextureCoordinate.x = tilesCoordinates[tileIndex].x;
                     tiledTextureCoordinate.y = tilesCoordinates[tileIndex].y;
                     tiledTextureCoordinate.z = 0;
-                    tiledTextureCoordinates.push_back(tiledTextureCoordinate);
 
-                    nvrhi::TiledTextureRegion tiledTextureRegion;
+                    nvrhi::TiledTextureRegion& tiledTextureRegion = tiledTextureRegions.emplace_back();
                     tiledTextureRegion.tilesNum = 1;
-                    tiledTextureRegions.push_back(tiledTextureRegion);
 
                     byteOffsets.push_back(tilesAllocations[tileIndex].heapTileIndex * m_TiledResourceSizeInBytes);
                 }
