@@ -303,7 +303,7 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
 
             value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, kOffsetZero, mipClamp);
 
-            const bool kbShowUnmappedRegions = true;
+            const bool kbShowUnmappedRegions = false;
             if (kbShowUnmappedRegions)
             {
                 const bool bIsAlbedo = (inArgs.m_MaterialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture) != 0;
