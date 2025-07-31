@@ -598,7 +598,7 @@ void Scene::UpdateIMGUI()
         ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);
         ImGui::Checkbox("Freeze Culling Camera", &m_bFreezeCullingCamera);
         ImGui::SliderInt("Force Mesh LOD", &m_ForceMeshLOD, -1, GraphicConstants::kMaxNumMeshLODs - 1);
-        ImGui::Checkbox("Visualize Mip Color on Albedo", &m_bVisualizeMipColorOnAlbedo);
+        ImGui::Checkbox("Visualize Min Mip on Albedo Output", &m_bVisualizeMinMipOnAlbedoOutput);
 
         ImGui::TreePop();
     }

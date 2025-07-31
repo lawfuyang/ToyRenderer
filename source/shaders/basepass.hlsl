@@ -203,7 +203,7 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     getCommonGBufferParamsArguments.m_AnisotropicClampMaxReductionSampler = g_AnisotropicClampMaxReductionSampler;
     getCommonGBufferParamsArguments.m_AnisotropicWrapMaxReductionSampler = g_AnisotropicWrapMaxReductionSampler;
     getCommonGBufferParamsArguments.m_bEnableSamplerFeedback = true;
-    getCommonGBufferParamsArguments.m_bVisualizeMipColorOnAlbedo = g_BasePassConsts.m_bVisualizeMipColorOnAlbedo;
+    getCommonGBufferParamsArguments.m_bVisualizeMinMipOnAlbedoOutput = g_BasePassConsts.m_bVisualizeMinMipOnAlbedoOutput;
     
     GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments);
     
