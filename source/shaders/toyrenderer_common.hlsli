@@ -6,6 +6,27 @@ static const float kFarDepth = 0.0f;
 static const float kKindaSmallNumber = 1e-4f;
 static const float kKindaBigNumber = 1e10f;
 
+static const float3 kMipColors[] =
+{
+    { 1, 1, 1 },             // white
+    { 1, 0.25f, 0.25f },     // light red
+    { 0.25f, 1, 0.25f },     // light green
+    { 0.25f, 0.25f, 1 },     // light blue
+    { 1, 0.25f, 1 },         // light magenta
+    { 1, 1, 0.25f },         // light yellow
+    { 0.25f, 1, 1 },         // light cyan
+    { 0.9f, 0.5f, 0.2f },    // orange
+    { 0.59f, 0.48f, 0.8f },  // dark magenta
+    { 0.53f, 0.25f, 0.11f }, 
+    { 0.8f, 0.48f, 0.53f },
+    { 0.64f, 0.8f, 0.48f },
+    
+    { 0.48f, 0.75f, 0.8f },
+    { 0.5f, 0.25f, 0.75f },
+    { 0.99f, 0.68f, 0.42f },
+    { 0.4f, 0.5f, 0.6f },
+};
+
 float3x3 ToFloat3x3(float4x4 m)
 {
     return float3x3(m[0].xyz, m[1].xyz, m[2].xyz);

@@ -192,7 +192,8 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     BasePassInstanceConstants instanceConsts = g_BasePassInstanceConsts[inVertex.m_InstanceConstsIdx];
     MaterialData materialData = g_MaterialDataBuffer[instanceConsts.m_MaterialDataIdx];
     
-    GetCommonGBufferParamsArguments getCommonGBufferParamsArguments;
+    GetCommonGBufferParamsArguments getCommonGBufferParamsArguments = CreateDefaultGetCommonGBufferParamsArguments();
+
     getCommonGBufferParamsArguments.m_TexCoord = inVertex.m_UV;
     getCommonGBufferParamsArguments.m_WorldPosition = inVertex.m_WorldPosition;
     getCommonGBufferParamsArguments.m_Normal = inVertex.m_Normal;
@@ -202,6 +203,7 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     getCommonGBufferParamsArguments.m_AnisotropicClampMaxReductionSampler = g_AnisotropicClampMaxReductionSampler;
     getCommonGBufferParamsArguments.m_AnisotropicWrapMaxReductionSampler = g_AnisotropicWrapMaxReductionSampler;
     getCommonGBufferParamsArguments.m_bEnableSamplerFeedback = true;
+    getCommonGBufferParamsArguments.m_bVisualizeMipColorOnAlbedo = g_BasePassConsts.m_bVisualizeMipColorOnAlbedo;
     
     GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments);
     

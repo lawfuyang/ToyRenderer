@@ -223,30 +223,7 @@ void PS_VisualizeMinMip(
     in float2 inUV : TEXCOORD0,
     out float4 outColor : SV_Target)
 {
-    static const float3 kMipColors[] =
-    {
-        { 1, 1, 1 },             // white
-        { 1, 0.25f, 0.25f },     // light red
-        { 0.25f, 1, 0.25f },     // light green
-        { 0.25f, 0.25f, 1 },     // light blue
-
-        { 1, 0.25f, 1 },         // light magenta
-        { 1, 1, 0.25f },         // light yellow
-        { 0.25f, 1, 1 },         // light cyan
-        { 0.9f, 0.5f, 0.2f },    // orange
-
-        { 0.59f, 0.48f, 0.8f },  // dark magenta
-        { 0.53f, 0.25f, 0.11f }, 
-        { 0.8f, 0.48f, 0.53f },
-        { 0.64f, 0.8f, 0.48f },
-        
-        { 0.48f, 0.75f, 0.8f },
-        { 0.5f, 0.25f, 0.75f },
-        { 0.99f, 0.68f, 0.42f },
-        { 0.4f, 0.5f, 0.6f },
-    };
-
-    uint minMip = g_Input.Sample(g_LinearClampSampler, inUV);
+    uint minMip = g_Input.Sample(g_LinearClampSampler, inUV).r;
     uint colorIdx = min(15, minMip);
     float2 tileUV = frac(inUV * g_VisualizeMinMipParameters.m_TextureDimensions);
 

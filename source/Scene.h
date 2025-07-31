@@ -112,8 +112,8 @@ public:
     bool m_bEnableMeshletConeCulling = true;
     bool m_bFreezeCullingCamera = false;
     int m_ForceMeshLOD = -1;
-    bool m_bStressTestTextureMipRequests = false;
     bool m_bEnableTextureStreaming = true;
+    bool m_bVisualizeMipColorOnAlbedo = false;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;

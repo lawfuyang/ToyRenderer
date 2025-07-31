@@ -207,7 +207,7 @@ static void CreateDefaultTextures()
         nvrhi::TextureDesc textureDesc;
         textureDesc.width = 8;
         textureDesc.height = 8;
-        textureDesc.format = nvrhi::Format::R32_FLOAT;
+        textureDesc.format = GraphicConstants::kMinMipFormat;
         textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
         textureDesc.keepInitialState = true;
         g_CommonResources.DummyMinMipTexture = device->createTexture(textureDesc);

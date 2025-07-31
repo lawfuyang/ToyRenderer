@@ -83,6 +83,7 @@ struct BasePassConstants
     uint32_t m_DebugMode;
     uint32_t PAD0;
     Vector2U m_OutputResolution;
+    uint32_t m_bVisualizeMipColorOnAlbedo;
 };
 
 struct BasePassInstanceConstants

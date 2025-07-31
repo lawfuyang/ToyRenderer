@@ -23,7 +23,7 @@ static_assert(std::is_same_v<uint32_t, GraphicConstants::IndexBufferFormat_t>);
 
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
 CommandLineOption<bool> g_ExecuteAndWaitPerCommandList{ "executeandwaitpercommandlist", false };
-CommandLineOption<bool> g_DisableTextureStreaming{ "disabletextureStreaming", true }; // TODO: set to false once tile texture streaming is done
+CommandLineOption<bool> g_DisableTextureStreaming{ "disabletextureStreaming", false }; // TODO: set to false once tile texture streaming is done
 
 void Graphic::InitRenderDocAPI()
 {
@@ -609,7 +609,6 @@ void Graphic::Initialize()
     m_RenderResolution = m_DisplayResolution;
 
     m_CommonResources = std::make_shared<CommonResources>();
-    m_Scene = std::make_shared<Scene>();
     m_TextureFeedbackManager = std::make_shared<TextureFeedbackManager>();
 
     m_Scene->m_bEnableTextureStreaming = !g_DisableTextureStreaming.Get();

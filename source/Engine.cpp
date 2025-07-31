@@ -131,8 +131,11 @@ void Engine::Initialize(int argc, char** argv)
     extern void PreloadScene();
     extern void LoadScene();
 
+    m_Graphic = std::make_shared<Graphic>();
+    m_Graphic->m_Scene = std::make_shared<Scene>();
+
     tf::Taskflow tf;
-    tf.emplace([this] { m_Graphic = std::make_shared<Graphic>(); m_Graphic->Initialize(); });
+    tf.emplace([this] { m_Graphic->Initialize(); });
     tf.emplace([this] { PreloadScene(); });
     m_Executor->run(tf).wait();
 
