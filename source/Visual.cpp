@@ -127,15 +127,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     rtxts::TextureDesc feedbackDesc;
     rtxts::TextureDesc minMipDesc;
-
-    {
-        rtxts::TiledTextureManager* tiledTextureManager = g_TextureFeedbackManager->m_TiledTextureManager.get();
-
-        AUTO_LOCK(g_TextureFeedbackManager->m_TiledTextureManagerLock);
-        tiledTextureManager->AddTiledTexture(tiledTextureDesc, m_TiledTextureID);
-        feedbackDesc = tiledTextureManager->GetTextureDesc(m_TiledTextureID, rtxts::eFeedbackTexture);
-        minMipDesc = tiledTextureManager->GetTextureDesc(m_TiledTextureID, rtxts::eMinMipTexture);
-    }
+    g_TextureFeedbackManager->AddTexture(*this, tiledTextureDesc, feedbackDesc, minMipDesc);
 
     // Sampler feedback texture
     nvrhi::SamplerFeedbackTextureDesc samplerFeedbackTextureDesc;
@@ -214,7 +206,7 @@ void Texture::GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInf
     }
     else
     {
-        const std::vector<rtxts::TileCoord>& tileCoord = g_TextureFeedbackManager->m_TiledTextureManager->GetTileCoordinates(m_TiledTextureID);
+        const std::vector<rtxts::TileCoord>& tileCoord = g_TextureFeedbackManager->GetTileCoordinates(m_TiledTextureID);
         const uint32_t tileX = tileCoord.at(tileIndex).x;
         const uint32_t tileY = tileCoord.at(tileIndex).y;
         const uint32_t mip = tileCoord.at(tileIndex).mipLevel;

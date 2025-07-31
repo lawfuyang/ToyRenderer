@@ -16,11 +16,8 @@ public:
     void BeginFrame();
     void EndFrame();
 
-    std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
-    std::mutex m_TiledTextureManagerLock;
-
-    uint32_t m_TiledResourceSizeInBytes;
-    uint32_t m_HeapSizeInBytes;
+    void AddTexture(Texture& texture, const rtxts::TiledTextureDesc& tiledTextureDesc, rtxts::TextureDesc& feedbackDesc, rtxts::TextureDesc& minMipDesc);
+    const std::vector<rtxts::TileCoord>& GetTileCoordinates(uint32_t tiledtextureID) const { return m_TiledTextureManager->GetTileCoordinates(tiledtextureID); }
 
 private:
     struct MipIORequest
@@ -31,10 +28,17 @@ private:
 
     uint32_t AllocateHeap();
     void ReleaseHeap(uint32_t heapId);
+    void UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextureIdx, const FeedbackTextureTileInfo& tile);
 
     void AsyncIOThreadFunc();
     std::thread m_AsyncIOThread;
     bool m_bShutDownAsyncIOThread = false;
+
+    std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
+    std::mutex m_TiledTextureManagerLock;
+
+    uint32_t m_TiledResourceSizeInBytes;
+    uint32_t m_HeapSizeInBytes;
 
     std::vector<uint32_t> m_TexturesToProcessThisFrame;
     std::vector<uint32_t> m_TexturesToReadback[2];

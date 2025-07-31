@@ -7,56 +7,6 @@
 #include "Scene.h"
 #include "TextureLoading.h"
 
-static void UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextureIdx, const FeedbackTextureTileInfo& tile)
-{
-    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-    const Texture& destTexture = g_Graphic.m_Textures.at(destTextureIdx);
-    const TextureMipData& mipData = destTexture.m_TextureMipDatas[tile.m_Mip];
-
-    nvrhi::TextureDesc stagingTextureDesc;
-    stagingTextureDesc.width = tile.m_WidthInTexels;
-    stagingTextureDesc.height = tile.m_HeightInTexels;
-    stagingTextureDesc.format = destTexture.m_NVRHITextureHandle->getDesc().format;
-    nvrhi::StagingTextureHandle stagingTexture = device->createStagingTexture(stagingTextureDesc, nvrhi::CpuAccessMode::Write);
-
-    size_t rowPitch;
-    std::byte* mappedData = (std::byte*)device->mapStagingTexture(stagingTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Write, &rowPitch);
-
-    // Compute pitches and offsets in 4x4 blocks
-    // Note: The "tile" being copied here might be smaller than a tiled resource tile, for example non-pow2 textures
-    const uint32_t blockSize = nvrhi::getFormatInfo(destTexture.m_NVRHITextureHandle->getDesc().format).blockSize;
-    const uint32_t tileBlocksWidth = tile.m_WidthInTexels / blockSize;
-    const uint32_t tileBlocksHeight = tile.m_HeightInTexels / blockSize;
-    const uint32_t shapeBlocksWidth = destTexture.m_TileShape.widthInTexels / blockSize;
-    const uint32_t shapeBlocksHeight = destTexture.m_TileShape.heightInTexels / blockSize;
-    const uint32_t bytesPerBlock = g_TextureFeedbackManager->m_TiledResourceSizeInBytes / (shapeBlocksWidth * shapeBlocksHeight);
-    const uint32_t sourceBlockX = tile.m_XInTexels / blockSize;
-    const uint32_t sourceBlockY = tile.m_YInTexels / blockSize;
-    const uint32_t rowPitchTile = tileBlocksWidth * bytesPerBlock;
-
-    assert(rowPitch == rowPitchTile);
-
-    for (uint32_t blockRow = 0; blockRow < tileBlocksHeight; blockRow++)
-    {
-        const int32_t readOffset = (sourceBlockY + blockRow) * mipData.m_RowPitch + sourceBlockX * bytesPerBlock;
-        const int32_t writeOffset = blockRow * rowPitchTile;
-        memcpy(mappedData + writeOffset, mipData.m_Data.data() + readOffset, rowPitchTile);
-    }
-
-    device->unmapStagingTexture(stagingTexture);
-
-    nvrhi::TextureSlice destSlice;
-    destSlice.x = tile.m_XInTexels;
-    destSlice.y = tile.m_YInTexels;
-    destSlice.z = 0;
-    destSlice.width = tile.m_WidthInTexels;
-    destSlice.height = tile.m_HeightInTexels;
-    destSlice.depth = 1;
-    destSlice.mipLevel = tile.m_Mip;
-
-    commandList->copyTexture(destTexture.m_NVRHITextureHandle, destSlice, stagingTexture, nvrhi::TextureSlice{});
-}
-
 void TextureFeedbackManager::AsyncIOThreadFunc()
 {
     auto ProcessAsyncIOResults = [this]()
@@ -125,6 +75,14 @@ void TextureFeedbackManager::AsyncIOThreadFunc()
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1)); // yield to avoid busy waiting
     }
+}
+
+void TextureFeedbackManager::AddTexture(Texture& texture, const rtxts::TiledTextureDesc& tiledTextureDesc, rtxts::TextureDesc& feedbackDesc, rtxts::TextureDesc& minMipDesc)
+{
+    AUTO_LOCK(m_TiledTextureManagerLock);
+    m_TiledTextureManager->AddTiledTexture(tiledTextureDesc, texture.m_TiledTextureID);
+    feedbackDesc = m_TiledTextureManager->GetTextureDesc(texture.m_TiledTextureID, rtxts::eFeedbackTexture);
+    minMipDesc = m_TiledTextureManager->GetTextureDesc(texture.m_TiledTextureID, rtxts::eMinMipTexture);
 }
 
 void TextureFeedbackManager::Initialize()
@@ -551,4 +509,54 @@ void TextureFeedbackManager::ReleaseHeap(uint32_t heapID)
     m_Buffers[heapID] = nullptr;
 
     m_NumHeaps--;
+}
+
+void TextureFeedbackManager::UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextureIdx, const FeedbackTextureTileInfo& tile)
+{
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+    const Texture& destTexture = g_Graphic.m_Textures.at(destTextureIdx);
+    const TextureMipData& mipData = destTexture.m_TextureMipDatas[tile.m_Mip];
+
+    nvrhi::TextureDesc stagingTextureDesc;
+    stagingTextureDesc.width = tile.m_WidthInTexels;
+    stagingTextureDesc.height = tile.m_HeightInTexels;
+    stagingTextureDesc.format = destTexture.m_NVRHITextureHandle->getDesc().format;
+    nvrhi::StagingTextureHandle stagingTexture = device->createStagingTexture(stagingTextureDesc, nvrhi::CpuAccessMode::Write);
+
+    size_t rowPitch;
+    std::byte* mappedData = (std::byte*)device->mapStagingTexture(stagingTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Write, &rowPitch);
+
+    // Compute pitches and offsets in 4x4 blocks
+    // Note: The "tile" being copied here might be smaller than a tiled resource tile, for example non-pow2 textures
+    const uint32_t blockSize = nvrhi::getFormatInfo(destTexture.m_NVRHITextureHandle->getDesc().format).blockSize;
+    const uint32_t tileBlocksWidth = tile.m_WidthInTexels / blockSize;
+    const uint32_t tileBlocksHeight = tile.m_HeightInTexels / blockSize;
+    const uint32_t shapeBlocksWidth = destTexture.m_TileShape.widthInTexels / blockSize;
+    const uint32_t shapeBlocksHeight = destTexture.m_TileShape.heightInTexels / blockSize;
+    const uint32_t bytesPerBlock = m_TiledResourceSizeInBytes / (shapeBlocksWidth * shapeBlocksHeight);
+    const uint32_t sourceBlockX = tile.m_XInTexels / blockSize;
+    const uint32_t sourceBlockY = tile.m_YInTexels / blockSize;
+    const uint32_t rowPitchTile = tileBlocksWidth * bytesPerBlock;
+
+    assert(rowPitch == rowPitchTile);
+
+    for (uint32_t blockRow = 0; blockRow < tileBlocksHeight; blockRow++)
+    {
+        const int32_t readOffset = (sourceBlockY + blockRow) * mipData.m_RowPitch + sourceBlockX * bytesPerBlock;
+        const int32_t writeOffset = blockRow * rowPitchTile;
+        memcpy(mappedData + writeOffset, mipData.m_Data.data() + readOffset, rowPitchTile);
+    }
+
+    device->unmapStagingTexture(stagingTexture);
+
+    nvrhi::TextureSlice destSlice;
+    destSlice.x = tile.m_XInTexels;
+    destSlice.y = tile.m_YInTexels;
+    destSlice.z = 0;
+    destSlice.width = tile.m_WidthInTexels;
+    destSlice.height = tile.m_HeightInTexels;
+    destSlice.depth = 1;
+    destSlice.mipLevel = tile.m_Mip;
+
+    commandList->copyTexture(destTexture.m_NVRHITextureHandle, destSlice, stagingTexture, nvrhi::TextureSlice{});
 }
