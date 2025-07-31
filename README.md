@@ -48,7 +48,7 @@ Use "**--scene**" commandline argument to load a scene. Example:
 |---|---|---|
 |![image](https://github.com/user-attachments/assets/827be21d-e9ef-4b9c-b89b-24a3964f8cf5)|![image](https://github.com/user-attachments/assets/4e2da59d-2b97-40e6-83ee-353fd87c04f3)|![image](https://github.com/user-attachments/assets/140b25b5-06c1-4b6d-8467-665f3848e47f)|
 
-### Texture Streaming w/ Sampler Feedback
+### Texture Tiled Mip Streaming w/ Sampler Feedback
 WIP
 
 ### Multi-threading
@@ -91,5 +91,5 @@ WIP
 - **Static Animations**
     - Linear Translation & Rotation only. No bones & skinning support yet.
 - **GPU Ray-Traced Global Illumination with [Nvidia RTXGI-DDI](https://github.com/NVIDIAGameWorks/RTXGI-DDGI)**
-- **Texture mip streaming with [Sampler Feedback](https://microsoft.github.io/DirectX-Specs/d3d/SamplerFeedback.html)** (WIP)
-    - using [RTXTS](https://github.com/NVIDIA-RTX/RTXTS)
+- **Texture Tiled Mip Streaming with [Sampler Feedback](https://microsoft.github.io/DirectX-Specs/d3d/SamplerFeedback.html)** (WIP)
+    - using [Nvidia Tiled Texture Manager Library](https://github.com/NVIDIA-RTX/RTXTS)
