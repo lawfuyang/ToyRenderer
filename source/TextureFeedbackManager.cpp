@@ -174,6 +174,10 @@ void TextureFeedbackManager::BeginFrame()
         texturesToReadback.push_back(textureIdx);
     }
 
+    g_Scene->m_SamplerFeedbackFrameSlicedIdxStart = g_Scene->m_SamplerFeedbackFrameSlicedIdxEnd;
+    g_Scene->m_SamplerFeedbackFrameSlicedIdxEnd += texturesToReadback.size();
+    g_Scene->m_SamplerFeedbackBaseTextureIdx = (g_Scene->m_SamplerFeedbackFrameSlicedIdxStart / g_Graphic.m_Textures.size()) * g_Graphic.m_Textures.size();
+
     if (m_bCompactMemory)
     {
         PROFILE_SCOPED("Trim Standby Tiles");

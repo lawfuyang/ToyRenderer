@@ -98,6 +98,11 @@ public:
     float m_DirLightStrength = 1.0f;
     float m_LastFrameExposure = 1.0f;
 
+    // these values do not wrap around the size of the size of the textures' array
+    uint32_t m_SamplerFeedbackBaseTextureIdx = 0;
+    uint32_t m_SamplerFeedbackFrameSlicedIdxStart = 0;
+    uint32_t m_SamplerFeedbackFrameSlicedIdxEnd = 0;
+
     int m_DebugViewMode = 0;
     bool m_EnableAnimations = true;
     bool m_bEnableShadows = true;

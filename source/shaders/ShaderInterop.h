@@ -31,7 +31,7 @@ static const uint32_t kNumThreadsPerWave = 32;
 static const uint32_t kMaxThreadGroupsPerDimension = 65535;
 static const float kFP16Max = 65504.0f;
 
-static const uint32_t MaterialFlag_UseDiffuseTexture           = (1 << 0);
+static const uint32_t MaterialFlag_UseAlbedoTexture           = (1 << 0);
 static const uint32_t MaterialFlag_UseNormalTexture            = (1 << 1);
 static const uint32_t MaterialFlag_UseMetallicRoughnessTexture = (1 << 2);
 static const uint32_t MaterialFlag_UseEmissiveTexture          = (1 << 3);
@@ -75,15 +75,22 @@ struct BasePassConstants
     Matrix m_PrevWorldToClip;
     Matrix m_WorldToView;
     Vector4 m_Frustum;
+    //----
     Vector2U m_HZBDimensions;
     float m_P00;
     float m_P11;
+    //---- 
     float m_NearPlane;
     uint32_t m_CullingFlags;
     uint32_t m_DebugMode;
     uint32_t PAD0;
+    //----
     Vector2U m_OutputResolution;
     uint32_t m_bVisualizeMinMipTilesOnAlbedoOutput;
+    uint32_t m_SamplerFeedbackBaseTextureIdx;
+    //----
+    uint32_t m_SamplerFeedbackFrameSlicedIdxStart;
+    uint32_t m_SamplerFeedbackFrameSlicedIdxEnd;
 };
 
 struct BasePassInstanceConstants
@@ -107,8 +114,10 @@ struct DeferredLightingConsts
     Matrix m_ClipToWorld;
     Vector3 m_CameraOrigin;
     uint32_t m_SSAOEnabled;
+    //----
     uint32_t m_DebugMode;
     Vector3 m_DirectionalLightVector;
+    //----
     float m_DirectionalLightStrength;
     Vector2U m_LightingOutputResolution;
     uint32_t m_GIEnabled;
@@ -165,32 +174,24 @@ struct HosekWilkieSkyParameters
     Vector4 m_Params[10];
 };
 
+struct TextureData
+{
+    uint32_t m_GlobalIndex;
+    uint32_t m_IsWrapSampler;
+    uint32_t m_DescriptorIndex;
+    uint32_t m_FeedbackTextureDescriptorIndex;
+    uint32_t m_MinMapTextureDescriptorIndex;
+};
+
 struct MaterialData
 {
     Vector4 m_ConstAlbedo;
     Vector3 m_ConstEmissive;
     float m_AlphaCutoff;
-
-    uint32_t m_AlbedoTextureIsWrapSampler;
-    uint32_t m_AlbedoTextureDescriptorIndex;
-    uint32_t m_AlbedoFeedbackTextureDescriptorIndex;
-    uint32_t m_AlbedoMinMapTextureDescriptorIndex;
-
-    uint32_t m_NormalTextureIsWrapSampler;
-    uint32_t m_NormalTextureDescriptorIndex;
-    uint32_t m_NormalFeedbackTextureDescriptorIndex;
-    uint32_t m_NormalMinMapTextureDescriptorIndex;
-
-    uint32_t m_MetallicRoughnessTextureIsWrapSampler;
-    uint32_t m_MetallicRoughnessTextureDescriptorIndex;
-    uint32_t m_MetallicRoughnessFeedbackTextureDescriptorIndex;
-    uint32_t m_MetallicRoughnessMinMapTextureDescriptorIndex;
-
-    uint32_t m_EmissiveTextureIsWrapSampler;
-    uint32_t m_EmissiveTextureDescriptorIndex;
-    uint32_t m_EmissiveFeedbackTextureDescriptorIndex;
-    uint32_t m_EmissiveMinMapTextureDescriptorIndex;
-    
+    TextureData m_AlbedoTexture;
+    TextureData m_NormalTexture;
+    TextureData m_MetallicRoughnessTexture;
+    TextureData m_EmissiveTexture;
     uint32_t m_MaterialFlags;
     float m_ConstRoughness;
     float m_ConstMetallic;

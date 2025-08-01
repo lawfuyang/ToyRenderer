@@ -417,7 +417,7 @@ struct GLTFSceneLoader
             {
                 if (gltfMaterial.pbr_specular_glossiness.diffuse_texture.texture)
                 {
-                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
+                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseAlbedoTexture;
                     HandleTextureView(sceneMaterial.m_Albedo, gltfMaterial.pbr_specular_glossiness.diffuse_texture);
                 }
                 if (gltfMaterial.pbr_specular_glossiness.specular_glossiness_texture.texture)
@@ -434,7 +434,7 @@ struct GLTFSceneLoader
             {
                 if (gltfMaterial.pbr_metallic_roughness.base_color_texture.texture)
                 {
-                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseDiffuseTexture;
+                    sceneMaterial.m_MaterialFlags |= MaterialFlag_UseAlbedoTexture;
                     HandleTextureView(sceneMaterial.m_Albedo, gltfMaterial.pbr_metallic_roughness.base_color_texture);
                 }
                 if (gltfMaterial.pbr_metallic_roughness.metallic_roughness_texture.texture)
@@ -482,38 +482,44 @@ struct GLTFSceneLoader
 
             sceneMaterial.m_MaterialDataBufferIdx = i;
 
-            auto SetTextureValues = [this](uint32_t& textureIdx, uint32_t& feedbackIdx, uint32_t& minMipIdx, uint32_t& bIsSamplerWrap, const Material::TextureView& sceneTextureView)
+            auto SetTextureData = [this](TextureData& textureData, const Material::TextureView& sceneTextureView)
             {
-                textureIdx = feedbackIdx = minMipIdx = UINT32_MAX;
-                bIsSamplerWrap = 0;
+                textureData.m_GlobalIndex = UINT32_MAX;
+                textureData.m_IsWrapSampler = 0;
+                textureData.m_DescriptorIndex = UINT32_MAX;
+                textureData.m_FeedbackTextureDescriptorIndex = UINT32_MAX;
+                textureData.m_MinMapTextureDescriptorIndex = UINT32_MAX;
+
                 if (!sceneTextureView.IsValid())
                 {
                     return; // no texture
                 }
 
+                textureData.m_GlobalIndex = sceneTextureView.m_TextureIdx;
+
                 Texture& tex = g_Graphic.m_Textures.at(sceneTextureView.m_TextureIdx);
-                textureIdx = g_Graphic.GetIndexInHeap(tex.m_SRVIndexInTable);
+                textureData.m_DescriptorIndex = g_Graphic.GetIndexInHeap(tex.m_SRVIndexInTable);
 
                 if (tex.m_PackedMipDesc.numStandardMips != 0)
                 {
                     assert(tex.m_SamplerFeedbackTextureHandle);
                     assert(tex.m_MinMipTextureHandle);
 
-                    feedbackIdx = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
-                    minMipIdx = g_Graphic.GetIndexInHeap(tex.m_MinMipIndexInTable);
+                    textureData.m_FeedbackTextureDescriptorIndex = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
+                    textureData.m_MinMapTextureDescriptorIndex = g_Graphic.GetIndexInHeap(tex.m_MinMipIndexInTable);
                 }
 
-                bIsSamplerWrap = sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Wrap ? 1 : 0;
+                textureData.m_IsWrapSampler = sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Wrap ? 1 : 0;
             };
 
             MaterialData& materialData = m_GlobalMaterialData[i];
             materialData.m_ConstAlbedo = sceneMaterial.m_ConstAlbedo;
 			materialData.m_ConstEmissive = sceneMaterial.m_ConstEmissive;
             materialData.m_MaterialFlags = sceneMaterial.m_MaterialFlags;
-            SetTextureValues(materialData.m_AlbedoTextureDescriptorIndex, materialData.m_AlbedoFeedbackTextureDescriptorIndex, materialData.m_AlbedoMinMapTextureDescriptorIndex, materialData.m_AlbedoTextureIsWrapSampler, sceneMaterial.m_Albedo);
-            SetTextureValues(materialData.m_NormalTextureDescriptorIndex, materialData.m_NormalFeedbackTextureDescriptorIndex, materialData.m_NormalMinMapTextureDescriptorIndex, materialData.m_NormalTextureIsWrapSampler, sceneMaterial.m_Normal);
-            SetTextureValues(materialData.m_MetallicRoughnessTextureDescriptorIndex, materialData.m_MetallicRoughnessFeedbackTextureDescriptorIndex, materialData.m_MetallicRoughnessMinMapTextureDescriptorIndex, materialData.m_MetallicRoughnessTextureIsWrapSampler, sceneMaterial.m_MetallicRoughness);
-            SetTextureValues(materialData.m_EmissiveTextureDescriptorIndex, materialData.m_EmissiveFeedbackTextureDescriptorIndex, materialData.m_EmissiveMinMapTextureDescriptorIndex, materialData.m_EmissiveTextureIsWrapSampler, sceneMaterial.m_Emissive);
+            SetTextureData(materialData.m_AlbedoTexture, sceneMaterial.m_Albedo);
+            SetTextureData(materialData.m_NormalTexture, sceneMaterial.m_Normal);
+            SetTextureData(materialData.m_MetallicRoughnessTexture, sceneMaterial.m_MetallicRoughness);
+            SetTextureData(materialData.m_EmissiveTexture, sceneMaterial.m_Emissive);
             materialData.m_ConstRoughness = sceneMaterial.m_ConstRoughness;
             materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;

@@ -542,7 +542,7 @@ bool Material::IsValid() const
 {
     bool bResult = true;
 
-    if (m_MaterialFlags & MaterialFlag_UseDiffuseTexture)
+    if (m_MaterialFlags & MaterialFlag_UseAlbedoTexture)
     {
         bResult &= m_Albedo.IsValid();
     }

@@ -811,10 +811,12 @@ void Graphic::ExecuteAllCommandLists()
         {
             for (nvrhi::CommandListHandle cmdList : m_PendingCommandLists)
             {
+                PROFILE_SCOPED("Execute CommandList");
                 m_NVRHIDevice->executeCommandList(cmdList);
 
                 if (g_ExecuteAndWaitPerCommandList.Get())
                 {
+                    PROFILE_SCOPED("Wait for CommandList to finish");
                     verify(m_NVRHIDevice->waitForIdle());
                 }
             }
