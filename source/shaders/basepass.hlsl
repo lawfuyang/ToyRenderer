@@ -204,9 +204,6 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     getCommonGBufferParamsArguments.m_AnisotropicWrapMaxReductionSampler = g_AnisotropicWrapMaxReductionSampler;
     getCommonGBufferParamsArguments.m_bEnableSamplerFeedback = true;
     getCommonGBufferParamsArguments.m_bVisualizeMinMipTilesOnAlbedoOutput = g_BasePassConsts.m_bVisualizeMinMipTilesOnAlbedoOutput;
-    getCommonGBufferParamsArguments.m_SamplerFeedbackBaseTextureIdx = g_BasePassConsts.m_SamplerFeedbackBaseTextureIdx;
-    getCommonGBufferParamsArguments.m_SamplerFeedbackFrameSlicedIdxStart = g_BasePassConsts.m_SamplerFeedbackFrameSlicedIdxStart;
-    getCommonGBufferParamsArguments.m_SamplerFeedbackFrameSlicedIdxEnd = g_BasePassConsts.m_SamplerFeedbackFrameSlicedIdxEnd;
     
     GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments);
     

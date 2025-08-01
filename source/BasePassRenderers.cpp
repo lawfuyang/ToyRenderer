@@ -453,9 +453,6 @@ public:
         basePassConstants.m_DebugMode = g_Scene->m_DebugViewMode;
         basePassConstants.m_OutputResolution = Vector2U{ viewportTexDesc.width, viewportTexDesc.height };
         basePassConstants.m_bVisualizeMinMipTilesOnAlbedoOutput = g_Scene->m_bVisualizeMinMipTilesOnAlbedoOutput ? 1 : 0;
-        basePassConstants.m_SamplerFeedbackBaseTextureIdx = g_Scene->m_SamplerFeedbackBaseTextureIdx;
-        basePassConstants.m_SamplerFeedbackFrameSlicedIdxStart = g_Scene->m_SamplerFeedbackFrameSlicedIdxStart;
-        basePassConstants.m_SamplerFeedbackFrameSlicedIdxEnd = g_Scene->m_SamplerFeedbackFrameSlicedIdxEnd;
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, basePassConstants);
 

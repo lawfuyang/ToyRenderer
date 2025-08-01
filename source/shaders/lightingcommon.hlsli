@@ -213,9 +213,6 @@ struct SampleMaterialValueArguments
     float2 m_SampleGradDDX;
     float2 m_SampleGradDDY;
     bool m_bVisualizeMinMipTilesOnAlbedoOutput;
-    uint32_t m_SamplerFeedbackBaseTextureIdx;
-    uint32_t m_SamplerFeedbackFrameSlicedIdxStart;
-    uint32_t m_SamplerFeedbackFrameSlicedIdxEnd;
 };
 
 SampleMaterialValueArguments CreateDefaultSampleMaterialValueArguments()
@@ -234,9 +231,6 @@ SampleMaterialValueArguments CreateDefaultSampleMaterialValueArguments()
     args.m_SampleGradDDX = float2(0.0f, 0.0f);
     args.m_SampleGradDDY = float2(0.0f, 0.0f);
     args.m_bVisualizeMinMipTilesOnAlbedoOutput = false;
-    args.m_SamplerFeedbackBaseTextureIdx = 0xFFFFFFFF;
-    args.m_SamplerFeedbackFrameSlicedIdxStart = 0xFFFFFFFF;
-    args.m_SamplerFeedbackFrameSlicedIdxEnd = 0xFFFFFFFF;
 
     return args;
 }
@@ -322,9 +316,6 @@ struct GetCommonGBufferParamsArguments
     SamplerState m_AnisotropicWrapMaxReductionSampler;
     bool m_bEnableSamplerFeedback;
     bool m_bVisualizeMinMipTilesOnAlbedoOutput;
-    uint32_t m_SamplerFeedbackBaseTextureIdx;
-    uint32_t m_SamplerFeedbackFrameSlicedIdxStart;
-    uint32_t m_SamplerFeedbackFrameSlicedIdxEnd;
 };
 
 GetCommonGBufferParamsArguments CreateDefaultGetCommonGBufferParamsArguments()
@@ -336,9 +327,6 @@ GetCommonGBufferParamsArguments CreateDefaultGetCommonGBufferParamsArguments()
     args.m_Normal = float3(0.0f, 1.0f, 0.0f);
     args.m_bEnableSamplerFeedback = false;
     args.m_bVisualizeMinMipTilesOnAlbedoOutput = false;
-    args.m_SamplerFeedbackBaseTextureIdx = 0xFFFFFFFF;
-    args.m_SamplerFeedbackFrameSlicedIdxStart = 0xFFFFFFFF;
-    args.m_SamplerFeedbackFrameSlicedIdxEnd = 0xFFFFFFFF;
 
     return args;
 }
