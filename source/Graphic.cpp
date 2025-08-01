@@ -23,6 +23,7 @@ static_assert(std::is_same_v<uint32_t, GraphicConstants::IndexBufferFormat_t>);
 
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
 CommandLineOption<bool> g_ExecuteAndWaitPerCommandList{ "executeandwaitpercommandlist", false };
+CommandLineOption<bool> g_ExecutePerCommandList{ "executepercommandlist", false };
 CommandLineOption<bool> g_DisableTextureStreaming{ "disabletextureStreaming", true }; // TODO: set to false once tile texture streaming is done
 
 void Graphic::InitRenderDocAPI()
@@ -806,12 +807,16 @@ void Graphic::ExecuteAllCommandLists()
             verify(m_NVRHIDevice->waitForIdle());
         }
 
-        if (g_ExecuteAndWaitPerCommandList.Get())
+        if (g_ExecutePerCommandList.Get() || g_ExecuteAndWaitPerCommandList.Get())
         {
             for (nvrhi::CommandListHandle cmdList : m_PendingCommandLists)
             {
                 m_NVRHIDevice->executeCommandList(cmdList);
-                verify(m_NVRHIDevice->waitForIdle());
+
+                if (g_ExecuteAndWaitPerCommandList.Get())
+                {
+                    verify(m_NVRHIDevice->waitForIdle());
+                }
             }
         }
         else

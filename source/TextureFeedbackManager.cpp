@@ -239,8 +239,6 @@ void TextureFeedbackManager::BeginFrame()
 
         if (!tilesToUnmap.empty())
         {
-            //LOG_DEBUG("Unmapping %u tiles for texture %u", (uint32_t)tilesToUnmap.size(), i);
-
             // TODO: keep track of mapped & unmapped tiles in Texture class, and free the TextureMipData memory when all tiles in mip gets unmapped
             const std::vector<rtxts::TileCoord>& tilesCoordinates = m_TiledTextureManager->GetTileCoordinates(texture.m_TiledTextureID);
 
@@ -279,7 +277,6 @@ void TextureFeedbackManager::BeginFrame()
 
         if (!tilesToMap.empty())
         {
-            //LOG_DEBUG("Mapping %u tiles for texture %u", (uint32_t)tilesToMap.size(), i);
             // TODO: frame-slice this
             textureAndTilesToMap.push_back({ i, std::move(tilesToMap) });
         }
@@ -291,8 +288,6 @@ void TextureFeedbackManager::BeginFrame()
         for (TextureAndTiles& texUpdate : textureAndTilesToMap)
         {
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
-
-            //LOG_DEBUG("Updating %d tiles for texture: %s", texUpdate.m_TileIndices.size(), texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
 
             m_TiledTextureManager->UpdateTilesMapping(texture.m_TiledTextureID, texUpdate.m_TileIndices);
 
@@ -346,8 +341,6 @@ void TextureFeedbackManager::BeginFrame()
             for (uint32_t textureIdx : minMipDirtyTextures)
             {
                 const Texture& texture = g_Graphic.m_Textures.at(textureIdx);
-
-                //LOG_DEBUG("Updating MinMip texture for texture: %s", texture.m_NVRHITextureHandle->getDesc().debugName.c_str());
 
                 const nvrhi::TextureDesc& minMipTexDesc = texture.m_MinMipTextureHandle->getDesc();
 
@@ -421,7 +414,6 @@ void TextureFeedbackManager::BeginFrame()
         for (const MipIORequest& request : deferredTilesToUpload)
         {
             // Process each deferred tile upload request
-            //LOG_DEBUG("Processing deferred tile upload: texture: %d, mip: %d", request.m_TextureIdx, request.m_TileInfo.m_Mip);
             UploadTile(commandList, request.m_TextureIdx, request.m_TileInfo);
         }
     }
