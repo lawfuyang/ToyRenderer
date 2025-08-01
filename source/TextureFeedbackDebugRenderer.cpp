@@ -3,6 +3,7 @@
 #include "CommonResources.h"
 #include "Engine.h"
 #include "RenderGraph.h"
+#include "Scene.h"
 
 #include "shaders/ShaderInterop.h"
 
@@ -25,6 +26,8 @@ public:
 
     void UpdateImgui() override
     {
+        ImGui::Checkbox("Visualize Min Mip Tiles", &g_Scene->m_bVisualizeMinMipTilesOnAlbedoOutput);
+
         if (ImGui::BeginCombo("Texture to Preview", g_Graphic.m_Textures[m_SelectedTextureIdx].m_NVRHITextureHandle->getDesc().debugName.c_str(), ImGuiComboFlags_None))
         {
             for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); i++)

@@ -214,7 +214,7 @@ struct SampleMaterialValueArguments
     bool m_bUseSampleGrad; // generally used in RT Shaders
     float2 m_SampleGradDDX;
     float2 m_SampleGradDDY;
-    bool m_bVisualizeMinMipOnAlbedoOutput;
+    bool m_bVisualizeMinMipTilesOnAlbedoOutput;
 };
 
 SampleMaterialValueArguments CreateDefaultSampleMaterialValueArguments()
@@ -229,7 +229,7 @@ SampleMaterialValueArguments CreateDefaultSampleMaterialValueArguments()
     args.m_bUseSampleGrad = false;
     args.m_SampleGradDDX = float2(0.0f, 0.0f);
     args.m_SampleGradDDY = float2(0.0f, 0.0f);
-    args.m_bVisualizeMinMipOnAlbedoOutput = false;
+    args.m_bVisualizeMinMipTilesOnAlbedoOutput = false;
 
     return args;
 }
@@ -313,7 +313,7 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs)
         const bool bIsAlbedo = (inArgs.m_MaterialData.m_MaterialFlags & MaterialFlag_UseDiffuseTexture) != 0;
         if (bIsAlbedo)
         {
-            if (inArgs.m_bVisualizeMinMipOnAlbedoOutput && bHasMinMipTexture)
+            if (inArgs.m_bVisualizeMinMipTilesOnAlbedoOutput && bHasMinMipTexture)
             {
                 value.rgb = kMipColors[(uint)minMip];
 
@@ -352,7 +352,7 @@ struct GetCommonGBufferParamsArguments
     SamplerState m_AnisotropicClampMaxReductionSampler;
     SamplerState m_AnisotropicWrapMaxReductionSampler;
     bool m_bEnableSamplerFeedback;
-    bool m_bVisualizeMinMipOnAlbedoOutput;
+    bool m_bVisualizeMinMipTilesOnAlbedoOutput;
 };
 
 GetCommonGBufferParamsArguments CreateDefaultGetCommonGBufferParamsArguments()
@@ -363,7 +363,7 @@ GetCommonGBufferParamsArguments CreateDefaultGetCommonGBufferParamsArguments()
     args.m_WorldPosition = float3(0.0f, 0.0f, 0.0f);
     args.m_Normal = float3(0.0f, 1.0f, 0.0f);
     args.m_bEnableSamplerFeedback = false;
-    args.m_bVisualizeMinMipOnAlbedoOutput = false;
+    args.m_bVisualizeMinMipTilesOnAlbedoOutput = false;
 
     return args;
 }
@@ -380,7 +380,7 @@ GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs)
     sampleArgs.m_AnisotropicClampMaxReductionSampler = inArgs.m_AnisotropicClampMaxReductionSampler;
     sampleArgs.m_AnisotropicWrapMaxReductionSampler = inArgs.m_AnisotropicWrapMaxReductionSampler;
     sampleArgs.m_bEnableSamplerFeedback = inArgs.m_bEnableSamplerFeedback;
-    sampleArgs.m_bVisualizeMinMipOnAlbedoOutput = inArgs.m_bVisualizeMinMipOnAlbedoOutput;
+    sampleArgs.m_bVisualizeMinMipTilesOnAlbedoOutput = inArgs.m_bVisualizeMinMipTilesOnAlbedoOutput;
     
     sampleArgs.m_MaterialFlag = MaterialFlag_UseDiffuseTexture;
     sampleArgs.m_DefaultValue = float4(1, 1, 1, 1);

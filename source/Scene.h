@@ -113,7 +113,7 @@ public:
     bool m_bFreezeCullingCamera = false;
     int m_ForceMeshLOD = -1;
     bool m_bEnableTextureStreaming = true;
-    bool m_bVisualizeMinMipOnAlbedoOutput = false;
+    bool m_bVisualizeMinMipTilesOnAlbedoOutput = false;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;
