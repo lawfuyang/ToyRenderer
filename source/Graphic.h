@@ -74,7 +74,7 @@ public:
     [[nodiscard]] nvrhi::CommandListHandle AllocateCommandList(nvrhi::CommandQueue queueType = nvrhi::CommandQueue::Graphics);
     void FreeCommandList(nvrhi::CommandListHandle cmdList);
     void BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_view name);
-    void EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist);
+    void EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist, bool bImmediateExecute);
     void ExecuteAllCommandLists();
     void QueueCommandList(nvrhi::CommandListHandle commandList) { AUTO_LOCK(m_PendingCommandListsLock); m_PendingCommandLists.push_back(commandList); }
 
@@ -193,20 +193,23 @@ public:
 
 struct ScopedCommandList
 {
-    ScopedCommandList(nvrhi::CommandListHandle cmdList, std::string_view name, bool bAutoQueue)
+    ScopedCommandList(nvrhi::CommandListHandle cmdList, std::string_view name, bool bAutoQueue, bool bImmediateExecute)
         : m_CommandList(cmdList)
-        , m_AutoQueue(bAutoQueue)
+        , m_bAutoQueue(bAutoQueue)
+        , m_bImmediateExecute(bImmediateExecute)
     {
+        assert(!(m_bAutoQueue && m_bImmediateExecute)); // cannot queue & execute immediately at the same time
         g_Graphic.BeginCommandList(cmdList, name);
     }
 
     ~ScopedCommandList()
     {
-        g_Graphic.EndCommandList(m_CommandList, m_AutoQueue);
+        g_Graphic.EndCommandList(m_CommandList, m_bAutoQueue, m_bImmediateExecute);
     }
 
     nvrhi::CommandListHandle m_CommandList;
-    const bool m_AutoQueue;
+    const bool m_bAutoQueue;
+    const bool m_bImmediateExecute;
 };
 
 // Helpers for dispatch compute shader threads
@@ -230,11 +233,15 @@ constexpr uint32_t ComputeNbMips(uint32_t width, uint32_t height)
     MicroProfileScopeGpuHandler GENERATE_UNIQUE_VARIABLE(MicroProfileScopeGpuHandler){ MICROPROFILE_TOKEN_PASTE(__Microprofile_GPU_Token__, __LINE__), Graphic::GetGPULogForCurrentThread() };
 
 #define SCOPED_COMMAND_LIST(commandList, NAME) \
-    ScopedCommandList GENERATE_UNIQUE_VARIABLE(scopedCommandList){ commandList, NAME, false /*bAutoQueue*/ }; \
+    ScopedCommandList GENERATE_UNIQUE_VARIABLE(scopedCommandList){ commandList, NAME, false /*bAutoQueue*/, false /*bImmediateExecute*/ }; \
     PROFILE_GPU_SCOPED(commandList, NAME)
 
 #define SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, NAME) \
-    ScopedCommandList GENERATE_UNIQUE_VARIABLE(scopedCommandList) { commandList, NAME, true /*bAutoQueue*/ }; \
+    ScopedCommandList GENERATE_UNIQUE_VARIABLE(scopedCommandList) { commandList, NAME, true /*bAutoQueue*/, false /*bImmediateExecute*/ }; \
     PROFILE_GPU_SCOPED(commandList, NAME)
+
+#define SCOPED_COMMANDLIST_IMMEDIATE_EXECUTE(commandList, NAME) \
+    ScopedCommandList GENERATE_UNIQUE_VARIABLE(scopedCommandList){ commandList, NAME, false /*bAutoQueue*/, true /*bImmediateExecute*/ }; \
+    PROFILE_GPU_SCOPED(commandList, NAME); \
 
 #define SCOPED_RENDERDOC_CAPTURE(condition) const ScopedRenderDocCapture GENERATE_UNIQUE_VARIABLE(scopedRenderDocCapture){ condition };

@@ -129,7 +129,7 @@ void TextureFeedbackManager::BeginFrame()
     PROFILE_FUNCTION();
 
     nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
-    g_Graphic.BeginCommandList(commandList, __FUNCTION__);
+    SCOPED_COMMANDLIST_IMMEDIATE_EXECUTE(commandList, __FUNCTION__);
 
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
@@ -433,9 +433,6 @@ void TextureFeedbackManager::BeginFrame()
         const uint32_t kNumTilesToDefragment = 16;
         m_TiledTextureManager->DefragmentTiles(kNumTilesToDefragment);
     }
-
-    g_Graphic.EndCommandList(commandList, false);
-    device->executeCommandList(commandList);
 }
 
 void TextureFeedbackManager::EndFrame()

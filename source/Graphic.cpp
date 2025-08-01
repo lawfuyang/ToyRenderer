@@ -584,9 +584,11 @@ void Graphic::BeginCommandList(nvrhi::CommandListHandle cmdList, std::string_vie
     MicroProfileGpuBegin(m_GraphicRHI->GetNativeCommandList(cmdList), GetGPULogForCurrentThread());
 }
 
-void Graphic::EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist)
+void Graphic::EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlist, bool bImmediateExecute)
 {
     PROFILE_FUNCTION();
+
+    assert(!(bQueueCmdlist && bImmediateExecute)); // cannot queue & execute immediately at the same time
 
     assert(GetGPULogForCurrentThread());
     cmdList->m_GPULog = MicroProfileGpuEnd(GetGPULogForCurrentThread());
@@ -596,6 +598,11 @@ void Graphic::EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlis
     if (bQueueCmdlist)
     {
         QueueCommandList(cmdList);
+    }
+
+    if (bImmediateExecute)
+    {
+        m_NVRHIDevice->executeCommandList(cmdList);
     }
 }
 
