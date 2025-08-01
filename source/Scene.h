@@ -117,7 +117,6 @@ public:
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;
-    ::OBB m_OBB;
 
     std::vector<Node> m_Nodes;
     std::vector<Primitive> m_Primitives;

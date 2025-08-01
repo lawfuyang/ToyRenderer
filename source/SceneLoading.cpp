@@ -822,8 +822,6 @@ struct GLTFSceneLoader
             }
         }
 
-        std::vector<Vector3> AABBPointsForSceneOBB;
-
         g_Scene->m_Nodes.resize(m_GLTFData->nodes_count);
 
         for (uint32_t i = 0; i < m_GLTFData->nodes_count; ++i)
@@ -862,11 +860,6 @@ struct GLTFSceneLoader
 
                     Vector3 AABBCorners[8];
                     worldAABB.GetCorners(AABBCorners);
-
-                    for (const Vector3& corner : AABBCorners)
-                    {
-                        AABBPointsForSceneOBB.push_back(corner);
-                    }
 
                     Sphere worldBoundingSphere;
                     primitiveMesh.m_BoundingSphere.Transform(worldBoundingSphere, outWorldMatrix);
@@ -917,11 +910,6 @@ struct GLTFSceneLoader
             }
 
 			//LOG_DEBUG("New Node: [%s]", node.name ? node.name : "Un-named Node");
-        }
-
-        if (!AABBPointsForSceneOBB.empty())
-        {
-            OBB::CreateFromPoints(g_Scene->m_OBB, AABBPointsForSceneOBB.size(), AABBPointsForSceneOBB.data(), sizeof(Vector3));
         }
     }
     
