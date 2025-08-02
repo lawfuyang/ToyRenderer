@@ -492,12 +492,15 @@ uint32_t TextureFeedbackManager::AllocateHeap()
 
 void TextureFeedbackManager::ReleaseHeap(uint32_t heapID)
 {
-    m_FreeHeapIDs.push_back(heapID);
+    g_Engine.AddCommand([this, heapID]
+        {
+            m_FreeHeapIDs.push_back(heapID);
 
-    m_Heaps[heapID] = nullptr;
-    m_Buffers[heapID] = nullptr;
+            m_Heaps[heapID] = nullptr;
+            m_Buffers[heapID] = nullptr;
 
-    m_NumHeaps--;
+            m_NumHeaps--;
+        });
 }
 
 void TextureFeedbackManager::UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextureIdx, const FeedbackTextureTileInfo& tile)

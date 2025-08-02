@@ -24,7 +24,7 @@ static_assert(std::is_same_v<uint32_t, GraphicConstants::IndexBufferFormat_t>);
 CommandLineOption<bool> g_AttachRenderDoc{ "attachrenderdoc", false };
 CommandLineOption<bool> g_ExecuteAndWaitPerCommandList{ "executeandwaitpercommandlist", false };
 CommandLineOption<bool> g_ExecutePerCommandList{ "executepercommandlist", false };
-CommandLineOption<bool> g_DisableTextureStreaming{ "disabletextureStreaming", true }; // TODO: set to false once tile texture streaming is done
+CommandLineOption<bool> g_DisableTextureStreaming{ "disabletextureStreaming", false };
 
 void Graphic::InitRenderDocAPI()
 {
