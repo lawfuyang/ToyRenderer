@@ -101,7 +101,7 @@ public:
 
     void Initialize() override
     {
-        if (!g_Graphic.m_Scene->IsRTGIEnabled())
+        if (!g_Graphic.m_Scene->IsRTDDGIEnabled())
         {
             return;
         }
@@ -193,7 +193,7 @@ public:
             return false;
         }
 
-        if (!g_Scene->IsRTGIEnabled())
+        if (!g_Scene->IsRTDDGIEnabled())
         {
             return false;
         }

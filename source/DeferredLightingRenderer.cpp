@@ -13,7 +13,7 @@ extern RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_SSAORDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
-extern RenderGraph::ResourceHandle g_GIVolumeDescsBuffer;
+extern RenderGraph::ResourceHandle g_RTDDRTDDGIVolumeDescsBuffer;
 
 class DeferredLightingRenderer : public IRenderer
 {
@@ -48,12 +48,12 @@ public:
 			renderGraph.AddReadDependency(g_ShadowMaskRDGTextureHandle);
 		}
 
-		if (g_Scene->IsRTGIEnabled())
+		if (g_Scene->IsRTDDGIEnabled())
 		{
-			renderGraph.AddReadDependency(g_GIVolumeDescsBuffer);
+			renderGraph.AddReadDependency(g_RTDDRTDDGIVolumeDescsBuffer);
 		}
 
-		assert(g_Scene->m_GIVolume);
+		assert(g_Scene->m_RTDDGIVolume);
 
 		return true;
     }
@@ -71,7 +71,7 @@ public:
 		passConstants.m_SSAOEnabled = g_Scene->m_bEnableAO;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
 		passConstants.m_DebugMode = g_Scene->m_DebugViewMode;
-        passConstants.m_GIEnabled = g_Scene->IsRTGIEnabled();
+        passConstants.m_bRTDDGIEnabled = g_Scene->IsRTDDGIEnabled();
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
@@ -81,7 +81,7 @@ public:
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
-        nvrhi::BufferHandle GIVolumeDescsBuffer = g_Scene->IsRTGIEnabled() ? renderGraph.GetBuffer(g_GIVolumeDescsBuffer) : g_CommonResources.DummyUIntStructuredBuffer;
+        nvrhi::BufferHandle RTDDGIVolumeDescsBuffer = g_Scene->IsRTDDGIEnabled() ? renderGraph.GetBuffer(g_RTDDRTDDGIVolumeDescsBuffer) : g_CommonResources.DummyUIntStructuredBuffer;
 
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {
@@ -91,10 +91,10 @@ public:
 			nvrhi::BindingSetItem::Texture_SRV(2, depthBufferCopyTexture),
 			nvrhi::BindingSetItem::Texture_SRV(3, ssaoTexture),
 			nvrhi::BindingSetItem::Texture_SRV(4, shadowMaskTexture),
-			nvrhi::BindingSetItem::StructuredBuffer_SRV(5, GIVolumeDescsBuffer),
-			nvrhi::BindingSetItem::Texture_SRV(6, g_Scene->m_GIVolume->GetProbeDataTexture()),
-			nvrhi::BindingSetItem::Texture_SRV(7, g_Scene->m_GIVolume->GetProbeIrradianceTexture()),
-			nvrhi::BindingSetItem::Texture_SRV(8, g_Scene->m_GIVolume->GetProbeDistanceTexture()),
+			nvrhi::BindingSetItem::StructuredBuffer_SRV(5, RTDDGIVolumeDescsBuffer),
+			nvrhi::BindingSetItem::Texture_SRV(6, g_Scene->m_RTDDGIVolume->GetProbeDataTexture()),
+			nvrhi::BindingSetItem::Texture_SRV(7, g_Scene->m_RTDDGIVolume->GetProbeIrradianceTexture()),
+			nvrhi::BindingSetItem::Texture_SRV(8, g_Scene->m_RTDDGIVolume->GetProbeDistanceTexture()),
 			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler),
 			nvrhi::BindingSetItem::Sampler(1, g_CommonResources.LinearWrapSampler),
 		};

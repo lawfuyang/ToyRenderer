@@ -13,14 +13,12 @@
 
 #include "shaders/ShaderInterop.h"
 
-CommandLineOption<bool> g_CVarUseDDGICornellDDGIVolumeSettings{ "UseDDGICornellDDGIVolumeSettings", false };
-CommandLineOption<bool> g_CVarUseDDGISponzaDDGIVolumeSettings{ "UseDDGISponzaDDGIVolumeSettings", false };
 extern CommandLineOption<bool> g_DisableRayTracing;
 
 static_assert(RTXGI_DDGI_WAVE_LANE_COUNT == kNumThreadsPerWave);
 static_assert(RTXGI_DDGI_BLEND_RAYS_PER_PROBE % kNumThreadsPerWave == 0);
 
-RenderGraph::ResourceHandle g_GIVolumeDescsBuffer;
+RenderGraph::ResourceHandle g_RTDDRTDDGIVolumeDescsBuffer;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 
 const rtxgi::EDDGIVolumeTextureFormat kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Count] =
@@ -44,24 +42,24 @@ static const nvrhi::Format kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeText
 };
 
 // dont bother with using rtxgi::d3d12::DDGIVolume. We handle all resources internally. Just re-use their logic.
-class GIVolume
+class RTDDGIVolume
     : public rtxgi::DDGIVolumeBase
-    , public GIVolumeBase
+    , public RTDDGIVolumeBase
 {
 public:
     nvrhi::TextureHandle GetProbeDataTexture() const override
     {
-        return g_Scene->IsRTGIEnabled() ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsRTDDGIEnabled() ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeIrradianceTexture() const override
     {
-        return g_Scene->IsRTGIEnabled() ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsRTDDGIEnabled() ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeDistanceTexture() const override
     {
-        return g_Scene->IsRTGIEnabled() ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsRTDDGIEnabled() ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     void Setup(RenderGraph& renderGraph)
@@ -222,13 +220,13 @@ public:
     bool m_bResetProbes = true;
     Vector3 m_ProbeSpacing{ 1.0f, 1.0f, 1.0f };
 
-    GIVolume m_GIVolume;
+    RTDDGIVolume m_RTDDGIVolume;
 
     GIRenderer() : IRenderer("GIRenderer") {}
     
     void PostSceneLoad() override
     {
-        g_Scene->m_GIVolume = &m_GIVolume;
+        g_Scene->m_RTDDGIVolume = &m_RTDDGIVolume;
 
         if (g_DisableRayTracing.Get())
         {
@@ -255,7 +253,7 @@ public:
             (int)std::ceil(g_Scene->m_AABB.Extents.z * 2 / m_ProbeSpacing.z)
         };
 
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.m_Desc;
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_RTDDGIVolume.m_Desc;
         volumeDesc.origin = rtxgi::float3{ g_Scene->m_AABB.Center.x, g_Scene->m_AABB.Center.y, g_Scene->m_AABB.Center.z };
         volumeDesc.eulerAngles = rtxgi::float3{ 0.0f, 0.0f, 0.0f }; // TODO: OBB?
         volumeDesc.probeSpacing = rtxgi::float3{ m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z };
@@ -285,7 +283,7 @@ public:
             volumeDesc.probeViewBias = 0.1f;
             volumeDesc.probeNormalBias = 0.02f;
             volumeDesc.probeMinFrontfaceDistance = 0.1f;
-            m_GIVolume.m_DebugProbeRadius = 0.05f;
+            m_RTDDGIVolume.m_DebugProbeRadius = 0.05f;
         }
         else
         {
@@ -293,7 +291,7 @@ public:
             volumeDesc.probeViewBias = 0.3f;
             volumeDesc.probeNormalBias = 0.1f;
             volumeDesc.probeMinFrontfaceDistance = 0.3f;
-            m_GIVolume.m_DebugProbeRadius = 0.1f;
+            m_RTDDGIVolume.m_DebugProbeRadius = 0.1f;
         }
 
         // sample's cornell & sponza has these values
@@ -309,35 +307,18 @@ public:
         volumeDesc.probeRandomRayBackfaceThreshold = 0.1f;
         volumeDesc.probeFixedRayBackfaceThreshold = 0.25f;
 
-        if (g_CVarUseDDGICornellDDGIVolumeSettings.Get())
-        {
-            volumeDesc.origin = rtxgi::float3{ 0.0f, 1.0f, 0.0f };
-            volumeDesc.probeCounts = rtxgi::int3{ 9, 9, 9 };
-            volumeDesc.probeSpacing = rtxgi::float3{ 0.3f, 0.3f, 0.3f };
-            volumeDesc.probeMaxRayDistance = 10.0f;
-            volumeDesc.probeHysteresis = 0.97f; // default value
-        }
-        else if (g_CVarUseDDGISponzaDDGIVolumeSettings.Get())
-        {
-            volumeDesc.origin = rtxgi::float3{ -0.4f, 5.4f, -0.25f };
-            volumeDesc.probeCounts = rtxgi::int3{ 22, 22, 22 };
-            volumeDesc.probeSpacing = rtxgi::float3{ 1.02f, 0.5f, 0.45f };
-            volumeDesc.probeMaxRayDistance = 10000.0f;
-            volumeDesc.probeHysteresis = 0.97f; // default value
-        }
-
-        m_GIVolume.Create();
+        m_RTDDGIVolume.Create();
     }
 
     void UpdateImgui() override
     {
         ImGui::Checkbox("Enabled", &g_Scene->m_bEnableGI);
-        if (!g_Scene->IsRTGIEnabled())
+        if (!g_Scene->IsRTDDGIEnabled())
         {
             return;
         }
 
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.m_Desc;
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_RTDDGIVolume.m_Desc;
 
         ImGui::Checkbox("Show Debug Probes", &volumeDesc.showProbes);
 
@@ -345,7 +326,7 @@ public:
         {
             ImGui::Indent();
             ImGui::Checkbox("Hide Inactive Probes", (bool*)&volumeDesc.probeVisType);
-            ImGui::DragFloat("Probe Radius", &m_GIVolume.m_DebugProbeRadius, 0.01f, 0.05f, 0.2f, "%.2f");
+            ImGui::DragFloat("Probe Radius", &m_RTDDGIVolume.m_DebugProbeRadius, 0.01f, 0.05f, 0.2f, "%.2f");
             ImGui::Unindent();
         }
 
@@ -353,25 +334,25 @@ public:
         volumeDesc.probeRelocationNeedsReset |= ImGui::Checkbox("Enable Probe Relocation", &volumeDesc.probeRelocationEnabled);
         volumeDesc.probeClassificationNeedsReset |= ImGui::Checkbox("Enable Probe Classification", &volumeDesc.probeClassificationEnabled);
         ImGui::Checkbox("Enable Probe Variability", &volumeDesc.probeVariabilityEnabled);
-        ImGui::DragFloat("Probe Variability Std Dev Threshold", &m_GIVolume.m_VariabilityStdDevThreshold, 0.001f, 0.001f, 0.1f, "%.3f");
+        ImGui::DragFloat("Probe Variability Std Dev Threshold", &m_RTDDGIVolume.m_VariabilityStdDevThreshold, 0.001f, 0.001f, 0.1f, "%.3f");
         ImGui::Text("Probe Spacing: [%.1f, %.1f, %.1f]", m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z); // TODO: run-time probe spacing change
-        ImGui::Text("Volume Variability Average: [%.3f]", m_GIVolume.GetVolumeAverageVariability());
-        ImGui::Text("Probe Variability Std Dev: [%.3f]", m_GIVolume.m_VariabilityStdDev);
+        ImGui::Text("Volume Variability Average: [%.3f]", m_RTDDGIVolume.GetVolumeAverageVariability());
+        ImGui::Text("Probe Variability Std Dev: [%.3f]", m_RTDDGIVolume.m_VariabilityStdDev);
     }
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        if (!g_Scene->IsRTGIEnabled())
+        if (!g_Scene->IsRTDDGIEnabled())
         {
             return false;
         }
 
-        if (!g_Scene->m_GIVolume)
+        if (!g_Scene->m_RTDDGIVolume)
         {
             return false;
         }
 
-        m_GIVolume.Setup(renderGraph);
+        m_RTDDGIVolume.Setup(renderGraph);
 
         {
             nvrhi::BufferDesc desc;
@@ -379,7 +360,7 @@ public:
             desc.structStride = sizeof(rtxgi::DDGIVolumeDescGPUPacked);
             desc.debugName = "DDGI Volume Desc GPU Packed";
             desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            renderGraph.CreateTransientResource(g_GIVolumeDescsBuffer, desc);
+            renderGraph.CreateTransientResource(g_RTDDRTDDGIVolumeDescsBuffer, desc);
         }
 
         return true;
@@ -389,8 +370,8 @@ public:
     {
         PROFILE_GPU_SCOPED(commandList, __FUNCTION__);
 
-        nvrhi::TextureHandle probeRayDataTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeRayDataRDGTextureHandle);
-        nvrhi::BufferHandle GIVolumeDescsBuffer = renderGraph.GetBuffer(g_GIVolumeDescsBuffer);
+        nvrhi::TextureHandle probeRayDataTexture = renderGraph.GetTexture(m_RTDDGIVolume.m_ProbeRayDataRDGTextureHandle);
+        nvrhi::BufferHandle RTDDGIVolumeDescsBuffer = renderGraph.GetBuffer(g_RTDDRTDDGIVolumeDescsBuffer);
 
         GIProbeTraceConsts passConstants;
         passConstants.m_DirectionalLightVector = g_Scene->m_DirLightVec;
@@ -400,10 +381,10 @@ public:
         bindingSetDesc.bindings =
         {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passConstants)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, GIVolumeDescsBuffer),
-            nvrhi::BindingSetItem::Texture_SRV(1, m_GIVolume.m_ProbeData),
-            nvrhi::BindingSetItem::Texture_SRV(2, m_GIVolume.m_ProbeIrradiance),
-            nvrhi::BindingSetItem::Texture_SRV(3, m_GIVolume.m_ProbeDistance),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, RTDDGIVolumeDescsBuffer),
+            nvrhi::BindingSetItem::Texture_SRV(1, m_RTDDGIVolume.m_ProbeData),
+            nvrhi::BindingSetItem::Texture_SRV(2, m_RTDDGIVolume.m_ProbeIrradiance),
+            nvrhi::BindingSetItem::Texture_SRV(3, m_RTDDGIVolume.m_ProbeDistance),
             nvrhi::BindingSetItem::RayTracingAccelStruct(4, g_Scene->m_TLAS),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(5, g_Scene->m_InstanceConstsBuffer),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(6, g_Graphic.m_GlobalVertexBuffer),
@@ -417,7 +398,7 @@ public:
         };
 
         uint32_t dispatchX, dispatchY, dispatchZ;
-        m_GIVolume.GetRayDispatchDimensions(dispatchX, dispatchY, dispatchZ);
+        m_RTDDGIVolume.GetRayDispatchDimensions(dispatchX, dispatchY, dispatchZ);
 
         // DXC complains: "Function uses derivatives in compute-model shader with NumThreads (1, 1, 1); derivatives require NumThreads to be 1D and a multiple of 4, or 2D/3D with X and Y both being a multiple of 2."
         // we're not doing any hardware derivatives, so silence that error, enforce dispatchX to be multiple of kNumThreadsPerWave
@@ -439,29 +420,29 @@ public:
     {
         if (m_bResetProbes)
         {
-            m_GIVolume.m_NumVolumeVariabilitySamples = 0;
-            commandList->clearTextureFloat(m_GIVolume.m_ProbeIrradiance, nvrhi::AllSubresources, m_GIVolume.m_ProbeIrradiance->getDesc().clearValue);
-            commandList->clearTextureFloat(m_GIVolume.m_ProbeDistance, nvrhi::AllSubresources, m_GIVolume.m_ProbeDistance->getDesc().clearValue);
+            m_RTDDGIVolume.m_NumVolumeVariabilitySamples = 0;
+            commandList->clearTextureFloat(m_RTDDGIVolume.m_ProbeIrradiance, nvrhi::AllSubresources, m_RTDDGIVolume.m_ProbeIrradiance->getDesc().clearValue);
+            commandList->clearTextureFloat(m_RTDDGIVolume.m_ProbeDistance, nvrhi::AllSubresources, m_RTDDGIVolume.m_ProbeDistance->getDesc().clearValue);
             m_bResetProbes = false;
         }
 
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_GIVolume.m_Desc;
+        rtxgi::DDGIVolumeDesc& volumeDesc = m_RTDDGIVolume.m_Desc;
 
-        m_GIVolume.Update();
+        m_RTDDGIVolume.Update();
 
-        if (m_GIVolume.bIsConverged)
+        if (m_RTDDGIVolume.bIsConverged)
         {
             // TODO: run a "cheap" trace & blend pass, but without relocation & classification, to get the average variability once converged
             return;
         }
 
-        nvrhi::TextureHandle probeRayDataTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeRayDataRDGTextureHandle);
-        nvrhi::TextureHandle probeVariabilityTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeVariabilityRDGTextureHandle);
-        nvrhi::TextureHandle probeVariabilityAverageTexture = renderGraph.GetTexture(m_GIVolume.m_ProbeVariabilityAverageRDGTextureHandle);
-        nvrhi::BufferHandle GIVolumeDescsBuffer = renderGraph.GetBuffer(g_GIVolumeDescsBuffer);
+        nvrhi::TextureHandle probeRayDataTexture = renderGraph.GetTexture(m_RTDDGIVolume.m_ProbeRayDataRDGTextureHandle);
+        nvrhi::TextureHandle probeVariabilityTexture = renderGraph.GetTexture(m_RTDDGIVolume.m_ProbeVariabilityRDGTextureHandle);
+        nvrhi::TextureHandle probeVariabilityAverageTexture = renderGraph.GetTexture(m_RTDDGIVolume.m_ProbeVariabilityAverageRDGTextureHandle);
+        nvrhi::BufferHandle RTDDGIVolumeDescsBuffer = renderGraph.GetBuffer(g_RTDDRTDDGIVolumeDescsBuffer);
 
-        const rtxgi::DDGIVolumeDescGPUPacked volumeDescGPU = m_GIVolume.GetDescGPUPacked();
-        commandList->writeBuffer(GIVolumeDescsBuffer, &volumeDescGPU, sizeof(rtxgi::DDGIVolumeDescGPUPacked));
+        const rtxgi::DDGIVolumeDescGPUPacked volumeDescGPU = m_RTDDGIVolume.GetDescGPUPacked();
+        commandList->writeBuffer(RTDDGIVolumeDescsBuffer, &volumeDescGPU, sizeof(rtxgi::DDGIVolumeDescGPUPacked));
 
         TraceProbes(commandList, renderGraph);
 
@@ -472,11 +453,11 @@ public:
         bindingSetDesc.bindings =
         {
             nvrhi::BindingSetItem::PushConstants(kDDGIRootConstsRegister, sizeof(DDGIRootConstants)),
-            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, GIVolumeDescsBuffer),
+            nvrhi::BindingSetItem::StructuredBuffer_SRV(0, RTDDGIVolumeDescsBuffer),
             nvrhi::BindingSetItem::Texture_UAV(0, probeRayDataTexture),
-            nvrhi::BindingSetItem::Texture_UAV(1, m_GIVolume.m_ProbeIrradiance),
-            nvrhi::BindingSetItem::Texture_UAV(2, m_GIVolume.m_ProbeDistance),
-            nvrhi::BindingSetItem::Texture_UAV(3, m_GIVolume.m_ProbeData),
+            nvrhi::BindingSetItem::Texture_UAV(1, m_RTDDGIVolume.m_ProbeIrradiance),
+            nvrhi::BindingSetItem::Texture_UAV(2, m_RTDDGIVolume.m_ProbeDistance),
+            nvrhi::BindingSetItem::Texture_UAV(3, m_RTDDGIVolume.m_ProbeData),
             nvrhi::BindingSetItem::Texture_UAV(4, probeVariabilityTexture),
             nvrhi::BindingSetItem::Texture_UAV(5, probeVariabilityAverageTexture),
         };
@@ -496,32 +477,32 @@ public:
         computePassParams.m_ShaderName = "ProbeBlendingCS_DDGIProbeBlendingCS RTXGI_DDGI_BLEND_RADIANCE=0";
         g_Graphic.AddComputePass(computePassParams);
 
-        const Vector3U relocationAndClassificationGroupSize = ComputeShaderUtils::GetGroupCount(m_GIVolume.GetNumProbes(), 32);
+        const Vector3U relocationAndClassificationGroupSize = ComputeShaderUtils::GetGroupCount(m_RTDDGIVolume.GetNumProbes(), 32);
 
-        if (m_GIVolume.GetProbeRelocationEnabled())
+        if (m_RTDDGIVolume.GetProbeRelocationEnabled())
         {
             computePassParams.m_ShaderName = "ProbeRelocationCS_DDGIProbeRelocationCS";
             computePassParams.m_DispatchGroupSize = relocationAndClassificationGroupSize;
             g_Graphic.AddComputePass(computePassParams);
         }
 
-        if (m_GIVolume.GetProbeClassificationEnabled())
+        if (m_RTDDGIVolume.GetProbeClassificationEnabled())
         {
             computePassParams.m_ShaderName = "ProbeClassificationCS_DDGIProbeClassificationCS";
             computePassParams.m_DispatchGroupSize = relocationAndClassificationGroupSize;
             g_Graphic.AddComputePass(computePassParams);
         }
 
-        if (m_GIVolume.GetProbeVariabilityEnabled())
+        if (m_RTDDGIVolume.GetProbeVariabilityEnabled())
         {
-            nvrhi::StagingTextureHandle thisFrameVariabilityTexture = m_GIVolume.m_ProbeVariabilityReadbackStagingTextures[g_Graphic.m_FrameCounter % 2];
+            nvrhi::StagingTextureHandle thisFrameVariabilityTexture = m_RTDDGIVolume.m_ProbeVariabilityReadbackStagingTextures[g_Graphic.m_FrameCounter % 2];
 
             size_t outRowPitch;
             const float* variabilityReadback = (const float*)g_Graphic.m_NVRHIDevice->mapStagingTexture(thisFrameVariabilityTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Read, &outRowPitch);
             assert(variabilityReadback);
 
-            m_GIVolume.m_AverageVariability = *variabilityReadback;
-            m_GIVolume.SetVariabilityForCurrentFrame(*variabilityReadback);
+            m_RTDDGIVolume.m_AverageVariability = *variabilityReadback;
+            m_RTDDGIVolume.SetVariabilityForCurrentFrame(*variabilityReadback);
 
             g_Graphic.m_NVRHIDevice->unmapStagingTexture(thisFrameVariabilityTexture);
 
@@ -581,7 +562,7 @@ public:
             return false;
         }
 
-        const rtxgi::DDGIVolumeDesc& volumeDesc = gs_GIRenderer.m_GIVolume.m_Desc;
+        const rtxgi::DDGIVolumeDesc& volumeDesc = gs_GIRenderer.m_RTDDGIVolume.m_Desc;
         if (!volumeDesc.showProbes)
         {
             return false;
@@ -591,7 +572,7 @@ public:
 
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(Vector3) * gs_GIRenderer.m_GIVolume.GetNumProbes();
+            desc.byteSize = sizeof(Vector3) * gs_GIRenderer.m_RTDDGIVolume.GetNumProbes();
             desc.structStride = sizeof(Vector3);
             desc.canHaveUAVs = true;
             desc.debugName = "Probe Positions";
@@ -614,7 +595,7 @@ public:
 
         {
             nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(uint32_t) * gs_GIRenderer.m_GIVolume.GetNumProbes();
+            desc.byteSize = sizeof(uint32_t) * gs_GIRenderer.m_RTDDGIVolume.GetNumProbes();
             desc.structStride = sizeof(uint32_t);
             desc.canHaveUAVs = true;
             desc.debugName = "Instance ID to Probe Index";
@@ -622,7 +603,7 @@ public:
             renderGraph.CreateTransientResource(m_InstanceIDToProbeIndexRDGBufferHandle, desc);
         }
 
-        renderGraph.AddReadDependency(g_GIVolumeDescsBuffer);
+        renderGraph.AddReadDependency(g_RTDDRTDDGIVolumeDescsBuffer);
 
         return true;
     }
@@ -634,13 +615,13 @@ public:
         nvrhi::BufferHandle probePositionsBuffer = renderGraph.GetBuffer(m_ProbePositionsRDGBufferHandle);
         nvrhi::BufferHandle probeDrawIndirectArgsBuffer = renderGraph.GetBuffer(m_ProbeDrawIndirectArgsRDGBufferHandle);
         nvrhi::BufferHandle instanceIDToProbeIndexBuffer = renderGraph.GetBuffer(m_InstanceIDToProbeIndexRDGBufferHandle);
-        nvrhi::BufferHandle GIVolumeDescsBuffer = renderGraph.GetBuffer(g_GIVolumeDescsBuffer);
+        nvrhi::BufferHandle RTDDGIVolumeDescsBuffer = renderGraph.GetBuffer(g_RTDDRTDDGIVolumeDescsBuffer);
 
         DrawIndexedIndirectArguments indirectArgs{};
         indirectArgs.m_IndexCount = g_CommonResources.UnitSphere.m_NumIndices;
         commandList->writeBuffer(probeDrawIndirectArgsBuffer, &indirectArgs, sizeof(indirectArgs));
 
-        const uint32_t numProbes = gs_GIRenderer.m_GIVolume.GetNumProbes();
+        const uint32_t numProbes = gs_GIRenderer.m_RTDDGIVolume.GetNumProbes();
 
         // get probe positions from the volume
         {
@@ -659,8 +640,8 @@ public:
             passParameters.m_P00 = g_Scene->m_View.m_ViewToClip.m[0][0];
             passParameters.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
             passParameters.m_NearPlane = g_Scene->m_View.m_ZNearP;
-			passParameters.m_ProbeRadius = gs_GIRenderer.m_GIVolume.m_DebugProbeRadius;
-            passParameters.m_bHideInactiveProbes = gs_GIRenderer.m_GIVolume.GetProbeVisType() == rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
+			passParameters.m_ProbeRadius = gs_GIRenderer.m_RTDDGIVolume.m_DebugProbeRadius;
+            passParameters.m_bHideInactiveProbes = gs_GIRenderer.m_RTDDGIVolume.GetProbeVisType() == rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
 
             nvrhi::BufferHandle passParametersBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 
@@ -669,11 +650,11 @@ public:
             {
                 nvrhi::BindingSetItem::ConstantBuffer(0, passParametersBuffer),
                 nvrhi::BindingSetItem::Texture_SRV(0, g_Scene->m_HZB),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(10, GIVolumeDescsBuffer),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(10, RTDDGIVolumeDescsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(0, probePositionsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(1, probeDrawIndirectArgsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_UAV(2, instanceIDToProbeIndexBuffer),
-                nvrhi::BindingSetItem::Texture_UAV(10, gs_GIRenderer.m_GIVolume.m_ProbeData),
+                nvrhi::BindingSetItem::Texture_UAV(10, gs_GIRenderer.m_RTDDGIVolume.m_ProbeData),
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampMinReductionSampler),
             };
 
@@ -703,17 +684,17 @@ public:
             GIProbeVisualizationConsts passParameters;
             passParameters.m_WorldToClip = g_Scene->m_View.m_WorldToClip;
             passParameters.m_CameraDirection = forwardVector;
-            passParameters.m_ProbeRadius = gs_GIRenderer.m_GIVolume.m_DebugProbeRadius;
+            passParameters.m_ProbeRadius = gs_GIRenderer.m_RTDDGIVolume.m_DebugProbeRadius;
 
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings =
             {
                 nvrhi::BindingSetItem::PushConstants(0, sizeof(GIProbeVisualizationConsts)),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(0, probePositionsBuffer),
-                nvrhi::BindingSetItem::Texture_SRV(1, gs_GIRenderer.m_GIVolume.m_ProbeData),
-                nvrhi::BindingSetItem::Texture_SRV(2, gs_GIRenderer.m_GIVolume.m_ProbeIrradiance),
-                nvrhi::BindingSetItem::Texture_SRV(3, gs_GIRenderer.m_GIVolume.m_ProbeDistance),
-                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, GIVolumeDescsBuffer),
+                nvrhi::BindingSetItem::Texture_SRV(1, gs_GIRenderer.m_RTDDGIVolume.m_ProbeData),
+                nvrhi::BindingSetItem::Texture_SRV(2, gs_GIRenderer.m_RTDDGIVolume.m_ProbeIrradiance),
+                nvrhi::BindingSetItem::Texture_SRV(3, gs_GIRenderer.m_RTDDGIVolume.m_ProbeDistance),
+                nvrhi::BindingSetItem::StructuredBuffer_SRV(4, RTDDGIVolumeDescsBuffer),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(5, instanceIDToProbeIndexBuffer),
                 nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearWrapSampler),
             };

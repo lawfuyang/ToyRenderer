@@ -30,7 +30,7 @@ struct Animation
     std::vector<Channel> m_Channels;
 };
 
-class GIVolumeBase
+class RTDDGIVolumeBase
 {
 public:
     virtual nvrhi::TextureHandle GetProbeDataTexture() const = 0;
@@ -84,7 +84,7 @@ public:
     void PostSceneLoad();
     void SetCamera(uint32_t idx);
 
-    bool IsRTGIEnabled() const;
+    bool IsRTDDGIEnabled() const;
     bool IsShadowsEnabled() const;
 
     std::shared_ptr<RenderGraph> m_RenderGraph;
@@ -141,7 +141,7 @@ public:
     nvrhi::BufferHandle m_TLASInstanceDescsBuffer;
     nvrhi::rt::AccelStructHandle m_TLAS;
 
-    GIVolumeBase* m_GIVolume = nullptr;
+    RTDDGIVolumeBase* m_RTDDGIVolume = nullptr;
 
 private:
     void UpdateMainViewCameraControls();

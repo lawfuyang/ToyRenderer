@@ -14,9 +14,9 @@ Texture2D g_DepthBuffer : register(t2);
 Texture2D<uint> g_SSAOTexture : register(t3);
 Texture2D g_ShadowMaskTexture : register(t4);
 StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t5);
-Texture2DArray<float4> g_ProbeData : register(t6);
-Texture2DArray<float4> g_ProbeIrradiance : register(t7);
-Texture2DArray<float4> g_ProbeDistance : register(t8);
+Texture2DArray<float4> g_RTDDIProbeData : register(t6);
+Texture2DArray<float4> g_RTDDGIProbeIrradiance : register(t7);
+Texture2DArray<float4> g_RTDDGIProbeDistance : register(t8);
 RWTexture2D<float3> g_LightingOutput : register(u0);
 SamplerState g_PointClampSampler : register(s0);
 SamplerState g_LinearWrapSampler : register(s1);
@@ -46,16 +46,16 @@ void PS_Main(
     
     lighting += gbufferParams.m_Emissive;
     
-    if (g_DeferredLightingConsts.m_GIEnabled)
+    if (g_DeferredLightingConsts.m_bRTDDGIEnabled)
     {
-    // TODO: multiple volumes
+        // TODO: multiple volumes
         uint volumeIndex = 0;
         DDGIVolumeDescGPU DDGIVolumeDesc = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
     
         DDGIVolumeResources volumeResources;
-        volumeResources.probeIrradiance = g_ProbeIrradiance;
-        volumeResources.probeDistance = g_ProbeDistance;
-        volumeResources.probeData = g_ProbeData;
+        volumeResources.probeIrradiance = g_RTDDGIProbeIrradiance;
+        volumeResources.probeDistance = g_RTDDGIProbeDistance;
+        volumeResources.probeData = g_RTDDIProbeData;
         volumeResources.bilinearSampler = g_LinearWrapSampler;
     
         GetDDGIIrradianceArguments irradianceArgs;
@@ -137,9 +137,9 @@ void PS_Main_Debug(
         DDGIVolumeDescGPU DDGIVolumeDesc = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
     
         DDGIVolumeResources volumeResources;
-        volumeResources.probeIrradiance = g_ProbeIrradiance;
-        volumeResources.probeDistance = g_ProbeDistance;
-        volumeResources.probeData = g_ProbeData;
+        volumeResources.probeIrradiance = g_RTDDGIProbeIrradiance;
+        volumeResources.probeDistance = g_RTDDGIProbeDistance;
+        volumeResources.probeData = g_RTDDIProbeData;
         volumeResources.bilinearSampler = g_LinearWrapSampler;
     
         GetDDGIIrradianceArguments irradianceArgs;

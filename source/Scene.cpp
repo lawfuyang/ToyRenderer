@@ -178,7 +178,7 @@ void Scene::SetCamera(uint32_t idx)
     m_View.UpdateVectors(m_Yaw, m_Pitch);
 }
 
-bool Scene::IsRTGIEnabled() const
+bool Scene::IsRTDDGIEnabled() const
 {
     if (g_DisableRayTracing.Get())
     {

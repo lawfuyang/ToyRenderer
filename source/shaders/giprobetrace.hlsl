@@ -6,9 +6,9 @@
 
 cbuffer GIProbeTraceConstsBuffer : register(b0) { GIProbeTraceConsts g_GIProbeTraceConsts; }
 StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t0);
-Texture2DArray<float4> g_ProbeData : register(t1);
-Texture2DArray<float4> g_ProbeIrradiance : register(t2);
-Texture2DArray<float4> g_ProbeDistance : register(t3);
+Texture2DArray<float4> g_RTDDIProbeData : register(t1);
+Texture2DArray<float4> g_RTDDGIProbeIrradiance : register(t2);
+Texture2DArray<float4> g_RTDDGIProbeDistance : register(t3);
 RaytracingAccelerationStructure g_SceneTLAS : register(t4);
 StructuredBuffer<BasePassInstanceConstants> g_BasePassInstanceConsts : register(t5);
 StructuredBuffer<RawVertexFormat> g_GlobalVertexBuffer : register(t6);
@@ -33,7 +33,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     uint planeIndex = dispatchThreadID.z; // index of the plane this probe is part of
     int probesPerPlane = DDGIGetProbesPerPlane(volume.probeCounts);
     int probeIndex = (planeIndex * probesPerPlane) + probePlaneIndex;
-    float probeState = DDGILoadProbeState(probeIndex, g_ProbeData, volume);
+    float probeState = DDGILoadProbeState(probeIndex, g_RTDDIProbeData, volume);
 
     // Early out: do not shoot rays when the probe is inactive *unless* it is one of the "fixed" rays used by probe classification
     if (probeState == RTXGI_DDGI_PROBE_STATE_INACTIVE && rayIndex >= RTXGI_DDGI_NUM_FIXED_RAYS)
@@ -43,7 +43,7 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     
     float3 probeCoords = DDGIGetProbeCoords(probeIndex, volume);
     probeIndex = DDGIGetScrollingProbeIndex(probeCoords, volume);
-    float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_ProbeData);
+    float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_RTDDIProbeData);
     float3 probeRayDirection = DDGIGetProbeRayDirection(rayIndex, volume);
     
     RayDesc radianceRayDesc;
@@ -123,9 +123,9 @@ void CS_ProbeTrace(uint3 dispatchThreadID : SV_DispatchThreadID)
     radiance += rayHitGBufferParams.m_Emissive;
     
     DDGIVolumeResources volumeResources;
-    volumeResources.probeIrradiance = g_ProbeIrradiance;
-    volumeResources.probeDistance = g_ProbeDistance;
-    volumeResources.probeData = g_ProbeData;
+    volumeResources.probeIrradiance = g_RTDDGIProbeIrradiance;
+    volumeResources.probeDistance = g_RTDDGIProbeDistance;
+    volumeResources.probeData = g_RTDDIProbeData;
     volumeResources.bilinearSampler = g_LinearWrapSampler;
     
     GetDDGIIrradianceArguments irradianceArgs;

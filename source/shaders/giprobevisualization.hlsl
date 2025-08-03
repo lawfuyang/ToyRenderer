@@ -9,7 +9,7 @@ RWStructuredBuffer<float3> g_OutProbePositions : register(u0);
 RWStructuredBuffer<DrawIndexedIndirectArguments> g_OutProbeIndirectArgs : register(u1);
 RWStructuredBuffer<uint> g_OutInstanceIndexToProbeIndex : register(u2);
 StructuredBuffer<DDGIVolumeDescGPUPacked> g_DDGIVolumes : register(t10);
-RWTexture2DArray<float4> g_ProbeData : register(u10);
+RWTexture2DArray<float4> g_RTDDIProbeData : register(u10);
 Texture2D g_HZB : register(t0);
 SamplerState g_LinearClampMinReductionSampler : register(s0);
 
@@ -27,7 +27,7 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
     uint volumeIndex = 0;
     
     DDGIVolumeDescGPU volume = UnpackDDGIVolumeDescGPU(g_DDGIVolumes[volumeIndex]);
-    float probeState = DDGILoadProbeState(probeIndex, g_ProbeData, volume);
+    float probeState = DDGILoadProbeState(probeIndex, g_RTDDIProbeData, volume);
     
     if (g_GIProbeVisualizationUpdateConsts.m_bHideInactiveProbes && probeState == RTXGI_DDGI_PROBE_STATE_INACTIVE)
     {
@@ -35,7 +35,7 @@ void CS_VisualizeGIProbesCulling(uint3 dispatchThreadID : SV_DispatchThreadID)
     }
     
     float3 probeCoords = DDGIGetProbeCoords(probeIndex, volume);
-    float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_ProbeData);
+    float3 probeWorldPosition = DDGIGetProbeWorldPosition(probeCoords, volume, g_RTDDIProbeData);
     
     float3 probeViewSpacePosition = mul(float4(probeWorldPosition, 1.0f), g_GIProbeVisualizationUpdateConsts.m_WorldToView).xyz;
     probeViewSpacePosition.z *= -1.0f; // TODO: fix inverted view-space Z coord

@@ -116,7 +116,7 @@ struct DeferredLightingConsts
     //----
     float m_DirectionalLightStrength;
     Vector2U m_LightingOutputResolution;
-    uint32_t m_GIEnabled;
+    uint32_t m_bRTDDGIEnabled;
 };
 
 struct DrawIndirectArguments
