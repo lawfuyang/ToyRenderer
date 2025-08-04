@@ -4,7 +4,6 @@
 
 namespace GraphicConstants
 {
-    static constexpr uint32_t kMaxTextureMips = 16;
     static constexpr uint32_t kMaxThreadGroupsPerDimension = 65535; // both d3d12 & vulkan have a limit of 65535 thread groups per dimension
     static constexpr uint32_t kMaxNumMeshLODs = 8;
 

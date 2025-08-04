@@ -31,6 +31,9 @@ public:
     virtual void SwapChainPresent() = 0;
     virtual void* GetNativeCommandList(nvrhi::CommandListHandle commandList) = 0;
     virtual uint32_t GetTiledResourceSizeInBytes() = 0;
+    virtual uint32_t GetMaxTextureDimension() = 0;
+    virtual uint32_t GetMaxNumTextureMips() = 0;
+    virtual uint32_t GetMaxThreadGroupsPerDimension() = 0;
 
     virtual void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) = 0;
     virtual void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) = 0;
@@ -223,8 +226,8 @@ namespace ComputeShaderUtils
 
 constexpr uint32_t ComputeNbMips(uint32_t width, uint32_t height)
 {
-    const uint32_t resolution = std::max(width, height);
-    return resolution == 1 ? 1 : (uint32_t)std::floor(std::log2(resolution));
+    const uint32_t resolution = width > height ? width : height;
+    return std::bit_width(resolution);
 }
 
 #define PROFILE_GPU_SCOPED(cmdList, NAME) \

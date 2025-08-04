@@ -59,6 +59,10 @@ void Texture::LoadFromFile(std::string_view filePath)
     ScopedFile imageFile{ filePath.data(), "rb" };
 
     ReadDDSTextureFileHeader(imageFile, *this);
+    
+    m_TextureMipDatas.resize(m_TextureFileHeader.m_MipCount);
+    m_TilingsInfo.resize(m_TextureFileHeader.m_MipCount);
+
     ReadDDSMipInfos(*this);
 
     nvrhi::TextureDesc reservedTexDesc;
@@ -71,7 +75,7 @@ void Texture::LoadFromFile(std::string_view filePath)
     reservedTexDesc.initialState = nvrhi::ResourceStates::ShaderResource;
     m_NVRHITextureHandle = device->createTexture(reservedTexDesc);
 
-    device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_TextureFileHeader.m_MipCount, m_TilingsInfo);
+    device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_TextureFileHeader.m_MipCount, m_TilingsInfo.data());
 
     LOG_DEBUG("New Texture: %s, %d x %d, %s", reservedTexDesc.debugName.c_str(), reservedTexDesc.width, reservedTexDesc.height, nvrhi::utils::FormatToString(reservedTexDesc.format));
 
@@ -195,13 +199,12 @@ void Texture::GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInf
                 height = ((height + 3) / 4) * 4;
             }
 
-            FeedbackTextureTileInfo tile;
+            FeedbackTextureTileInfo& tile = tiles.emplace_back();
             tile.m_XInTexels = 0;
             tile.m_YInTexels = 0;
             tile.m_Mip = mip;
             tile.m_WidthInTexels = width;
             tile.m_HeightInTexels = height;
-            tiles.push_back(tile);  
         }
     }
     else
@@ -237,13 +240,12 @@ void Texture::GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInf
             height = subresourceHeight - y;
         }
 
-        FeedbackTextureTileInfo tile;
+        FeedbackTextureTileInfo& tile = tiles.emplace_back();
         tile.m_XInTexels = x;
         tile.m_YInTexels = y;
         tile.m_Mip = mip;
         tile.m_WidthInTexels = width;
         tile.m_HeightInTexels = height;
-        tiles.push_back(tile);
     }
 }
 

@@ -9,68 +9,31 @@
 
 void TextureFeedbackManager::AsyncIOThreadFunc()
 {
-    auto ProcessAsyncIOResults = [this]()
-    {
-        SDL_AsyncIOOutcome asyncIOOutcome{};
-        while (SDL_GetAsyncIOResult(g_Engine.m_AsyncIOQueue, &asyncIOOutcome))
-        {
-            if (asyncIOOutcome.type == SDL_ASYNCIO_TASK_CLOSE)
-            {
-                // this is a close request, we can ignore it
-                continue;
-            }
-
-            PROFILE_SCOPED("Process Async IO Result");
-
-            assert(asyncIOOutcome.type == SDL_ASYNCIO_TASK_READ);
-            assert(asyncIOOutcome.result == SDL_ASYNCIO_COMPLETE);
-            assert(asyncIOOutcome.userdata);
-
-            MipIORequest* inFlightRequest = static_cast<MipIORequest*>(asyncIOOutcome.userdata);
-            ON_EXIT_SCOPE_LAMBDA([inFlightRequest] { delete inFlightRequest; });
-
-            MipIORequest deferredTileToUpload;
-            memcpy(&deferredTileToUpload, inFlightRequest, sizeof(MipIORequest));
-
-            AUTO_LOCK(m_DeferredTilesToUploadLock);
-            m_DeferredTilesToUpload.push_back(deferredTileToUpload);
-        }
-    };
-
     while (!m_bShutDownAsyncIOThread)
     {
-        ProcessAsyncIOResults();
-
         std::vector<MipIORequest> mipIORequests;
         {
             AUTO_LOCK(m_MipIORequestsLock);
             mipIORequests = std::move(m_MipIORequests);
         }
 
-        for (const MipIORequest& request : mipIORequests)
+        for (MipIORequest& request : mipIORequests)
         {
             Texture& texture = g_Graphic.m_Textures.at(request.m_TextureIdx);
 
             assert(texture.IsValid());
-            assert(!texture.m_ImageFilePath.empty());
 
-            TextureMipData& textureMipData = texture.m_TextureMipDatas[request.m_TileInfo.m_Mip];
+            TextureMipData& textureMipData = texture.m_TextureMipDatas.at(request.m_Mip);
             assert(textureMipData.IsValid());
-            assert(!textureMipData.m_Data.empty()); // caller must alloc memory before submitting the request
 
-            SDL_AsyncIO* asyncIO = SDL_AsyncIOFromFile(texture.m_ImageFilePath.c_str(), "r");
-            SDL_CALL(asyncIO);
+            assert(textureMipData.m_Data.empty());
+            
+            assert(!texture.m_ImageFilePath.empty());
+            ScopedFile f{ texture.m_ImageFilePath, "rb" };
+            ReadDDSMipData(texture, f, request.m_Mip);
 
-            MipIORequest* inFlightRequest = new MipIORequest;
-            memcpy(inFlightRequest, &request, sizeof(MipIORequest));
-
-            SDL_CALL(SDL_ReadAsyncIO(asyncIO, textureMipData.m_Data.data(), textureMipData.m_DataOffset, textureMipData.m_NumBytes, g_Engine.m_AsyncIOQueue, (void*)inFlightRequest));
-
-            // according to the doc, we can close the async IO handle after the read request is submitted
-            SDL_CALL(SDL_CloseAsyncIO(asyncIO, false, g_Engine.m_AsyncIOQueue, nullptr));
-
-            // immediately process & discard the SDL_ASYNCIO_TASK_CLOSE result
-            ProcessAsyncIOResults();
+            AUTO_LOCK(m_DeferredTilesToUploadLock);
+            m_DeferredTilesToUpload.push_back(std::move(request));
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1)); // yield to avoid busy waiting
@@ -358,9 +321,19 @@ void TextureFeedbackManager::BeginFrame()
     {
         PROFILE_SCOPED("Upload Tiles");
 
+        std::vector<MipIORequest> mipIORequests;
+        mipIORequests.resize(g_Graphic.m_GraphicRHI->GetMaxNumTextureMips());
+
         std::vector<FeedbackTextureTileInfo> tiles;
         for (const TextureAndTiles& texUpdate : textureAndTilesToMap)
         {
+            for (uint32_t i = 0; i < mipIORequests.size(); ++i)
+            {
+                mipIORequests[i].m_TextureIdx = texUpdate.m_TextureIdx;
+                mipIORequests[i].m_Mip = i;
+                assert(mipIORequests[i].m_DeferredTileInfosToUpload.empty()); // any tiles for prev texture should have been moved
+            }
+            
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
             for (uint32_t tileIndex : texUpdate.m_TileIndices)
@@ -380,13 +353,15 @@ void TextureFeedbackManager::BeginFrame()
                     {
                         if (m_bAsyncIOMipStreaming)
                         {
-                            // TODO: need to somehow "delay" the results of 'WriteMinMipData' until after the mips are streamed in, else the mapped tiles will potentially render garbage
-                            if (mipData.m_Data.empty())
+                            if (!mipData.m_Data.empty())
                             {
-                                mipData.m_Data.resize(mipData.m_NumBytes);
+                                // mip data in system memory, immediately upload tile
+                                UploadTile(commandList, texUpdate.m_TextureIdx, tile);
                             }
-                            AUTO_LOCK(m_MipIORequestsLock);
-                            m_MipIORequests.push_back({ texUpdate.m_TextureIdx, tile });
+                            else
+                            {
+                                mipIORequests[tile.m_Mip].m_DeferredTileInfosToUpload.push_back(tile);
+                            }
                         }
                         else
                         {
@@ -398,6 +373,16 @@ void TextureFeedbackManager::BeginFrame()
                             UploadTile(commandList, texUpdate.m_TextureIdx, tile);
                         }
                     }
+                }
+            }
+
+            // TODO: need to somehow "delay" the results of 'WriteMinMipData' until after the mips are streamed in, else the mapped tiles will potentially render garbage
+            for (MipIORequest& request : mipIORequests)
+            {
+                if (!request.m_DeferredTileInfosToUpload.empty())
+                {
+                    AUTO_LOCK(m_MipIORequestsLock);
+                    m_MipIORequests.push_back(std::move(request));
                 }
             }
         }
@@ -414,8 +399,11 @@ void TextureFeedbackManager::BeginFrame()
 
         for (const MipIORequest& request : deferredTilesToUpload)
         {
-            // Process each deferred tile upload request
-            UploadTile(commandList, request.m_TextureIdx, request.m_TileInfo);
+            for (const FeedbackTextureTileInfo& tile : request.m_DeferredTileInfosToUpload)
+            {
+                Texture& texture = g_Graphic.m_Textures.at(request.m_TextureIdx);
+                UploadTile(commandList, request.m_TextureIdx, tile);
+            }
         }
     }
 

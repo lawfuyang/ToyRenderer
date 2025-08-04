@@ -282,10 +282,13 @@ public:
         return commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
     }
 
-    uint32_t GetTiledResourceSizeInBytes() override
-    {
-        return D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
-    }
+    uint32_t GetTiledResourceSizeInBytes() override { return D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES; }
+
+    uint32_t GetMaxTextureDimension() override { return D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION; }
+
+    uint32_t GetMaxNumTextureMips() override { return ComputeNbMips(GetMaxTextureDimension(), GetMaxTextureDimension()); }
+
+    uint32_t GetMaxThreadGroupsPerDimension() override { return D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION; }
 
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override
     {
@@ -428,6 +431,9 @@ public:
     void SwapChainPresent() override { assert(false && "Not Implemented!"); }
     void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override { assert(false && "Not Implemented!"); return nullptr; }
     uint32_t GetTiledResourceSizeInBytes() override { assert(false && "Not Implemented!"); return 0; }
+    uint32_t GetMaxTextureDimension() override { assert(false && "Not Implemented!"); return 0; }
+    uint32_t GetMaxNumTextureMips() override { assert(false && "Not Implemented!"); return 0; }
+    uint32_t GetMaxThreadGroupsPerDimension() override { assert(false && "Not Implemented!"); return 0; }
 
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override { assert(false && "Not Implemented!"); }
     void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override { assert(false && "Not Implemented!"); }

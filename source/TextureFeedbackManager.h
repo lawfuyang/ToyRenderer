@@ -23,7 +23,8 @@ private:
     struct MipIORequest
     {
         uint32_t m_TextureIdx;
-        FeedbackTextureTileInfo m_TileInfo;
+        uint32_t m_Mip;
+        std::vector<FeedbackTextureTileInfo> m_DeferredTileInfosToUpload;
     };
 
     uint32_t AllocateHeap();
@@ -52,7 +53,7 @@ private:
     std::vector<MipIORequest> m_DeferredTilesToUpload;
     std::mutex m_DeferredTilesToUploadLock;
 
-    bool m_bAsyncIOMipStreaming = false;
+    bool m_bAsyncIOMipStreaming = true;
     bool m_bCompactMemory = true;
     int m_MaxTilesUploadPerFrame = 256;
     uint32_t m_NumHeaps = 0;

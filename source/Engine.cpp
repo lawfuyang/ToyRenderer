@@ -147,9 +147,6 @@ void Engine::Initialize(int argc, char** argv)
     {
         TriggerDumpProfilingCapture("EngineInit");
     }
-
-    m_AsyncIOQueue = SDL_CreateAsyncIOQueue();
-    SDL_CALL(m_AsyncIOQueue);
 }
 
 void Engine::ParseCommandlineArguments(int argc, char** argv)
@@ -211,10 +208,6 @@ void Engine::Shutdown()
 	m_Graphic.reset();
 
     MicroProfileShutdown();
-
-    assert(m_AsyncIOQueue);
-    SDL_DestroyAsyncIOQueue(m_AsyncIOQueue);
-    m_AsyncIOQueue = nullptr;
 
     SDL_DestroyWindow(m_SDLWindow);
     SDL_Quit();

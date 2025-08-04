@@ -3,7 +3,6 @@
 #include "extern/microprofile/microprofile.h"
 #include "extern/taskflow/taskflow/taskflow.hpp"
 #include "SDL3/SDL.h"
-#include "SDL3/SDL_asyncio.h"
 
 #include "CriticalSection.h"
 #include "MathUtilities.h"
@@ -41,8 +40,6 @@ public:
     std::shared_ptr<tf::Executor> m_Executor;
 
     float m_MouseWheelY = 0.0f;
-
-    SDL_AsyncIOQueue* m_AsyncIOQueue = nullptr;
 private:
     void ParseCommandlineArguments(int argc, char** argv);
     void ConsumeCommands();

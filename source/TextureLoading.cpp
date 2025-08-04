@@ -748,7 +748,7 @@ void ReadDDSMipInfos(Texture& texture)
         uint32_t numRows;
         GetImageInfo(mipWidth, mipHeight, (DXGI_FORMAT)fileInfo.m_DXGIFormat, numBytes, rowBytes, numRows);
 
-        TextureMipData& TextureMipData = texture.m_TextureMipDatas[i];
+        TextureMipData& TextureMipData = texture.m_TextureMipDatas.at(i);
         TextureMipData.m_Resolution = { mipWidth, mipHeight };
         TextureMipData.m_DataOffset = fileReadOffset;
         TextureMipData.m_NumBytes = numBytes;
@@ -766,15 +766,15 @@ void ReadDDSMipData(Texture& texture, FILE* f, uint32_t mip)
     PROFILE_FUNCTION();
 
     const TextureFileHeader& fileInfo = texture.m_TextureFileHeader;
-    TextureMipData& TextureMipData = texture.m_TextureMipDatas[mip];
-    assert(TextureMipData.IsValid());
+    TextureMipData& textureMipData = texture.m_TextureMipDatas.at(mip);
+    assert(textureMipData.IsValid());
 
-    assert(TextureMipData.m_Data.empty());
-    TextureMipData.m_Data.resize(TextureMipData.m_NumBytes);
+    assert(textureMipData.m_Data.empty());
+    textureMipData.m_Data.resize(textureMipData.m_NumBytes);
 
     assert(f);
-    fseek(f, TextureMipData.m_DataOffset, SEEK_SET);
-
-    const uint32_t bytesRead = fread(TextureMipData.m_Data.data(), sizeof(std::byte), TextureMipData.m_NumBytes, f);
-    assert(bytesRead == TextureMipData.m_NumBytes);
+    fseek(f, textureMipData.m_DataOffset, SEEK_SET);
+    
+    const uint32_t bytesRead = fread(textureMipData.m_Data.data(), sizeof(std::byte), textureMipData.m_NumBytes, f);
+    assert(bytesRead == textureMipData.m_NumBytes);
 }

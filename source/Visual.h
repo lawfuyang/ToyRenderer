@@ -58,12 +58,12 @@ public:
 
     std::string m_ImageFilePath;
     TextureFileHeader m_TextureFileHeader;
-    TextureMipData m_TextureMipDatas[GraphicConstants::kMaxTextureMips];
+    std::vector<TextureMipData> m_TextureMipDatas;
     
     uint32_t m_NumTiles;
     nvrhi::PackedMipDesc m_PackedMipDesc;
     nvrhi::TileShape m_TileShape;
-    nvrhi::SubresourceTiling m_TilingsInfo[GraphicConstants::kMaxTextureMips];
+    std::vector<nvrhi::SubresourceTiling> m_TilingsInfo;
 
     nvrhi::TextureHandle m_NVRHITextureHandle;
     uint32_t m_SRVIndexInTable = UINT_MAX;
