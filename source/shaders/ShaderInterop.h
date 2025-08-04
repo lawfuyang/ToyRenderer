@@ -87,6 +87,7 @@ struct BasePassConstants
     //----
     Vector2U m_OutputResolution;
     uint32_t m_bVisualizeMinMipTilesOnAlbedoOutput;
+    uint32_t m_bWriteSamplerFeedback;
 };
 
 struct BasePassInstanceConstants

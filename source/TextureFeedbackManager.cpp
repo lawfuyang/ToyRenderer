@@ -117,6 +117,7 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 1, 256);
     ImGui::Checkbox("Compact Memory", &m_bCompactMemory);
     ImGui::Checkbox("Async IO Mip Streaming", &m_bAsyncIOMipStreaming);
+    ImGui::Checkbox("Write Sampler Feedback", &g_Scene->m_bWriteSamplerFeedback);
 }
 
 void TextureFeedbackManager::BeginFrame()

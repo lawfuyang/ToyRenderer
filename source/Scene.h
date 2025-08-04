@@ -114,6 +114,7 @@ public:
     int m_ForceMeshLOD = -1;
     bool m_bEnableTextureStreaming = true;
     bool m_bVisualizeMinMipTilesOnAlbedoOutput = false;
+    bool m_bWriteSamplerFeedback = true;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;
