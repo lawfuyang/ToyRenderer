@@ -143,7 +143,7 @@ void TextureFeedbackManager::BeginFrame()
 
             device->unmapBuffer(resolveBuffer);
 
-            // TODO: call 'MatchPrimaryTexture' if necessary, whatever it means?
+            // TODO: call 'MatchPrimaryTexture' for Material texture sets (albedo, normal, ORM)
         }
     }
 
@@ -206,7 +206,6 @@ void TextureFeedbackManager::BeginFrame()
         PROFILE_SCOPED("Get Tiles to Map & Unmap");
 
         // TODO: The current code does not merge unmapping and mapping tiles for the same textures. It would be more optimal.
-        // TODO: frame-slice this too?
         std::vector<uint32_t> tilesToMap;
         std::vector<uint32_t> tilesToUnmap;
         std::vector<uint8_t> minMipData;
@@ -272,7 +271,6 @@ void TextureFeedbackManager::BeginFrame()
 
             if (!tilesToMap.empty())
             {
-                // TODO: frame-slice this
                 textureAndTilesToMap.push_back({ i, std::move(tilesToMap) });
             }
         }
@@ -363,6 +361,8 @@ void TextureFeedbackManager::BeginFrame()
 
             if (!immediateTileMappings.empty())
             {
+                PROFILE_SCOPED("Update Immediate Tile Mappings");
+
                 std::vector<nvrhi::TextureTilesMapping> textureTilesMappings;
                 for (UpdateTextureTileMappingsArgs& tileMapping : immediateTileMappings)
                 {
@@ -382,29 +382,35 @@ void TextureFeedbackManager::BeginFrame()
                 mipIORequests[mip].m_DeferredTileMappings.push_back(std::move(tileMapping));
             }
             
-            for (uint32_t tileIndex : texUpdate.m_TileIndices)
             {
-                tiles.clear();
-                texture.GetTileInfo(tileIndex, tiles);
+                PROFILE_SCOPED("Upload Tiles");
 
-                for (const FeedbackTextureTileInfo& tile : tiles)
+                for (uint32_t tileIndex : texUpdate.m_TileIndices)
                 {
-                    TextureMipData& mipData = texture.m_TextureMipDatas.at(tile.m_Mip);
-                    if (texture.IsTilePacked(tileIndex))
+                    tiles.clear();
+                    texture.GetTileInfo(tileIndex, tiles);
+
+                    for (const FeedbackTextureTileInfo& tile : tiles)
                     {
-                        // packed mips are persistently loaded in memory. immediately upload
-                        commandList->writeTexture(texture.m_NVRHITextureHandle, 0, tile.m_Mip, mipData.m_Data.data(), mipData.m_RowPitch);
-                    }
-                    else
-                    {
-                        if (!mipData.m_Data.empty())
+                        TextureMipData& mipData = texture.m_TextureMipDatas.at(tile.m_Mip);
+                        if (texture.IsTilePacked(tileIndex))
                         {
-                            // mip data in system memory, immediately upload tile
-                            UploadTile(commandList, texUpdate.m_TextureIdx, tile);
+                            PROFILE_SCOPED("Upload Packed Tile");
+
+                            // packed mips are persistently loaded in memory. immediately upload
+                            commandList->writeTexture(texture.m_NVRHITextureHandle, 0, tile.m_Mip, mipData.m_Data.data(), mipData.m_RowPitch);
                         }
                         else
                         {
-                            mipIORequests[tile.m_Mip].m_DeferredTileInfosToUpload.push_back(tile);
+                            if (!mipData.m_Data.empty())
+                            {
+                                // mip data in system memory, immediately upload tile
+                                UploadTile(commandList, texUpdate.m_TextureIdx, tile);
+                            }
+                            else
+                            {
+                                mipIORequests[tile.m_Mip].m_DeferredTileInfosToUpload.push_back(tile);
+                            }
                         }
                     }
                 }
@@ -549,6 +555,8 @@ void TextureFeedbackManager::ReleaseHeap(uint32_t heapID)
 
 void TextureFeedbackManager::UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextureIdx, const FeedbackTextureTileInfo& tile)
 {
+    PROFILE_FUNCTION();
+
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
     const Texture& destTexture = g_Graphic.m_Textures.at(destTextureIdx);
     const TextureMipData& mipData = destTexture.m_TextureMipDatas.at(tile.m_Mip);
