@@ -745,6 +745,8 @@ void Graphic::Update()
     // execute all cmd lists that may have been potentially added as engine commands
     ExecuteAllCommandLists();
 
+    Timer updateTimer;
+
     {
         PROFILE_SCOPED("getTimerQueryTime");
         g_Engine.m_GPUTimeMs = Timer::SecondsToMilliSeconds(m_NVRHIDevice->getTimerQueryTime(m_FrameTimerQuery[m_FrameCounter % 2]));
@@ -776,6 +778,8 @@ void Graphic::Update()
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "End Frame Timer Query");
         commandList->endTimerQuery(m_FrameTimerQuery[m_FrameCounter % 2]);
     }
+
+    m_GraphicUpdateTimerMs = updateTimer.GetElapsedMilliSeconds();
 
     // execute all cmd lists for this frame
     ExecuteAllCommandLists();

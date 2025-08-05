@@ -144,13 +144,12 @@ public:
     Vector2U m_DisplayResolution;
 
     uint32_t m_FrameCounter = 0;
+    float m_GraphicUpdateTimerMs = 0.0f;
     bool m_bTriggerReloadShaders = false;
 
     std::vector<nvrhi::CommandListHandle> m_AllCommandLists[(uint32_t)nvrhi::CommandQueue::Count];
     std::deque<nvrhi::CommandListHandle> m_FreeCommandLists[(uint32_t)nvrhi::CommandQueue::Count];
     std::mutex m_FreeCommandListsLock;
-
-    int m_GPUQueueLogs[(uint32_t)nvrhi::CommandQueue::Count];
 
 private:
     std::unordered_map<size_t, nvrhi::ShaderHandle> m_AllShaders;

@@ -419,10 +419,10 @@ void Engine::UpdateIMGUI()
             ImGui::EndMenu();
         }
 
-        ImGui::Text("\tCPU: [%.2f ms]", m_CPUFrameTimeMs);
-        ImGui::SameLine();
-        ImGui::Text("\tGPU: [%.2f] ms", m_GPUTimeMs);
-        ImGui::Text("\tFPS: [%.1f]", 1000.0f / std::max((float)m_CPUFrameTimeMs, m_GPUTimeMs));
+        ImGui::Text("\tCPU: [%6.2f ms]", m_CPUFrameTimeMs);
+        ImGui::Text("\tCPU (Graphic): [%6.2f ms]", m_Graphic->m_GraphicUpdateTimerMs);
+        ImGui::Text("\tGPU: [%6.2f] ms", m_GPUTimeMs);
+        ImGui::Text("\tFPS: [%.0f]", 1000.0f / std::max((float)m_CPUFrameTimeMs, m_GPUTimeMs));
 
         ImGui::EndMainMenuBar();
     }

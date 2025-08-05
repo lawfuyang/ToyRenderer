@@ -169,8 +169,6 @@ public:
 
             HRESULT_CALL(outQueue->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(queueName), queueName));
 
-            g_Graphic.m_GPUQueueLogs[(uint32_t)queue] = MicroProfileInitGpuQueue(queueName);
-
             return outQueue;
         };
 
