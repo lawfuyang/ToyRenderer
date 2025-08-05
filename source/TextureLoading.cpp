@@ -777,4 +777,6 @@ void ReadDDSMipData(Texture& texture, FILE* f, uint32_t mip)
     
     const uint32_t bytesRead = fread(textureMipData.m_Data.data(), sizeof(std::byte), textureMipData.m_NumBytes, f);
     assert(bytesRead == textureMipData.m_NumBytes);
+
+    textureMipData.m_bDataReady = true;
 }

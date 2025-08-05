@@ -26,14 +26,22 @@ void TextureFeedbackManager::AsyncIOThreadFunc()
             TextureMipData& textureMipData = texture.m_TextureMipDatas.at(request.m_Mip);
             assert(textureMipData.IsValid());
 
-            assert(textureMipData.m_Data.empty());
+            // mip I/O already in process if data array is not empty
+            if (!textureMipData.m_Data.empty())
+            {
+                continue;
+            }
             
             assert(!texture.m_ImageFilePath.empty());
             ScopedFile f{ texture.m_ImageFilePath, "rb" };
             ReadDDSMipData(texture, f, request.m_Mip);
+        }
 
+        {
             AUTO_LOCK(m_DeferredTilesToMapAndUploadLock);
-            m_DeferredTilesToMapAndUpload.push_back(std::move(request));
+            m_DeferredTilesToMapAndUpload.insert(m_DeferredTilesToMapAndUpload.end(),
+                std::make_move_iterator(mipIORequests.begin()),
+                std::make_move_iterator(mipIORequests.end()));
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1)); // yield to avoid busy waiting
@@ -402,7 +410,7 @@ void TextureFeedbackManager::BeginFrame()
                         }
                         else
                         {
-                            if (!mipData.m_Data.empty())
+                            if (mipData.m_bDataReady)
                             {
                                 // mip data in system memory, immediately upload tile
                                 UploadTile(commandList, texUpdate.m_TextureIdx, tile);
