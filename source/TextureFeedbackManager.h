@@ -64,6 +64,8 @@ private:
     std::vector<MipIORequest> m_DeferredTilesToMapAndUpload;
     std::mutex m_DeferredTilesToMapAndUploadLock;
 
+    std::vector<std::byte> m_UploadTileScratchBuffer;
+
     bool m_bCompactMemory = true;
     int m_MaxTilesUploadPerFrame = 256;
     uint32_t m_NumHeaps = 0;
