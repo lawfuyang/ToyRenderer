@@ -90,6 +90,8 @@ public:
             }
             assert(m_DXGIAdapter);
 
+            HRESULT_CALL(m_DXGIAdapter->QueryInterface(IID_PPV_ARGS(&m_DXGIAdapter3)));
+
             g_DXGIAdapter = m_DXGIAdapter.Get();
         }
 
@@ -300,6 +302,13 @@ public:
         HRESULT_CALL(D3D12Resource->SetPrivateData(WKPDID_D3DDebugObjectName, debugName.size(), debugName.data()));
     }
 
+    uint64_t GetUsedVideoMemory() override
+    {
+        DXGI_QUERY_VIDEO_MEMORY_INFO localMemoryInfo{};
+        m_DXGIAdapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &localMemoryInfo);
+        return localMemoryInfo.CurrentUsage;
+    }
+
     bool m_bTearingSupported = false;
 
     ComPtr<ID3D12CommandQueue> m_ComputeQueue;
@@ -308,6 +317,7 @@ public:
     ComPtr<ID3D12Device> m_D3DDevice;
     ComPtr<ID3D12Resource> m_SwapChainD3D12Resources[2];
     ComPtr<IDXGIAdapter1> m_DXGIAdapter;
+    ComPtr<IDXGIAdapter3> m_DXGIAdapter3;
     ComPtr<IDXGIFactory6> m_DXGIFactory;
     ComPtr<IDXGISwapChain3> m_SwapChain;
 };
@@ -432,6 +442,7 @@ public:
     uint32_t GetMaxTextureDimension() override { assert(false && "Not Implemented!"); return 0; }
     uint32_t GetMaxNumTextureMips() override { assert(false && "Not Implemented!"); return 0; }
     uint32_t GetMaxThreadGroupsPerDimension() override { assert(false && "Not Implemented!"); return 0; }
+    uint64_t GetUsedVideoMemory() override { assert(false && "Not Implemented!"); return 0; }
 
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override { assert(false && "Not Implemented!"); }
     void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override { assert(false && "Not Implemented!"); }

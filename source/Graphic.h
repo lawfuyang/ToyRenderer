@@ -34,6 +34,7 @@ public:
     virtual uint32_t GetMaxTextureDimension() = 0;
     virtual uint32_t GetMaxNumTextureMips() = 0;
     virtual uint32_t GetMaxThreadGroupsPerDimension() = 0;
+    virtual uint64_t GetUsedVideoMemory() = 0;
 
     virtual void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) = 0;
     virtual void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) = 0;
