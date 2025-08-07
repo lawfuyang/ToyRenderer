@@ -1,6 +1,7 @@
 #include "Engine.h"
 
 #include <dxgidebug.h>
+#include <psapi.h>
 
 #include "extern/cxxopts/include/cxxopts.hpp"
 #include "extern/imgui/imgui.h"
@@ -419,9 +420,14 @@ void Engine::UpdateIMGUI()
             ImGui::EndMenu();
         }
 
+        // TODO: move this to platform specific API?
+        PROCESS_MEMORY_COUNTERS processMemoryCounters{};
+        ::GetProcessMemoryInfo(::GetCurrentProcess(), &processMemoryCounters, sizeof(processMemoryCounters));
+
         ImGui::Text("\tCPU: [%6.2f ms]", m_CPUFrameTimeMs);
         ImGui::Text("\tCPU (Graphic): [%6.2f ms]", m_Graphic->m_GraphicUpdateTimerMs);
         ImGui::Text("\tGPU: [%6.2f] ms", m_GPUTimeMs);
+        ImGui::Text("\tSysMem: [%.2f MB]", BYTES_TO_MB(processMemoryCounters.WorkingSetSize));
         ImGui::Text("\tFPS: [%.0f]", 1000.0f / std::max((float)m_CPUFrameTimeMs, m_GPUTimeMs));
 
         ImGui::EndMainMenuBar();
