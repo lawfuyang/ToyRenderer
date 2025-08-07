@@ -427,13 +427,21 @@ void TextureFeedbackManager::BeginFrame()
             }
 
             // TODO: need to somehow "delay" the results of 'WriteMinMipData' until after the mips are streamed in, else the mapped tiles will potentially render garbage
-            for (MipIORequest& request : mipIORequests)
             {
-                if (!request.m_DeferredTileInfosToUpload.empty())
+                std::vector<MipIORequest> mipIORequestsToSendToAsyncIOThread;
+                mipIORequestsToSendToAsyncIOThread.reserve(mipIORequests.size());
+                for (MipIORequest& request : mipIORequests)
                 {
-                    AUTO_LOCK(m_MipIORequestsLock);
-                    m_MipIORequests.push_back(std::move(request));
+                    if (!request.m_DeferredTileInfosToUpload.empty())
+                    {
+                        mipIORequestsToSendToAsyncIOThread.push_back(std::move(request));
+                    }
                 }
+
+                AUTO_LOCK(m_MipIORequestsLock);
+                m_MipIORequests.insert(m_MipIORequests.end(),
+                    std::make_move_iterator(mipIORequestsToSendToAsyncIOThread.begin()),
+                    std::make_move_iterator(mipIORequestsToSendToAsyncIOThread.end()));
             }
         }
     }
