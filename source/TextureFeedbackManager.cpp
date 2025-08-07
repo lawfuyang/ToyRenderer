@@ -552,15 +552,11 @@ uint32_t TextureFeedbackManager::AllocateHeap()
 
 void TextureFeedbackManager::ReleaseHeap(uint32_t heapID)
 {
-    g_Engine.AddCommand([this, heapID]
-        {
-            m_FreeHeapIDs.push_back(heapID);
+    m_FreeHeapIDs.push_back(heapID);
+    m_NumHeaps--;
 
-            m_Heaps[heapID] = nullptr;
-            m_Buffers[heapID] = nullptr;
-
-            m_NumHeaps--;
-        });
+    // NOTE: dont free heaps & buffers when entire heap's tiles are unmapped... else potential device TDR. not ideal, but i dont care for now
+    //       extra VRAM cost is not significant, as we'll need to allocate for worst case view in scene anyway
 }
 
 void TextureFeedbackManager::UploadTile(nvrhi::CommandListHandle commandList, uint32_t destTextureIdx, const FeedbackTextureTileInfo& tile)
