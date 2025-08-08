@@ -1,6 +1,7 @@
 #pragma once
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
+#include "extern/nvidia/RTXTS-TTM/src/tiledTextureManagerHelper.h"
 
 #include "GraphicConstants.h"
 #include "MathUtilities.h"
@@ -34,6 +35,8 @@ struct TextureMipData
 
     bool m_bDataReady = false;
     std::vector<std::byte> m_Data;
+
+    rtxts::BitArray m_ResidencyBits;
 
     bool IsValid() const { return m_Resolution.x > 0 && m_Resolution.y > 0 && m_NumBytes > 0; }
 };

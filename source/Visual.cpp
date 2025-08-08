@@ -105,6 +105,12 @@ void Texture::LoadFromFile(std::string_view filePath)
         return;
     }
 
+    for (uint32_t i = 0; i < m_PackedMipDesc.numStandardMips; ++i)
+    {
+        TextureMipData& mipData = m_TextureMipDatas[i];
+        mipData.m_ResidencyBits.Init(m_TilingsInfo[i].widthInTiles * m_TilingsInfo[i].heightInTiles);
+    }
+
     // read packed mip bytes
     for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
     {
