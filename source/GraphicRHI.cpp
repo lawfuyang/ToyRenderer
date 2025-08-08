@@ -63,6 +63,11 @@ class D3D12RHI : public GraphicRHI
 public:
     nvrhi::DeviceHandle CreateDevice() override
     {
+        static_assert(GraphicConstants::kMaxTextureDimension == D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION);
+        static_assert(GraphicConstants::kMaxTextureMips == D3D12_REQ_MIP_LEVELS);
+        static_assert(GraphicConstants::kMaxThreadGroupsPerDimension == D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION);
+        static_assert(GraphicConstants::kTiledResourceSizeInBytes == D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+
         {
             PROFILE_SCOPED("CreateDXGIFactory");
 
@@ -282,14 +287,6 @@ public:
         return commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
     }
 
-    uint32_t GetTiledResourceSizeInBytes() override { return D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES; }
-
-    uint32_t GetMaxTextureDimension() override { return D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION; }
-
-    uint32_t GetMaxNumTextureMips() override { return ComputeNbMips(GetMaxTextureDimension(), GetMaxTextureDimension()); }
-
-    uint32_t GetMaxThreadGroupsPerDimension() override { return D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION; }
-
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override
     {
         ID3D12GraphicsCommandList *D3D12CommandList = commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
@@ -438,10 +435,6 @@ public:
     uint32_t GetCurrentBackBufferIndex() override { assert(false && "Not Implemented!"); return UINT32_MAX; }
     void SwapChainPresent() override { assert(false && "Not Implemented!"); }
     void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override { assert(false && "Not Implemented!"); return nullptr; }
-    uint32_t GetTiledResourceSizeInBytes() override { assert(false && "Not Implemented!"); return 0; }
-    uint32_t GetMaxTextureDimension() override { assert(false && "Not Implemented!"); return 0; }
-    uint32_t GetMaxNumTextureMips() override { assert(false && "Not Implemented!"); return 0; }
-    uint32_t GetMaxThreadGroupsPerDimension() override { assert(false && "Not Implemented!"); return 0; }
     uint64_t GetUsedVideoMemory() override { assert(false && "Not Implemented!"); return 0; }
 
     void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override { assert(false && "Not Implemented!"); }

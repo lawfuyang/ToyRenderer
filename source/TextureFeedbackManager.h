@@ -49,7 +49,6 @@ private:
     std::unique_ptr<rtxts::TiledTextureManager> m_TiledTextureManager;
     std::mutex m_TiledTextureManagerLock;
 
-    uint32_t m_TiledResourceSizeInBytes;
     uint32_t m_HeapSizeInBytes;
 
     std::vector<uint32_t> m_TexturesToProcessThisFrame;

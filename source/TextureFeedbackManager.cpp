@@ -63,10 +63,9 @@ void TextureFeedbackManager::Initialize()
 
     m_AsyncIOThread = std::thread(&TextureFeedbackManager::AsyncIOThreadFunc, this);
 
-    m_TiledResourceSizeInBytes = g_Graphic.m_GraphicRHI->GetTiledResourceSizeInBytes();
-    m_HeapSizeInBytes = rtxts::TiledTextureManagerDesc{}.heapTilesCapacity * m_TiledResourceSizeInBytes;
+    m_HeapSizeInBytes = rtxts::TiledTextureManagerDesc{}.heapTilesCapacity * GraphicConstants::kTiledResourceSizeInBytes;
 
-    m_UploadTileScratchBuffer.resize(m_TiledResourceSizeInBytes);
+    m_UploadTileScratchBuffer.resize(GraphicConstants::kTiledResourceSizeInBytes);
 }
 
 void TextureFeedbackManager::Shutdown()
@@ -81,10 +80,10 @@ void TextureFeedbackManager::UpdateIMGUI()
 {
     const rtxts::Statistics statistics = m_TiledTextureManager->GetStatistics();
 
-    ImGui::Text("Tiles Total: %u (%.0f MB)", statistics.totalTilesNum, BYTES_TO_MB(statistics.totalTilesNum * m_TiledResourceSizeInBytes));
-    ImGui::Text("Tiles Allocated: %u (%.0f MB)", statistics.allocatedTilesNum, BYTES_TO_MB(statistics.allocatedTilesNum * m_TiledResourceSizeInBytes));
+    ImGui::Text("Tiles Total: %u (%.0f MB)", statistics.totalTilesNum, BYTES_TO_MB(statistics.totalTilesNum * GraphicConstants::kTiledResourceSizeInBytes));
+    ImGui::Text("Tiles Allocated: %u (%.0f MB)", statistics.allocatedTilesNum, BYTES_TO_MB(statistics.allocatedTilesNum * GraphicConstants::kTiledResourceSizeInBytes));
     ImGui::Text("Heaps: %u (%.2f MB)", m_NumHeaps, BYTES_TO_MB(m_NumHeaps * m_HeapSizeInBytes));
-    ImGui::Text("Heap Free Tiles: %d (%.0f MB)", statistics.heapFreeTilesNum, BYTES_TO_MB(statistics.heapFreeTilesNum * m_TiledResourceSizeInBytes));
+    ImGui::Text("Heap Free Tiles: %d (%.0f MB)", statistics.heapFreeTilesNum, BYTES_TO_MB(statistics.heapFreeTilesNum * GraphicConstants::kTiledResourceSizeInBytes));
 
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 1, 32);
     ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 1, 256);
@@ -289,13 +288,12 @@ void TextureFeedbackManager::BeginFrame()
     {
         PROFILE_SCOPED("Update Tile Mappings & Upload Tiles");
 
-        std::vector<MipIORequest> mipIORequests;
-        mipIORequests.resize(g_Graphic.m_GraphicRHI->GetMaxNumTextureMips());
+        MipIORequest mipIORequests[GraphicConstants::kMaxTextureMips]{};
 
         std::vector<FeedbackTextureTileInfo> tiles;
         for (TextureAndTiles& texUpdate : textureAndTilesToMap)
         {
-            for (uint32_t i = 0; i < mipIORequests.size(); ++i)
+            for (uint32_t i = 0; i < GraphicConstants::kMaxTextureMips; ++i)
             {
                 mipIORequests[i].m_TextureIdx = texUpdate.m_TextureIdx;
                 mipIORequests[i].m_Mip = i;
@@ -352,7 +350,7 @@ void TextureFeedbackManager::BeginFrame()
                     tiledTextureRegion.tilesNum = 1;
 
                     uint64_t& byteOffset = byteOffsets[outputIdx].emplace_back();
-                    byteOffset = tilesAllocations[tileIndex].heapTileIndex * m_TiledResourceSizeInBytes;
+                    byteOffset = tilesAllocations[tileIndex].heapTileIndex * GraphicConstants::kTiledResourceSizeInBytes;
                 }
 
                 for (uint32_t i = 0; i < 2; ++i)
@@ -429,7 +427,6 @@ void TextureFeedbackManager::BeginFrame()
             // TODO: need to somehow "delay" the results of 'WriteMinMipData' until after the mips are streamed in, else the mapped tiles will potentially render garbage
             {
                 std::vector<MipIORequest> mipIORequestsToSendToAsyncIOThread;
-                mipIORequestsToSendToAsyncIOThread.reserve(mipIORequests.size());
                 for (MipIORequest& request : mipIORequests)
                 {
                     if (!request.m_DeferredTileInfosToUpload.empty())
@@ -582,7 +579,7 @@ void TextureFeedbackManager::UploadTile(nvrhi::CommandListHandle commandList, ui
     const uint32_t tileBlocksHeight = tile.m_HeightInTexels / blockSize;
     const uint32_t shapeBlocksWidth = destTexture.m_TileShape.widthInTexels / blockSize;
     const uint32_t shapeBlocksHeight = destTexture.m_TileShape.heightInTexels / blockSize;
-    const uint32_t bytesPerBlock = m_TiledResourceSizeInBytes / (shapeBlocksWidth * shapeBlocksHeight);
+    const uint32_t bytesPerBlock = GraphicConstants::kTiledResourceSizeInBytes / (shapeBlocksWidth * shapeBlocksHeight);
     const uint32_t sourceBlockX = tile.m_XInTexels / blockSize;
     const uint32_t sourceBlockY = tile.m_YInTexels / blockSize;
     const uint32_t rowPitchTile = tileBlocksWidth * bytesPerBlock;

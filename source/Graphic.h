@@ -30,10 +30,6 @@ public:
     virtual uint32_t GetCurrentBackBufferIndex() = 0;
     virtual void SwapChainPresent() = 0;
     virtual void* GetNativeCommandList(nvrhi::CommandListHandle commandList) = 0;
-    virtual uint32_t GetTiledResourceSizeInBytes() = 0;
-    virtual uint32_t GetMaxTextureDimension() = 0;
-    virtual uint32_t GetMaxNumTextureMips() = 0;
-    virtual uint32_t GetMaxThreadGroupsPerDimension() = 0;
     virtual uint64_t GetUsedVideoMemory() = 0;
 
     virtual void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) = 0;
