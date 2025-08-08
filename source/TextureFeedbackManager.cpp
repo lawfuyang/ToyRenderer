@@ -12,9 +12,13 @@ void TextureFeedbackManager::AsyncIOThreadFunc()
     while (!m_bShutDownAsyncIOThread)
     {
         std::vector<MipIORequest> mipIORequests;
+
+        // hold the pending tiles to upload here until all I/O is done
+        std::vector<DeferredTilesToProcess> deferredTilesToAwaitAsyncIO;
         {
-            AUTO_LOCK(m_MipIORequestsLock);
+            AUTO_LOCK(m_AsyncIOThreadLock);
             mipIORequests = std::move(m_MipIORequests);
+            deferredTilesToAwaitAsyncIO = std::move(m_DeferredTilesToAwaitAsyncIO);
         }
 
         for (MipIORequest& request : mipIORequests)
@@ -37,11 +41,12 @@ void TextureFeedbackManager::AsyncIOThreadFunc()
             ReadDDSMipData(texture, f, request.m_Mip);
         }
 
+        // now send it back to the main thread for processing
         {
-            AUTO_LOCK(m_DeferredTilesToMapAndUploadLock);
-            m_DeferredTilesToMapAndUpload.insert(m_DeferredTilesToMapAndUpload.end(),
-                std::make_move_iterator(mipIORequests.begin()),
-                std::make_move_iterator(mipIORequests.end()));
+            AUTO_LOCK(m_AsyncIOThreadLock);
+            m_DeferredTilesToUpload.insert(m_DeferredTilesToUpload.end(),
+                std::make_move_iterator(deferredTilesToAwaitAsyncIO.begin()),
+                std::make_move_iterator(deferredTilesToAwaitAsyncIO.end()));
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1)); // yield to avoid busy waiting
@@ -86,7 +91,7 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::Text("Heap Free Tiles: %d (%.0f MB)", statistics.heapFreeTilesNum, BYTES_TO_MB(statistics.heapFreeTilesNum * GraphicConstants::kTiledResourceSizeInBytes));
 
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 1, 32);
-    ImGui::SliderInt("Max Tiles Upload Per Frame", &m_MaxTilesUploadPerFrame, 1, 256);
+    ImGui::Checkbox("Async Mip I/O Streaming", &m_bAsyncMipIOStreaming);
     ImGui::Checkbox("Compact Memory", &m_bCompactMemory);
     ImGui::Checkbox("Write Sampler Feedback", &g_Scene->m_bWriteSamplerFeedback);
 }
@@ -288,17 +293,13 @@ void TextureFeedbackManager::BeginFrame()
     {
         PROFILE_SCOPED("Update Tile Mappings & Upload Tiles");
 
-        MipIORequest mipIORequests[GraphicConstants::kMaxTextureMips]{};
+        std::vector<DeferredTilesToProcess> deferredTilesToProcess;
+        std::vector<MipIORequest> mipIORequestsToSendToAsyncIOThread;
 
         std::vector<FeedbackTextureTileInfo> tiles;
         for (TextureAndTiles& texUpdate : textureAndTilesToMap)
         {
-            for (uint32_t i = 0; i < GraphicConstants::kMaxTextureMips; ++i)
-            {
-                mipIORequests[i].m_TextureIdx = texUpdate.m_TextureIdx;
-                mipIORequests[i].m_Mip = i;
-                assert(mipIORequests[i].m_DeferredTileInfosToUpload.empty()); // any tiles for prev texture should have been moved
-            }
+            bool mipsToStream[GraphicConstants::kMaxTextureMips]{};
 
             Texture& texture = g_Graphic.m_Textures.at(texUpdate.m_TextureIdx);
 
@@ -313,18 +314,15 @@ void TextureFeedbackManager::BeginFrame()
                 heapTilesMapping[tilesAllocations[tileIndex].heapId].push_back(tileIndex);
             }
 
-            std::vector<UpdateTextureTileMappingsArgs> immediateTileMappings;
-            std::vector<UpdateTextureTileMappingsArgs> deferredTileMappings;
-
             for (const auto& [heapId, heapTiles] : heapTilesMapping)
             {
-                std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates[2];
-                std::vector<nvrhi::TiledTextureRegion> tiledTextureRegions[2];
-                std::vector<uint64_t> byteOffsets[2];
+                std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates;
+                std::vector<nvrhi::TiledTextureRegion> tiledTextureRegions;
+                std::vector<uint64_t> byteOffsets;
 
                 for (uint32_t tileIndex : heapTiles)
                 {
-                    bool bDeferredTiledMapping = false;
+                    // packed mips are always in memory, so only check for standard mips to stream
                     if (!texture.IsTilePacked(tileIndex))
                     {
                         tiles.clear();
@@ -332,64 +330,32 @@ void TextureFeedbackManager::BeginFrame()
                         assert(tiles.size() == 1); // non-packed mips should have only one tile
                         
                         const TextureMipData& mipData = texture.m_TextureMipDatas.at(tiles[0].m_Mip);
-                        if (mipData.m_Data.empty())
-                        {
-                            bDeferredTiledMapping = true;
-                        }
+                        mipsToStream[tiles[0].m_Mip] = m_bAsyncMipIOStreaming && !mipData.m_bDataReady;
                     }
 
-                    const uint32_t outputIdx = bDeferredTiledMapping ? 1 : 0;
-
-                    nvrhi::TiledTextureCoordinate& tiledTextureCoordinate = tiledTextureCoordinates[outputIdx].emplace_back();
+                    nvrhi::TiledTextureCoordinate& tiledTextureCoordinate = tiledTextureCoordinates.emplace_back();
                     tiledTextureCoordinate.mipLevel = tilesCoordinates[tileIndex].mipLevel;
                     tiledTextureCoordinate.x = tilesCoordinates[tileIndex].x;
                     tiledTextureCoordinate.y = tilesCoordinates[tileIndex].y;
                     tiledTextureCoordinate.z = 0;
 
-                    nvrhi::TiledTextureRegion& tiledTextureRegion = tiledTextureRegions[outputIdx].emplace_back();
+                    nvrhi::TiledTextureRegion& tiledTextureRegion = tiledTextureRegions.emplace_back();
                     tiledTextureRegion.tilesNum = 1;
 
-                    uint64_t& byteOffset = byteOffsets[outputIdx].emplace_back();
+                    uint64_t& byteOffset = byteOffsets.emplace_back();
                     byteOffset = tilesAllocations[tileIndex].heapTileIndex * GraphicConstants::kTiledResourceSizeInBytes;
                 }
 
-                for (uint32_t i = 0; i < 2; ++i)
-                {
-                    if (!tiledTextureCoordinates[i].empty())
-                    {
-                        UpdateTextureTileMappingsArgs& newMapping = (i == 0 ? immediateTileMappings : deferredTileMappings).emplace_back();
-                        newMapping.m_TextureIdx = texUpdate.m_TextureIdx;
-                        newMapping.m_TiledTextureCoordinates = std::move(tiledTextureCoordinates[i]);
-                        newMapping.m_TiledTextureRegions = std::move(tiledTextureRegions[i]);
-                        newMapping.m_ByteOffsets = std::move(byteOffsets[i]);
-                        newMapping.m_HeapID = heapId;
-                    }
-                }
+                nvrhi::TextureTilesMapping textureTilesMapping;
+                textureTilesMapping.numTextureRegions = tiledTextureCoordinates.size();
+                textureTilesMapping.tiledTextureCoordinates = tiledTextureCoordinates.data();
+                textureTilesMapping.tiledTextureRegions = tiledTextureRegions.data();
+                textureTilesMapping.byteOffsets = byteOffsets.data();
+                textureTilesMapping.heap = m_Heaps.at(heapId);
+
+                device->updateTextureTileMappings(texture.m_NVRHITextureHandle, &textureTilesMapping, 1);
             }
 
-            if (!immediateTileMappings.empty())
-            {
-                PROFILE_SCOPED("Update Immediate Tile Mappings");
-
-                std::vector<nvrhi::TextureTilesMapping> textureTilesMappings;
-                for (UpdateTextureTileMappingsArgs& tileMapping : immediateTileMappings)
-                {
-                    nvrhi::TextureTilesMapping& textureTilesMapping = textureTilesMappings.emplace_back();
-                    textureTilesMapping.numTextureRegions = (uint32_t)tileMapping.m_TiledTextureCoordinates.size();
-                    textureTilesMapping.tiledTextureCoordinates = tileMapping.m_TiledTextureCoordinates.data();
-                    textureTilesMapping.tiledTextureRegions = tileMapping.m_TiledTextureRegions.data();
-                    textureTilesMapping.byteOffsets = tileMapping.m_ByteOffsets.data();
-                    textureTilesMapping.heap = m_Heaps.at(tileMapping.m_HeapID);
-                }
-                device->updateTextureTileMappings(texture.m_NVRHITextureHandle, textureTilesMappings.data(), textureTilesMappings.size());
-            }
-
-            for (UpdateTextureTileMappingsArgs& tileMapping : deferredTileMappings)
-            {
-                const uint32_t mip = tileMapping.m_TiledTextureCoordinates[0].mipLevel;
-                mipIORequests[mip].m_DeferredTileMappings.push_back(std::move(tileMapping));
-            }
-            
             {
                 PROFILE_SCOPED("Upload Tiles");
 
@@ -398,7 +364,7 @@ void TextureFeedbackManager::BeginFrame()
                     tiles.clear();
                     texture.GetTileInfo(tileIndex, tiles);
 
-                    for (const FeedbackTextureTileInfo& tile : tiles)
+                    for (FeedbackTextureTileInfo& tile : tiles)
                     {
                         TextureMipData& mipData = texture.m_TextureMipDatas.at(tile.m_Mip);
                         if (texture.IsTilePacked(tileIndex))
@@ -410,6 +376,15 @@ void TextureFeedbackManager::BeginFrame()
                         }
                         else
                         {
+                            if (!m_bAsyncMipIOStreaming)
+                            {
+                                if (!mipData.m_bDataReady)
+                                {
+                                    ScopedFile f{ texture.m_ImageFilePath, "rb" };
+                                    ReadDDSMipData(texture, f, tile.m_Mip);
+                                }
+                            }
+
                             if (mipData.m_bDataReady)
                             {
                                 // mip data in system memory, immediately upload tile
@@ -417,68 +392,48 @@ void TextureFeedbackManager::BeginFrame()
                             }
                             else
                             {
-                                mipIORequests[tile.m_Mip].m_DeferredTileInfosToUpload.push_back(tile);
+                                DeferredTilesToProcess& deferredTiles = deferredTilesToProcess.emplace_back();
+                                deferredTiles.m_TextureIdx = texUpdate.m_TextureIdx;
+                                deferredTiles.m_DeferredTileInfosToUpload.push_back(std::move(tile));
                             }
                         }
                     }
                 }
             }
 
-            // TODO: need to somehow "delay" the results of 'WriteMinMipData' until after the mips are streamed in, else the mapped tiles will potentially render garbage
+            for (uint32_t mip = 0; mip < GraphicConstants::kMaxTextureMips; ++mip)
             {
-                std::vector<MipIORequest> mipIORequestsToSendToAsyncIOThread;
-                for (MipIORequest& request : mipIORequests)
+                if (mipsToStream[mip])
                 {
-                    if (!request.m_DeferredTileInfosToUpload.empty())
-                    {
-                        mipIORequestsToSendToAsyncIOThread.push_back(std::move(request));
-                    }
+                    mipIORequestsToSendToAsyncIOThread.push_back({ texUpdate.m_TextureIdx, mip });
                 }
-
-                AUTO_LOCK(m_MipIORequestsLock);
-                m_MipIORequests.insert(m_MipIORequests.end(),
-                    std::make_move_iterator(mipIORequestsToSendToAsyncIOThread.begin()),
-                    std::make_move_iterator(mipIORequestsToSendToAsyncIOThread.end()));
             }
         }
+
+        AUTO_LOCK(m_AsyncIOThreadLock);
+        m_MipIORequests.insert(m_MipIORequests.end(),
+            std::make_move_iterator(mipIORequestsToSendToAsyncIOThread.begin()),
+            std::make_move_iterator(mipIORequestsToSendToAsyncIOThread.end()));
+
+        m_DeferredTilesToAwaitAsyncIO.insert(m_DeferredTilesToAwaitAsyncIO.end(),
+            std::make_move_iterator(deferredTilesToProcess.begin()),
+            std::make_move_iterator(deferredTilesToProcess.end()));
     }
 
     {
         PROFILE_SCOPED("Upload Deferred Tile Uploads");
 
-        std::vector<MipIORequest> deferredTilesToMapAndUpload;
+        std::vector<DeferredTilesToProcess> deferredTilesToUpload;
         {
-            AUTO_LOCK(m_DeferredTilesToMapAndUploadLock);
-            deferredTilesToMapAndUpload = std::move(m_DeferredTilesToMapAndUpload);
+            AUTO_LOCK(m_AsyncIOThreadLock);
+            deferredTilesToUpload = std::move(m_DeferredTilesToUpload);
         }
 
-        // map heaps first before upload, else device TDR
-        for (MipIORequest& request : deferredTilesToMapAndUpload)
+        for (DeferredTilesToProcess& tilesToUpload : deferredTilesToUpload)
         {
-            Texture& texture = g_Graphic.m_Textures.at(request.m_TextureIdx);
-
-            if (!request.m_DeferredTileMappings.empty())
+            for (const FeedbackTextureTileInfo& tile : tilesToUpload.m_DeferredTileInfosToUpload)
             {
-                std::vector<nvrhi::TextureTilesMapping> textureTilesMappings;
-                for (UpdateTextureTileMappingsArgs& tileMapping : request.m_DeferredTileMappings)
-                {
-                    nvrhi::TextureTilesMapping& textureTilesMapping = textureTilesMappings.emplace_back();
-                    textureTilesMapping.numTextureRegions = (uint32_t)tileMapping.m_TiledTextureCoordinates.size();
-                    textureTilesMapping.tiledTextureCoordinates = tileMapping.m_TiledTextureCoordinates.data();
-                    textureTilesMapping.tiledTextureRegions = tileMapping.m_TiledTextureRegions.data();
-                    textureTilesMapping.byteOffsets = tileMapping.m_ByteOffsets.data();
-                    textureTilesMapping.heap = m_Heaps.at(tileMapping.m_HeapID);
-                }
-                device->updateTextureTileMappings(texture.m_NVRHITextureHandle, textureTilesMappings.data(), textureTilesMappings.size());
-            }
-        }
-
-        // now upload tiles
-        for (MipIORequest& request : deferredTilesToMapAndUpload)
-        {
-            for (const FeedbackTextureTileInfo& tile : request.m_DeferredTileInfosToUpload)
-            {
-                UploadTile(commandList, request.m_TextureIdx, tile);
+                UploadTile(commandList, tilesToUpload.m_TextureIdx, tile);
             }
         }
     }

@@ -34,6 +34,11 @@ private:
     {
         uint32_t m_TextureIdx;
         uint32_t m_Mip;
+    };
+
+    struct DeferredTilesToProcess
+    {
+        uint32_t m_TextureIdx;
         std::vector<FeedbackTextureTileInfo> m_DeferredTileInfosToUpload;
         std::vector<UpdateTextureTileMappingsArgs> m_DeferredTileMappings;
     };
@@ -58,15 +63,15 @@ private:
     std::vector<uint32_t> m_FreeHeapIDs;
 
     std::vector<MipIORequest> m_MipIORequests;
-    std::mutex m_MipIORequestsLock;
+    std::vector<DeferredTilesToProcess> m_DeferredTilesToAwaitAsyncIO;
+    std::vector<DeferredTilesToProcess> m_DeferredTilesToUpload;
 
-    std::vector<MipIORequest> m_DeferredTilesToMapAndUpload;
-    std::mutex m_DeferredTilesToMapAndUploadLock;
+    std::mutex m_AsyncIOThreadLock;
 
     std::vector<std::byte> m_UploadTileScratchBuffer;
 
+    bool m_bAsyncMipIOStreaming = false;
     bool m_bCompactMemory = true;
-    int m_MaxTilesUploadPerFrame = 256;
     uint32_t m_NumHeaps = 0;
     
     int m_NumFeedbackTexturesToResolvePerFrame = 10;
