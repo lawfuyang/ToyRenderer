@@ -36,6 +36,7 @@ struct TextureMipData
     bool m_bDataReady = false;
     std::vector<std::byte> m_Data;
 
+    uint32_t m_FirstTileIndex;
     rtxts::BitArray m_ResidencyBits;
 
     bool IsValid() const { return m_Resolution.x > 0 && m_Resolution.y > 0 && m_NumBytes > 0; }

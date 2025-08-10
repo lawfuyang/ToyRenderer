@@ -105,10 +105,23 @@ void Texture::LoadFromFile(std::string_view filePath)
         return;
     }
 
-    for (uint32_t i = 0; i < m_PackedMipDesc.numStandardMips; ++i)
+    uint32_t tileCounter = 0;
+    for (uint32_t i = 0; i < m_PackedMipDesc.numStandardMips + m_PackedMipDesc.numPackedMips; ++i)
     {
         TextureMipData& mipData = m_TextureMipDatas[i];
-        mipData.m_ResidencyBits.Init(m_TilingsInfo[i].widthInTiles * m_TilingsInfo[i].heightInTiles);
+        mipData.m_FirstTileIndex = tileCounter;
+
+        const uint32_t numTiles = m_TilingsInfo[i].widthInTiles * m_TilingsInfo[i].heightInTiles;
+
+        // NOTE: insane bug on rtxts::BitArray, where if try to init with 0 tiles, it allocs (((UINT_MAX) / 64) + 1) words bytes
+        if (numTiles == 0)
+        {
+            assert(IsTilePacked(tileCounter));
+            break;
+        }
+        mipData.m_ResidencyBits.Init(numTiles);
+
+        tileCounter += numTiles;
     }
 
     // read packed mip bytes

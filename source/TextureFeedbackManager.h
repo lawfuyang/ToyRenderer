@@ -38,7 +38,6 @@ private:
 
     std::vector<std::byte> m_UploadTileScratchBuffer;
 
-    bool m_bCompactMemory = true;
     uint32_t m_NumHeaps = 0;
     
     int m_NumFeedbackTexturesToResolvePerFrame = 10;

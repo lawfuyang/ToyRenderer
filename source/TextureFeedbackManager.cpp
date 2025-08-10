@@ -40,7 +40,6 @@ void TextureFeedbackManager::UpdateIMGUI()
     ImGui::Text("Heap Free Tiles: %d (%.0f MB)", statistics.heapFreeTilesNum, BYTES_TO_MB(statistics.heapFreeTilesNum * GraphicConstants::kTiledResourceSizeInBytes));
 
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 1, 32);
-    ImGui::Checkbox("Compact Memory", &m_bCompactMemory);
     ImGui::Checkbox("Write Sampler Feedback", &g_Scene->m_bWriteSamplerFeedback);
 }
 
@@ -123,6 +122,11 @@ void TextureFeedbackManager::BeginFrame()
     }
 
     {
+        PROFILE_SCOPED("Trim Standby Tiles");
+        m_TiledTextureManager->TrimStandbyTiles();
+    }
+
+    {
         PROFILE_SCOPED("Add/Release Heaps");
 
         // Now check how many heaps the tiled texture manager needs
@@ -133,6 +137,16 @@ void TextureFeedbackManager::BeginFrame()
             {
                 const uint32_t heapID = AllocateHeap();
                 m_TiledTextureManager->AddHeap(heapID);
+            }
+        }
+        else
+        {
+            std::vector<uint32_t> emptyHeaps;
+            m_TiledTextureManager->GetEmptyHeaps(emptyHeaps);
+            for (uint32_t heapID : emptyHeaps)
+            {
+                m_TiledTextureManager->RemoveHeap(heapID);
+                ReleaseHeap(heapID);
             }
         }
     }
@@ -169,6 +183,8 @@ void TextureFeedbackManager::BeginFrame()
             m_TiledTextureManager->GetTilesToMap(texture.m_TiledTextureID, tilesToMap);
             m_TiledTextureManager->GetTilesToUnmap(texture.m_TiledTextureID, tilesToUnmap);
 
+            const std::vector<rtxts::TileCoord>& tilesCoordinates = m_TiledTextureManager->GetTileCoordinates(texture.m_TiledTextureID);
+
             if (!tilesToUnmap.empty() || !tilesToMap.empty())
             {
                 const nvrhi::TextureDesc& minMipTexDesc = texture.m_MinMipTextureHandle->getDesc();
@@ -182,9 +198,6 @@ void TextureFeedbackManager::BeginFrame()
 
             if (!tilesToUnmap.empty())
             {
-                // TODO: keep track of mapped & unmapped tiles in Texture class, and free the TextureMipData memory when all tiles in mip gets unmapped
-                const std::vector<rtxts::TileCoord>& tilesCoordinates = m_TiledTextureManager->GetTileCoordinates(texture.m_TiledTextureID);
-
                 nvrhi::TiledTextureRegion tiledTextureRegion;
                 tiledTextureRegion.tilesNum = 1;
 
@@ -213,6 +226,14 @@ void TextureFeedbackManager::BeginFrame()
                     tiledTextureCoordinate.z = 0;
 
                     tilesProcessedNum++;
+
+                    if (!texture.IsTilePacked(tileIndex))
+                    {
+                        TextureMipData& mipData = texture.m_TextureMipDatas.at(tilesCoordinates[tileIndex].mipLevel);
+                        assert(tileIndex >= mipData.m_FirstTileIndex);
+                        const uint32_t mipTileIndex = tileIndex - mipData.m_FirstTileIndex;
+                        mipData.m_ResidencyBits.ClearBit(mipTileIndex);
+                    }
                 }
 
                 device->updateTextureTileMappings(texture.m_NVRHITextureHandle, &textureTilesMapping, 1);
@@ -220,7 +241,43 @@ void TextureFeedbackManager::BeginFrame()
 
             if (!tilesToMap.empty())
             {
+                for (uint32_t tileIndex : tilesToMap)
+                {
+                    if (texture.IsTilePacked(tileIndex))
+                    {
+                        continue; // skip packed tiles
+                    }
+
+                    TextureMipData& mipData = texture.m_TextureMipDatas.at(tilesCoordinates[tileIndex].mipLevel);
+                    assert(tileIndex >= mipData.m_FirstTileIndex);
+                    const uint32_t mipTileIndex = tileIndex - mipData.m_FirstTileIndex;
+                    mipData.m_ResidencyBits.SetBit(mipTileIndex);
+                }
+
                 textureAndTilesToMap.push_back({ i, std::move(tilesToMap) });
+            }
+
+            // clear mip data from system memory when entire mip is streamed out
+            // TODO: try enabling this after implementing DirectStorage, else the stuttering caused by I/O is really bad
+            if constexpr (false)
+            {
+                for (uint32_t i = 0; i < texture.m_TextureMipDatas.size(); ++i)
+                {
+                    if (i >= texture.m_PackedMipDesc.numStandardMips)
+                    {
+                        break;
+                    }
+
+                    TextureMipData& mipData = texture.m_TextureMipDatas[i];
+                    if (mipData.m_ResidencyBits.IsEmpty())
+                    {
+                        // forcefully remove mip data from system memory. "clear" is not enough
+                        std::vector<std::byte> emptyVec;
+                        mipData.m_Data.swap(emptyVec);
+
+                        mipData.m_bDataReady = false;
+                    }
+                }
             }
         }
     }
@@ -303,20 +360,11 @@ void TextureFeedbackManager::BeginFrame()
         }
     }
 
-    if (m_bCompactMemory)
     {
-        PROFILE_SCOPED("Defragment Tiles & Remove Empty Heaps");
+        PROFILE_SCOPED("Defragment Tiles");
 
         const uint32_t kNumTilesToDefragment = 16;
         m_TiledTextureManager->DefragmentTiles(kNumTilesToDefragment);
-
-        std::vector<uint32_t> emptyHeaps;
-        m_TiledTextureManager->GetEmptyHeaps(emptyHeaps);
-        for (uint32_t heapID : emptyHeaps)
-        {
-            m_TiledTextureManager->RemoveHeap(heapID);
-            ReleaseHeap(heapID);
-        }
     }
 }
 
