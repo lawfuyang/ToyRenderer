@@ -180,27 +180,15 @@ void Scene::SetCamera(uint32_t idx)
 
 bool Scene::IsRTDDGIEnabled() const
 {
-    if (g_DisableRayTracing.Get())
-    {
-        return false;
-    }
-    
-    if (!m_bEnableGI)
-    {
-        return false;
-    }
-
-    return true;
+    return !g_DisableRayTracing.Get()
+        && m_bEnableGI;
 }
 
 bool Scene::IsShadowsEnabled() const
 {
-    if (g_DisableRayTracing.Get())
-    {
-        return false;
-    }
-
-    return !!m_TLAS && m_bEnableShadows;
+    return !g_DisableRayTracing.Get()
+        && m_TLAS
+        && m_bEnableShadows;
 }
 
 void Scene::UpdateMainViewCameraControls()

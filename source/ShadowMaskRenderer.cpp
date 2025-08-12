@@ -192,12 +192,7 @@ public:
         {
             return false;
         }
-
-        if (!g_Scene->IsRTDDGIEnabled())
-        {
-            return false;
-        }
-
+        
         {
             nvrhi::TextureDesc desc;
             desc.width = g_Graphic.m_RenderResolution.x;
