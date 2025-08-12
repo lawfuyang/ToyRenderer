@@ -20,7 +20,7 @@ public:
 		enum class AccessType : uint8_t { Read, Write };
 
 		nvrhi::ResourceHandle m_Resource;
-		uint32_t m_HeapOffset = UINT32_MAX;
+		uint64_t m_HeapOffset = UINT64_MAX;
 		uint32_t m_HeapIdx = UINT32_MAX;
 
 		uint32_t m_AllocatedFrameIdx = UINT32_MAX;
@@ -55,22 +55,22 @@ public:
 	struct Heap
 	{
 	public:
-		uint32_t Allocate(uint32_t size);
-		void Free(uint32_t heapOffset);
-		void FindBest(uint32_t size, uint32_t& foundIdx, uint32_t& heapOffset);
-		void FindFirst(uint32_t size, uint32_t& foundIdx, uint32_t& heapOffset);
+		uint64_t Allocate(uint64_t size);
+		void Free(uint64_t heapOffset);
+		void FindBest(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset);
+		void FindFirst(uint64_t size, uint32_t& foundIdx, uint64_t& heapOffset);
 
 		nvrhi::HeapHandle m_Heap;
 
 		struct Block
 		{
-			uint32_t m_Size;
+			uint64_t m_Size;
 			bool m_Allocated;
 		};
 		std::vector<Block> m_Blocks;
 
-		uint32_t m_Used = 0;
-		uint32_t m_Peak = 0;
+		uint64_t m_Used = 0;
+		uint64_t m_Peak = 0;
 	};
 	
 	void Initialize();
@@ -96,7 +96,7 @@ private:
 	nvrhi::IResource* GetResourceInternal(const ResourceHandle& resourceHandle, ResourceHandle::Type resourceType) const;
     void FreeResource(ResourceHandle& resourceHandle);
     const char* GetResourceName(const ResourceHandle& resourceHandle) const;
-	void CreateNewHeap(uint32_t size);
+	void CreateNewHeap(uint64_t size);
 
 	tf::Taskflow* m_TaskFlow;
 
@@ -112,7 +112,7 @@ private:
 	struct HeapToFree
 	{
 		uint32_t m_Idx;
-		uint32_t m_Offset;
+		uint64_t m_Offset;
 	};
 
     std::vector<HeapToFree> m_HeapsToFree;
