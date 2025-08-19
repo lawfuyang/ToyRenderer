@@ -769,7 +769,6 @@ void ReadDDSMipData(Texture& texture, FILE* f, uint32_t mip)
     TextureMipData& textureMipData = texture.m_TextureMipDatas.at(mip);
     assert(textureMipData.IsValid());
 
-    assert(textureMipData.m_Data.empty());
     textureMipData.m_Data.resize(textureMipData.m_NumBytes);
 
     assert(f);

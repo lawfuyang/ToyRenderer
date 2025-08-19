@@ -173,9 +173,9 @@ void TextureFeedbackManager::BeginFrame()
         // TODO: The current code does not merge unmapping and mapping tiles for the same textures. It would be more optimal.
         std::vector<uint32_t> tilesToMap;
         std::vector<uint32_t> tilesToUnmap;
-        for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
+        for (uint32_t textureIdx = 0; textureIdx < g_Graphic.m_Textures.size(); ++textureIdx)
         {
-            Texture& texture = g_Graphic.m_Textures[i];
+            Texture& texture = g_Graphic.m_Textures[textureIdx];
             if (texture.m_TiledTextureID == UINT_MAX)
             {
                 continue; // not a tiled texture
@@ -188,7 +188,7 @@ void TextureFeedbackManager::BeginFrame()
 
             if (!tilesToUnmap.empty() || !tilesToMap.empty())
             {
-                texturesWithDirtyMinMipTextures.push_back(i);
+                texturesWithDirtyMinMipTextures.push_back(textureIdx);
             }
 
             if (!tilesToUnmap.empty())
@@ -236,6 +236,7 @@ void TextureFeedbackManager::BeginFrame()
 
             if (!tilesToMap.empty())
             {
+                bool bDoMipDatasToRead[GraphicConstants::kMaxTextureMips]{};
                 for (uint32_t tileIndex : tilesToMap)
                 {
                     if (texture.IsTilePacked(tileIndex))
@@ -243,17 +244,46 @@ void TextureFeedbackManager::BeginFrame()
                         continue; // skip packed tiles
                     }
 
-                    TextureMipData& mipData = texture.m_TextureMipDatas.at(tilesCoordinates[tileIndex].mipLevel);
+                    const uint32_t mip = tilesCoordinates[tileIndex].mipLevel;
+
+                    TextureMipData& mipData = texture.m_TextureMipDatas.at(mip);
                     assert(tileIndex >= mipData.m_FirstTileIndex);
                     const uint32_t mipTileIndex = tileIndex - mipData.m_FirstTileIndex;
                     mipData.m_ResidencyBits.SetBit(mipTileIndex);
+
+                    bDoMipDatasToRead[mip] = mipData.m_Data.empty() && !mipData.m_bDataReady;
                 }
 
-                textureAndTilesToMap.push_back({ i, std::move(tilesToMap) });
+                textureAndTilesToMap.push_back({ textureIdx, std::move(tilesToMap) });
+
+                for (uint32_t mip = 0; mip < GraphicConstants::kMaxTextureMips; ++mip)
+                {
+                    if (!bDoMipDatasToRead[mip])
+                    {
+                        continue;
+                    }
+
+                    TextureMipData& mipData = texture.m_TextureMipDatas.at(mip);
+                    mipData.m_Data.resize(mipData.m_NumBytes);
+
+                    auto DoReadDDSMipData = [textureIdx, mip]()
+                        {
+                            Texture& texture = g_Graphic.m_Textures.at(textureIdx);
+                            TextureMipData& mipData = texture.m_TextureMipDatas.at(mip);
+
+                            assert(!mipData.m_Data.empty());
+                            assert(!mipData.m_bDataReady);
+
+                            ScopedFile f{ texture.m_ImageFilePath, "rb" };
+                            ReadDDSMipData(texture, f, mip);
+                        };
+
+                    g_Engine.m_Executor->silent_async(DoReadDDSMipData);
+                }
             }
 
             // clear mip data from system memory when entire mip is streamed out
-            // TODO: try enabling this after implementing DirectStorage, else the stuttering caused by I/O is really bad
+            // TODO: the stuttering caused by I/O is really bad. do async mip streaming first
             if constexpr (false)
             {
                 for (uint32_t i = 0; i < texture.m_TextureMipDatas.size(); ++i)
@@ -302,6 +332,7 @@ void TextureFeedbackManager::BeginFrame()
             heapTilesMapping[tilesAllocations[tileIndex].heapId].push_back(tileIndex);
         }
 
+        // update tile mappings
         for (const auto& [heapId, heapTiles] : heapTilesMapping)
         {
             std::vector<nvrhi::TiledTextureCoordinate> tiledTextureCoordinates;
@@ -350,17 +381,29 @@ void TextureFeedbackManager::BeginFrame()
                 }
                 else
                 {
-                    if (!mipData.m_bDataReady)
-                    {
-                        ScopedFile f{ texture.m_ImageFilePath, "rb" };
-                        ReadDDSMipData(texture, f, tile.m_Mip);
-                    }
-
-                    UploadTile(commandList, texUpdate.m_TextureIdx, tile);
+                    m_TileUploads.push_back({ texUpdate.m_TextureIdx, std::move(tile) });
                 }
             }
         }
     }
+
+    std::vector<TileUpload> deferredTileUploads;
+    for (TileUpload& tileUpload : m_TileUploads)
+    {
+        Texture& texture = g_Graphic.m_Textures.at(tileUpload.m_TextureIdx);
+        TextureMipData& mipData = texture.m_TextureMipDatas.at(tileUpload.m_TileInfo.m_Mip);
+
+        if (mipData.m_bDataReady)
+        {
+            UploadTile(commandList, tileUpload.m_TextureIdx, tileUpload.m_TileInfo);
+        }
+        else
+        {
+            assert(!mipData.m_Data.empty()); // sanity check that mip data I/O is at least in progress
+            deferredTileUploads.push_back(std::move(tileUpload)); // try again next frame
+        }
+    }
+    m_TileUploads = std::move(deferredTileUploads);
 
     // Write min mip data
     std::vector<uint8_t> minMipData;

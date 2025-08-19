@@ -42,15 +42,6 @@ struct TextureMipData
     bool IsValid() const { return m_Resolution.x > 0 && m_Resolution.y > 0 && m_NumBytes > 0; }
 };
 
-struct FeedbackTextureTileInfo
-{
-    uint32_t m_Mip;
-    uint32_t m_XInTexels;
-    uint32_t m_YInTexels;
-    uint32_t m_WidthInTexels;
-    uint32_t m_HeightInTexels;
-};
-
 class Texture
 {
 public:
@@ -60,7 +51,7 @@ public:
     bool IsValid() const;
 
     bool IsTilePacked(uint32_t tileIdx) const;
-    void GetTileInfo(uint32_t tileIndex, std::vector<FeedbackTextureTileInfo>& tiles) const;
+    void GetTileInfo(uint32_t tileIndex, std::vector<struct FeedbackTextureTileInfo>& tiles) const;
 
     std::string m_ImageFilePath;
     TextureFileHeader m_TextureFileHeader;
