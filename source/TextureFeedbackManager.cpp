@@ -164,6 +164,8 @@ void TextureFeedbackManager::BeginFrame()
     };
     std::vector<TextureAndTiles> textureAndTilesToMap;
 
+    std::vector<uint32_t> texturesWithDirtyMinMipTextures;
+
     // Get tiles to unmap and map from the tiled texture manager
     {
         PROFILE_SCOPED("Get Tiles to Map & Unmap");
@@ -171,7 +173,6 @@ void TextureFeedbackManager::BeginFrame()
         // TODO: The current code does not merge unmapping and mapping tiles for the same textures. It would be more optimal.
         std::vector<uint32_t> tilesToMap;
         std::vector<uint32_t> tilesToUnmap;
-        std::vector<uint8_t> minMipData;
         for (uint32_t i = 0; i < g_Graphic.m_Textures.size(); ++i)
         {
             Texture& texture = g_Graphic.m_Textures[i];
@@ -187,13 +188,7 @@ void TextureFeedbackManager::BeginFrame()
 
             if (!tilesToUnmap.empty() || !tilesToMap.empty())
             {
-                const nvrhi::TextureDesc& minMipTexDesc = texture.m_MinMipTextureHandle->getDesc();
-
-                minMipData.resize(minMipTexDesc.width * minMipTexDesc.height);
-                m_TiledTextureManager->WriteMinMipData(texture.m_TiledTextureID, minMipData.data());
-
-                const uint32_t rowPitch = minMipTexDesc.width;
-                commandList->writeTexture(texture.m_MinMipTextureHandle, 0, 0, minMipData.data(), rowPitch);
+                texturesWithDirtyMinMipTextures.push_back(i);
             }
 
             if (!tilesToUnmap.empty())
@@ -282,6 +277,13 @@ void TextureFeedbackManager::BeginFrame()
         }
     }
 
+    {
+        PROFILE_SCOPED("Defragment Tiles");
+
+        const uint32_t kNumTilesToDefragment = 16;
+        m_TiledTextureManager->DefragmentTiles(kNumTilesToDefragment);
+    }
+
     std::vector<FeedbackTextureTileInfo> tiles;
     for (TextureAndTiles& texUpdate : textureAndTilesToMap)
     {
@@ -360,11 +362,19 @@ void TextureFeedbackManager::BeginFrame()
         }
     }
 
+    // Write min mip data
+    std::vector<uint8_t> minMipData;
+    for (uint32_t i : texturesWithDirtyMinMipTextures)
     {
-        PROFILE_SCOPED("Defragment Tiles");
+        Texture& texture = g_Graphic.m_Textures.at(i);
 
-        const uint32_t kNumTilesToDefragment = 16;
-        m_TiledTextureManager->DefragmentTiles(kNumTilesToDefragment);
+        const nvrhi::TextureDesc& minMipTexDesc = texture.m_MinMipTextureHandle->getDesc();
+
+        minMipData.resize(minMipTexDesc.width* minMipTexDesc.height);
+        m_TiledTextureManager->WriteMinMipData(texture.m_TiledTextureID, minMipData.data());
+
+        const uint32_t rowPitch = minMipTexDesc.width;
+        commandList->writeTexture(texture.m_MinMipTextureHandle, 0, 0, minMipData.data(), rowPitch);
     }
 }
 

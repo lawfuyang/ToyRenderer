@@ -19,8 +19,8 @@ StructuredBuffer<MeshletAmplificationData> g_MeshletAmplificationDataBuffer : re
 Texture2D g_HZB : register(t8);
 SamplerState g_AnisotropicClampSampler : register(s0);
 SamplerState g_AnisotropicWrapSampler : register(s1);
-SamplerState g_AnisotropicClampMaxReductionSampler : register(s2);
-SamplerState g_AnisotropicWrapMaxReductionSampler : register(s3);
+SamplerState g_PointClampMaxReductionSampler : register(s2);
+SamplerState g_PointWrapMaxReductionSampler : register(s3);
 SamplerState g_LinearClampMinReductionSampler : register(s4);
 
 struct VertexOut
@@ -200,8 +200,8 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     getCommonGBufferParamsArguments.m_MaterialData = materialData;
     getCommonGBufferParamsArguments.m_AnisotropicClampSampler = g_AnisotropicClampSampler;
     getCommonGBufferParamsArguments.m_AnisotropicWrapSampler = g_AnisotropicWrapSampler;
-    getCommonGBufferParamsArguments.m_AnisotropicClampMaxReductionSampler = g_AnisotropicClampMaxReductionSampler;
-    getCommonGBufferParamsArguments.m_AnisotropicWrapMaxReductionSampler = g_AnisotropicWrapMaxReductionSampler;
+    getCommonGBufferParamsArguments.m_PointClampMaxReductionSampler = g_PointClampMaxReductionSampler;
+    getCommonGBufferParamsArguments.m_PointWrapMaxReductionSampler = g_PointWrapMaxReductionSampler;
     getCommonGBufferParamsArguments.m_bEnableSamplerFeedback = g_BasePassConsts.m_bWriteSamplerFeedback;
     getCommonGBufferParamsArguments.m_bVisualizeMinMipTilesOnAlbedoOutput = g_BasePassConsts.m_bVisualizeMinMipTilesOnAlbedoOutput;
     

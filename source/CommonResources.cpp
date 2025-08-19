@@ -297,8 +297,8 @@ static void CreateDefaultSamplers()
 	g_CommonResources.PointClampComparisonLessSampler  = CreateSampler(false, false, false, nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Comparison, 1);
     g_CommonResources.LinearClampMinReductionSampler   = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Minimum, 1);
     g_CommonResources.LinearClampMaxReductionSampler   = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Maximum, 1);
-    g_CommonResources.AnisotropicClampMaxReductionSampler = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Maximum, 16);
-    g_CommonResources.AnisotropicWrapMaxReductionSampler  = CreateSampler(true, true, true   , nvrhi::SamplerAddressMode::Wrap,   nvrhi::SamplerReductionType::Maximum, 16);
+    g_CommonResources.PointClampMaxReductionSampler    = CreateSampler(false, false, false, nvrhi::SamplerAddressMode::Clamp,  nvrhi::SamplerReductionType::Maximum, 1);
+    g_CommonResources.PointWrapMaxReductionSampler     = CreateSampler(false, false, false, nvrhi::SamplerAddressMode::Wrap,   nvrhi::SamplerReductionType::Maximum, 1);
 }
 
 static void CreateDefaultDepthStencilStates()

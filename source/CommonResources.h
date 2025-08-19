@@ -55,8 +55,8 @@ public:
     nvrhi::SamplerHandle AnisotropicMirrorSampler;
     nvrhi::SamplerHandle PointClampComparisonLessSampler;
     nvrhi::SamplerHandle LinearClampComparisonLessSampler;
-    nvrhi::SamplerHandle AnisotropicClampMaxReductionSampler;
-    nvrhi::SamplerHandle AnisotropicWrapMaxReductionSampler;
+    nvrhi::SamplerHandle PointClampMaxReductionSampler;
+    nvrhi::SamplerHandle PointWrapMaxReductionSampler;
 
     // Blend States
     nvrhi::BlendState::RenderTarget BlendOpaque;

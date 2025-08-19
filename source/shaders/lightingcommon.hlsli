@@ -205,8 +205,8 @@ struct SampleMaterialValueArguments
     TextureData m_TextureData;
     SamplerState m_AnisotropicClampSampler;
     SamplerState m_AnisotropicWrapSampler;
-    SamplerState m_AnisotropicClampMaxReductionSampler;
-    SamplerState m_AnisotropicWrapMaxReductionSampler;
+    SamplerState m_PointClampMaxReductionSampler;
+    SamplerState m_PointWrapMaxReductionSampler;
     float m_OveriddenSampleLevel; // preferably compile-time const. Set to a negative value to use hardware mip level
     bool m_bEnableSamplerFeedback; // 100% must be compile-time const (only from non-compute shaders)
     bool m_bUseSampleGrad; // generally used in RT Shaders
@@ -238,7 +238,6 @@ SampleMaterialValueArguments CreateDefaultSampleMaterialValueArguments()
 float4 SampleMaterialValue(SampleMaterialValueArguments inArgs, bool bIsAlbedo = false)
 {
     TextureData texData = inArgs.m_TextureData;
-    const bool bHasFeedbackTexture = texData.m_FeedbackTextureDescriptorIndex != 0xFFFFFFFF;
     const bool bHasMinMipTexture = texData.m_MinMapTextureDescriptorIndex != 0xFFFFFFFF;
 
     float minMip = 0.0f;
@@ -246,7 +245,7 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs, bool bIsAlbedo =
     {
         Texture2D<uint> minMipTexture = ResourceDescriptorHeap[NonUniformResourceIndex(texData.m_MinMapTextureDescriptorIndex)];
 
-        SamplerState minMipSampler = select(texData.m_IsWrapSampler, inArgs.m_AnisotropicWrapMaxReductionSampler, inArgs.m_AnisotropicClampMaxReductionSampler);
+        SamplerState minMipSampler = select(texData.m_IsWrapSampler, inArgs.m_PointWrapMaxReductionSampler, inArgs.m_PointClampMaxReductionSampler);
         minMip = minMipTexture.SampleLevel(minMipSampler, inArgs.m_TexCoord, 0).r;
     }
 
@@ -265,35 +264,17 @@ float4 SampleMaterialValue(SampleMaterialValueArguments inArgs, bool bIsAlbedo =
     else
     {
         const int2 kOffsetZero = int2(0, 0);
-        const float kClampZero = 0.0f;
-        uint sampleStatus;
-        value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, kOffsetZero, kClampZero, sampleStatus); // Opportunistic sample
-        const bool bSamplePixelIsMapped = CheckAccessFullyMapped(sampleStatus);
-        if (!bSamplePixelIsMapped)
-        {
-            value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, kOffsetZero, minMip);
-        }
+        value = materialTexture.Sample(materialSampler, inArgs.m_TexCoord, kOffsetZero, minMip);
 
         if (bIsAlbedo)
         {
             if (inArgs.m_bVisualizeMinMipTilesOnAlbedoOutput && bHasMinMipTexture)
             {
                 value.rgb = kMipColors[(uint)minMip];
-
-                const bool bShowRealMip = false;
-                if (bShowRealMip)
-                {
-                    value.rgb = kMipColors[(uint)materialTexture.CalculateLevelOfDetail(materialSampler, inArgs.m_TexCoord)];
-                }
-            }
-
-            const bool bShowUnmappedRegions = false;
-            if (bShowUnmappedRegions && !bSamplePixelIsMapped)
-            {
-                value.rgb = float3(1, 0, 0);
             }
         }
 
+        const bool bHasFeedbackTexture = texData.m_FeedbackTextureDescriptorIndex != 0xFFFFFFFF;
         if (inArgs.m_bEnableSamplerFeedback && bHasFeedbackTexture)
         {
             FeedbackTexture2D<SAMPLER_FEEDBACK_MIN_MIP> feedbackTexture = ResourceDescriptorHeap[NonUniformResourceIndex(texData.m_FeedbackTextureDescriptorIndex)];
@@ -312,8 +293,8 @@ struct GetCommonGBufferParamsArguments
     MaterialData m_MaterialData;
     SamplerState m_AnisotropicClampSampler;
     SamplerState m_AnisotropicWrapSampler;
-    SamplerState m_AnisotropicClampMaxReductionSampler;
-    SamplerState m_AnisotropicWrapMaxReductionSampler;
+    SamplerState m_PointClampMaxReductionSampler;
+    SamplerState m_PointWrapMaxReductionSampler;
     bool m_bEnableSamplerFeedback;
     bool m_bVisualizeMinMipTilesOnAlbedoOutput;
 };
@@ -339,8 +320,8 @@ GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs)
     sampleArgs.m_TexCoord = inArgs.m_TexCoord;
     sampleArgs.m_AnisotropicClampSampler = inArgs.m_AnisotropicClampSampler;
     sampleArgs.m_AnisotropicWrapSampler = inArgs.m_AnisotropicWrapSampler;
-    sampleArgs.m_AnisotropicClampMaxReductionSampler = inArgs.m_AnisotropicClampMaxReductionSampler;
-    sampleArgs.m_AnisotropicWrapMaxReductionSampler = inArgs.m_AnisotropicWrapMaxReductionSampler;
+    sampleArgs.m_PointClampMaxReductionSampler = inArgs.m_PointClampMaxReductionSampler;
+    sampleArgs.m_PointWrapMaxReductionSampler = inArgs.m_PointWrapMaxReductionSampler;
     sampleArgs.m_bEnableSamplerFeedback = inArgs.m_bEnableSamplerFeedback;
     sampleArgs.m_bVisualizeMinMipTilesOnAlbedoOutput = inArgs.m_bVisualizeMinMipTilesOnAlbedoOutput;
     
@@ -348,7 +329,8 @@ GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs)
     if (inArgs.m_MaterialData.m_MaterialFlags & MaterialFlag_UseAlbedoTexture)
     {
         sampleArgs.m_TextureData = inArgs.m_MaterialData.m_AlbedoTexture;
-        float4 albedoSample = SampleMaterialValue(sampleArgs, true);
+        const bool bIsAlbedo = true;
+        float4 albedoSample = SampleMaterialValue(sampleArgs, bIsAlbedo);
         result.m_Albedo = inArgs.m_MaterialData.m_ConstAlbedo * albedoSample;
     }
 

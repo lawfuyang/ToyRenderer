@@ -472,8 +472,8 @@ public:
             nvrhi::BindingSetItem::Texture_SRV(8, m_bDoOcclusionCulling ? g_Scene->m_HZB : g_CommonResources.BlackTexture.m_NVRHITextureHandle),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.AnisotropicClampSampler),
             nvrhi::BindingSetItem::Sampler(1, g_CommonResources.AnisotropicWrapSampler),
-            nvrhi::BindingSetItem::Sampler(2, g_CommonResources.AnisotropicClampMaxReductionSampler),
-            nvrhi::BindingSetItem::Sampler(3, g_CommonResources.AnisotropicWrapMaxReductionSampler),
+            nvrhi::BindingSetItem::Sampler(2, g_CommonResources.PointClampMaxReductionSampler),
+            nvrhi::BindingSetItem::Sampler(3, g_CommonResources.PointWrapMaxReductionSampler),
             nvrhi::BindingSetItem::Sampler(4, g_CommonResources.LinearClampMinReductionSampler)
         };
 
