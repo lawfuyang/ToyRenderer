@@ -283,25 +283,16 @@ void TextureFeedbackManager::BeginFrame()
             }
 
             // clear mip data from system memory when entire mip is streamed out
-            // TODO: the stuttering caused by I/O is really bad. do async mip streaming first
-            if constexpr (false)
+            for (uint32_t i = 0; i < texture.m_PackedMipDesc.numStandardMips; ++i)
             {
-                for (uint32_t i = 0; i < texture.m_TextureMipDatas.size(); ++i)
+                TextureMipData& mipData = texture.m_TextureMipDatas[i];
+                if (mipData.m_ResidencyBits.IsEmpty())
                 {
-                    if (i >= texture.m_PackedMipDesc.numStandardMips)
-                    {
-                        break;
-                    }
+                    mipData.m_bDataReady = false;
 
-                    TextureMipData& mipData = texture.m_TextureMipDatas[i];
-                    if (mipData.m_ResidencyBits.IsEmpty())
-                    {
-                        // forcefully remove mip data from system memory. "clear" is not enough
-                        std::vector<std::byte> emptyVec;
-                        mipData.m_Data.swap(emptyVec);
-
-                        mipData.m_bDataReady = false;
-                    }
+                    // forcefully remove mip data from system memory. "clear" is not enough
+                    std::vector<std::byte> emptyVec;
+                    mipData.m_Data.swap(emptyVec);
                 }
             }
         }
