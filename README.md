@@ -51,7 +51,7 @@ Use "**--scene**" commandline argument to load a scene. Example:
 ### Virtual Textures (Tiled Resources) w/ Sampler Feedback
 |Streamed Tiles|Sampler Feedback & Min Mip Textures|Texture Tiles' Mip Debug|
 |---|---|---|
-|<img width="1910" height="1024" alt="image" src="https://github.com/user-attachments/assets/fc2bc358-8f74-457f-8c26-cd2c44c8c506" />|<img width="1908" height="1026" alt="image" src="https://github.com/user-attachments/assets/541a703d-72e5-4462-b477-cee341b303ef" />|<img width="1911" height="1030" alt="image" src="https://github.com/user-attachments/assets/eb82b71f-b31d-4d72-a046-a0606a390992" />|
+|<img width="1910" height="1024" alt="image" src="https://github.com/user-attachments/assets/fc2bc358-8f74-457f-8c26-cd2c44c8c506" />|<img width="1908" height="1026" alt="image" src="https://github.com/user-attachments/assets/541a703d-72e5-4462-b477-cee341b303ef" />|<img width="1911" height="1030" alt="image" src="https://github.com/user-attachments/assets/eb82b71f-b31d-4d72-a046-a0606a390992" /> <sub>Certain textures use wrap UV, hence the repeated tile patterns</sub>|
 
 ### Multi-threading
 |Profiler Viewer|
