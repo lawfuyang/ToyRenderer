@@ -48,8 +48,10 @@ Use "**--scene**" commandline argument to load a scene. Example:
 |---|---|---|
 |![image](https://github.com/user-attachments/assets/827be21d-e9ef-4b9c-b89b-24a3964f8cf5)|![image](https://github.com/user-attachments/assets/4e2da59d-2b97-40e6-83ee-353fd87c04f3)|![image](https://github.com/user-attachments/assets/140b25b5-06c1-4b6d-8467-665f3848e47f)|
 
-### Texture Tiled Mip Streaming w/ Sampler Feedback
-WIP
+### Virtual Textures (Tiled Resources) w/ Sampler Feedback
+|Streamed Tiles|Sampler Feedback & Min Mip Textures|Texture Tiles' Mip Debug|
+|---|---|---|
+|<img width="1910" height="1024" alt="image" src="https://github.com/user-attachments/assets/fc2bc358-8f74-457f-8c26-cd2c44c8c506" />|<img width="1908" height="1026" alt="image" src="https://github.com/user-attachments/assets/541a703d-72e5-4462-b477-cee341b303ef" />|<img width="1911" height="1030" alt="image" src="https://github.com/user-attachments/assets/eb82b71f-b31d-4d72-a046-a0606a390992" />|
 
 ### Multi-threading
 |Profiler Viewer|
@@ -91,5 +93,4 @@ WIP
 - **Static Animations**
     - Linear Translation & Rotation only. No bones & skinning support yet.
 - **GPU Ray-Traced Global Illumination with [Nvidia RTXGI-DDI](https://github.com/NVIDIAGameWorks/RTXGI-DDGI)**
-- **Texture Tiled Mip Streaming with [Sampler Feedback](https://microsoft.github.io/DirectX-Specs/d3d/SamplerFeedback.html)** (WIP)
-    - using [Nvidia Tiled Texture Manager Library](https://github.com/NVIDIA-RTX/RTXTS)
+- **Virtual Textures (Tiled Resources) w/ [Sampler Feedback](https://microsoft.github.io/DirectX-Specs/d3d/SamplerFeedback.html) using [Nvidia Tiled Texture Manager Library](https://github.com/NVIDIA-RTX/RTXTS)**
