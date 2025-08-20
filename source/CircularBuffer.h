@@ -95,7 +95,7 @@ public:
 	 */
 	T shift()
 	{
-		assert(!isEmpty());
+		check(!isEmpty());
 
 		T result = *head++;
 		if (head >= buffer + kCapacity) {
@@ -110,7 +110,7 @@ public:
 	 */
 	T pop()
 	{
-		assert(!isEmpty());
+		check(!isEmpty());
 
 		T result = *tail--;
 		if (tail < buffer) {
@@ -125,22 +125,22 @@ public:
 	 *
 	 * @return The element at the beginning of the buffer.
 	 */
-	const T& first() const { assert(!isEmpty()); return *head; }
+	const T& first() const { check(!isEmpty()); return *head; }
 
 	/**
 	 * @brief Returns the element at the end of the buffer.
 	 *
 	 * @return The element at the end of the buffer.
 	 */
-	const T& last() const { assert(!isEmpty()); return *tail; }
+	const T& last() const { check(!isEmpty()); return *tail; }
 
 	/**
 	 * @brief Array-like access to buffer.
 	 */
 	const T& operator [] (uint32_t index) const
 	{
-		assert(index < count);
-		assert(!isEmpty());
+		check(index < count);
+		check(!isEmpty());
 
 		return *(buffer + ((head - buffer + index) % kCapacity));
 	}

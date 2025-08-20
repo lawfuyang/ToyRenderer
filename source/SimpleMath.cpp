@@ -188,7 +188,7 @@ RECT Viewport::ComputeDisplayArea(DXGI_SCALING scaling, UINT backBufferWidth, UI
             // Output fills the window area but respects the original aspect ratio, using pillar boxing or letter boxing as required
             // Note: This scaling option is not supported for legacy Win32 windows swap chains
         {
-            assert(backBufferHeight > 0);
+            check(backBufferHeight > 0);
             const float aspectRatio = float(backBufferWidth) / float(backBufferHeight);
 
             // Horizontal fill

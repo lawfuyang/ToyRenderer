@@ -105,7 +105,7 @@ public:
 
     void Create()
     {
-        assert(GetNumProbes() > 0);
+        check(GetNumProbes() > 0);
 
         LOG_DEBUG("Creating GI volume, origin: [%.1f, %.1f, %.1f], num probes: [%u, %u, %u]",
                   m_desc.origin.x, m_desc.origin.y, m_desc.origin.z,
@@ -183,7 +183,7 @@ private:
     {
         uint32_t width, height, arraySize;
         GetDDGIVolumeTextureDimensions(m_desc, textureType, width, height, arraySize);
-        assert(!(width <= 0 || height <= 0 || arraySize <= 0));
+        check(!(width <= 0 || height <= 0 || arraySize <= 0));
 
         const ProbeTextureCreateInfo& createInfo = kTextureCreateInfos[(int)textureType];
 
@@ -402,7 +402,7 @@ public:
 
         // DXC complains: "Function uses derivatives in compute-model shader with NumThreads (1, 1, 1); derivatives require NumThreads to be 1D and a multiple of 4, or 2D/3D with X and Y both being a multiple of 2."
         // we're not doing any hardware derivatives, so silence that error, enforce dispatchX to be multiple of kNumThreadsPerWave
-        assert(dispatchX % kNumThreadsPerWave == 0);
+        check(dispatchX % kNumThreadsPerWave == 0);
 
         Graphic::ComputePassParams computePassParams;
         computePassParams.m_CommandList = commandList;
@@ -499,7 +499,7 @@ public:
 
             size_t outRowPitch;
             const float* variabilityReadback = (const float*)g_Graphic.m_NVRHIDevice->mapStagingTexture(thisFrameVariabilityTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Read, &outRowPitch);
-            assert(variabilityReadback);
+            check(variabilityReadback);
 
             m_RTDDGIVolume.m_AverageVariability = *variabilityReadback;
             m_RTDDGIVolume.SetVariabilityForCurrentFrame(*variabilityReadback);

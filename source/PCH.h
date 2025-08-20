@@ -39,8 +39,10 @@
 
 #ifdef NDEBUG
     #define verify(expr) expr
+    #define check(expr) do { if (!(expr)) { __debugbreak(); abort(); } } while (0)
 #else
     #define verify(expr) assert(expr)
+    #define check(expr) assert(expr)
 #endif
 
 using Microsoft::WRL::ComPtr;
@@ -63,9 +65,9 @@ public:                                     \
 private:                                                         \
     SingletonFunctionsCommon(ClassName);                         \
 public:                                                          \
-    ClassName() { assert(!ms_Instance); ms_Instance = this; }    \
-    ~ClassName() { assert(ms_Instance); ms_Instance = nullptr; } \
-    static ClassName& GetInstance() { assert(ms_Instance); return *ms_Instance; }
+    ClassName() { check(!ms_Instance); ms_Instance = this; }    \
+    ~ClassName() { check(ms_Instance); ms_Instance = nullptr; } \
+    static ClassName& GetInstance() { check(ms_Instance); return *ms_Instance; }
 
 #define TOSTRING_INTERNAL(x)               #x
 #define TOSTRING(x)                        TOSTRING_INTERNAL(x)

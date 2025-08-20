@@ -51,8 +51,8 @@ public:
         {
         case ImTextureStatus::ImTextureStatus_WantCreate:
         {
-            assert(tex->TexID == 0 && tex->BackendUserData == nullptr);
-            assert(tex->Format == ImTextureFormat_RGBA32);
+            check(tex->TexID == 0 && tex->BackendUserData == nullptr);
+            check(tex->Format == ImTextureFormat_RGBA32);
 
             LOG_DEBUG("Create IMGUI Texture: %dx%d", tex->Width, tex->Height);
 
@@ -87,7 +87,7 @@ public:
             textureDesc.format = textureHandle->getDesc().format;
 
             nvrhi::StagingTextureHandle stagingTexture = device->createStagingTexture(textureDesc, nvrhi::CpuAccessMode::Write);
-            assert(stagingTexture);
+            check(stagingTexture);
 
             size_t rowPitch;
             void* mappedPtr = device->mapStagingTexture(stagingTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Write, &rowPitch);
@@ -110,7 +110,7 @@ public:
         case ImTextureStatus::ImTextureStatus_WantDestroy:
         {
             LOG_DEBUG("Destroy IMGUI Texture %d", tex->GetTexID());
-            assert(0); // TODO
+            check(0); // TODO
             break;
         }
         };
@@ -237,7 +237,7 @@ public:
         drawState.indexBuffer.format = nvrhi::Format::R16_UINT;
         drawState.indexBuffer.offset = 0;
 
-        assert(nvrhi::getFormatInfo(drawState.indexBuffer.format).bytesPerBlock == sizeof(ImDrawIdx));
+        check(nvrhi::getFormatInfo(drawState.indexBuffer.format).bytesPerBlock == sizeof(ImDrawIdx));
 
         const nvrhi::BlendState::RenderTarget kRTBlendState =
         {

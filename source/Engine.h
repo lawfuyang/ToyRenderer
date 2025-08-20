@@ -9,7 +9,7 @@
 
 class Graphic;
 
-#define SDL_CALL(x) if (!(x)) { LOG_DEBUG("SDL Error: %s", SDL_GetError()); assert(false); }
+#define SDL_CALL(x) if (!(x)) { LOG_DEBUG("SDL Error: %s", SDL_GetError()); check(false); }
 
 // forward declare 'StringFormat' here so that logging macros can compile without including Utilities.h
 const char* StringFormat(const char* format, ...);
@@ -69,7 +69,7 @@ public:
     {
         auto[insertIt, bInserted] = ms_CachedArgs.insert({opts, &value});
 
-        assert(bInserted); // cmd line arg already exists
+        check(bInserted); // cmd line arg already exists
     }
 
     const T& Get() const { return value; }

@@ -34,7 +34,7 @@ public:
     void Enter(std::thread::id newID)
     {
         if (m_CurrentID != std::thread::id{} && newID != m_CurrentID)
-            assert(false); // Multi-thread detected!
+            check(false); // Multi-thread detected!
         m_CurrentID = newID;
     }
 

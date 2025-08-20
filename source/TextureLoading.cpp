@@ -55,7 +55,7 @@ static nvrhi::Format ConvertFromDXGIFormat(DXGI_FORMAT format)
     case DXGI_FORMAT_BC7_UNORM_SRGB:
         return nvrhi::Format::BC7_UNORM_SRGB;
     default:
-        assert(0);
+    check(0);
     }
 
     return nvrhi::Format::UNKNOWN;
@@ -634,12 +634,12 @@ static void GetImageInfo(uint32_t w, uint32_t h, DXGI_FORMAT fmt, uint32_t& outN
 
 void ReadDDSTextureFileHeader(FILE* f, Texture& texture)
 {
-    assert(f);
+    check(f);
 
     fseek(f, 0, SEEK_END);
 
     const uint32_t fileSize = ftell(f);
-    assert(fileSize >= 4);
+    check(fileSize >= 4);
 
     fseek(f, 0, SEEK_SET);
 
@@ -648,21 +648,21 @@ void ReadDDSTextureFileHeader(FILE* f, Texture& texture)
     char magic[4];
     if (fread(magic, sizeof(char), sizeof(kDDSMagic), f) != std::size(kDDSMagic))
     {
-        assert(0);
+        check(0);
     }
-    assert(IsDDSImage(magic));
+    check(IsDDSImage(magic));
     fileReadOffset += sizeof(kDDSMagic);
 
     Header header;
     if (fread(&header, sizeof(header), 1, f) != 1)
     {
-        assert(0);
+        check(0);
     }
     fileReadOffset += sizeof(Header);
 
     if (header.m_size != sizeof(Header) || header.m_pixelFormat.m_size != sizeof(PixelFormat))
     {
-        assert(0);
+        check(0);
     }
 
     const uint32_t kDX10FourCC = MakeFourCC('D', 'X', '1', '0');
@@ -672,24 +672,24 @@ void ReadDDSTextureFileHeader(FILE* f, Texture& texture)
     {
         if ((sizeof(uint32_t) + sizeof(Header) + sizeof(HeaderDXT10)) >= fileSize)
         {
-            assert(0);
+            check(0);
         }
         bIsDXT10Header = true;
     }
 
     DXGI_FORMAT dxgiFormat = DXGI_FORMAT_UNKNOWN;
-    assert(header.m_mipMapCount != 0);
+    check(header.m_mipMapCount != 0);
 
     if (bIsDXT10Header)
     {
         HeaderDXT10 dxt10Header;
         if (fread(&dxt10Header, sizeof(dxt10Header), 1, f) != 1)
         {
-            assert(0);
+            check(0);
         }
         fileReadOffset += sizeof(HeaderDXT10);
 
-        assert(dxt10Header.m_arraySize == 1);
+        check(dxt10Header.m_arraySize == 1);
 
         switch (dxt10Header.dxgiFormat)
         {
@@ -697,28 +697,28 @@ void ReadDDSTextureFileHeader(FILE* f, Texture& texture)
         case DXGI_FORMAT_IA44:
         case DXGI_FORMAT_P8:
         case DXGI_FORMAT_A8P8:
-            assert(0);
+            check(0);
         default:
             if (GetBitsPerPixel(dxt10Header.dxgiFormat) == 0)
             {
-                assert(0);
+                check(0);
             }
         }
 
         // dont support 3d & cubemap textures
-        assert(dxt10Header.m_resourceDimension == TextureDimension::Texture2D);
-        assert(!(dxt10Header.m_miscFlag & uint32_t(DXT10MiscFlagBits::TextureCube)));
+        check(dxt10Header.m_resourceDimension == TextureDimension::Texture2D);
+        check(!(dxt10Header.m_miscFlag & uint32_t(DXT10MiscFlagBits::TextureCube)));
 
         dxgiFormat = dxt10Header.dxgiFormat;
     }
     else
     {
         dxgiFormat = GetDXGIFormat(header.m_pixelFormat);
-        assert(dxgiFormat != DXGI_FORMAT_UNKNOWN);
+        check(dxgiFormat != DXGI_FORMAT_UNKNOWN);
 
         // dont support 3d & cubemap textures
-        assert(!(header.m_flags & uint32_t(HeaderFlagBits::Volume)));
-        assert(!(header.m_caps2 & uint32_t(HeaderCaps2FlagBits::CubemapAllFaces)));
+        check(!(header.m_flags & uint32_t(HeaderFlagBits::Volume)));
+        check(!(header.m_caps2 & uint32_t(HeaderCaps2FlagBits::CubemapAllFaces)));
     }
 
     TextureFileHeader& outHeader = texture.m_TextureFileHeader;
@@ -755,10 +755,10 @@ void ReadDDSMipInfos(Texture& texture)
         TextureMipData.m_RowPitch = rowBytes;
 
         fileReadOffset += numBytes;
-        assert(fileReadOffset <= fileInfo.m_FileSize);
+        check(fileReadOffset <= fileInfo.m_FileSize);
     }
 
-    assert(fileReadOffset == fileInfo.m_FileSize);
+    check(fileReadOffset == fileInfo.m_FileSize);
 }
 
 void ReadDDSMipData(Texture& texture, FILE* f, uint32_t mip)
@@ -767,15 +767,15 @@ void ReadDDSMipData(Texture& texture, FILE* f, uint32_t mip)
 
     const TextureFileHeader& fileInfo = texture.m_TextureFileHeader;
     TextureMipData& textureMipData = texture.m_TextureMipDatas.at(mip);
-    assert(textureMipData.IsValid());
+    check(textureMipData.IsValid());
 
     textureMipData.m_Data.resize(textureMipData.m_NumBytes);
 
-    assert(f);
+    check(f);
     fseek(f, textureMipData.m_DataOffset, SEEK_SET);
     
     const uint32_t bytesRead = fread(textureMipData.m_Data.data(), sizeof(std::byte), textureMipData.m_NumBytes, f);
-    assert(bytesRead == textureMipData.m_NumBytes);
+    check(bytesRead == textureMipData.m_NumBytes);
 
     textureMipData.m_bDataReady = true;
 }

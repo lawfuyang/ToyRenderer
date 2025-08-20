@@ -102,7 +102,7 @@ struct GLTFSceneLoader
 
             CachedData::Header header;
             size_t objectsRead = fread(&header, sizeof(header), 1, cachedDataFile);
-            assert(objectsRead == 1);
+            check(objectsRead == 1);
 
             m_bHasValidCachedData = (header.m_Version == CachedData::kCurrentVersion);
         }
@@ -117,7 +117,7 @@ struct GLTFSceneLoader
             if (result != cgltf_result_success)
             {
                 LOG_DEBUG("GLTF - Failed to load '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
-                assert(0);
+                check(0);
             }
             LOG_DEBUG("GLTF - Loaded '%s'", sceneToLoad.data());
 
@@ -135,7 +135,7 @@ struct GLTFSceneLoader
 
                 for (const char* ext : kUnsupportedExtensions)
                 {
-                    assert(strcmp(ext, m_GLTFData->extensions_used[i]));
+                    check(strcmp(ext, m_GLTFData->extensions_used[i]));
                 }
             }
         }
@@ -147,7 +147,7 @@ struct GLTFSceneLoader
             if (result != cgltf_result_success)
             {
                 LOG_DEBUG("GLTF - Failed to validate '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
-                assert(0);
+                check(0);
             }
         }
 
@@ -160,7 +160,7 @@ struct GLTFSceneLoader
                 if (result != cgltf_result_success)
                 {
                     LOG_DEBUG("GLTF - Failed to load buffers '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
-                    assert(0);
+                    check(0);
                 }
             }
 
@@ -168,7 +168,7 @@ struct GLTFSceneLoader
                 SCENE_LOAD_PROFILE("Decompress buffers");
 
                 const cgltf_result result = decompressMeshopt(m_GLTFData);
-                assert(result == cgltf_result_success);
+                check(result == cgltf_result_success);
             }
         }
         else
@@ -182,7 +182,7 @@ struct GLTFSceneLoader
     {
         SCENE_LOAD_PROFILE("Load Scene");
 
-        assert(m_GLTFData);
+        check(m_GLTFData);
         ON_EXIT_SCOPE_LAMBDA([this] { cgltf_free(m_GLTFData); });
 
         LoadSamplers();
@@ -197,7 +197,7 @@ struct GLTFSceneLoader
         {
             LoadMeshes();
 
-            assert(m_MeshletDataEntries.size() == m_GlobalMeshData.size());
+            check(m_MeshletDataEntries.size() == m_GlobalMeshData.size());
 
             // flatten per-primitive meshlet buffers into global buffers
             for (uint32_t i = 0; i < m_MeshletDataEntries.size(); ++i)
@@ -317,7 +317,7 @@ struct GLTFSceneLoader
                     case cgltf_wrap_mode_repeat: return nvrhi::SamplerAddressMode::Wrap;
                     }
                     
-                    assert(0);
+                    check(0);
 
                     return nvrhi::SamplerAddressMode::Clamp;
                 };
@@ -326,7 +326,7 @@ struct GLTFSceneLoader
             const nvrhi::SamplerAddressMode addressModeT = GLtoTextureAddressMode(gltfSampler.wrap_t);
 
             // TODO: support different S&T address modes?
-            assert(addressModeS == addressModeT);
+            check(addressModeS == addressModeT);
 
             m_AddressModes[i] = addressModeS;
         }
@@ -350,9 +350,9 @@ struct GLTFSceneLoader
                 {
                     const cgltf_texture& texture = m_GLTFData->textures[i];
                     const cgltf_image* image = texture.image;
-                    assert(image);
-                    assert(!image->buffer_view); // dont support images in buffer views
-                    assert(image->uri);
+                    check(image);
+                    check(!image->buffer_view); // dont support images in buffer views
+                    check(image->uri);
 
                     std::string filePath = (std::filesystem::path{m_BaseFolderPath} / image->uri).string();
                     cgltf_decode_uri(filePath.data());
@@ -374,14 +374,14 @@ struct GLTFSceneLoader
         auto HandleTextureView = [&](Material::TextureView& sceneTextureView, const cgltf_texture_view& textureView)
             {
                 const cgltf_image* image = textureView.texture->image;
-                assert(image);
+                check(image);
 
                 sceneTextureView.m_TextureIdx = cgltf_texture_index(m_GLTFData, textureView.texture);
 
                 if (textureView.texture->sampler)
                 {
                     sceneTextureView.m_AddressMode = m_AddressModes.at(cgltf_sampler_index(m_GLTFData, textureView.texture->sampler));
-                    assert(sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Clamp || sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Wrap);
+                    check(sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Clamp || sceneTextureView.m_AddressMode == nvrhi::SamplerAddressMode::Wrap);
                 }
             };
 
@@ -461,11 +461,11 @@ struct GLTFSceneLoader
 
 				// sanity check that the alpha channel is not used
                 // we'll use the .w channel of material albedo as alpha for transmission. Pretty sure it's not physically correct, but i don't care
-				assert(sceneMaterial.m_ConstAlbedo.w == 1.0f);
+				check(sceneMaterial.m_ConstAlbedo.w == 1.0f);
                 sceneMaterial.m_ConstAlbedo.w = 1.0f - gltfMaterial.transmission.transmission_factor;
 
 				// TODO: support transmission texture
-                assert(gltfMaterial.transmission.transmission_texture.texture == nullptr);
+                check(gltfMaterial.transmission.transmission_texture.texture == nullptr);
             }
 
             if (gltfMaterial.double_sided && sceneMaterial.m_AlphaMode == AlphaMode::Opaque)
@@ -502,8 +502,8 @@ struct GLTFSceneLoader
 
                 if (tex.m_PackedMipDesc.numStandardMips != 0)
                 {
-                    assert(tex.m_SamplerFeedbackTextureHandle);
-                    assert(tex.m_MinMipTextureHandle);
+                    check(tex.m_SamplerFeedbackTextureHandle);
+                    check(tex.m_MinMipTextureHandle);
 
                     textureData.m_FeedbackTextureDescriptorIndex = g_Graphic.GetIndexInHeap(tex.m_SamplerFeedbackIndexInTable);
                     textureData.m_MinMapTextureDescriptorIndex = g_Graphic.GetIndexInHeap(tex.m_MinMipIndexInTable);
@@ -564,7 +564,7 @@ struct GLTFSceneLoader
                 const cgltf_primitive& gltfPrimitive = gltfMesh.primitives[primitiveIdx];
 
                 const cgltf_accessor* positionAccessor = cgltf_find_accessor(&gltfPrimitive, cgltf_attribute_type_position, 0);
-                assert(positionAccessor);
+                check(positionAccessor);
 
                 const uint32_t globalVertexBufferIdxOffset = totalVertices;
                 const uint32_t globalIndexBufferIdxOffset = totalIndices;
@@ -579,7 +579,7 @@ struct GLTFSceneLoader
                         PROFILE_SCOPED("Load Primitive");
 
                         const cgltf_primitive& gltfPrimitive = gltfMesh.primitives[primitiveIdx];
-                        assert(gltfPrimitive.type == cgltf_primitive_type_triangles);
+                        check(gltfPrimitive.type == cgltf_primitive_type_triangles);
 
                         std::vector<GraphicConstants::IndexBufferFormat_t> indices;
                         indices.resize(gltfPrimitive.indices->count);
@@ -717,9 +717,9 @@ struct GLTFSceneLoader
 
         CachedData::Header header;
         size_t objectsRead = fread(&header, sizeof(header), 1, cachedDataFile);
-        assert(objectsRead == 1);
+        check(objectsRead == 1);
 
-        assert(totalMeshes == header.m_NumMeshes);
+        check(totalMeshes == header.m_NumMeshes);
 
         m_GlobalVertices.resize(header.m_NumVertices);
         m_GlobalIndices.resize(header.m_NumIndices);
@@ -732,25 +732,25 @@ struct GLTFSceneLoader
         meshSpecificDataArray.resize(header.m_NumMeshes);
 
         objectsRead = fread(m_GlobalVertices.data(), sizeof(RawVertexFormat), header.m_NumVertices, cachedDataFile);
-        assert(objectsRead == header.m_NumVertices);
+        check(objectsRead == header.m_NumVertices);
 
         objectsRead = fread(m_GlobalIndices.data(), sizeof(GraphicConstants::IndexBufferFormat_t), header.m_NumIndices, cachedDataFile);
-        assert(objectsRead == header.m_NumIndices);
+        check(objectsRead == header.m_NumIndices);
 
         objectsRead = fread(m_GlobalMeshData.data(), sizeof(MeshData), header.m_NumMeshes, cachedDataFile);
-        assert(objectsRead == header.m_NumMeshes);
+        check(objectsRead == header.m_NumMeshes);
 
         objectsRead = fread(m_GlobalMeshletVertexIdxOffsets.data(), sizeof(uint32_t), header.m_NumMeshletVertexIdxOffsets, cachedDataFile);
-        assert(objectsRead == header.m_NumMeshletVertexIdxOffsets);
+        check(objectsRead == header.m_NumMeshletVertexIdxOffsets);
 
         objectsRead = fread(m_GlobalMeshletIndices.data(), sizeof(uint32_t), header.m_NumMeshletIndices, cachedDataFile);
-        assert(objectsRead == header.m_NumMeshletIndices);
+        check(objectsRead == header.m_NumMeshletIndices);
 
         objectsRead = fread(m_GlobalMeshletDatas.data(), sizeof(MeshletData), header.m_NumMeshletDatas, cachedDataFile);
-        assert(objectsRead == header.m_NumMeshletDatas);
+        check(objectsRead == header.m_NumMeshletDatas);
 
         objectsRead = fread(meshSpecificDataArray.data(), sizeof(CachedData::MeshSpecificData), header.m_NumMeshes, cachedDataFile);
-        assert(objectsRead == header.m_NumMeshes);
+        check(objectsRead == header.m_NumMeshes);
 
         for (uint32_t i = 0; i < totalMeshes; ++i)
         {
@@ -781,28 +781,28 @@ struct GLTFSceneLoader
 
         if (m_GLTFData->animations_count > 0)
         {
-            assert(!g_Scene->m_Animations.empty());
+            check(!g_Scene->m_Animations.empty());
 
             for (Animation& animation : g_Scene->m_Animations)
             {
                 objectsRead = fread(&animation.m_TimeStart, sizeof(float), 1, cachedDataFile);
-                assert(objectsRead == 1);
+                check(objectsRead == 1);
 
                 objectsRead = fread(&animation.m_TimeEnd, sizeof(float), 1, cachedDataFile);
-                assert(objectsRead == 1);
+                check(objectsRead == 1);
 
-                assert(!animation.m_Channels.empty());
+                check(!animation.m_Channels.empty());
 
                 for (Animation::Channel& channel : animation.m_Channels)
                 {
-                    assert(!channel.m_KeyFrames.empty());
-                    assert(!channel.m_Data.empty());
+                    check(!channel.m_KeyFrames.empty());
+                    check(!channel.m_Data.empty());
 
                     objectsRead = fread(channel.m_KeyFrames.data(), sizeof(float), channel.m_KeyFrames.size(), cachedDataFile);
-                    assert(objectsRead == channel.m_KeyFrames.size());
+                    check(objectsRead == channel.m_KeyFrames.size());
 
                     objectsRead = fread(channel.m_Data.data(), sizeof(Vector4), channel.m_Data.size(), cachedDataFile);   
-                    assert(objectsRead == channel.m_Data.size());
+                    check(objectsRead == channel.m_Data.size());
                 }
             }
         }
@@ -877,7 +877,7 @@ struct GLTFSceneLoader
 
             if (node.camera)
             {
-                assert(node.camera->type == cgltf_camera_type_perspective);
+                check(node.camera->type == cgltf_camera_type_perspective);
 
                 Scene::Camera& newCamera = g_Scene->m_Cameras.emplace_back();
 
@@ -893,7 +893,7 @@ struct GLTFSceneLoader
                     g_Scene->m_DirLightVec = -outWorldMatrix.Forward();
 
                     // Ensure the vector has valid length
-                    assert(g_Scene->m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
+                    check(g_Scene->m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
 
                     // Step 1: Calculate m_SunInclination (phi)
                     g_Scene->m_SunInclination = std::asin(g_Scene->m_DirLightVec.y);  // Asin returns radians
@@ -943,18 +943,18 @@ struct GLTFSceneLoader
                 const cgltf_animation_channel& gltfAnimationChannel = gltfAnimation.channels[channelIdx];
                 const cgltf_animation_sampler& gltfSampler = *gltfAnimationChannel.sampler;
 
-                assert(gltfSampler.interpolation == cgltf_interpolation_type_linear); // TODO: support other interpolation types
+                check(gltfSampler.interpolation == cgltf_interpolation_type_linear); // TODO: support other interpolation types
 
                 if (gltfSampler.input->count < 2)
                 {
                     LOG_DEBUG("GLTF - Animation for node '%s' has less than 2 keyframes. Skipping", gltfAnimationChannel.target_node->name);
                     continue;
                 }
-                assert(gltfSampler.input->count == gltfSampler.output->count);
+                check(gltfSampler.input->count == gltfSampler.output->count);
 
                 Animation::Channel& newChannel = newAnimation.m_Channels.emplace_back();
 
-                assert(gltfAnimationChannel.target_node);
+                check(gltfAnimationChannel.target_node);
                 newChannel.m_TargetNodeIdx = cgltf_node_index(m_GLTFData, gltfAnimationChannel.target_node);
 
                 switch (gltfAnimationChannel.target_path)
@@ -964,11 +964,11 @@ struct GLTFSceneLoader
                 case cgltf_animation_path_type_scale:       newChannel.m_PathType = Animation::Channel::PathType::Scale;       break;
                 default:
                     // TODO: support other target paths
-                    assert(0);
+                    check(0);
                 }
 
                 newChannel.m_KeyFrames.resize(gltfSampler.input->count);
-                assert(cgltf_num_components(gltfSampler.input->type) == 1);
+                check(cgltf_num_components(gltfSampler.input->type) == 1);
                 newChannel.m_Data.resize(gltfSampler.output->count);
 
                 // Skip if we have valid cached data. we read the uncompressed data from the cache
@@ -979,11 +979,11 @@ struct GLTFSceneLoader
 
                 verify(cgltf_accessor_unpack_floats(gltfSampler.input, newChannel.m_KeyFrames.data(), gltfSampler.input->count));
                 const uint32_t nbComponents = cgltf_num_components(gltfSampler.output->type);
-                assert(nbComponents <= 4);
+                check(nbComponents <= 4);
                 for (uint32_t i = 0; i < gltfSampler.output->count; ++i)
                 {
                     const cgltf_bool bResult = cgltf_accessor_read_float(gltfSampler.output, i, (cgltf_float*)&newChannel.m_Data[i], nbComponents);
-                    assert(bResult == 1);
+                    check(bResult == 1);
                 }
 
                 newAnimation.m_TimeStart = std::min(newAnimation.m_TimeStart, newChannel.m_KeyFrames.front());
@@ -1151,7 +1151,7 @@ void PreloadScene()
 
 void LoadScene()
 {
-    assert(gs_GLTFLoader);
+    check(gs_GLTFLoader);
 
     tf::Taskflow taskflow;
 

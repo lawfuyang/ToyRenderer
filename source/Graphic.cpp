@@ -37,11 +37,11 @@ void Graphic::InitRenderDocAPI()
 
     LOG_DEBUG("Initializing RenderDoc API");
     HMODULE mod = ::LoadLibraryA("renderdoc.dll");
-    assert(mod);
+    check(mod);
 
     pRENDERDOC_GetAPI RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
     const int result = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_6_0, (void**)&m_RenderDocAPI);
-    assert(result == 1);
+    check(result == 1);
 
     m_RenderDocAPI->SetCaptureFilePathTemplate((std::filesystem::path{ GetExecutableDirectory() } / "RenderDocCapture").string().c_str());
 }
@@ -64,7 +64,7 @@ void Graphic::InitDevice()
             {
                 if (feature.first == featureRequested)
                 {
-                    assert(bFeatureSupported);
+                    check(bFeatureSupported);
                 }
             };
 
@@ -89,8 +89,8 @@ void Graphic::InitDevice()
             verify(m_NVRHIDevice->queryFeatureSupport(feature.first, &waveLaneCountMinMaxInfo, sizeof(waveLaneCountMinMaxInfo)));
 
             // ensure threads per wave == 32
-            assert(waveLaneCountMinMaxInfo.minWaveLaneCount == waveLaneCountMinMaxInfo.maxWaveLaneCount); // NOTE: wtf does it mean if this is not true?
-            assert(kNumThreadsPerWave == waveLaneCountMinMaxInfo.minWaveLaneCount);
+            check(waveLaneCountMinMaxInfo.minWaveLaneCount == waveLaneCountMinMaxInfo.maxWaveLaneCount); // NOTE: wtf does it mean if this is not true?
+            check(kNumThreadsPerWave == waveLaneCountMinMaxInfo.minWaveLaneCount);
 
             LOG_DEBUG("Wave Lane Count: %d", waveLaneCountMinMaxInfo.minWaveLaneCount);
         }
@@ -156,7 +156,7 @@ void Graphic::InitShaders()
 
         // NOTE: for raytracing, only support inline ray query, so dont have to parse weird shader file extensions
 
-        assert(shaderType != nvrhi::ShaderType::None);
+        check(shaderType != nvrhi::ShaderType::None);
 
         // reconstruct bin file name
         // NOTE: after tokenization the line string is the 1st token of the line, which is the file name
@@ -179,7 +179,7 @@ void Graphic::InitShaders()
             PROFILE_SCOPED("Read Shader bin");
             ReadDataFromFile(binFullPath, shaderBlob);
         }
-        assert(!shaderBlob.empty());
+        check(!shaderBlob.empty());
 
         std::vector<std::string> permutationDefines;
         ShaderMake::EnumeratePermutationsInBlob(shaderBlob.data(), shaderBlob.size(), permutationDefines);
@@ -195,7 +195,7 @@ void Graphic::InitShaders()
 
                 size_t shaderHash = std::hash<std::string_view>{}(shaderDebugName);
                 nvrhi::ShaderHandle newShader = m_NVRHIDevice->createShader(shaderDesc, pBinary, binarySize);
-                assert(newShader);
+                check(newShader);
 
                 m_AllShaders[shaderHash] = newShader;
 
@@ -216,7 +216,7 @@ void Graphic::InitShaders()
             // 'enumeratePermutationsInBlob' will return an array of strings of all combinations of permutation defines
             // assume each instance of '=' character represents a Shader #define
             const int64_t nbConstants = std::count(permutationDefines[0].begin(), permutationDefines[0].end(), '=');
-            assert(nbConstants <= kNbMaxConstants);
+            check(nbConstants <= kNbMaxConstants);
 
             for (std::string permutationDefine : permutationDefines) // NOTE: deliberately not by const ref
             {
@@ -242,7 +242,7 @@ void Graphic::InitShaders()
                 if (!ShaderMake::FindPermutationInBlob(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants, &pBinary, &binarySize))
                 {
                     LOG_DEBUG("%s", ShaderMake::FormatShaderNotFoundMessage(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants).c_str());
-                    assert(false);
+                    check(false);
                 }
 
                 const std::string shaderDebugName = StringFormat("%s %s", binFileName.c_str(), definesStringCopy.c_str());
@@ -274,7 +274,7 @@ nvrhi::ShaderHandle Graphic::GetShader(std::string_view shaderBinName)
     const size_t hash = std::hash<std::string_view>{}(shaderBinName);
 
     auto it = m_AllShaders.find(hash);
-    assert(it != m_AllShaders.end()); // double-check Shader Bin Name
+    check(it != m_AllShaders.end()); // double-check Shader Bin Name
 
     return it->second;
 }
@@ -363,7 +363,7 @@ static std::size_t HashCommonGraphicStates(
     nvrhi::FramebufferHandle frameBuffer
 )
 {
-    assert(PS->getDesc().shaderType == nvrhi::ShaderType::Pixel);
+    check(PS->getDesc().shaderType == nvrhi::ShaderType::Pixel);
 
     size_t psoHash = 0;
 
@@ -481,9 +481,9 @@ nvrhi::IDescriptorTable* Graphic::GetSrvUavCbvDescriptorTable()
 
 uint32_t Graphic::GetIndexInHeap(uint32_t indexInTable) const
 {
-    assert(indexInTable != UINT_MAX);
+    check(indexInTable != UINT_MAX);
     const uint32_t indexInHeap = m_SrvUavCbvDescriptorTableManager->GetIndexInHeap(indexInTable);
-    assert(indexInHeap != UINT_MAX);
+    check(indexInHeap != UINT_MAX);
     return indexInHeap;
 }
 
@@ -513,10 +513,10 @@ void Graphic::CreateBindingSetAndLayout(const nvrhi::BindingSetDesc& bindingSetD
     layoutDesc.registerSpace = registerSpace;
 
     outLayoutHandle = GetOrCreateBindingLayout(layoutDesc);
-    assert(outLayoutHandle);
+    check(outLayoutHandle);
 
     outBindingSetHandle = m_NVRHIDevice->createBindingSet(bindingSetDesc, outLayoutHandle);
-    assert(outBindingSetHandle);
+    check(outBindingSetHandle);
 }
 
 nvrhi::CommandListHandle Graphic::AllocateCommandList(nvrhi::CommandQueue queueType)
@@ -589,9 +589,9 @@ void Graphic::EndCommandList(nvrhi::CommandListHandle cmdList, bool bQueueCmdlis
 {
     PROFILE_FUNCTION();
 
-    assert(!(bQueueCmdlist && bImmediateExecute)); // cannot queue & execute immediately at the same time
+    check(!(bQueueCmdlist && bImmediateExecute)); // cannot queue & execute immediately at the same time
 
-    assert(GetGPULogForCurrentThread());
+    check(GetGPULogForCurrentThread());
     cmdList->m_GPULog = MicroProfileGpuEnd(GetGPULogForCurrentThread());
 
     cmdList->close();
@@ -799,8 +799,8 @@ void Graphic::ExecuteAllCommandLists()
         // need to call 'MicroProfileGpuSubmit' in the same order as ExecuteCommandLists
         for (nvrhi::CommandListHandle cmdList : m_PendingCommandLists)
         {
-            assert(cmdList);
-            assert(cmdList->m_GPULog != ULLONG_MAX);
+            check(cmdList);
+            check(cmdList->m_GPULog != ULLONG_MAX);
             MicroProfileGpuSubmit((uint32_t)nvrhi::CommandQueue::Graphics, cmdList->m_GPULog);
 
             cmdList->m_GPULog = ULLONG_MAX;
@@ -897,8 +897,8 @@ void Graphic::AddFullScreenPass(const FullScreenPassParams& fullScreenPassParams
 
 void Graphic::AddComputePass(const ComputePassParams& computePassParams)
 {
-    assert(computePassParams.m_CommandList);
-    assert(!computePassParams.m_ShaderName.empty());
+    check(computePassParams.m_CommandList);
+    check(!computePassParams.m_ShaderName.empty());
 
     PROFILE_FUNCTION();
     PROFILE_GPU_SCOPED(computePassParams.m_CommandList, computePassParams.m_ShaderName.data());
@@ -928,7 +928,7 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     if (computePassParams.m_IndirectArgsBuffer)
     {
         // indirect dispatch does not need group size
-        assert(computePassParams.m_DispatchGroupSize.x == 0 && computePassParams.m_DispatchGroupSize.y == 0 && computePassParams.m_DispatchGroupSize.z == 0);
+        check(computePassParams.m_DispatchGroupSize.x == 0 && computePassParams.m_DispatchGroupSize.y == 0 && computePassParams.m_DispatchGroupSize.z == 0);
         computeState.indirectParams = computePassParams.m_IndirectArgsBuffer;
     }
 
@@ -936,7 +936,7 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
 
     if (computePassParams.m_PushConstantsData)
     {
-        assert(computePassParams.m_PushConstantsBytes > 0);
+        check(computePassParams.m_PushConstantsBytes > 0);
         computePassParams.m_CommandList->setPushConstants(computePassParams.m_PushConstantsData, computePassParams.m_PushConstantsBytes);
     }
 
@@ -946,7 +946,7 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     }
     else
     {
-        assert(computePassParams.m_DispatchGroupSize.x != 0 && computePassParams.m_DispatchGroupSize.y != 0 && computePassParams.m_DispatchGroupSize.z != 0);
+        check(computePassParams.m_DispatchGroupSize.x != 0 && computePassParams.m_DispatchGroupSize.y != 0 && computePassParams.m_DispatchGroupSize.z != 0);
         computePassParams.m_CommandList->dispatch(computePassParams.m_DispatchGroupSize.x, computePassParams.m_DispatchGroupSize.y, computePassParams.m_DispatchGroupSize.z);
     }
 }

@@ -85,7 +85,7 @@ public:
 
         static_assert(alignof(SPSCQueue<T>) == kCacheLineSize, "");
         static_assert(sizeof(SPSCQueue<T>) >= 3 * kCacheLineSize, "");
-        assert(reinterpret_cast<char*>(&readIdx_) -
+        check(reinterpret_cast<char*>(&readIdx_) -
             reinterpret_cast<char*>(&writeIdx_) >=
             static_cast<std::ptrdiff_t>(kCacheLineSize));
     }
@@ -181,7 +181,7 @@ public:
         static_assert(std::is_nothrow_destructible<T>::value,
             "T must be nothrow destructible");
         auto const readIdx = readIdx_.load(std::memory_order_relaxed);
-        assert(writeIdx_.load(std::memory_order_acquire) != readIdx);
+        check(writeIdx_.load(std::memory_order_acquire) != readIdx);
         slots_[readIdx + kPadding].~T();
         auto nextReadIdx = readIdx + 1;
         if (nextReadIdx == capacity_) {

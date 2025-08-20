@@ -53,7 +53,7 @@ public:
 			renderGraph.AddReadDependency(g_RTDDRTDDGIVolumeDescsBuffer);
 		}
 
-		assert(g_Scene->m_RTDDGIVolume);
+		check(g_Scene->m_RTDDGIVolume);
 
 		return true;
     }

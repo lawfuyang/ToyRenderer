@@ -16,8 +16,8 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
 {
     PROFILE_FUNCTION();
 
-    assert(!IsValid());
-    assert(textureDesc.depth == 1);
+    check(!IsValid());
+    check(textureDesc.depth == 1);
 
     m_NVRHITextureHandle = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
 
@@ -48,7 +48,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 {
     PROFILE_FUNCTION();
 
-    assert(!IsValid());
+    check(!IsValid());
 
     m_ImageFilePath = filePath;
 
@@ -116,7 +116,7 @@ void Texture::LoadFromFile(std::string_view filePath)
         // NOTE: insane bug on rtxts::BitArray, where if try to init with 0 tiles, it allocs (((UINT_MAX) / 64) + 1) words bytes
         if (numTiles == 0)
         {
-            assert(IsTilePacked(tileCounter));
+            check(IsTilePacked(tileCounter));
             break;
         }
         mipData.m_ResidencyBits.Init(numTiles);
@@ -279,9 +279,9 @@ uint32_t Mesh::PackNormal(const Vector3& normal)
 {
     Vector3 v = normal;
 
-    assert(v.x >= (-1.0f - kKindaSmallNumber) && v.x <= (1.0f + kKindaBigNumber));
-    assert(v.y >= (-1.0f - kKindaSmallNumber) && v.y <= (1.0f + kKindaBigNumber));
-    assert(v.z >= (-1.0f - kKindaSmallNumber) && v.z <= (1.0f + kKindaBigNumber));
+    check(v.x >= (-1.0f - kKindaSmallNumber) && v.x <= (1.0f + kKindaBigNumber));
+    check(v.y >= (-1.0f - kKindaSmallNumber) && v.y <= (1.0f + kKindaBigNumber));
+    check(v.z >= (-1.0f - kKindaSmallNumber) && v.z <= (1.0f + kKindaBigNumber));
 
     v.x = std::clamp(v.x, -1.0f, 1.0f);
     v.y = std::clamp(v.y, -1.0f, 1.0f);
@@ -410,10 +410,10 @@ void Mesh::Initialize(
                     vertices.size(),
                     sizeof(RawVertexFormat));
 
-                assert(meshlet.vertex_count <= UINT8_MAX);
-                assert(meshlet.triangle_count <= UINT8_MAX);
-                assert(Vector3{ meshletBounds.cone_axis }.Length() < (1.0f + kKindaSmallNumber));
-                assert(meshletBounds.cone_cutoff_s8 <= (UINT8_MAX / 2));
+                check(meshlet.vertex_count <= UINT8_MAX);
+                check(meshlet.triangle_count <= UINT8_MAX);
+                check(Vector3{ meshletBounds.cone_axis }.Length() < (1.0f + kKindaSmallNumber));
+                check(meshletBounds.cone_cutoff_s8 <= (UINT8_MAX / 2));
 
                 newMeshlet.m_VertexAndTriangleCount = meshlet.vertex_count | (meshlet.triangle_count << 8);
                 newMeshlet.m_BoundingSphere = Vector4{ meshletBounds.center[0], meshletBounds.center[1], meshletBounds.center[2], meshletBounds.radius };
@@ -423,10 +423,10 @@ void Mesh::Initialize(
                 const uint32_t packedAxisZ = (meshletBounds.cone_axis[2] + 1.0f) * 0.5f * UINT8_MAX;
                 const uint32_t packedCutoff = meshletBounds.cone_cutoff_s8 * 2;
 
-                assert(packedAxisX <= UINT8_MAX);
-                assert(packedAxisY <= UINT8_MAX);
-                assert(packedAxisZ <= UINT8_MAX);
-                assert(packedCutoff <= UINT8_MAX);
+                check(packedAxisX <= UINT8_MAX);
+                check(packedAxisY <= UINT8_MAX);
+                check(packedAxisZ <= UINT8_MAX);
+                check(packedCutoff <= UINT8_MAX);
 
                 newMeshlet.m_ConeAxisAndCutoff = packedAxisX | (packedAxisY << 8) | (packedAxisZ << 16) | (packedCutoff << 24);
             }
@@ -470,7 +470,7 @@ void Mesh::Initialize(
                 kSimplifyOptions,
                 &resultError);
 
-            assert(numSimplifiedIndices <= LODIndices.size());
+            check(numSimplifiedIndices <= LODIndices.size());
 
             // we've reached the error bound
             if (numSimplifiedIndices == LODIndices.size() || numSimplifiedIndices == 0)

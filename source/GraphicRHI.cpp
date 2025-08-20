@@ -39,7 +39,7 @@ class NVRHIMessageCallback : public nvrhi::IMessageCallback
         case nvrhi::MessageSeverity::Warning:
         case nvrhi::MessageSeverity::Error:
         case nvrhi::MessageSeverity::Fatal:
-            assert(false);
+            check(false);
             break;
         }
     }
@@ -52,7 +52,7 @@ inline thread_local HRESULT tl_HResult;
     do                               \
     {                                \
         tl_HResult = (call);         \
-        assert(!FAILED(tl_HResult)); \
+        check(!FAILED(tl_HResult)); \
     } while (0)
 
 // for D3D12MAAllocator creation in nvrhi d3d12 device ctor
@@ -93,7 +93,7 @@ public:
                 LOG_DEBUG("Graphic Adapter: %s", gpuName);
                 break;
             }
-            assert(m_DXGIAdapter);
+            check(m_DXGIAdapter);
 
             HRESULT_CALL(m_DXGIAdapter->QueryInterface(IID_PPV_ARGS(&m_DXGIAdapter3)));
 
@@ -278,7 +278,7 @@ public:
         if (FAILED(presentResult))
         {
             verify(g_Graphic.m_NVRHIDevice->waitForIdle());
-            assert(0);
+            check(0);
         }
     }
 
@@ -324,7 +324,7 @@ inline thread_local VkResult tl_VkResult;
     do                                     \
     {                                      \
         tl_VkResult = (call);              \
-        assert(tl_VkResult == VK_SUCCESS); \
+        check(tl_VkResult == VK_SUCCESS); \
     } while (0)
 
 static VkBool32 VKAPI_CALL VulkanDebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
@@ -346,7 +346,7 @@ static VkBool32 VKAPI_CALL VulkanDebugReportCallback(VkDebugReportFlagsEXT flags
     message += pMessage;
 
     LOG_DEBUG("[Vulkan]: %s", message.c_str());
-    assert(false);
+    check(false);
 
 	return VK_FALSE;
 }
@@ -431,14 +431,14 @@ public:
         return {};
     }
 
-    void InitSwapChainTextureHandles() override { assert(false && "Not Implemented!"); }
-    uint32_t GetCurrentBackBufferIndex() override { assert(false && "Not Implemented!"); return UINT32_MAX; }
-    void SwapChainPresent() override { assert(false && "Not Implemented!"); }
-    void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override { assert(false && "Not Implemented!"); return nullptr; }
-    uint64_t GetUsedVideoMemory() override { assert(false && "Not Implemented!"); return 0; }
+    void InitSwapChainTextureHandles() override { check(false && "Not Implemented!"); }
+    uint32_t GetCurrentBackBufferIndex() override { check(false && "Not Implemented!"); return UINT32_MAX; }
+    void SwapChainPresent() override { check(false && "Not Implemented!"); }
+    void* GetNativeCommandList(nvrhi::CommandListHandle commandList) override { check(false && "Not Implemented!"); return nullptr; }
+    uint64_t GetUsedVideoMemory() override { check(false && "Not Implemented!"); return 0; }
 
-    void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override { assert(false && "Not Implemented!"); }
-    void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override { assert(false && "Not Implemented!"); }
+    void SetRHIObjectDebugName(nvrhi::CommandListHandle commandList, std::string_view debugName) override { check(false && "Not Implemented!"); }
+    void SetRHIObjectDebugName(nvrhi::ResourceHandle resource, std::string_view debugName) override { check(false && "Not Implemented!"); }
 };
 
 GraphicRHI* GraphicRHI::Create()

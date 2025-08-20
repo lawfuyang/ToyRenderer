@@ -197,7 +197,7 @@ struct ScopedCommandList
         , m_bAutoQueue(bAutoQueue)
         , m_bImmediateExecute(bImmediateExecute)
     {
-        assert(!(m_bAutoQueue && m_bImmediateExecute)); // cannot queue & execute immediately at the same time
+        check(!(m_bAutoQueue && m_bImmediateExecute)); // cannot queue & execute immediately at the same time
         g_Graphic.BeginCommandList(cmdList, name);
     }
 

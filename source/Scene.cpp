@@ -289,7 +289,7 @@ void Scene::UpdateInstanceIDsBuffers()
             m_TransparentPrimitiveIDs.push_back(i);
             break;
         default:
-            assert(0);
+            check(0);
             break;
         }
     }
@@ -350,7 +350,7 @@ void Scene::UpdateDirectionalLightVector()
     const float sinphi = sinf(inclinationRadians);
     m_DirLightVec = Vector3{ costheta * cosphi, sinphi, sintheta * cosphi };
 
-    assert(m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
+    check(m_DirLightVec.LengthSquared() <= (1 + kKindaSmallNumber));
 }
 
 void Scene::UpdateAnimations()

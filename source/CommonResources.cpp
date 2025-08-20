@@ -25,7 +25,7 @@ static void CreateUncompressedRawVertexFormatInputLayoutHandle()
 
 static void ReverseWinding(std::vector<GraphicConstants::IndexBufferFormat_t>& indices, std::vector<UncompressedRawVertexFormat>& vertices)
 {
-    assert((indices.size() % 3) == 0);
+    check((indices.size() % 3) == 0);
     for (auto it = indices.begin(); it != indices.end(); it += 3)
     {
         std::swap(*it, *(it + 2));

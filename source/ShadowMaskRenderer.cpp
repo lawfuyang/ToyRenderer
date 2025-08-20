@@ -11,7 +11,7 @@
 
 #include "shaders/ShaderInterop.h"
 
-#define NRD_FUNC_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { LOG_DEBUG("NRD call failed: %s", EnumUtils::ToString(result)); assert(0); }
+#define NRD_FUNC_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { LOG_DEBUG("NRD call failed: %s", EnumUtils::ToString(result)); check(0); }
 #define NRD_ID(x) nrd::Identifier(nrd::Denoiser::x)
 
 RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;
@@ -124,7 +124,7 @@ public:
         const nvrhi::BufferDesc constantBufferDesc = nvrhi::utils::CreateVolatileConstantBufferDesc(instanceDesc.constantBufferMaxDataSize, "NrdConstantBuffer", 1);
         m_NRDConstantBuffer = device->createBuffer(constantBufferDesc);
 
-        assert(instanceDesc.samplersNum == std::size(m_NRDSamplers));
+        check(instanceDesc.samplersNum == std::size(m_NRDSamplers));
         for (uint32_t i = 0; i < std::size(m_NRDSamplers); ++i)
         {
             const nrd::Sampler& samplerMode = instanceDesc.samplers[i];
@@ -138,7 +138,7 @@ public:
                 m_NRDSamplers[i] = g_CommonResources.LinearClampSampler;
                 break;
             default:
-                assert(!"Unknown NRD sampler mode");
+                check(!"Unknown NRD sampler mode");
                 break;
             }
         }
@@ -156,7 +156,7 @@ public:
                 : instanceDesc.transientPool[i - instanceDesc.permanentPoolSize];
 
             const nvrhi::Format format = GetNVRHIFormat(nrdTextureDesc.format);
-            assert(format != nvrhi::Format::UNKNOWN);
+            check(format != nvrhi::Format::UNKNOWN);
 
             nvrhi::TextureDesc textureDesc;
             textureDesc.width = DivideAndRoundUp(g_Graphic.m_RenderResolution.x, nrdTextureDesc.downsampleFactor);
@@ -424,7 +424,7 @@ public:
 
                 for (uint32_t descriptorOffset = 0; descriptorOffset < nrdDescriptorRange.descriptorsNum; descriptorOffset++)
                 {
-                    assert(resourceIndex < dispatchDesc.resourcesNum);
+                    check(resourceIndex < dispatchDesc.resourcesNum);
                     const nrd::ResourceDesc& resource = dispatchDesc.resources[resourceIndex];
 
                     nvrhi::TextureHandle texture;
@@ -452,11 +452,11 @@ public:
                         texture = m_NRDPermanentTextures[resource.indexInPool];
                         break;
                     default:
-                        assert(!"Unhandled NRD resource type");
+                        check(!"Unhandled NRD resource type");
                         break;
                     }
 
-                    assert(texture);
+                    check(texture);
 
                     nvrhi::TextureSubresourceSet subresources = nvrhi::AllSubresources;
                     subresources.baseMipLevel = 0;
@@ -475,7 +475,7 @@ public:
                     resourceIndex++;
                 }
             }
-            assert(resourceIndex == dispatchDesc.resourcesNum);
+            check(resourceIndex == dispatchDesc.resourcesNum);
 
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
@@ -486,7 +486,7 @@ public:
             if (instanceDesc.samplersNum > 0)
             {
                 nvrhi::BindingSetDesc samplersBindingSetDesc;
-                assert(instanceDesc.samplersNum <= std::size(m_NRDSamplers));
+                check(instanceDesc.samplersNum <= std::size(m_NRDSamplers));
                 for (uint32_t samplerIndex = 0; samplerIndex < instanceDesc.samplersNum; samplerIndex++)
                 {
                     samplersBindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Sampler(instanceDesc.samplersBaseRegisterIndex + samplerIndex, m_NRDSamplers[samplerIndex]));

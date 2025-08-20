@@ -60,8 +60,8 @@ namespace FFXHelpers
 		passParameters.mips = numWorkGroupsAndMips[1];
 		passParameters.numWorkGroups = numWorkGroupsAndMips[0];
 
-		assert(passParameters.mips == ComputeNbMips(desTexDesc.width, desTexDesc.height) - 1);
-		assert(passParameters.mips == desTexDesc.mipLevels - 1); // did you set the tex desc 'mipLevels'?
+		check(passParameters.mips == ComputeNbMips(desTexDesc.width, desTexDesc.height) - 1);
+		check(passParameters.mips == desTexDesc.mipLevels - 1); // did you set the tex desc 'mipLevels'?
 
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {
@@ -90,7 +90,7 @@ namespace FFXHelpers
 
 		auto GetSPDReductionTypeIdx = [](nvrhi::SamplerReductionType reductionType)
 			{
-				assert(reductionType != nvrhi::SamplerReductionType::Comparison);
+				check(reductionType != nvrhi::SamplerReductionType::Comparison);
 
 				const uint32_t kResults[] =
 				{

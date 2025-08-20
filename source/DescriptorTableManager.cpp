@@ -39,7 +39,7 @@ DescriptorTableManager::DescriptorTableManager(nvrhi::IBindingLayout* layout)
 
 uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem item)
 {
-    assert(m_DescriptorTable);
+    check(m_DescriptorTable);
 
     nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
@@ -61,7 +61,7 @@ uint32_t DescriptorTableManager::CreateDescriptorHandle(nvrhi::BindingSetItem it
                 break;
             }
         }
-        assert(foundFreeSlot);
+        check(foundFreeSlot);
 
         item.slot = index;
         m_SearchStart = index + 1;

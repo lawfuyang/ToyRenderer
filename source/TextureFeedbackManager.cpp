@@ -225,7 +225,7 @@ void TextureFeedbackManager::BeginFrame()
                     if (!texture.IsTilePacked(tileIndex))
                     {
                         TextureMipData& mipData = texture.m_TextureMipDatas.at(tilesCoordinates[tileIndex].mipLevel);
-                        assert(tileIndex >= mipData.m_FirstTileIndex);
+                        check(tileIndex >= mipData.m_FirstTileIndex);
                         const uint32_t mipTileIndex = tileIndex - mipData.m_FirstTileIndex;
                         mipData.m_ResidencyBits.ClearBit(mipTileIndex);
                     }
@@ -247,7 +247,7 @@ void TextureFeedbackManager::BeginFrame()
                     const uint32_t mip = tilesCoordinates[tileIndex].mipLevel;
 
                     TextureMipData& mipData = texture.m_TextureMipDatas.at(mip);
-                    assert(tileIndex >= mipData.m_FirstTileIndex);
+                    check(tileIndex >= mipData.m_FirstTileIndex);
                     const uint32_t mipTileIndex = tileIndex - mipData.m_FirstTileIndex;
                     mipData.m_ResidencyBits.SetBit(mipTileIndex);
 
@@ -271,8 +271,8 @@ void TextureFeedbackManager::BeginFrame()
                             Texture& texture = g_Graphic.m_Textures.at(textureIdx);
                             TextureMipData& mipData = texture.m_TextureMipDatas.at(mip);
 
-                            assert(!mipData.m_Data.empty());
-                            assert(!mipData.m_bDataReady);
+                            check(!mipData.m_Data.empty());
+                            check(!mipData.m_bDataReady);
 
                             ScopedFile f{ texture.m_ImageFilePath, "rb" };
                             ReadDDSMipData(texture, f, mip);
@@ -390,7 +390,7 @@ void TextureFeedbackManager::BeginFrame()
         }
         else
         {
-            assert(!mipData.m_Data.empty()); // sanity check that mip data I/O is at least in progress
+            check(!mipData.m_Data.empty()); // sanity check that mip data I/O is at least in progress
             deferredTileUploads.push_back(std::move(tileUpload)); // try again next frame
         }
     }
@@ -504,7 +504,7 @@ void TextureFeedbackManager::UploadTile(nvrhi::CommandListHandle commandList, ui
     const uint32_t sourceBlockY = tile.m_YInTexels / blockSize;
     const uint32_t rowPitchTile = tileBlocksWidth * bytesPerBlock;
 
-    assert(m_UploadTileScratchBuffer.size() >= tileBlocksWidth * tileBlocksHeight * bytesPerBlock);
+    check(m_UploadTileScratchBuffer.size() >= tileBlocksWidth * tileBlocksHeight * bytesPerBlock);
 
     for (uint32_t blockRow = 0; blockRow < tileBlocksHeight; blockRow++)
     {

@@ -50,7 +50,7 @@ public:
             for (int y = 0; y < kTexDim; y++)
             {
                 uint32_t r2index = XeGTAO::HilbertIndex(x, y);
-                assert(r2index < 65536);
+                check(r2index < 65536);
                 data[x + 64 * y] = (uint16_t)r2index;
             }
         }

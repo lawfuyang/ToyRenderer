@@ -33,7 +33,7 @@ public:
 
         for (const Primitive& primitive : g_Scene->m_Primitives)
         {
-            assert(primitive.IsValid());
+            check(primitive.IsValid());
 
             const Node& node = g_Scene->m_Nodes.at(primitive.m_NodeID);
             const Material& material = primitive.m_Material;

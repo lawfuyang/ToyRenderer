@@ -969,7 +969,7 @@ inline Vector4& Vector4::operator*= (float S) noexcept
 inline Vector4& Vector4::operator/= (float S) noexcept
 {
     using namespace DirectX;
-    assert(S != 0.0f);
+    check(S != 0.0f);
     const XMVECTOR v = XMLoadFloat4(this);
     const XMVECTOR X = XMVectorScale(v, 1.f / S);
     XMStoreFloat4(this, X);
@@ -1657,7 +1657,7 @@ inline Matrix& Matrix::operator*= (float S) noexcept
 inline Matrix& Matrix::operator/= (float S) noexcept
 {
     using namespace DirectX;
-    assert(S != 0.f);
+    check(S != 0.f);
     XMVECTOR x1 = XMLoadFloat4(reinterpret_cast<const XMFLOAT4*>(&_11));
     XMVECTOR x2 = XMLoadFloat4(reinterpret_cast<const XMFLOAT4*>(&_21));
     XMVECTOR x3 = XMLoadFloat4(reinterpret_cast<const XMFLOAT4*>(&_31));
@@ -1841,7 +1841,7 @@ inline Matrix operator* (float S, const Matrix& M) noexcept
 inline Matrix operator/ (const Matrix& M, float S) noexcept
 {
     using namespace DirectX;
-    assert(S != 0.f);
+    check(S != 0.f);
 
     XMVECTOR x1 = XMLoadFloat4(reinterpret_cast<const XMFLOAT4*>(&M._11));
     XMVECTOR x2 = XMLoadFloat4(reinterpret_cast<const XMFLOAT4*>(&M._21));

@@ -23,7 +23,7 @@ static std::string gs_DumpProfilingCaptureFileName;
 
 static void DumpProfilingCapture()
 {
-    assert(!gs_DumpProfilingCaptureFileName.empty());
+    check(!gs_DumpProfilingCaptureFileName.empty());
 
     const std::string fileName = (std::filesystem::path{ GetExecutableDirectory() } / gs_DumpProfilingCaptureFileName.c_str()).string() + ".html";
     LOG_DEBUG("Dumping profiler log: %s", fileName.c_str());
@@ -76,7 +76,7 @@ static Vector2U GetBestWindowSize()
         }
     }
 
-    assert(0); // there's nothing smaller than 720p on Steam Hardware Survey
+    check(0); // there's nothing smaller than 720p on Steam Hardware Survey
     return kSizes[std::size(kSizes) - 1];
 }
 

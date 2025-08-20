@@ -82,7 +82,7 @@ public:
         // read back previous frame's scene exposure
         // m_ExposureReadbackBuffer.Read((void*)&g_Scene->m_LastFrameExposure);
         const float* readbackBytes = (float*)device->mapBuffer(m_ExposureReadbackBuffers[g_Graphic.m_FrameCounter % 2], nvrhi::CpuAccessMode::Read);
-        assert(readbackBytes);
+        check(readbackBytes);
         g_Scene->m_LastFrameExposure = *readbackBytes;
         device->unmapBuffer(m_ExposureReadbackBuffers[g_Graphic.m_FrameCounter % 2]);
 

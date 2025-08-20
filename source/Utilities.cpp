@@ -190,12 +190,12 @@ ScopedTimer::~ScopedTimer()
 ScopedFile::ScopedFile(std::string_view filePath, const char* mode)
     : m_File(fopen(filePath.data(), mode))
 {
-    assert(m_File);
+    check(m_File);
 }
 
 ScopedFile::~ScopedFile()
 {
-    assert(m_File);
+    check(m_File);
     fclose(m_File);
     m_File = nullptr;
 }
