@@ -436,28 +436,28 @@ void TextureFeedbackManager::EndFrame()
 uint32_t TextureFeedbackManager::AllocateHeap()
 {
     PROFILE_FUNCTION();
-    
-    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-    nvrhi::HeapDesc heapDesc;
-    heapDesc.capacity = m_HeapSizeInBytes;
-    heapDesc.type = nvrhi::HeapType::DeviceLocal;
-
-    // TODO: Calling createHeap should ideally be called asynchronously to offload the critical path
-    nvrhi::HeapHandle heap = device->createHeap(heapDesc);
-
-    nvrhi::BufferDesc bufferDesc;
-    bufferDesc.byteSize = m_HeapSizeInBytes;
-    bufferDesc.isVirtual = true;
-    bufferDesc.initialState = nvrhi::ResourceStates::CopySource;
-    bufferDesc.keepInitialState = true;
-    nvrhi::BufferHandle buffer = device->createBuffer(bufferDesc);
-
-    device->bindBufferMemory(buffer, heap, 0);
 
     uint32_t heapID;
     if (m_FreeHeapIDs.empty())
     {
+        nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+        nvrhi::HeapDesc heapDesc;
+        heapDesc.capacity = m_HeapSizeInBytes;
+        heapDesc.type = nvrhi::HeapType::DeviceLocal;
+
+        // TODO: Calling createHeap should ideally be called asynchronously to offload the critical path
+        nvrhi::HeapHandle heap = device->createHeap(heapDesc);
+
+        nvrhi::BufferDesc bufferDesc;
+        bufferDesc.byteSize = m_HeapSizeInBytes;
+        bufferDesc.isVirtual = true;
+        bufferDesc.initialState = nvrhi::ResourceStates::CopySource;
+        bufferDesc.keepInitialState = true;
+        nvrhi::BufferHandle buffer = device->createBuffer(bufferDesc);
+
+        device->bindBufferMemory(buffer, heap, 0);
+
         heapID = (uint32_t)m_Heaps.size();
         m_Heaps.push_back(heap);
         m_Buffers.push_back(buffer);
@@ -466,8 +466,6 @@ uint32_t TextureFeedbackManager::AllocateHeap()
     {
         heapID = m_FreeHeapIDs.back();
         m_FreeHeapIDs.pop_back();
-        m_Heaps[heapID] = heap;
-        m_Buffers[heapID] = buffer;
     }
 
     ++m_NumHeaps;
