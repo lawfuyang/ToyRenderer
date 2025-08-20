@@ -104,7 +104,7 @@ public:
                 bindingSetDesc.bindings =
                 {
                     nvrhi::BindingSetItem::Texture_SRV(0, texture.m_NVRHITextureHandle, nvrhi::Format::UNKNOWN, nvrhi::TextureSubresourceSet{ mip, 1, 0, 1 }),
-                    nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
+                    nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampMaxReductionSampler)
                 };
 
                 Graphic::FullScreenPassParams fullScreenPassParams;
@@ -130,7 +130,7 @@ public:
                     {
                         nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
                         nvrhi::BindingSetItem::Texture_SRV(0, inputTexture),
-                        nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)
+                        nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampMaxReductionSampler)
                     };
 
                     const nvrhi::Viewport viewport{

@@ -216,14 +216,14 @@ float DrawDigit(float2 uv, int digit)
 
 cbuffer g_VisualizeMinMipParametersBuffer : register(b0) { VisualizeMinMipParameters g_VisualizeMinMipParameters; }
 Texture2D<uint> g_Input : register(t0);
-sampler g_LinearClampSampler : register(s0);
+sampler g_PointClampMaxReductionSampler : register(s0);
 
 void PS_VisualizeMinMip(
     in float4 inPosition : SV_POSITION,
     in float2 inUV : TEXCOORD0,
     out float4 outColor : SV_Target)
 {
-    uint minMip = g_Input.Sample(g_LinearClampSampler, inUV).r;
+    uint minMip = g_Input.Sample(g_PointClampMaxReductionSampler, inUV).r;
     uint colorIdx = min(15, minMip);
     float2 tileUV = frac(inUV * g_VisualizeMinMipParameters.m_TextureDimensions);
 
