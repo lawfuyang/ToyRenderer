@@ -43,3 +43,6 @@
 [submodule "extern/nvidia/MathLib"]
 	path = extern/nvidia/MathLib
 	url = https://github.com/NVIDIA-RTX/MathLib
+[submodule "extern/amd/FidelityFX2"]
+	path = extern/amd/FidelityFX2
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK
