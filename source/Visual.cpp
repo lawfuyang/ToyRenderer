@@ -333,7 +333,7 @@ void Mesh::Initialize(
         // note: we're using the same 'kTargetError' value for all LODs; if this changes, we need to remove/change 'kMinIndexReductionPercentage' exit criteria
         static const float kTargetError = 0.1f;
         static const float kTargetIndexCountPercentage = 0.65f;
-        static const float kMinIndexReductionPercentage = 0.95f;
+        static const float kMinIndexReductionPercentage = 0.85f;
         static const uint32_t kSimplifyOptions = 0;
         static const Vector3 kAttributeWeights{ 1.0f, 1.0f, 1.0f };
         static const unsigned char* kVertexLock = nullptr;
@@ -485,7 +485,7 @@ void Mesh::Initialize(
             }
             
             LODIndices.resize(numSimplifiedIndices);
-            LODError = std::max(LODError, resultError); // important! since we start from last LOD, we need to accumulate the error
+            LODError = std::max(LODError * 1.5f, resultError); // important! since we start from last LOD, we need to accumulate the error
         }
 
         meshopt_optimizeVertexCache(LODIndices.data(), LODIndices.data(), LODIndices.size(), vertices.size());

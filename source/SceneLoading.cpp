@@ -56,7 +56,7 @@ struct GLTFSceneLoader
 
     struct CachedData
     {
-        static const uint32_t kCurrentVersion = 2; // increment this if the cached mesh data format changes
+        static const uint32_t kCurrentVersion = 3; // increment this if the cached mesh data format changes
 
         struct Header
         {
