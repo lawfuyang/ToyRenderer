@@ -105,6 +105,12 @@ public:
 
     void Create()
     {
+        // just check for these 3 for validity
+        if (m_ProbeIrradiance && m_ProbeDistance && m_ProbeData)
+        {
+            return;
+        }
+
         check(GetNumProbes() > 0);
 
         LOG_DEBUG("Creating GI volume, origin: [%.1f, %.1f, %.1f], num probes: [%u, %u, %u]",
@@ -223,11 +229,14 @@ public:
     RTDDGIVolume m_RTDDGIVolume;
 
     GIRenderer() : IRenderer("GIRenderer") {}
-    
+
     void PostSceneLoad() override
     {
         g_Scene->m_RTDDGIVolume = &m_RTDDGIVolume;
-
+    }
+    
+    void InitVolume()
+    {
         if (g_DisableRayTracing.Get())
         {
             return;
@@ -344,14 +353,13 @@ public:
     {
         if (!g_Scene->IsRTDDGIEnabled())
         {
+            m_RTDDGIVolume.m_ProbeIrradiance = nullptr;
+            m_RTDDGIVolume.m_ProbeDistance = nullptr;
+            m_RTDDGIVolume.m_ProbeData = nullptr;
             return false;
         }
 
-        if (!g_Scene->m_RTDDGIVolume)
-        {
-            return false;
-        }
-
+        InitVolume();
         m_RTDDGIVolume.Setup(renderGraph);
 
         {
