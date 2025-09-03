@@ -59,5 +59,14 @@ private:
     
     int m_NumFeedbackTexturesToResolvePerFrame = 10;
     uint32_t m_ResolveFeedbackTexturesCounter = 0;
+
+    uint32_t m_NumTilesUploaded = 0;
+    float m_TextureBytesStreamedIn = 0.0f;
+
+    std::vector<float> m_PCIEBandwidthHistory;
+    uint32_t m_PCIEBandwidthHistoryIndex = 0;
+
+    std::vector<float> m_SSDBandwidthHistory;
+    uint32_t m_SSDBandwidthHistoryIndex = 0;
 };
 #define g_TextureFeedbackManager g_Graphic.m_TextureFeedbackManager

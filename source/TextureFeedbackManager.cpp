@@ -23,6 +23,9 @@ void TextureFeedbackManager::Initialize()
     m_HeapSizeInBytes = rtxts::TiledTextureManagerDesc{}.heapTilesCapacity * GraphicConstants::kTiledResourceSizeInBytes;
 
     m_UploadTileScratchBuffer.resize(GraphicConstants::kTiledResourceSizeInBytes);
+
+    m_PCIEBandwidthHistory.resize(10);
+    m_SSDBandwidthHistory.resize(10);
 }
 
 void TextureFeedbackManager::Shutdown()
@@ -41,6 +44,48 @@ void TextureFeedbackManager::UpdateIMGUI()
 
     ImGui::SliderInt("Feedback Textures to Resolve Per Frame", &m_NumFeedbackTexturesToResolvePerFrame, 1, 32);
     ImGui::Checkbox("Write Sampler Feedback", &g_Scene->m_bWriteSamplerFeedback);
+
+    static uint32_t s_TilesUploadedSoFarThisGraphUpdateInterval = 0;
+    s_TilesUploadedSoFarThisGraphUpdateInterval += m_NumTilesUploaded;
+
+    static float s_TextureBytesStreamedSoFarThisGraphUpdateInterval = 0.0f;
+    s_TextureBytesStreamedSoFarThisGraphUpdateInterval += m_TextureBytesStreamedIn;
+
+    static Timer s_GraphUpdateTimer;
+    if (s_GraphUpdateTimer.GetElapsedSeconds() > 1.0f)
+    {
+        m_PCIEBandwidthHistory[m_PCIEBandwidthHistoryIndex] = BYTES_TO_MB(s_TilesUploadedSoFarThisGraphUpdateInterval * GraphicConstants::kTiledResourceSizeInBytes);
+        m_PCIEBandwidthHistoryIndex = (m_PCIEBandwidthHistoryIndex + 1) % m_PCIEBandwidthHistory.size();
+
+        m_SSDBandwidthHistory[m_SSDBandwidthHistoryIndex] = BYTES_TO_MB(s_TextureBytesStreamedSoFarThisGraphUpdateInterval);
+        m_SSDBandwidthHistoryIndex = (m_SSDBandwidthHistoryIndex + 1) % m_SSDBandwidthHistory.size();
+
+        s_GraphUpdateTimer.Reset();
+        s_TilesUploadedSoFarThisGraphUpdateInterval = 0;
+        s_TextureBytesStreamedSoFarThisGraphUpdateInterval = 0.0f;
+    }
+
+    std::vector<float> drawBuffer;
+    drawBuffer.insert(drawBuffer.begin(), m_PCIEBandwidthHistory.begin() + m_PCIEBandwidthHistoryIndex, m_PCIEBandwidthHistory.end());
+    drawBuffer.insert(drawBuffer.begin() + (m_PCIEBandwidthHistory.size() - m_PCIEBandwidthHistoryIndex), m_PCIEBandwidthHistory.begin(), m_PCIEBandwidthHistory.begin() + m_PCIEBandwidthHistoryIndex);
+
+    float graphMax = *std::ranges::max_element(drawBuffer);
+    float graphMaxScale = std::pow(2.0f, std::ceil(std::log2(std::max(12.5f, graphMax))));
+
+    std::string overlayText = StringFormat("%f MB/s", drawBuffer.back());
+
+    ImGui::PlotLines("PCIe Bandwidth (MB/s)", drawBuffer.data(), (int)drawBuffer.size(), 0, overlayText.c_str(), FLT_MAX, FLT_MAX, ImVec2{ 400.0f, 100.0f });
+
+    drawBuffer.clear();
+    drawBuffer.insert(drawBuffer.begin(), m_SSDBandwidthHistory.begin() + m_SSDBandwidthHistoryIndex, m_SSDBandwidthHistory.end());
+    drawBuffer.insert(drawBuffer.begin() + (m_SSDBandwidthHistory.size() - m_SSDBandwidthHistoryIndex), m_SSDBandwidthHistory.begin(), m_SSDBandwidthHistory.begin() + m_SSDBandwidthHistoryIndex);
+
+    float ssdGraphMax = *std::ranges::max_element(drawBuffer);
+    float ssdGraphMaxScale = std::pow(2.0f, std::ceil(std::log2(std::max(12.5f, ssdGraphMax))));
+
+    overlayText = StringFormat("%f MB/s", drawBuffer.back());
+
+    ImGui::PlotLines("SSD Bandwidth (MB/s)", drawBuffer.data(), (int)drawBuffer.size(), 0, overlayText.c_str(), FLT_MAX, FLT_MAX, ImVec2{ 400.0f, 100.0f });
 }
 
 void TextureFeedbackManager::PrepareTexturesToProcessThisFrame()
@@ -70,6 +115,9 @@ void TextureFeedbackManager::PrepareTexturesToProcessThisFrame()
 
         m_TexturesToProcessThisFrame.push_back(textureIdx);
     }
+
+    m_NumTilesUploaded = 0;
+    m_TextureBytesStreamedIn = 0.0f;
 }
 
 void TextureFeedbackManager::BeginFrame()
@@ -265,6 +313,8 @@ void TextureFeedbackManager::BeginFrame()
 
                     TextureMipData& mipData = texture.m_TextureMipDatas.at(mip);
                     mipData.m_Data.resize(mipData.m_NumBytes);
+
+                    m_TextureBytesStreamedIn += mipData.m_NumBytes;
 
                     auto DoReadDDSMipData = [textureIdx, mip]()
                         {
@@ -522,4 +572,6 @@ void TextureFeedbackManager::UploadTile(nvrhi::CommandListHandle commandList, ui
 
     PROFILE_SCOPED("writeTexture");
     commandList->writeTexture(destTexture.m_NVRHITextureHandle, destSlice, m_UploadTileScratchBuffer.data(), rowPitchTile);
+
+    ++m_NumTilesUploaded;
 }

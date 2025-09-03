@@ -78,12 +78,14 @@ public:
     static constexpr float SecondsToMicroSeconds(float seconds) { return (float)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(seconds)).count(); }
     static constexpr float SecondsToMilliSeconds(float seconds) { return SecondsToMicroSeconds(seconds) / DurationMsRatio; }
 
+    void Reset() { t0 = std::chrono::steady_clock::now(); }
+
     std::chrono::microseconds::rep GetElapsedMicroSeconds() const { return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count(); }
     float GetElapsedSeconds() const { return GetElapsedMicroSeconds() / DurationSecondRatio; }
     float GetElapsedMilliSeconds() const { return GetElapsedMicroSeconds() / DurationMsRatio; }
 
 private:
-    const std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
 };
 
 struct ScopedTimer
