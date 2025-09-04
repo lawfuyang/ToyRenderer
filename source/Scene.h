@@ -9,6 +9,8 @@
 class Primitive;
 class RenderGraph;
 
+enum class GlobalIlluminationMode { DDGI, SSGI, RTXGI };
+
 struct Animation
 {
     struct Channel
@@ -84,12 +86,20 @@ public:
     void PostSceneLoad();
     void SetCamera(uint32_t idx);
 
-    bool IsRTDDGIEnabled() const;
+    bool IsGIEnabled() const { return m_bEnableGI; }
+    bool IsDDGIEnabled() const;
+    bool IsRaytracedGIEnabled() const;
     bool IsShadowsEnabled() const;
+
+    nvrhi::TextureHandle GetDDGIProbeDataTexture();
+    nvrhi::TextureHandle GetDDGIProbeIrradianceTexture();
+    nvrhi::TextureHandle GetDDGIProbeDistanceTexture();
 
     std::shared_ptr<RenderGraph> m_RenderGraph;
 
     View m_View;
+
+    GlobalIlluminationMode m_GIMode = GlobalIlluminationMode::DDGI;
 
     double m_AnimationTimeSeconds = 0.0;
     float m_SunOrientation = 270.0f;

@@ -178,10 +178,14 @@ void Scene::SetCamera(uint32_t idx)
     m_View.UpdateVectors(m_Yaw, m_Pitch);
 }
 
-bool Scene::IsRTDDGIEnabled() const
+bool Scene::IsDDGIEnabled() const
 {
-    return !g_DisableRayTracing.Get()
-        && m_bEnableGI;
+    return IsRaytracedGIEnabled() && (m_GIMode == GlobalIlluminationMode::DDGI);
+}
+
+bool Scene::IsRaytracedGIEnabled() const
+{
+    return !g_DisableRayTracing.Get() && IsGIEnabled() && ((m_GIMode == GlobalIlluminationMode::DDGI) || (m_GIMode == GlobalIlluminationMode::RTXGI));
 }
 
 bool Scene::IsShadowsEnabled() const
@@ -190,6 +194,10 @@ bool Scene::IsShadowsEnabled() const
         && m_TLAS
         && m_bEnableShadows;
 }
+
+nvrhi::TextureHandle Scene::GetDDGIProbeDataTexture() { return m_RTDDGIVolume ? m_RTDDGIVolume->GetProbeDataTexture() : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle; }
+nvrhi::TextureHandle Scene::GetDDGIProbeIrradianceTexture() { return m_RTDDGIVolume ? m_RTDDGIVolume->GetProbeIrradianceTexture() : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle; }
+nvrhi::TextureHandle Scene::GetDDGIProbeDistanceTexture() { return m_RTDDGIVolume ? m_RTDDGIVolume->GetProbeDistanceTexture() : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle; }
 
 void Scene::UpdateMainViewCameraControls()
 {

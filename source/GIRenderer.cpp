@@ -13,33 +13,11 @@
 
 #include "shaders/ShaderInterop.h"
 
-extern CommandLineOption<bool> g_DisableRayTracing;
-
 static_assert(RTXGI_DDGI_WAVE_LANE_COUNT == kNumThreadsPerWave);
 static_assert(RTXGI_DDGI_BLEND_RAYS_PER_PROBE % kNumThreadsPerWave == 0);
 
 RenderGraph::ResourceHandle g_RTDDRTDDGIVolumeDescsBuffer;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
-
-const rtxgi::EDDGIVolumeTextureFormat kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Count] =
-{
-    EDDGIVolumeTextureFormat::F32x2,
-    EDDGIVolumeTextureFormat::U32,
-    EDDGIVolumeTextureFormat::F16x2, // Note: in large environments FP16 may not be sufficient
-    EDDGIVolumeTextureFormat::F16x4,
-    EDDGIVolumeTextureFormat::F16,
-    EDDGIVolumeTextureFormat::F32x2,
-};
-
-static const nvrhi::Format kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::Count] =
-{
-    nvrhi::Format::RG32_FLOAT,
-    nvrhi::Format::R10G10B10A2_UNORM,
-    nvrhi::Format::RG16_FLOAT, // Note: in large environments FP16 may not be sufficient
-    nvrhi::Format::RGBA16_FLOAT,
-    nvrhi::Format::R16_FLOAT,
-    nvrhi::Format::RG32_FLOAT,
-};
 
 // dont bother with using rtxgi::d3d12::DDGIVolume. We handle all resources internally. Just re-use their logic.
 class RTDDGIVolume
@@ -49,21 +27,129 @@ class RTDDGIVolume
 public:
     nvrhi::TextureHandle GetProbeDataTexture() const override
     {
-        return g_Scene->IsRTDDGIEnabled() ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsDDGIEnabled() ? m_ProbeData : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeIrradianceTexture() const override
     {
-        return g_Scene->IsRTDDGIEnabled() ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsDDGIEnabled() ? m_ProbeIrradiance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     nvrhi::TextureHandle GetProbeDistanceTexture() const override
     {
-        return g_Scene->IsRTDDGIEnabled() ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
+        return g_Scene->IsDDGIEnabled() ? m_ProbeDistance : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle;
     }
 
     void Setup(RenderGraph& renderGraph)
     {
+        g_Scene->m_RTDDGIVolume = this;
+
+        // just check for these 3 for validity
+        if (!m_ProbeIrradiance && !m_ProbeDistance && !m_ProbeData)
+        {
+            const Vector3 sceneProbeAABBExtents = Vector3{ g_Scene->m_AABB.Extents } *1.1f; // add some padding to the scene AABB
+
+            // enforce minimum of 10x10x10 probes
+            m_ProbeSpacing.x = std::min(m_ProbeSpacing.x, sceneProbeAABBExtents.x * 0.2f);
+            m_ProbeSpacing.y = std::min(m_ProbeSpacing.y, sceneProbeAABBExtents.y * 0.2f);
+            m_ProbeSpacing.z = std::min(m_ProbeSpacing.z, sceneProbeAABBExtents.z * 0.2f);
+
+            // enforce maximum of 128 probes per axis
+            m_ProbeSpacing.x = std::max(m_ProbeSpacing.x, g_Scene->m_AABB.Extents.x / 64.0f);
+            m_ProbeSpacing.y = std::max(m_ProbeSpacing.y, g_Scene->m_AABB.Extents.y / 64.0f);
+            m_ProbeSpacing.z = std::max(m_ProbeSpacing.z, g_Scene->m_AABB.Extents.z / 64.0f);
+
+            // XY = horizontal plane, Z = vertical plane
+            const rtxgi::int3 volumeProbeCounts =
+            {
+                (int)std::ceil(g_Scene->m_AABB.Extents.x * 2 / m_ProbeSpacing.x),
+                (int)std::ceil(g_Scene->m_AABB.Extents.y * 2 / m_ProbeSpacing.y),
+                (int)std::ceil(g_Scene->m_AABB.Extents.z * 2 / m_ProbeSpacing.z)
+            };
+
+            m_Desc.origin = rtxgi::float3{ g_Scene->m_AABB.Center.x, g_Scene->m_AABB.Center.y, g_Scene->m_AABB.Center.z };
+            m_Desc.eulerAngles = rtxgi::float3{ 0.0f, 0.0f, 0.0f }; // TODO: OBB?
+            m_Desc.probeSpacing = rtxgi::float3{ m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z };
+            m_Desc.probeCounts = volumeProbeCounts;
+            m_Desc.probeNumRays = RTXGI_DDGI_BLEND_RAYS_PER_PROBE;
+            m_Desc.probeNumIrradianceTexels = kNumProbeRadianceTexels;
+            m_Desc.probeNumIrradianceInteriorTexels = kNumProbeRadianceTexels - 2;
+            m_Desc.probeNumDistanceTexels = kNumProbeDistanceTexels;
+            m_Desc.probeNumDistanceInteriorTexels = kNumProbeDistanceTexels - 2;
+            m_Desc.probeMaxRayDistance = g_Scene->m_BoundingSphere.Radius; // empirical shit. Just use scene BS radius
+            m_Desc.probeRelocationEnabled = true;
+            m_Desc.probeRelocationNeedsReset = true;
+            m_Desc.probeClassificationEnabled = true;
+            m_Desc.probeClassificationNeedsReset = true;
+            m_Desc.probeVariabilityEnabled = true;
+            m_Desc.probeRayDataFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::RayData];
+            m_Desc.probeIrradianceFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Irradiance];
+            m_Desc.probeDistanceFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Distance];       // not used in RTXGI Shaders, but init anyway
+            m_Desc.probeDataFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Data];               // not used in RTXGI Shaders, but init anyway
+            m_Desc.probeVariabilityFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Variability]; // not used in RTXGI Shaders, but init anyway
+            m_Desc.movementType = rtxgi::EDDGIVolumeMovementType::Default;
+            m_Desc.probeVisType = rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
+
+            if (g_Scene->m_BoundingSphere.Radius < 3.0f)
+            {
+                // sample's cornell settings:
+                m_Desc.probeViewBias = 0.1f;
+                m_Desc.probeNormalBias = 0.02f;
+                m_Desc.probeMinFrontfaceDistance = 0.1f;
+                m_DebugProbeRadius = 0.05f;
+            }
+            else
+            {
+                // sample's sponza settings:
+                m_Desc.probeViewBias = 0.3f;
+                m_Desc.probeNormalBias = 0.1f;
+                m_Desc.probeMinFrontfaceDistance = 0.3f;
+                m_DebugProbeRadius = 0.1f;
+            }
+
+            // sample's cornell & sponza has these values
+            m_Desc.probeIrradianceThreshold = 0.2f;
+            m_Desc.probeBrightnessThreshold = 0.1f;
+
+            // make radiance delta faster. default: 0.97
+            m_Desc.probeHysteresis = 0.50f;
+
+            // leave these values as defaults?
+            m_Desc.probeDistanceExponent = 50.f;
+            m_Desc.probeIrradianceEncodingGamma = 5.f;
+            m_Desc.probeRandomRayBackfaceThreshold = 0.1f;
+            m_Desc.probeFixedRayBackfaceThreshold = 0.25f;
+
+            check(GetNumProbes() > 0);
+
+            LOG_DEBUG("Creating GI volume, origin: [%.1f, %.1f, %.1f], num probes: [%u, %u, %u]",
+                m_desc.origin.x, m_desc.origin.y, m_desc.origin.z,
+                m_desc.probeCounts.x, m_desc.probeCounts.y, m_desc.probeCounts.z);
+
+            m_ProbeIrradiance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Irradiance);
+            m_ProbeDistance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Distance);
+            m_ProbeData = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Data);
+
+            for (uint32_t i = 0; i < 2; ++i)
+            {
+                nvrhi::TextureDesc desc;
+                desc.format = kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::VariabilityAverage];
+                desc.debugName = "Probe Variability Readback Staging Texture";
+                desc.initialState = nvrhi::ResourceStates::CopyDest;
+
+                m_ProbeVariabilityReadbackStagingTextures[i] = g_Graphic.m_NVRHIDevice->createStagingTexture(desc, nvrhi::CpuAccessMode::Read);
+            }
+
+            // Store the volume rotation
+            m_rotationMatrix = EulerAnglesToRotationMatrix(m_desc.eulerAngles);
+            m_rotationQuaternion = RotationMatrixToQuaternion(m_rotationMatrix);
+
+            // Set the default scroll anchor to the origin
+            m_probeScrollAnchor = m_desc.origin;
+
+            SeedRNG(std::random_device{}());
+        }
+        
         renderGraph.CreateTransientResource(m_ProbeRayDataRDGTextureHandle, GetProbeTextureDesc(rtxgi::EDDGIVolumeTextureType::RayData));
         renderGraph.CreateTransientResource(m_ProbeVariabilityRDGTextureHandle, GetProbeTextureDesc(rtxgi::EDDGIVolumeTextureType::Variability));
         renderGraph.CreateTransientResource(m_ProbeVariabilityAverageRDGTextureHandle, GetProbeTextureDesc(rtxgi::EDDGIVolumeTextureType::VariabilityAverage));
@@ -103,44 +189,6 @@ public:
         m_Variabilities[m_VariabilitiesCursor] = v;
     }
 
-    void Create()
-    {
-        // just check for these 3 for validity
-        if (m_ProbeIrradiance && m_ProbeDistance && m_ProbeData)
-        {
-            return;
-        }
-
-        check(GetNumProbes() > 0);
-
-        LOG_DEBUG("Creating GI volume, origin: [%.1f, %.1f, %.1f], num probes: [%u, %u, %u]",
-                  m_desc.origin.x, m_desc.origin.y, m_desc.origin.z,
-                  m_desc.probeCounts.x, m_desc.probeCounts.y, m_desc.probeCounts.z);
-
-        m_ProbeIrradiance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Irradiance);
-        m_ProbeDistance = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Distance);
-        m_ProbeData = CreateProbeTexture(rtxgi::EDDGIVolumeTextureType::Data);
-
-        for (uint32_t i = 0; i < 2; ++i)
-        {
-            nvrhi::TextureDesc desc;
-            desc.format = kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::VariabilityAverage];
-            desc.debugName = "Probe Variability Readback Staging Texture";
-            desc.initialState = nvrhi::ResourceStates::CopyDest;
-
-            m_ProbeVariabilityReadbackStagingTextures[i] = g_Graphic.m_NVRHIDevice->createStagingTexture(desc, nvrhi::CpuAccessMode::Read);
-        }
-
-        // Store the volume rotation
-        m_rotationMatrix = EulerAnglesToRotationMatrix(m_desc.eulerAngles);
-        m_rotationQuaternion = RotationMatrixToQuaternion(m_rotationMatrix);
-
-        // Set the default scroll anchor to the origin
-        m_probeScrollAnchor = m_desc.origin;
-
-        SeedRNG(std::random_device{}());
-    }
-
     void Destroy() override {}
 
     // direct accessors to private rxtgi::DDGIVolumeBase members, because im lazy
@@ -163,10 +211,33 @@ public:
     float m_VariabilityStdDevThreshold = 0.001f;
     bool bIsConverged = false;
 
+    bool m_bResetProbes = true;
+    Vector3 m_ProbeSpacing{ 1.0f, 1.0f, 1.0f };
+
 private:
     static const uint32_t kMinimumVariabilitySamples = 16;
     float m_Variabilities[kMinimumVariabilitySamples]{};
     uint32_t m_VariabilitiesCursor = 0;
+
+    inline static const rtxgi::EDDGIVolumeTextureFormat kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Count] =
+    {
+        EDDGIVolumeTextureFormat::F32x2,
+        EDDGIVolumeTextureFormat::U32,
+        EDDGIVolumeTextureFormat::F16x2, // Note: in large environments FP16 may not be sufficient
+        EDDGIVolumeTextureFormat::F16x4,
+        EDDGIVolumeTextureFormat::F16,
+        EDDGIVolumeTextureFormat::F32x2,
+    };
+
+    inline static const nvrhi::Format kProbeTextureFormatsNVRHI[(int)rtxgi::EDDGIVolumeTextureType::Count] =
+    {
+        nvrhi::Format::RG32_FLOAT,
+        nvrhi::Format::R10G10B10A2_UNORM,
+        nvrhi::Format::RG16_FLOAT, // Note: in large environments FP16 may not be sufficient
+        nvrhi::Format::RGBA16_FLOAT,
+        nvrhi::Format::R16_FLOAT,
+        nvrhi::Format::RG32_FLOAT,
+    };
 
     struct ProbeTextureCreateInfo
     {
@@ -223,152 +294,112 @@ private:
 class GIRenderer : public IRenderer
 {
 public:
-    bool m_bResetProbes = true;
-    Vector3 m_ProbeSpacing{ 1.0f, 1.0f, 1.0f };
-
     RTDDGIVolume m_RTDDGIVolume;
 
     GIRenderer() : IRenderer("GIRenderer") {}
 
-    void PostSceneLoad() override
-    {
-        g_Scene->m_RTDDGIVolume = &m_RTDDGIVolume;
-    }
-    
-    void InitVolume()
-    {
-        if (g_DisableRayTracing.Get())
-        {
-            return;
-        }
-
-        const Vector3 sceneProbeAABBExtents = Vector3{ g_Scene->m_AABB.Extents } * 1.1f; // add some padding to the scene AABB
-
-        // enforce minimum of 10x10x10 probes
-        m_ProbeSpacing.x = std::min(m_ProbeSpacing.x, sceneProbeAABBExtents.x * 0.2f);
-        m_ProbeSpacing.y = std::min(m_ProbeSpacing.y, sceneProbeAABBExtents.y * 0.2f);
-        m_ProbeSpacing.z = std::min(m_ProbeSpacing.z, sceneProbeAABBExtents.z * 0.2f);
-
-        // enforce maximum of 128 probes per axis
-        m_ProbeSpacing.x = std::max(m_ProbeSpacing.x, g_Scene->m_AABB.Extents.x / 64.0f);
-        m_ProbeSpacing.y = std::max(m_ProbeSpacing.y, g_Scene->m_AABB.Extents.y / 64.0f);
-        m_ProbeSpacing.z = std::max(m_ProbeSpacing.z, g_Scene->m_AABB.Extents.z / 64.0f);
-
-        // XY = horizontal plane, Z = vertical plane
-        const rtxgi::int3 volumeProbeCounts =
-        {
-            (int)std::ceil(g_Scene->m_AABB.Extents.x * 2 / m_ProbeSpacing.x),
-            (int)std::ceil(g_Scene->m_AABB.Extents.y * 2 / m_ProbeSpacing.y),
-            (int)std::ceil(g_Scene->m_AABB.Extents.z * 2 / m_ProbeSpacing.z)
-        };
-
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_RTDDGIVolume.m_Desc;
-        volumeDesc.origin = rtxgi::float3{ g_Scene->m_AABB.Center.x, g_Scene->m_AABB.Center.y, g_Scene->m_AABB.Center.z };
-        volumeDesc.eulerAngles = rtxgi::float3{ 0.0f, 0.0f, 0.0f }; // TODO: OBB?
-        volumeDesc.probeSpacing = rtxgi::float3{ m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z };
-        volumeDesc.probeCounts = volumeProbeCounts;
-        volumeDesc.probeNumRays = RTXGI_DDGI_BLEND_RAYS_PER_PROBE;
-        volumeDesc.probeNumIrradianceTexels = kNumProbeRadianceTexels;
-        volumeDesc.probeNumIrradianceInteriorTexels = kNumProbeRadianceTexels - 2;
-        volumeDesc.probeNumDistanceTexels = kNumProbeDistanceTexels;
-        volumeDesc.probeNumDistanceInteriorTexels = kNumProbeDistanceTexels - 2;
-        volumeDesc.probeMaxRayDistance = g_Scene->m_BoundingSphere.Radius; // empirical shit. Just use scene BS radius
-        volumeDesc.probeRelocationEnabled = true;
-        volumeDesc.probeRelocationNeedsReset = true;
-        volumeDesc.probeClassificationEnabled = true;
-        volumeDesc.probeClassificationNeedsReset = true;
-        volumeDesc.probeVariabilityEnabled = true;
-        volumeDesc.probeRayDataFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::RayData];
-        volumeDesc.probeIrradianceFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Irradiance];
-        volumeDesc.probeDistanceFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Distance];       // not used in RTXGI Shaders, but init anyway
-        volumeDesc.probeDataFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Data];               // not used in RTXGI Shaders, but init anyway
-        volumeDesc.probeVariabilityFormat = kProbeTextureFormats[(int)rtxgi::EDDGIVolumeTextureType::Variability]; // not used in RTXGI Shaders, but init anyway
-        volumeDesc.movementType = rtxgi::EDDGIVolumeMovementType::Default;
-        volumeDesc.probeVisType = rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
-        
-        if (g_Scene->m_BoundingSphere.Radius < 3.0f)
-        {
-            // sample's cornell settings:
-            volumeDesc.probeViewBias = 0.1f;
-            volumeDesc.probeNormalBias = 0.02f;
-            volumeDesc.probeMinFrontfaceDistance = 0.1f;
-            m_RTDDGIVolume.m_DebugProbeRadius = 0.05f;
-        }
-        else
-        {
-            // sample's sponza settings:
-            volumeDesc.probeViewBias = 0.3f;
-            volumeDesc.probeNormalBias = 0.1f;
-            volumeDesc.probeMinFrontfaceDistance = 0.3f;
-            m_RTDDGIVolume.m_DebugProbeRadius = 0.1f;
-        }
-
-        // sample's cornell & sponza has these values
-        volumeDesc.probeIrradianceThreshold = 0.2f;
-        volumeDesc.probeBrightnessThreshold = 0.1f;
-
-        // make radiance delta faster. default: 0.97
-        volumeDesc.probeHysteresis = 0.50f;
-
-        // leave these values as defaults?
-        volumeDesc.probeDistanceExponent = 50.f;
-        volumeDesc.probeIrradianceEncodingGamma = 5.f;
-        volumeDesc.probeRandomRayBackfaceThreshold = 0.1f;
-        volumeDesc.probeFixedRayBackfaceThreshold = 0.25f;
-
-        m_RTDDGIVolume.Create();
-    }
-
     void UpdateImgui() override
     {
         ImGui::Checkbox("Enabled", &g_Scene->m_bEnableGI);
-        if (!g_Scene->IsRTDDGIEnabled())
+
+        ImGui::Combo("GI Mode", (int*)&g_Scene->m_GIMode, "DDGI\0SSGI\0RTXGI\0");
+
+        switch (g_Scene->m_GIMode)
         {
-            return;
+        case GlobalIlluminationMode::DDGI:
+        {
+            if (!g_Scene->IsDDGIEnabled())
+            {
+                break;
+            }
+
+            rtxgi::DDGIVolumeDesc& volumeDesc = m_RTDDGIVolume.m_Desc;
+
+            ImGui::Checkbox("Show Debug Probes", &volumeDesc.showProbes);
+
+            if (volumeDesc.showProbes)
+            {
+                ImGui::Indent();
+                ImGui::Checkbox("Hide Inactive Probes", (bool*)&volumeDesc.probeVisType);
+                ImGui::DragFloat("Probe Radius", &m_RTDDGIVolume.m_DebugProbeRadius, 0.01f, 0.05f, 0.2f, "%.2f");
+                ImGui::Unindent();
+            }
+
+            //m_RTDDGIVolume.m_bResetProbes = ImGui::Button("Reset Probes");
+            volumeDesc.probeRelocationNeedsReset |= ImGui::Checkbox("Enable Probe Relocation", &volumeDesc.probeRelocationEnabled);
+            volumeDesc.probeClassificationNeedsReset |= ImGui::Checkbox("Enable Probe Classification", &volumeDesc.probeClassificationEnabled);
+            ImGui::Checkbox("Enable Probe Variability", &volumeDesc.probeVariabilityEnabled);
+            ImGui::DragFloat("Probe Variability Std Dev Threshold", &m_RTDDGIVolume.m_VariabilityStdDevThreshold, 0.001f, 0.001f, 0.1f, "%.3f");
+            ImGui::Text("Probe Spacing: [%.1f, %.1f, %.1f]", m_RTDDGIVolume.m_ProbeSpacing.x, m_RTDDGIVolume.m_ProbeSpacing.y, m_RTDDGIVolume.m_ProbeSpacing.z); // TODO: run-time probe spacing change
+            ImGui::Text("Volume Variability Average: [%.3f]", m_RTDDGIVolume.GetVolumeAverageVariability());
+            ImGui::Text("Probe Variability Std Dev: [%.3f]", m_RTDDGIVolume.m_VariabilityStdDev);
+
+            break;
         }
 
-        rtxgi::DDGIVolumeDesc& volumeDesc = m_RTDDGIVolume.m_Desc;
-
-        ImGui::Checkbox("Show Debug Probes", &volumeDesc.showProbes);
-
-        if (volumeDesc.showProbes)
+        case GlobalIlluminationMode::SSGI:
         {
-            ImGui::Indent();
-            ImGui::Checkbox("Hide Inactive Probes", (bool*)&volumeDesc.probeVisType);
-            ImGui::DragFloat("Probe Radius", &m_RTDDGIVolume.m_DebugProbeRadius, 0.01f, 0.05f, 0.2f, "%.2f");
-            ImGui::Unindent();
+            break;
         }
 
-        m_bResetProbes = ImGui::Button("Reset Probes");
-        volumeDesc.probeRelocationNeedsReset |= ImGui::Checkbox("Enable Probe Relocation", &volumeDesc.probeRelocationEnabled);
-        volumeDesc.probeClassificationNeedsReset |= ImGui::Checkbox("Enable Probe Classification", &volumeDesc.probeClassificationEnabled);
-        ImGui::Checkbox("Enable Probe Variability", &volumeDesc.probeVariabilityEnabled);
-        ImGui::DragFloat("Probe Variability Std Dev Threshold", &m_RTDDGIVolume.m_VariabilityStdDevThreshold, 0.001f, 0.001f, 0.1f, "%.3f");
-        ImGui::Text("Probe Spacing: [%.1f, %.1f, %.1f]", m_ProbeSpacing.x, m_ProbeSpacing.y, m_ProbeSpacing.z); // TODO: run-time probe spacing change
-        ImGui::Text("Volume Variability Average: [%.3f]", m_RTDDGIVolume.GetVolumeAverageVariability());
-        ImGui::Text("Probe Variability Std Dev: [%.3f]", m_RTDDGIVolume.m_VariabilityStdDev);
+        case GlobalIlluminationMode::RTXGI:
+        {
+            break;
+        }
+        };
     }
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        if (!g_Scene->IsRTDDGIEnabled())
+        ON_EXIT_SCOPE_LAMBDA([this]()
+            {
+                if (!g_Scene->IsDDGIEnabled())
+                {
+                    g_Scene->m_RTDDGIVolume = nullptr;
+                    m_RTDDGIVolume.m_ProbeIrradiance = nullptr;
+                    m_RTDDGIVolume.m_ProbeDistance = nullptr;
+                    m_RTDDGIVolume.m_ProbeData = nullptr;
+                    m_RTDDGIVolume.m_bResetProbes = true;
+                }
+            });
+
+        if (!g_Scene->IsGIEnabled())
         {
-            m_RTDDGIVolume.m_ProbeIrradiance = nullptr;
-            m_RTDDGIVolume.m_ProbeDistance = nullptr;
-            m_RTDDGIVolume.m_ProbeData = nullptr;
             return false;
         }
 
-        InitVolume();
-        m_RTDDGIVolume.Setup(renderGraph);
-
+        switch (g_Scene->m_GIMode)
         {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(rtxgi::DDGIVolumeDescGPUPacked) + 1; // TODO: multiple volumes
-            desc.structStride = sizeof(rtxgi::DDGIVolumeDescGPUPacked);
-            desc.debugName = "DDGI Volume Desc GPU Packed";
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-            renderGraph.CreateTransientResource(g_RTDDRTDDGIVolumeDescsBuffer, desc);
+        case GlobalIlluminationMode::DDGI:
+        {
+            if (!g_Scene->IsDDGIEnabled())
+            {
+                return false;
+            }
+
+            m_RTDDGIVolume.Setup(renderGraph);
+
+            {
+                nvrhi::BufferDesc desc;
+                desc.byteSize = sizeof(rtxgi::DDGIVolumeDescGPUPacked) + 1; // TODO: multiple volumes
+                desc.structStride = sizeof(rtxgi::DDGIVolumeDescGPUPacked);
+                desc.debugName = "DDGI Volume Desc GPU Packed";
+                desc.initialState = nvrhi::ResourceStates::ShaderResource;
+                renderGraph.CreateTransientResource(g_RTDDRTDDGIVolumeDescsBuffer, desc);
+            }
+
+            break;
+        }
+
+        case GlobalIlluminationMode::SSGI:
+        {
+            break;
+        }
+
+        case GlobalIlluminationMode::RTXGI:
+        {
+            break;
+        }
         }
 
         return true;
@@ -424,14 +455,16 @@ public:
         g_Graphic.AddComputePass(computePassParams);
     }
 
-    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
+    void RenderDDGI(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
-        if (m_bResetProbes)
+        assert(g_Scene->IsDDGIEnabled());
+        
+        if (m_RTDDGIVolume.m_bResetProbes)
         {
             m_RTDDGIVolume.m_NumVolumeVariabilitySamples = 0;
             commandList->clearTextureFloat(m_RTDDGIVolume.m_ProbeIrradiance, nvrhi::AllSubresources, m_RTDDGIVolume.m_ProbeIrradiance->getDesc().clearValue);
             commandList->clearTextureFloat(m_RTDDGIVolume.m_ProbeDistance, nvrhi::AllSubresources, m_RTDDGIVolume.m_ProbeDistance->getDesc().clearValue);
-            m_bResetProbes = false;
+            m_RTDDGIVolume.m_bResetProbes = false;
         }
 
         rtxgi::DDGIVolumeDesc& volumeDesc = m_RTDDGIVolume.m_Desc;
@@ -550,6 +583,28 @@ public:
             commandList->copyTexture(thisFrameVariabilityTexture, nvrhi::TextureSlice{}, probeVariabilityAverageTexture, nvrhi::TextureSlice{ 0,0,0,1,1,1 });
         }
     }
+
+    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
+    {
+        switch (g_Scene->m_GIMode)
+        {
+        case GlobalIlluminationMode::DDGI:
+        {
+            RenderDDGI(commandList, renderGraph);
+            break;
+        }
+
+        case GlobalIlluminationMode::SSGI:
+        {
+            break;
+        }
+
+        case GlobalIlluminationMode::RTXGI:
+        {
+            break;
+        }
+        };
+    }
 };
 static GIRenderer gs_GIRenderer;
 IRenderer* g_GIRenderer = &gs_GIRenderer;
@@ -563,9 +618,9 @@ class GIDebugRenderer : public IRenderer
 public:
     GIDebugRenderer() : IRenderer("GIDebugRenderer") {}
 
-    bool Setup(RenderGraph& renderGraph) override
+    bool SetupDDGI(RenderGraph& renderGraph)
     {
-        if (!g_Scene->m_bEnableGI)
+        if (!g_Scene->IsDDGIEnabled())
         {
             return false;
         }
@@ -616,8 +671,27 @@ public:
         return true;
     }
 
-    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
+    bool Setup(RenderGraph& renderGraph) override
     {
+        switch (g_Scene->m_GIMode)
+        {
+        case GlobalIlluminationMode::DDGI:
+            return SetupDDGI(renderGraph);
+
+        case GlobalIlluminationMode::SSGI:
+            break;
+
+        case GlobalIlluminationMode::RTXGI:
+            break;
+        }
+
+        return false;
+    }
+
+    void RenderDDGIDebug(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
+    {
+        assert(g_Scene->IsDDGIEnabled());
+
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
         nvrhi::BufferHandle probePositionsBuffer = renderGraph.GetBuffer(m_ProbePositionsRDGBufferHandle);
@@ -640,15 +714,15 @@ public:
             frustumY.Normalize();
 
             GIProbeVisualizationUpdateConsts passParameters;
-			passParameters.m_NumProbes = numProbes;
-			passParameters.m_CameraOrigin = g_Scene->m_View.m_Eye;
+            passParameters.m_NumProbes = numProbes;
+            passParameters.m_CameraOrigin = g_Scene->m_View.m_Eye;
             passParameters.m_Frustum = Vector4{ frustumX.x, frustumX.z, frustumY.y, frustumY.z };
-			passParameters.m_WorldToView = g_Scene->m_View.m_WorldToView;
-			passParameters.m_HZBDimensions = Vector2U{ g_Scene->m_HZB->getDesc().width, g_Scene->m_HZB->getDesc().height };
+            passParameters.m_WorldToView = g_Scene->m_View.m_WorldToView;
+            passParameters.m_HZBDimensions = Vector2U{ g_Scene->m_HZB->getDesc().width, g_Scene->m_HZB->getDesc().height };
             passParameters.m_P00 = g_Scene->m_View.m_ViewToClip.m[0][0];
             passParameters.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
             passParameters.m_NearPlane = g_Scene->m_View.m_ZNearP;
-			passParameters.m_ProbeRadius = gs_GIRenderer.m_RTDDGIVolume.m_DebugProbeRadius;
+            passParameters.m_ProbeRadius = gs_GIRenderer.m_RTDDGIVolume.m_DebugProbeRadius;
             passParameters.m_bHideInactiveProbes = gs_GIRenderer.m_RTDDGIVolume.GetProbeVisType() == rtxgi::EDDGIVolumeProbeVisType::Hide_Inactive;
 
             nvrhi::BufferHandle passParametersBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
@@ -733,6 +807,21 @@ public:
             commandList->setGraphicsState(graphicsState);
             commandList->setPushConstants(&passParameters, sizeof(passParameters));
             commandList->drawIndexedIndirect(0);
+        }
+    }
+
+    void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
+    {
+        switch (g_Scene->m_GIMode)
+        {
+        case GlobalIlluminationMode::DDGI:
+            return RenderDDGIDebug(commandList, renderGraph);
+
+        case GlobalIlluminationMode::SSGI:
+            break;
+
+        case GlobalIlluminationMode::RTXGI:
+            break;
         }
     }
 };

@@ -48,7 +48,7 @@ public:
 			renderGraph.AddReadDependency(g_ShadowMaskRDGTextureHandle);
 		}
 
-		if (g_Scene->IsRTDDGIEnabled())
+		if (g_Scene->IsDDGIEnabled())
 		{
 			renderGraph.AddReadDependency(g_RTDDRTDDGIVolumeDescsBuffer);
 		}
@@ -69,7 +69,7 @@ public:
 		passConstants.m_SSAOEnabled = g_Scene->m_bEnableAO;
 		passConstants.m_LightingOutputResolution = g_Graphic.m_RenderResolution;
 		passConstants.m_DebugMode = g_Scene->m_DebugViewMode;
-        passConstants.m_bRTDDGIEnabled = g_Scene->IsRTDDGIEnabled();
+        passConstants.m_bRTDDGIEnabled = g_Scene->IsDDGIEnabled();
 		nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passConstants);
 
 		nvrhi::TextureHandle GBufferATexture = renderGraph.GetTexture(g_GBufferARDGTextureHandle);
@@ -79,7 +79,7 @@ public:
 		nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
 		nvrhi::TextureHandle depthStencilBuffer = renderGraph.GetTexture(g_DepthStencilBufferRDGTextureHandle);
 		nvrhi::TextureHandle depthBufferCopyTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
-        nvrhi::BufferHandle RTDDGIVolumeDescsBuffer = g_Scene->IsRTDDGIEnabled() ? renderGraph.GetBuffer(g_RTDDRTDDGIVolumeDescsBuffer) : g_CommonResources.DummyUIntStructuredBuffer;
+        nvrhi::BufferHandle RTDDGIVolumeDescsBuffer = g_Scene->IsDDGIEnabled() ? renderGraph.GetBuffer(g_RTDDRTDDGIVolumeDescsBuffer) : g_CommonResources.DummyUIntStructuredBuffer;
 
 		nvrhi::BindingSetDesc bindingSetDesc;
 		bindingSetDesc.bindings = {
@@ -90,9 +90,9 @@ public:
 			nvrhi::BindingSetItem::Texture_SRV(3, ssaoTexture),
 			nvrhi::BindingSetItem::Texture_SRV(4, shadowMaskTexture),
 			nvrhi::BindingSetItem::StructuredBuffer_SRV(5, RTDDGIVolumeDescsBuffer),
-			nvrhi::BindingSetItem::Texture_SRV(6, g_Scene->m_RTDDGIVolume->GetProbeDataTexture()),
-			nvrhi::BindingSetItem::Texture_SRV(7, g_Scene->m_RTDDGIVolume->GetProbeIrradianceTexture()),
-			nvrhi::BindingSetItem::Texture_SRV(8, g_Scene->m_RTDDGIVolume->GetProbeDistanceTexture()),
+			nvrhi::BindingSetItem::Texture_SRV(6, g_Scene->GetDDGIProbeDataTexture()),
+			nvrhi::BindingSetItem::Texture_SRV(7, g_Scene->GetDDGIProbeIrradianceTexture()),
+			nvrhi::BindingSetItem::Texture_SRV(8, g_Scene->GetDDGIProbeDistanceTexture()),
 			nvrhi::BindingSetItem::Sampler(0, g_CommonResources.PointClampSampler),
 			nvrhi::BindingSetItem::Sampler(1, g_CommonResources.LinearWrapSampler),
 		};

@@ -101,11 +101,6 @@ public:
 
     void Initialize() override
     {
-        if (!g_Graphic.m_Scene->IsRTDDGIEnabled())
-        {
-            return;
-        }
-
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
         const nrd::LibraryDesc& libraryDesc = nrd::GetLibraryDesc();
