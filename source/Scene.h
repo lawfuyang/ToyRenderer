@@ -9,7 +9,7 @@
 class Primitive;
 class RenderGraph;
 
-enum class GlobalIlluminationMode { DDGI, SSGI, RTXGI };
+enum class GlobalIlluminationMode { DDGI, RTXGI };
 
 struct Animation
 {

@@ -302,7 +302,7 @@ public:
     {
         ImGui::Checkbox("Enabled", &g_Scene->m_bEnableGI);
 
-        ImGui::Combo("GI Mode", (int*)&g_Scene->m_GIMode, "DDGI\0SSGI\0RTXGI\0");
+        ImGui::Combo("GI Mode", (int*)&g_Scene->m_GIMode, "DDGI\0RTXGI\0");
 
         switch (g_Scene->m_GIMode)
         {
@@ -334,11 +334,6 @@ public:
             ImGui::Text("Volume Variability Average: [%.3f]", m_RTDDGIVolume.GetVolumeAverageVariability());
             ImGui::Text("Probe Variability Std Dev: [%.3f]", m_RTDDGIVolume.m_VariabilityStdDev);
 
-            break;
-        }
-
-        case GlobalIlluminationMode::SSGI:
-        {
             break;
         }
 
@@ -388,11 +383,6 @@ public:
                 renderGraph.CreateTransientResource(g_RTDDRTDDGIVolumeDescsBuffer, desc);
             }
 
-            break;
-        }
-
-        case GlobalIlluminationMode::SSGI:
-        {
             break;
         }
 
@@ -594,11 +584,6 @@ public:
             break;
         }
 
-        case GlobalIlluminationMode::SSGI:
-        {
-            break;
-        }
-
         case GlobalIlluminationMode::RTXGI:
         {
             break;
@@ -677,9 +662,6 @@ public:
         {
         case GlobalIlluminationMode::DDGI:
             return SetupDDGI(renderGraph);
-
-        case GlobalIlluminationMode::SSGI:
-            break;
 
         case GlobalIlluminationMode::RTXGI:
             break;
@@ -816,9 +798,6 @@ public:
         {
         case GlobalIlluminationMode::DDGI:
             return RenderDDGIDebug(commandList, renderGraph);
-
-        case GlobalIlluminationMode::SSGI:
-            break;
 
         case GlobalIlluminationMode::RTXGI:
             break;
