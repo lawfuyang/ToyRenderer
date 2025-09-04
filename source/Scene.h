@@ -88,7 +88,6 @@ public:
 
     bool IsGIEnabled() const { return m_bEnableGI; }
     bool IsDDGIEnabled() const;
-    bool IsRaytracedGIEnabled() const;
     bool IsShadowsEnabled() const;
 
     nvrhi::TextureHandle GetDDGIProbeDataTexture();
@@ -108,6 +107,7 @@ public:
     float m_DirLightStrength = 1.0f;
     float m_LastFrameExposure = 1.0f;
 
+    bool m_bEnableRayTracing = true;
     int m_DebugViewMode = 0;
     bool m_EnableAnimations = true;
     bool m_bEnableShadows = true;

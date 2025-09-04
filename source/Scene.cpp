@@ -16,8 +16,6 @@
 static_assert(sizeof(Scene::NodeLocalTransformBytes) == sizeof(NodeLocalTransform));
 static_assert(sizeof(TLASInstanceDesc) == sizeof(nvrhi::rt::InstanceDesc));
 
-CommandLineOption<bool> g_DisableRayTracing{ "disableraytracing", false };
-
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferARDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
@@ -180,19 +178,12 @@ void Scene::SetCamera(uint32_t idx)
 
 bool Scene::IsDDGIEnabled() const
 {
-    return IsRaytracedGIEnabled() && (m_GIMode == GlobalIlluminationMode::DDGI);
-}
-
-bool Scene::IsRaytracedGIEnabled() const
-{
-    return !g_DisableRayTracing.Get() && IsGIEnabled() && ((m_GIMode == GlobalIlluminationMode::DDGI) || (m_GIMode == GlobalIlluminationMode::RTXGI));
+    return m_bEnableRayTracing && IsGIEnabled() && (m_GIMode == GlobalIlluminationMode::DDGI);
 }
 
 bool Scene::IsShadowsEnabled() const
 {
-    return !g_DisableRayTracing.Get()
-        && m_TLAS
-        && m_bEnableShadows;
+    return m_bEnableRayTracing && m_TLAS && m_bEnableShadows;
 }
 
 nvrhi::TextureHandle Scene::GetDDGIProbeDataTexture() { return m_RTDDGIVolume ? m_RTDDGIVolume->GetProbeDataTexture() : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle; }
@@ -589,6 +580,7 @@ void Scene::UpdateIMGUI()
         ImGui::Combo("##DebugModeCombo", &m_DebugViewMode, kDebugModeNames, std::size(kDebugModeNames));
         ImGui::Checkbox("Enable Animations", &m_EnableAnimations);
 
+        ImGui::Checkbox("Enable Ray Tracing", &m_bEnableRayTracing);
         ImGui::Checkbox("Enable Frustum Culling", &m_bEnableFrustumCulling);
         ImGui::Checkbox("Enable Occlusion Culling", &m_bEnableOcclusionCulling);
         ImGui::Checkbox("Enable Meshlet Cone Culling", &m_bEnableMeshletConeCulling);
