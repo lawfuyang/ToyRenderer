@@ -302,11 +302,11 @@ public:
     {
         ImGui::Checkbox("Enabled", &g_Scene->m_bEnableGI);
 
-        ImGui::Combo("GI Mode", (int*)&g_Scene->m_GIMode, "DDGI\0RTXGI\0");
+        ImGui::Combo("GI Mode", (int*)&g_Scene->m_GITechnique, "DDGI\0RTXGI\0");
 
-        switch (g_Scene->m_GIMode)
+        switch (g_Scene->m_GITechnique)
         {
-        case GlobalIlluminationMode::DDGI:
+        case GITechnique::DDGI:
         {
             if (!g_Scene->IsDDGIEnabled())
             {
@@ -337,7 +337,7 @@ public:
             break;
         }
 
-        case GlobalIlluminationMode::RTXGI:
+        case GITechnique::ReSTIR:
         {
             break;
         }
@@ -363,9 +363,9 @@ public:
             return false;
         }
 
-        switch (g_Scene->m_GIMode)
+        switch (g_Scene->m_GITechnique)
         {
-        case GlobalIlluminationMode::DDGI:
+        case GITechnique::DDGI:
         {
             if (!g_Scene->IsDDGIEnabled())
             {
@@ -386,7 +386,7 @@ public:
             break;
         }
 
-        case GlobalIlluminationMode::RTXGI:
+        case GITechnique::ReSTIR:
         {
             break;
         }
@@ -576,15 +576,15 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        switch (g_Scene->m_GIMode)
+        switch (g_Scene->m_GITechnique)
         {
-        case GlobalIlluminationMode::DDGI:
+        case GITechnique::DDGI:
         {
             RenderDDGI(commandList, renderGraph);
             break;
         }
 
-        case GlobalIlluminationMode::RTXGI:
+        case GITechnique::ReSTIR:
         {
             break;
         }
@@ -658,12 +658,12 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        switch (g_Scene->m_GIMode)
+        switch (g_Scene->m_GITechnique)
         {
-        case GlobalIlluminationMode::DDGI:
+        case GITechnique::DDGI:
             return SetupDDGI(renderGraph);
 
-        case GlobalIlluminationMode::RTXGI:
+        case GITechnique::ReSTIR:
             break;
         }
 
@@ -794,12 +794,12 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        switch (g_Scene->m_GIMode)
+        switch (g_Scene->m_GITechnique)
         {
-        case GlobalIlluminationMode::DDGI:
+        case GITechnique::DDGI:
             return RenderDDGIDebug(commandList, renderGraph);
 
-        case GlobalIlluminationMode::RTXGI:
+        case GITechnique::ReSTIR:
             break;
         }
     }

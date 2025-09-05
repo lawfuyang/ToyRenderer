@@ -9,7 +9,7 @@
 class Primitive;
 class RenderGraph;
 
-enum class GlobalIlluminationMode { DDGI, RTXGI };
+enum class GITechnique { DDGI, ReSTIR };
 
 struct Animation
 {
@@ -98,7 +98,7 @@ public:
 
     View m_View;
 
-    GlobalIlluminationMode m_GIMode = GlobalIlluminationMode::DDGI;
+    GITechnique m_GITechnique = GITechnique::DDGI;
 
     double m_AnimationTimeSeconds = 0.0;
     float m_SunOrientation = 270.0f;

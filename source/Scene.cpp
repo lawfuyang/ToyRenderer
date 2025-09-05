@@ -178,7 +178,7 @@ void Scene::SetCamera(uint32_t idx)
 
 bool Scene::IsDDGIEnabled() const
 {
-    return m_bEnableRayTracing && IsGIEnabled() && (m_GIMode == GlobalIlluminationMode::DDGI);
+    return m_bEnableRayTracing && IsGIEnabled() && (m_GITechnique == GITechnique::DDGI);
 }
 
 bool Scene::IsShadowsEnabled() const
