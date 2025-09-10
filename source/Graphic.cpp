@@ -422,7 +422,7 @@ nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipel
     {
         PROFILE_SCOPED("createGraphicsPipeline");
         //LOG_DEBUG("New Graphic PSO: [%zx]", psoHash);
-        graphicsPipeline = m_NVRHIDevice->createGraphicsPipeline(psoDesc, frameBuffer);
+        graphicsPipeline = m_NVRHIDevice->createGraphicsPipeline(psoDesc, frameBuffer->getFramebufferInfo());
     }
     return graphicsPipeline;
 }
@@ -446,7 +446,7 @@ nvrhi::MeshletPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::MeshletPipelin
     {
         PROFILE_SCOPED("createMeshletPipeline");
         //LOG_DEBUG("New Meshlet PSO: [%zx]", psoHash);
-        pipeline = m_NVRHIDevice->createMeshletPipeline(psoDesc, frameBuffer);
+        pipeline = m_NVRHIDevice->createMeshletPipeline(psoDesc, frameBuffer->getFramebufferInfo());
     }
     return pipeline;
 }
