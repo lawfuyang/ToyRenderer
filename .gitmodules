@@ -37,9 +37,6 @@
 [submodule "extern/nvidia/RTXTS-TTM"]
 	path = extern/nvidia/RTXTS-TTM
 	url = https://github.com/NVIDIA-RTX/RTXTS-TTM
-[submodule "extern/volk"]
-	path = extern/volk
-	url = https://github.com/zeux/volk
 [submodule "extern/nvidia/MathLib"]
 	path = extern/nvidia/MathLib
 	url = https://github.com/NVIDIA-RTX/MathLib
