@@ -48,6 +48,7 @@ file(CREATE_LINK "${EXTERN_DIR}/agilitysdk/build/native/bin/x64/d3d12SDKLayers.d
 file(CREATE_LINK "${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.dll" "${BIN_DIR}/SDL3.dll" SYMBOLIC)
 file(CREATE_LINK "${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc.dll" "${BIN_DIR}/renderdoc.dll" SYMBOLIC)
 file(CREATE_LINK "${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc_app.h" "${EXTERN_DIR}/renderdoc/renderdoc_app.h" SYMBOLIC)
+file(CREATE_LINK "${EXTERN_DIR}/Nvidia/DLSS/lib/Windows_x86_64/rel/nvngx_dlss.dll" "${BIN_DIR}/nvngx_dlss.dll" SYMBOLIC)
 
 # i need to do this because shadermake manually & retardedly sets 'CMAKE_MSVC_RUNTIME_LIBRARY'
 set(CMAKE_MSVC_RUNTIME_LIBRARY 

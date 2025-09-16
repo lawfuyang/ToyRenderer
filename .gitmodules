@@ -46,3 +46,6 @@
 [submodule "extern/amd/FidelityFX2"]
 	path = extern/amd/FidelityFX2
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK
+[submodule "extern/nvidia/DLSS"]
+	path = extern/nvidia/DLSS
+	url = https://github.com/NVIDIA/DLSS
