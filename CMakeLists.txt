@@ -134,6 +134,9 @@ target_compile_options(ToyRenderer PRIVATE
 # startup proj = 'ToyRenderer'
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ToyRenderer)
 
+set(DLSS_LIB $<$<CONFIG:Debug>:"${EXTERN_DIR}/nvidia/DLSS/lib/Windows_x86_64/x64/nvsdk_ngx_d_dbg_iterator0.lib">
+              $<$<CONFIG:Release>:"${EXTERN_DIR}/nvidia/DLSS/lib/Windows_x86_64/x64/nvsdk_ngx_d.lib">)
+
 set(TOYRENDERER_LIBRARIES
 	d3d12 dxgi dxguid Ws2_32
 	ShaderMakeBlob
@@ -146,6 +149,7 @@ set(TOYRENDERER_LIBRARIES
 	RTXGI-D3D12
     rtxts-ttm
 	"${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.lib"
+    "${EXTERN_DIR}/nvidia/DLSS/lib/Windows_x86_64/x64/nvsdk_ngx_d$<$<CONFIG:Debug>:_dbg_iterator0>.lib"
 )
 
 # libs
@@ -165,6 +169,7 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/magic_en
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/RTXGI-DDGI/rtxgi-sdk/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/agilitysdk/build/native/include")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/DLSS/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 target_compile_definitions(ToyRenderer PUBLIC _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
