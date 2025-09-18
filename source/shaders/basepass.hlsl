@@ -215,9 +215,11 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
 #endif // ALPHA_MASK_MODE
     
     float4 prevClipPosition = mul(float4(inVertex.m_PrevWorldPosition, 1), g_BasePassConsts.m_PrevWorldToClip);
-    prevClipPosition.xyz /= prevClipPosition.w;
-    float2 prevWindowPos = ClipXYToUV(prevClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
-    result.m_Motion = prevWindowPos - inVertex.m_Position.xy;
+    prevClipPosition.xy /= prevClipPosition.w;
+    float4 currentClipPosition = mul(float4(inVertex.m_WorldPosition, 1), g_BasePassConsts.m_WorldToClip);
+    currentClipPosition.xy /= currentClipPosition.w;
+    
+    result.m_Motion = ClipXYToUV(currentClipPosition.xy - prevClipPosition.xy);
     
     return result;
 }
