@@ -205,7 +205,7 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     getCommonGBufferParamsArguments.m_bEnableSamplerFeedback = g_BasePassConsts.m_bWriteSamplerFeedback;
     getCommonGBufferParamsArguments.m_bVisualizeMinMipTilesOnAlbedoOutput = g_BasePassConsts.m_bVisualizeMinMipTilesOnAlbedoOutput;
     
-    GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments);
+    GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments) * g_BasePassConsts.m_OutputResolution;
     
 #if ALPHA_MASK_MODE
     if (result.m_Albedo.a < materialData.m_AlphaCutoff)
