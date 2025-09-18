@@ -953,20 +953,25 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
 
 Vector2 Graphic::GetCurrentJitterOffset()
 {
-    auto VanDerCorput = [](size_t base, size_t index)
-        {
-            float ret = 0.0f;
-            float denominator = (float)base;
-            while (index > 0)
-            {
-                const size_t multiplier = index % base;
-                ret += (float)multiplier / denominator;
-                index /= base;
-                denominator *= base;
-            }
-            return ret;
-        };
+    auto Halton = [](int32_t index, int32_t base)
+    {
+        float f = 1.0f, result = 0.0f;
 
-    const uint32_t index = (m_FrameCounter % 16) + 1;
-    return Vector2{ VanDerCorput(2, index), VanDerCorput(3, index) } - Vector2{ 0.5f, 0.5f };
+        for (int32_t currentIndex = index; currentIndex > 0;) {
+
+            f /= (float)base;
+            result = result + f * (float)(currentIndex % base);
+            currentIndex = (uint32_t)(floorf((float)(currentIndex) / (float)(base)));
+        }
+
+        return result;
+    };
+
+    const uint32_t kPhaseCount = 8; // hardcoded phase count for simplicity, should be power of 2, but we dont have upscaling, so stick with '8'
+    const int32_t index = (int32_t)m_FrameCounter;
+
+    const float x = Halton((index % kPhaseCount) + 1, 2) - 0.5f;
+    const float y = Halton((index % kPhaseCount) + 1, 3) - 0.5f;
+
+    return Vector2{ x, y };
 }
