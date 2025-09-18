@@ -205,7 +205,7 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     getCommonGBufferParamsArguments.m_bEnableSamplerFeedback = g_BasePassConsts.m_bWriteSamplerFeedback;
     getCommonGBufferParamsArguments.m_bVisualizeMinMipTilesOnAlbedoOutput = g_BasePassConsts.m_bVisualizeMinMipTilesOnAlbedoOutput;
     
-    GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments) * g_BasePassConsts.m_OutputResolution;
+    GBufferParams result = GetCommonGBufferParams(getCommonGBufferParamsArguments);
     
 #if ALPHA_MASK_MODE
     if (result.m_Albedo.a < materialData.m_AlphaCutoff)
@@ -219,7 +219,7 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
     float4 currentClipPosition = mul(float4(inVertex.m_WorldPosition, 1), g_BasePassConsts.m_WorldToClip);
     currentClipPosition.xy /= currentClipPosition.w;
     
-    result.m_Motion = ClipXYToUV(currentClipPosition.xy - prevClipPosition.xy);
+    result.m_Motion = ClipXYToUV(currentClipPosition.xy - prevClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
     
     return result;
 }
