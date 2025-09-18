@@ -447,7 +447,7 @@ public:
 
     void RenderDDGI(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
-        assert(g_Scene->IsDDGIEnabled());
+        check(g_Scene->IsDDGIEnabled());
         
         if (m_RTDDGIVolume.m_bResetProbes)
         {
@@ -672,7 +672,7 @@ public:
 
     void RenderDDGIDebug(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
-        assert(g_Scene->IsDDGIEnabled());
+        check(g_Scene->IsDDGIEnabled());
 
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
