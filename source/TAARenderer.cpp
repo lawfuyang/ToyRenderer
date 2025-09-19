@@ -141,8 +141,7 @@ public:
         dlssCreateParams.InFeatureCreateFlags =
             NVSDK_NGX_DLSS_Feature_Flags_IsHDR |
             NVSDK_NGX_DLSS_Feature_Flags_MVLowRes |
-            NVSDK_NGX_DLSS_Feature_Flags_DepthInverted |
-            NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+            NVSDK_NGX_DLSS_Feature_Flags_DepthInverted;
 
         nvrhi::CommandListHandle cmdList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(cmdList, "Create DLSS");
