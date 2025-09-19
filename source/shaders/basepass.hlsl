@@ -226,7 +226,7 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
         currentClipPosition.xy /= currentClipPosition.w;
         float2 currentWindowPos = ClipXYToUV(currentClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
 
-        result.m_Motion = currentWindowPos - prevWindowPos;
+        result.m_Motion = prevWindowPos - currentWindowPos;
     }
 
     return result;
