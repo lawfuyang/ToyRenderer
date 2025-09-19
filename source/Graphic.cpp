@@ -951,8 +951,14 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
     }
 }
 
-Vector2 Graphic::GetCurrentJitterOffset()
+Vector2 Graphic::ComputeCurrentJitterOffset()
 {
+    auto GetJitterPhaseCount = [](uint32_t renderWidth, uint32_t displayWidth)
+    {
+        const float kBasePhaseCount = 8.0f;
+        return (uint32_t)(kBasePhaseCount * pow((float(displayWidth) / renderWidth), 2.0f));
+    };
+
     auto Halton = [](int32_t index, int32_t base)
     {
         float f = 1.0f, result = 0.0f;
@@ -967,11 +973,11 @@ Vector2 Graphic::GetCurrentJitterOffset()
         return result;
     };
 
-    const uint32_t kPhaseCount = 8; // hardcoded phase count for simplicity, should be power of 2, but we dont have upscaling, so stick with '8'
+    const uint32_t phaseCount = GetJitterPhaseCount(g_Graphic.m_RenderResolution.x, g_Graphic.m_DisplayResolution.x);
     const int32_t index = (int32_t)m_FrameCounter;
 
-    const float x = Halton((index % kPhaseCount) + 1, 2) - 0.5f;
-    const float y = Halton((index % kPhaseCount) + 1, 3) - 0.5f;
+    const float x = Halton((index % phaseCount) + 1, 2) - 0.5f;
+    const float y = Halton((index % phaseCount) + 1, 3) - 0.5f;
 
     return Vector2{ x, y };
 }

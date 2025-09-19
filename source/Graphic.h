@@ -110,7 +110,7 @@ public:
 
     void AddComputePass(const ComputePassParams& computePassParams);
 
-    Vector2 GetCurrentJitterOffset();
+    Vector2 ComputeCurrentJitterOffset();
 
     std::unique_ptr<GraphicRHI> m_GraphicRHI;
 
@@ -175,6 +175,7 @@ public:
     virtual void Initialize() {};
     virtual void PostSceneLoad() {};
     virtual void UpdateImgui() {};
+    virtual void OnRenderResolutionChanged() {};
 
     // return false if the renderer is not going to be used
     virtual bool Setup(RenderGraph& renderGraph) { return true; }

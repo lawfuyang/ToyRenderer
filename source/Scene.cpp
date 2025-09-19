@@ -114,6 +114,7 @@ void View::Update()
     m_PrevWorldToView = m_WorldToView;
     m_PrevViewToClip = m_ViewToClip;
     m_PrevWorldToClip = m_WorldToClip;
+    m_PrevWorldToClipWithJitter = m_WorldToClipWithJitter;
 
     m_ViewToWorld = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
     m_WorldToView = m_ViewToWorld.Invert();
@@ -123,6 +124,11 @@ void View::Update()
 
     m_WorldToClip = m_WorldToView * m_ViewToClip;
     m_ClipToWorld = m_WorldToClip.Invert();
+
+    m_WorldToClipWithJitter = m_WorldToClip;
+
+    const Vector2 jitterOffset = g_Graphic.ComputeCurrentJitterOffset() / Vector2{ (float)g_Graphic.m_RenderResolution.x, (float)g_Graphic.m_RenderResolution.y };
+    m_WorldToClipWithJitter.Translation(m_WorldToClipWithJitter.Translation() + Vector3{ jitterOffset.x, jitterOffset.y, 0.0f });
 
     Frustum::CreateFromMatrix(m_Frustum, m_ViewToClip);
     m_Frustum.Transform(m_Frustum, m_ViewToWorld);

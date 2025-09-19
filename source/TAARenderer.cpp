@@ -4,6 +4,7 @@
 #include "nvsdk_ngx_helpers.h"
 
 #include "Engine.h"
+#include "Scene.h"
 #include "Utilities.h"
 
 #include "extern/imgui/imgui.h"
@@ -20,7 +21,6 @@
 
 class TAARenderer : public IRenderer
 {
-    bool m_bEnabled = true;
     bool m_bShutdownDone = false;
     bool m_bDLSS_Supported = false;
 
@@ -102,13 +102,13 @@ public:
             return;
         }
 
-        const NVSDK_NGX_PerfQuality_Value kPerfQualityValue = NVSDK_NGX_PerfQuality_Value_DLAA; // just use DLAA. dont support upscaling
+        const NVSDK_NGX_PerfQuality_Value perfQualityValue = NVSDK_NGX_PerfQuality_Value_DLAA; // just use DLAA for now
 
         NGX_CALL(NGX_DLSS_GET_OPTIMAL_SETTINGS(
             m_NGXParameters,
             g_Graphic.m_RenderResolution.x,
             g_Graphic.m_RenderResolution.y,
-            kPerfQualityValue,
+            perfQualityValue,
             &m_DLSSOptimalSettings.m_RenderOptimalWidth,
             &m_DLSSOptimalSettings.m_RenderOptimalHeight,
             &m_DLSSOptimalSettings.m_RenderMaxWidth,
@@ -125,9 +125,9 @@ public:
         NVSDK_NGX_DLSS_Create_Params dlssCreateParams{};
         dlssCreateParams.Feature.InWidth = m_DLSSOptimalSettings.m_RenderOptimalWidth;
         dlssCreateParams.Feature.InHeight = m_DLSSOptimalSettings.m_RenderOptimalHeight;
-        dlssCreateParams.Feature.InTargetWidth = g_Graphic.m_RenderResolution.x;
-        dlssCreateParams.Feature.InTargetHeight = g_Graphic.m_RenderResolution.y;
-        dlssCreateParams.Feature.InPerfQualityValue = kPerfQualityValue;
+        dlssCreateParams.Feature.InTargetWidth = g_Graphic.m_DisplayResolution.x;
+        dlssCreateParams.Feature.InTargetHeight = g_Graphic.m_DisplayResolution.y;
+        dlssCreateParams.Feature.InPerfQualityValue = perfQualityValue;
         dlssCreateParams.InFeatureCreateFlags =
             NVSDK_NGX_DLSS_Feature_Flags_IsHDR |
             NVSDK_NGX_DLSS_Feature_Flags_MVJittered |
@@ -153,12 +153,17 @@ public:
 
     void UpdateImgui() override
     {
-        ImGui::Checkbox("Enable", &m_bEnabled);
+        ImGui::Checkbox("Enable", &g_Scene->m_bEnableTAA);
+    }
+
+    void OnRenderResolutionChanged() override
+    {
+        // TODO: upscaling
     }
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        if (!m_bEnabled)
+        if (!g_Scene->m_bEnableTAA)
         {
             return false;
         }

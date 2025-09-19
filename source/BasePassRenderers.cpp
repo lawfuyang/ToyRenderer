@@ -441,8 +441,8 @@ public:
 
         // pass consts
         BasePassConstants basePassConstants;
-        basePassConstants.m_WorldToClip = g_Scene->m_View.m_WorldToClip;
-        basePassConstants.m_PrevWorldToClip = g_Scene->m_View.m_PrevWorldToClip;
+        basePassConstants.m_WorldToClip = g_Scene->m_bEnableTAA ? g_Scene->m_View.m_WorldToClipWithJitter : g_Scene->m_View.m_WorldToClip;
+        basePassConstants.m_PrevWorldToClip = g_Scene->m_bEnableTAA ? g_Scene->m_View.m_PrevWorldToClipWithJitter : g_Scene->m_View.m_PrevWorldToClip;
         basePassConstants.m_WorldToView = g_Scene->m_View.m_CullingWorldToView;
         basePassConstants.m_Frustum = m_CullingFrustum;
         basePassConstants.m_CullingFlags = finalCullingFlags;

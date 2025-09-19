@@ -59,12 +59,14 @@ public:
     Matrix m_WorldToView;
     Matrix m_ViewToClip;
     Matrix m_WorldToClip;
+    Matrix m_WorldToClipWithJitter;
     Matrix m_ViewToWorld;
     Matrix m_ClipToWorld;
 
     Matrix m_PrevWorldToView;
     Matrix m_PrevViewToClip;
     Matrix m_PrevWorldToClip;
+    Matrix m_PrevWorldToClipWithJitter;
 
     Frustum m_Frustum;
 };
@@ -125,6 +127,7 @@ public:
     bool m_bEnableTextureStreaming = true;
     bool m_bVisualizeMinMipTilesOnAlbedoOutput = false;
     bool m_bWriteSamplerFeedback = true;
+    bool m_bEnableTAA = true;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;
