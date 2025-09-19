@@ -51,6 +51,7 @@ void CS_GenerateLuminanceHistogram(
 cbuffer AdaptExposureParametersConstantBuffer : register(b0) { AdaptExposureParameters g_AdaptExposureParameters; }
 StructuredBuffer<uint> g_Histogram : register(t0);
 RWStructuredBuffer<float> g_LuminanceBuffer : register(u0);
+RWTexture2D<float> g_ExposureTexture : register(u1);
 
 groupshared uint gs_LuminanceBins[256];
 
@@ -90,5 +91,7 @@ void CS_AdaptExposure(
         float lumLastFrame = g_LuminanceBuffer[0];
         float adaptedLum = lumLastFrame + (weightedAvgLum - lumLastFrame) * g_AdaptExposureParameters.m_AdaptationSpeed;
         g_LuminanceBuffer[0] = adaptedLum;
+
+        g_ExposureTexture[uint2(0,0)] = g_AdaptExposureParameters.m_MiddleGray / (adaptedLum * (1.0f - g_AdaptExposureParameters.m_MiddleGray));
     }
 }

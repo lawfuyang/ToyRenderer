@@ -67,6 +67,7 @@ struct AdaptExposureParameters
     float m_LogLuminanceRange;
     float m_AdaptationSpeed;
     uint32_t m_NbPixels;
+    float m_MiddleGray;
 };
 
 struct BasePassConstants
@@ -88,6 +89,9 @@ struct BasePassConstants
     Vector2U m_OutputResolution;
     uint32_t m_bVisualizeMinMipTilesOnAlbedoOutput;
     uint32_t m_bWriteSamplerFeedback;
+    //----
+    Matrix m_WorldToClipNoJitter;
+    Matrix m_PrevWorldToClipNoJitter;
 };
 
 struct BasePassInstanceConstants

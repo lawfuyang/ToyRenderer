@@ -127,8 +127,9 @@ void View::Update()
 
     m_WorldToClipWithJitter = m_WorldToClip;
 
-    const Vector2 jitterOffset = g_Graphic.ComputeCurrentJitterOffset() / Vector2{ (float)g_Graphic.m_RenderResolution.x, (float)g_Graphic.m_RenderResolution.y };
-    m_WorldToClipWithJitter.Translation(m_WorldToClipWithJitter.Translation() + Vector3{ jitterOffset.x, jitterOffset.y, 0.0f });
+    m_CurrentJitterOffset = g_Graphic.ComputeCurrentJitterOffset();
+    const Vector2 subPixelJitterOffset = m_CurrentJitterOffset / Vector2{ (float)g_Graphic.m_RenderResolution.x, (float)g_Graphic.m_RenderResolution.y };
+    m_WorldToClipWithJitter.Translation(m_WorldToClipWithJitter.Translation() + Vector3{ subPixelJitterOffset.x, subPixelJitterOffset.y, 0.0f });
 
     Frustum::CreateFromMatrix(m_Frustum, m_ViewToClip);
     m_Frustum.Transform(m_Frustum, m_ViewToWorld);
@@ -487,6 +488,7 @@ void Scene::Update()
         extern IRenderer* g_BloomRenderer;
         extern IRenderer* g_GIDebugRenderer;
         extern IRenderer* g_TextureFeedbackDebugRenderer;
+        extern IRenderer* g_TAARenderer;
         
         m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
         m_RenderGraph->AddRenderer(g_UpdateInstanceConstsRenderer);
@@ -499,6 +501,7 @@ void Scene::Update()
         m_RenderGraph->AddRenderer(g_BloomRenderer);
         m_RenderGraph->AddRenderer(g_TransparentForwardRenderer);
         m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
+        m_RenderGraph->AddRenderer(g_TAARenderer);
         m_RenderGraph->AddRenderer(g_PostProcessRenderer);
 
         // DisplayResolution Debug Passes

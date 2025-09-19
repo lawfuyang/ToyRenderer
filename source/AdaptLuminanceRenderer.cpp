@@ -25,7 +25,10 @@ public:
     void Initialize() override
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-        
+
+        nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
+        SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "AdaptLuminanceRenderer Init");
+
         for (int i = 0; i < 2; ++i)
         {
             nvrhi::BufferDesc desc;
@@ -35,6 +38,32 @@ public:
             desc.cpuAccess = nvrhi::CpuAccessMode::Read;
 
             m_ExposureReadbackBuffers[i] = device->createBuffer(desc);
+        }
+
+        {
+            nvrhi::BufferDesc desc;
+            desc.byteSize = sizeof(float);
+            desc.structStride = sizeof(float);
+            desc.debugName = "Exposure Buffer";
+            desc.canHaveTypedViews = true;
+            desc.canHaveUAVs = true;
+            desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+            g_Scene->m_LuminanceBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
+
+            const float kInitialExposure = 1.0f;
+            commandList->writeBuffer(g_Scene->m_LuminanceBuffer, &kInitialExposure, sizeof(float));
+
+            nvrhi::TextureDesc textureDesc;
+            textureDesc.width = 1;
+            textureDesc.height = 1;
+            textureDesc.format = nvrhi::Format::R16_FLOAT;
+            textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
+            textureDesc.isUAV = true;
+            textureDesc.debugName = "Exposure Texture";
+
+            g_Scene->m_ExposureTexture = g_Graphic.m_NVRHIDevice->createTexture(textureDesc);
+            commandList->writeTexture(g_Scene->m_ExposureTexture, 0, 0, &kInitialExposure, sizeof(float));
         }
     }
 
@@ -47,7 +76,7 @@ public:
         bLuminanceDirty |= ImGui::DragFloat("Minimum Luminance", &m_MinimumLuminance, 0.01f, 0.0f);
         bLuminanceDirty |= ImGui::DragFloat("Maximum Luminance", &m_MaximumLuminance, 0.01f, 0.0f);
         ImGui::DragFloat("Auto Exposure Speed", &m_AutoExposureSpeed, 0.01f, 0.0f, 1.0f);
-        ImGui::DragFloat("Middle Gray", &g_Scene->m_MiddleGray, 0.01f, 0.0f);
+        ImGui::DragFloat("Middle Gray", &g_Scene->m_MiddleGray, 0.01f, 0.0f, 0.99f);
 
         if (bLuminanceDirty)
         {
@@ -138,12 +167,14 @@ public:
             passParameters.m_MinLogLuminance = minLogLum;
             passParameters.m_LogLuminanceRange = maxLogLum - minLogLum;
             passParameters.m_NbPixels = g_Graphic.m_RenderResolution.x * g_Graphic.m_RenderResolution.y;
+            passParameters.m_MiddleGray = g_Scene->m_MiddleGray;
 
             nvrhi::BindingSetDesc bindingSetDesc;
             bindingSetDesc.bindings = {
                 nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
                 nvrhi::BindingSetItem::StructuredBuffer_SRV(0, luminanceHistogramBuffer),
-                nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_LuminanceBuffer)
+                nvrhi::BindingSetItem::StructuredBuffer_UAV(0, g_Scene->m_LuminanceBuffer),
+                nvrhi::BindingSetItem::Texture_UAV(1, g_Scene->m_ExposureTexture)
             };
 
             Graphic::ComputePassParams computePassParams;

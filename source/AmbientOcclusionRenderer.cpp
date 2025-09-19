@@ -69,21 +69,6 @@ public:
         commandList->writeTexture(m_HilbertLUT, 0, 0, data.data(), kTexDim * nvrhi::getFormatInfo(m_HilbertLUT->getDesc().format).bytesPerBlock);
 		commandList->setPermanentTextureState(m_HilbertLUT, nvrhi::ResourceStates::ShaderResource);
 		commandList->commitBarriers();
-
-        {
-            nvrhi::BufferDesc desc;
-            desc.byteSize = sizeof(float);
-            desc.structStride = sizeof(float);
-            desc.debugName = "Exposure Buffer";
-            desc.canHaveTypedViews = true;
-            desc.canHaveUAVs = true;
-            desc.initialState = nvrhi::ResourceStates::ShaderResource;
-
-            g_Scene->m_LuminanceBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
-
-            const float kInitialExposure = 1.0f;
-            commandList->writeBuffer(g_Scene->m_LuminanceBuffer, &kInitialExposure, sizeof(float));
-        }
 	}
 
 	void UpdateImgui() override

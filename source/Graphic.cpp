@@ -953,31 +953,51 @@ void Graphic::AddComputePass(const ComputePassParams& computePassParams)
 
 Vector2 Graphic::ComputeCurrentJitterOffset()
 {
-    auto GetJitterPhaseCount = [](uint32_t renderWidth, uint32_t displayWidth)
+    // MSAA 8
+    if constexpr (false)
     {
-        const float kBasePhaseCount = 8.0f;
-        return (uint32_t)(kBasePhaseCount * pow((float(displayWidth) / renderWidth), 2.0f));
-    };
+        // https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_standard_multisample_quality_levels
+        const Vector2 offsets[] = {
+            Vector2{0.0625f, -0.1875f}, Vector2{-0.0625f, 0.1875f}, Vector2{0.3125f, 0.0625f}, Vector2{-0.1875f, -0.3125f},
+            Vector2{-0.3125f, 0.3125f}, Vector2{-0.4375f, -0.0625f}, Vector2{0.1875f, 0.4375f}, Vector2{0.4375f, -0.4375f}
+        };
 
-    auto Halton = [](int32_t index, int32_t base)
+        return offsets[m_FrameCounter % 8];
+    }
+
+    // white noise
+    else if constexpr (false)
     {
-        float f = 1.0f, result = 0.0f;
+        std::mt19937 rng{ m_FrameCounter };
+        std::uniform_real_distribution<float> dist{ -0.5f, 0.5f };
+        return Vector2{ dist(rng), dist(rng) };
+    }
 
-        for (int32_t currentIndex = index; currentIndex > 0;) {
+    // Halton
+    else
+    {
+        auto GetJitterPhaseCount = [](uint32_t renderWidth, uint32_t displayWidth)
+            {
+                const float kBasePhaseCount = 8.0f;
+                return (uint32_t)(kBasePhaseCount * pow((float(displayWidth) / renderWidth), 2.0f));
+            };
 
-            f /= (float)base;
-            result = result + f * (float)(currentIndex % base);
-            currentIndex = (uint32_t)(floorf((float)(currentIndex) / (float)(base)));
-        }
+        auto VanDerCorput = [](size_t base, size_t index)
+            {
+                float ret = 0.0f;
+                float denominator = float(base);
+                while (index > 0)
+                {
+                    size_t multiplier = index % base;
+                    ret += float(multiplier) / denominator;
+                    index = index / base;
+                    denominator *= base;
+                }
+                return ret;
+            };
 
-        return result;
-    };
-
-    const uint32_t phaseCount = GetJitterPhaseCount(g_Graphic.m_RenderResolution.x, g_Graphic.m_DisplayResolution.x);
-    const int32_t index = (int32_t)m_FrameCounter;
-
-    const float x = Halton((index % phaseCount) + 1, 2) - 0.5f;
-    const float y = Halton((index % phaseCount) + 1, 3) - 0.5f;
-
-    return Vector2{ x, y };
+        const uint32_t phaseCount = GetJitterPhaseCount(m_RenderResolution.x, m_DisplayResolution.x);
+        const uint32_t index = (m_FrameCounter % phaseCount) + 1;
+        return Vector2{ VanDerCorput(2, index), VanDerCorput(3, index) } - Vector2{ 0.5f, 0.5f };
+    }
 }

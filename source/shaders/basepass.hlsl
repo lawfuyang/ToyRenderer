@@ -213,14 +213,22 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
         discard;
     }
 #endif // ALPHA_MASK_MODE
+
+    result.m_Motion = float2(0.0f, 0.0f);
     
-    float4 prevClipPosition = mul(float4(inVertex.m_PrevWorldPosition, 1), g_BasePassConsts.m_PrevWorldToClip);
-    prevClipPosition.xy /= prevClipPosition.w;
-    float4 currentClipPosition = mul(float4(inVertex.m_WorldPosition, 1), g_BasePassConsts.m_WorldToClip);
-    currentClipPosition.xy /= currentClipPosition.w;
-    
-    result.m_Motion = ClipXYToUV(currentClipPosition.xy - prevClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
-    
+    float4 prevClipPosition = mul(float4(inVertex.m_PrevWorldPosition, 1), g_BasePassConsts.m_PrevWorldToClipNoJitter);
+    if (prevClipPosition.w > 0.0f)
+    {
+        prevClipPosition.xy /= prevClipPosition.w;
+        float2 prevWindowPos = ClipXYToUV(prevClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
+
+        float4 currentClipPosition = mul(float4(inVertex.m_WorldPosition, 1), g_BasePassConsts.m_WorldToClipNoJitter);
+        currentClipPosition.xy /= currentClipPosition.w;
+        float2 currentWindowPos = ClipXYToUV(currentClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
+
+        result.m_Motion = currentWindowPos - prevWindowPos;
+    }
+
     return result;
 }
 

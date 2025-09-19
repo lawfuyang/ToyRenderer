@@ -7,6 +7,7 @@
 #include "shaders/ShaderInterop.h"
 
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_UpscaledLightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_BloomRDGTextureHandle;
 
 class PostProcessRenderer : public IRenderer
@@ -21,7 +22,14 @@ public:
             renderGraph.AddReadDependency(g_BloomRDGTextureHandle);
         }
 
-        renderGraph.AddReadDependency(g_LightingOutputRDGTextureHandle);
+        if (g_Scene->m_bEnableTAA)
+        {
+            renderGraph.AddReadDependency(g_UpscaledLightingOutputRDGTextureHandle);
+        }
+        else
+        {
+            renderGraph.AddReadDependency(g_LightingOutputRDGTextureHandle);
+        }
 
 		return true;
 	}
@@ -41,14 +49,14 @@ public:
         passParameters.m_MiddleGray = g_Scene->m_MiddleGray;
         passParameters.m_BloomStrength = g_Scene->m_bEnableBloom ? g_Scene->m_BloomStrength : 0.0f;
 
-        nvrhi::TextureHandle lightingOutput = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
+        nvrhi::TextureHandle inputTexture = renderGraph.GetTexture(g_Scene->m_bEnableTAA ? g_UpscaledLightingOutputRDGTextureHandle : g_LightingOutputRDGTextureHandle);
         nvrhi::TextureHandle bloomTexture = g_Scene->m_bEnableBloom ? renderGraph.GetTexture(g_BloomRDGTextureHandle) : g_CommonResources.BlackTexture.m_NVRHITextureHandle;
 
         nvrhi::BindingSetDesc bindingSetDesc;
         bindingSetDesc.bindings =
         {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(passParameters)),
-            nvrhi::BindingSetItem::Texture_SRV(0, lightingOutput),
+            nvrhi::BindingSetItem::Texture_SRV(0, inputTexture),
             nvrhi::BindingSetItem::StructuredBuffer_SRV(1, g_Scene->m_LuminanceBuffer),
             nvrhi::BindingSetItem::Texture_SRV(2, bloomTexture),
             nvrhi::BindingSetItem::Sampler(0, g_CommonResources.LinearClampSampler)

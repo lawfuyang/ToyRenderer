@@ -4,6 +4,7 @@
 #include "nvsdk_ngx_helpers.h"
 
 #include "Engine.h"
+#include "RenderGraph.h"
 #include "Scene.h"
 #include "Utilities.h"
 
@@ -19,8 +20,17 @@
         } \
     }
 
+RenderGraph::ResourceHandle g_UpscaledLightingOutputRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
+
 class TAARenderer : public IRenderer
 {
+    enum class TAATechnique { DLSS, FSR };
+
+    TAATechnique m_TAATechnique = TAATechnique::DLSS;
     bool m_bShutdownDone = false;
     bool m_bDLSS_Supported = false;
 
@@ -130,8 +140,8 @@ public:
         dlssCreateParams.Feature.InPerfQualityValue = perfQualityValue;
         dlssCreateParams.InFeatureCreateFlags =
             NVSDK_NGX_DLSS_Feature_Flags_IsHDR |
-            NVSDK_NGX_DLSS_Feature_Flags_MVJittered |
-            NVSDK_NGX_DLSS_Feature_Flags_DepthInverted | 
+            NVSDK_NGX_DLSS_Feature_Flags_MVLowRes |
+            NVSDK_NGX_DLSS_Feature_Flags_DepthInverted |
             NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
 
         nvrhi::CommandListHandle cmdList = g_Graphic.AllocateCommandList();
@@ -154,6 +164,7 @@ public:
     void UpdateImgui() override
     {
         ImGui::Checkbox("Enable", &g_Scene->m_bEnableTAA);
+        ImGui::Combo("Technique", reinterpret_cast<int*>(&m_TAATechnique), "DLSS\0FSR\0\0");
     }
 
     void OnRenderResolutionChanged() override
@@ -168,12 +179,75 @@ public:
             return false;
         }
 
+        if (m_TAATechnique == TAATechnique::DLSS && !m_bDLSS_Supported)
+        {
+            return false;
+        }
+
+        nvrhi::TextureDesc desc;
+        desc.width = g_Graphic.m_RenderResolution.x;
+        desc.height = g_Graphic.m_RenderResolution.y;
+        desc.format = GraphicConstants::kLightingOutputFormat;
+        desc.debugName = "Upscaled Lighting Output";
+        desc.isUAV = true;
+        desc.initialState = nvrhi::ResourceStates::ShaderResource;
+
+        renderGraph.CreateTransientResource(g_UpscaledLightingOutputRDGTextureHandle, desc);
+
+        renderGraph.AddReadDependency(g_LightingOutputRDGTextureHandle);
+        renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
+        renderGraph.AddReadDependency(g_GBufferMotionRDGTextureHandle);
+
         return true;
+    }
+    
+    void EvaluateDLSS(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
+    {
+        ID3D12GraphicsCommandList* nativeCommandList = commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
+
+        nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
+        ID3D12Resource* inColorResource = lightingOutputTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        nvrhi::TextureHandle upscaledLightingOutputTexture = renderGraph.GetTexture(g_UpscaledLightingOutputRDGTextureHandle);
+        ID3D12Resource* outColorResource = upscaledLightingOutputTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        // output requires UAV state
+        commandList->setTextureState(upscaledLightingOutputTexture, nvrhi::AllSubresources, nvrhi::ResourceStates::UnorderedAccess);
+        commandList->commitBarriers();
+
+        nvrhi::TextureHandle depthTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
+        ID3D12Resource* inDepthResource = depthTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        nvrhi::TextureHandle motionVectorsTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
+        ID3D12Resource* inMotionVectorsResource = motionVectorsTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        ID3D12Resource* inExposureResource = g_Scene->m_ExposureTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        const Vector2& jitterOffset = g_Scene->m_View.m_CurrentJitterOffset;
+
+        NVSDK_NGX_D3D12_DLSS_Eval_Params evalParams{};
+        evalParams.Feature.pInColor = inColorResource;
+        evalParams.Feature.pInOutput = outColorResource;
+        evalParams.pInDepth = inDepthResource;
+        evalParams.pInMotionVectors = inMotionVectorsResource;
+        evalParams.pInExposureTexture = inExposureResource;
+        evalParams.InJitterOffsetX = jitterOffset.x;
+        evalParams.InJitterOffsetY = jitterOffset.y;
+        evalParams.InRenderSubrectDimensions = NVSDK_NGX_Dimensions{ g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y };
+
+        NGX_CALL(NGX_D3D12_EVALUATE_DLSS_EXT(nativeCommandList, m_NGXHandle, m_NGXParameters, &evalParams));
     }
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        
+        if (m_TAATechnique == TAATechnique::DLSS && m_bDLSS_Supported)
+        {
+            EvaluateDLSS(commandList, renderGraph);
+        }
+        else
+        {
+            // TODO: FSR
+        }
     }
 };
 
