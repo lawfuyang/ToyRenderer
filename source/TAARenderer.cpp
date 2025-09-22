@@ -31,17 +31,6 @@ class TAARenderer : public IRenderer
     NVSDK_NGX_Parameter* m_NGXParameters = nullptr;
     NVSDK_NGX_Handle* m_NGXHandle = nullptr;
 
-    struct DLSSOptimalSettings
-    {
-        unsigned int m_RenderOptimalWidth = 0;
-        unsigned int m_RenderOptimalHeight = 0;
-        unsigned int m_RenderMaxWidth = 0;
-        unsigned int m_RenderMaxHeight = 0;
-        unsigned int m_RenderMinWidth = 0;
-        unsigned int m_RenderMinHeight = 0;
-        float m_Sharpness = 0.0f;
-    } m_DLSSOptimalSettings;
-
 public:
     TAARenderer() : IRenderer("TAA Renderer"){}
 
@@ -110,27 +99,35 @@ public:
 
         const NVSDK_NGX_PerfQuality_Value perfQualityValue = NVSDK_NGX_PerfQuality_Value_DLAA; // just use DLAA for now
 
+        unsigned int renderOptimalWidth = 0;
+        unsigned int renderOptimalHeight = 0;
+        unsigned int renderMaxWidth = 0;
+        unsigned int renderMaxHeight = 0;
+        unsigned int renderMinWidth = 0;
+        unsigned int renderMinHeight = 0;
+        float sharpness = 0.0f;
+
         NGX_CALL(NGX_DLSS_GET_OPTIMAL_SETTINGS(
             m_NGXParameters,
             g_Graphic.m_RenderResolution.x,
             g_Graphic.m_RenderResolution.y,
             perfQualityValue,
-            &m_DLSSOptimalSettings.m_RenderOptimalWidth,
-            &m_DLSSOptimalSettings.m_RenderOptimalHeight,
-            &m_DLSSOptimalSettings.m_RenderMaxWidth,
-            &m_DLSSOptimalSettings.m_RenderMaxHeight,
-            &m_DLSSOptimalSettings.m_RenderMinWidth,
-            &m_DLSSOptimalSettings.m_RenderMinHeight,
-            &m_DLSSOptimalSettings.m_Sharpness
+            &renderOptimalWidth,
+            &renderOptimalHeight,
+            &renderMaxWidth,
+            &renderMaxHeight,
+            &renderMinWidth,
+            &renderMinHeight,
+            &sharpness
         ));
 
-        check(m_DLSSOptimalSettings.m_RenderOptimalWidth > 0 && m_DLSSOptimalSettings.m_RenderOptimalHeight > 0);
-        check(m_DLSSOptimalSettings.m_RenderOptimalWidth <= g_Graphic.m_RenderResolution.x);
-        check(m_DLSSOptimalSettings.m_RenderOptimalHeight <= g_Graphic.m_RenderResolution.y);
+        check(renderOptimalWidth > 0 && renderOptimalHeight > 0);
+        check(renderOptimalWidth <= g_Graphic.m_RenderResolution.x);
+        check(renderOptimalHeight <= g_Graphic.m_RenderResolution.y);
 
         NVSDK_NGX_DLSS_Create_Params dlssCreateParams{};
-        dlssCreateParams.Feature.InWidth = m_DLSSOptimalSettings.m_RenderOptimalWidth;
-        dlssCreateParams.Feature.InHeight = m_DLSSOptimalSettings.m_RenderOptimalHeight;
+        dlssCreateParams.Feature.InWidth = renderOptimalWidth;
+        dlssCreateParams.Feature.InHeight = renderOptimalHeight;
         dlssCreateParams.Feature.InTargetWidth = g_Graphic.m_RenderResolution.x;
         dlssCreateParams.Feature.InTargetHeight = g_Graphic.m_RenderResolution.y;
         dlssCreateParams.Feature.InPerfQualityValue = perfQualityValue;
