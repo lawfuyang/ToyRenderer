@@ -28,8 +28,6 @@ extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 
 class TAARenderer : public IRenderer
 {
-    bool m_bShutdownDone = false;
-
     NVSDK_NGX_Parameter* m_NGXParameters = nullptr;
     NVSDK_NGX_Handle* m_NGXHandle = nullptr;
 
@@ -49,23 +47,25 @@ public:
 
     ~TAARenderer() override
     {
-        if (m_bShutdownDone)
+        ShutdownDLSS();
+    }
+
+    void ShutdownDLSS()
+    {
+        if (m_NGXParameters)
         {
-            return;
+            NGX_CALL(NVSDK_NGX_D3D12_DestroyParameters(m_NGXParameters));
+            m_NGXParameters = nullptr;
         }
 
-        check(m_NGXParameters);
-        NGX_CALL(NVSDK_NGX_D3D12_DestroyParameters(m_NGXParameters));
-        m_NGXParameters = nullptr;
+        if (m_NGXHandle)
+        {
+            NGX_CALL(NVSDK_NGX_D3D12_ReleaseFeature(m_NGXHandle));
+            m_NGXHandle = nullptr;
 
-        check(m_NGXHandle);
-        NGX_CALL(NVSDK_NGX_D3D12_ReleaseFeature(m_NGXHandle));
-        m_NGXHandle = nullptr;
-        
-        ID3D12Device* nativeDevice = g_Graphic.m_NVRHIDevice->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
-        NGX_CALL(NVSDK_NGX_D3D12_Shutdown1(nativeDevice));
-
-        m_bShutdownDone = true;
+            ID3D12Device* nativeDevice = g_Graphic.m_NVRHIDevice->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
+            NGX_CALL(NVSDK_NGX_D3D12_Shutdown1(nativeDevice));
+        }
     }
 
     void InitDLSS()
@@ -161,7 +161,17 @@ public:
 
     void UpdateImgui() override
     {
-        ImGui::Combo("Technique", reinterpret_cast<int*>(&g_Scene->m_TAATechnique), "None\0DLSS\0FSR\0\0");
+        if (ImGui::Combo("Technique", reinterpret_cast<int*>(&g_Scene->m_TAATechnique), "None\0DLSS\0FSR\0\0"))
+        {
+            verify(g_Graphic.m_NVRHIDevice->waitForIdle());
+
+            ShutdownDLSS();
+
+            if (g_Scene->m_TAATechnique == TAATechnique::DLSS)
+            {
+                InitDLSS();
+            }
+        }
     }
 
     void OnRenderResolutionChanged() override
@@ -180,7 +190,7 @@ public:
         desc.width = g_Graphic.m_RenderResolution.x;
         desc.height = g_Graphic.m_RenderResolution.y;
         desc.format = GraphicConstants::kLightingOutputFormat;
-        desc.debugName = "Upscaled Lighting Output";
+        desc.debugName = "Anti-Aliased Lighting Output";
         desc.isUAV = true;
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
