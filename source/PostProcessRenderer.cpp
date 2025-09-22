@@ -7,7 +7,7 @@
 #include "shaders/ShaderInterop.h"
 
 extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
-extern RenderGraph::ResourceHandle g_UpscaledLightingOutputRDGTextureHandle;
+extern RenderGraph::ResourceHandle g_AntiAliasedLightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_BloomRDGTextureHandle;
 
 class PostProcessRenderer : public IRenderer
@@ -22,9 +22,9 @@ public:
             renderGraph.AddReadDependency(g_BloomRDGTextureHandle);
         }
 
-        if (g_Scene->m_bEnableTAA)
+        if (g_Scene->IsTAAEnabled())
         {
-            renderGraph.AddReadDependency(g_UpscaledLightingOutputRDGTextureHandle);
+            renderGraph.AddReadDependency(g_AntiAliasedLightingOutputRDGTextureHandle);
         }
         else
         {
@@ -49,7 +49,7 @@ public:
         passParameters.m_MiddleGray = g_Scene->m_MiddleGray;
         passParameters.m_BloomStrength = g_Scene->m_bEnableBloom ? g_Scene->m_BloomStrength : 0.0f;
 
-        nvrhi::TextureHandle inputTexture = renderGraph.GetTexture(g_Scene->m_bEnableTAA ? g_UpscaledLightingOutputRDGTextureHandle : g_LightingOutputRDGTextureHandle);
+        nvrhi::TextureHandle inputTexture = renderGraph.GetTexture(g_Scene->IsTAAEnabled() ? g_AntiAliasedLightingOutputRDGTextureHandle : g_LightingOutputRDGTextureHandle);
         nvrhi::TextureHandle bloomTexture = g_Scene->m_bEnableBloom ? renderGraph.GetTexture(g_BloomRDGTextureHandle) : g_CommonResources.BlackTexture.m_NVRHITextureHandle;
 
         nvrhi::BindingSetDesc bindingSetDesc;

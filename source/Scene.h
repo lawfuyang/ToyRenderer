@@ -10,6 +10,7 @@ class Primitive;
 class RenderGraph;
 
 enum class GITechnique { DDGI, ReSTIR };
+enum class TAATechnique { None, DLSS, FSR };
 
 struct Animation
 {
@@ -91,6 +92,7 @@ public:
     bool IsGIEnabled() const { return m_bEnableGI; }
     bool IsDDGIEnabled() const;
     bool IsShadowsEnabled() const;
+    bool IsTAAEnabled() const;
 
     nvrhi::TextureHandle GetDDGIProbeDataTexture();
     nvrhi::TextureHandle GetDDGIProbeIrradianceTexture();
@@ -101,6 +103,8 @@ public:
     View m_View;
 
     GITechnique m_GITechnique = GITechnique::DDGI;
+    TAATechnique m_TAATechnique = TAATechnique::DLSS;
+    bool m_bDLSS_Supported = false;
 
     double m_AnimationTimeSeconds = 0.0;
     float m_SunOrientation = 270.0f;
@@ -127,7 +131,6 @@ public:
     bool m_bEnableTextureStreaming = true;
     bool m_bVisualizeMinMipTilesOnAlbedoOutput = false;
     bool m_bWriteSamplerFeedback = true;
-    bool m_bEnableTAA = true;
 
     ::AABB m_AABB;
     Sphere m_BoundingSphere;

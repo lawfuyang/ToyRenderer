@@ -20,7 +20,7 @@
         } \
     }
 
-RenderGraph::ResourceHandle g_UpscaledLightingOutputRDGTextureHandle;
+RenderGraph::ResourceHandle g_AntiAliasedLightingOutputRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_GBufferMotionRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthStencilBufferRDGTextureHandle;
 extern RenderGraph::ResourceHandle g_DepthBufferCopyRDGTextureHandle;
@@ -28,11 +28,7 @@ extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 
 class TAARenderer : public IRenderer
 {
-    enum class TAATechnique { DLSS, FSR };
-
-    TAATechnique m_TAATechnique = TAATechnique::DLSS;
     bool m_bShutdownDone = false;
-    bool m_bDLSS_Supported = false;
 
     NVSDK_NGX_Parameter* m_NGXParameters = nullptr;
     NVSDK_NGX_Handle* m_NGXHandle = nullptr;
@@ -153,7 +149,7 @@ public:
         const unsigned int kVisibilityNodeMask = 1;
         NGX_CALL(NGX_D3D12_CREATE_DLSS_EXT(nativeCommandList, kCreationNodeMask, kVisibilityNodeMask, &m_NGXHandle, m_NGXParameters, &dlssCreateParams));
 
-        m_bDLSS_Supported = true;
+        g_Scene->m_bDLSS_Supported = true;
     }
 
     void Initialize() override
@@ -163,8 +159,7 @@ public:
 
     void UpdateImgui() override
     {
-        ImGui::Checkbox("Enable", &g_Scene->m_bEnableTAA);
-        ImGui::Combo("Technique", reinterpret_cast<int*>(&m_TAATechnique), "DLSS\0FSR\0\0");
+        ImGui::Combo("Technique", reinterpret_cast<int*>(&g_Scene->m_TAATechnique), "None\0DLSS\0FSR\0\0");
     }
 
     void OnRenderResolutionChanged() override
@@ -174,18 +169,8 @@ public:
 
     bool Setup(RenderGraph& renderGraph) override
     {
-        if (!g_Scene->m_bEnableTAA)
+        if (!g_Scene->IsTAAEnabled())
         {
-            return false;
-        }
-
-        if (m_TAATechnique == TAATechnique::DLSS && !m_bDLSS_Supported)
-        {
-            return false;
-        }
-        else if (m_TAATechnique == TAATechnique::FSR)
-        {
-            g_Scene->m_bEnableTAA = false; // temp until start implementing FSR
             return false;
         }
 
@@ -197,7 +182,7 @@ public:
         desc.isUAV = true;
         desc.initialState = nvrhi::ResourceStates::ShaderResource;
 
-        renderGraph.CreateTransientResource(g_UpscaledLightingOutputRDGTextureHandle, desc);
+        renderGraph.CreateTransientResource(g_AntiAliasedLightingOutputRDGTextureHandle, desc);
 
         renderGraph.AddReadDependency(g_LightingOutputRDGTextureHandle);
         renderGraph.AddReadDependency(g_DepthBufferCopyRDGTextureHandle);
@@ -213,7 +198,7 @@ public:
         nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
         ID3D12Resource* inColorResource = lightingOutputTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
 
-        nvrhi::TextureHandle upscaledLightingOutputTexture = renderGraph.GetTexture(g_UpscaledLightingOutputRDGTextureHandle);
+        nvrhi::TextureHandle upscaledLightingOutputTexture = renderGraph.GetTexture(g_AntiAliasedLightingOutputRDGTextureHandle);
         ID3D12Resource* outColorResource = upscaledLightingOutputTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
 
         // output requires UAV state
@@ -245,7 +230,7 @@ public:
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
     {
-        if (m_TAATechnique == TAATechnique::DLSS && m_bDLSS_Supported)
+        if (g_Scene->m_TAATechnique == TAATechnique::DLSS)
         {
             EvaluateDLSS(commandList, renderGraph);
         }

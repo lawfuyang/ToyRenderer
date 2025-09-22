@@ -123,7 +123,7 @@ void View::Update()
     m_ViewToClip = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, kKindaBigNumber);
     ModifyPerspectiveMatrix(m_ViewToClip, m_ZNearP, kKindaBigNumber, GraphicConstants::kInversedDepthBuffer, GraphicConstants::kInfiniteDepthBuffer);
 
-    if (g_Scene->m_bEnableTAA)
+    if (g_Scene->IsTAAEnabled())
     {
         const Matrix pixelOffsetMatrix = Matrix::CreateTranslation(Vector3{ 2.0f * m_CurrentJitterOffset.x / g_Graphic.m_RenderResolution.x, -2.0f * m_CurrentJitterOffset.y / g_Graphic.m_RenderResolution.y, 0.f });
         m_ViewToClip *= pixelOffsetMatrix;
@@ -192,6 +192,19 @@ bool Scene::IsDDGIEnabled() const
 bool Scene::IsShadowsEnabled() const
 {
     return m_bEnableRayTracing && m_TLAS && m_bEnableShadows;
+}
+
+bool Scene::IsTAAEnabled() const
+{
+    switch (m_TAATechnique)
+    {
+    case TAATechnique::DLSS:
+        return m_bDLSS_Supported;
+    case TAATechnique::FSR:
+        return true;
+    default:
+        return false;
+    }
 }
 
 nvrhi::TextureHandle Scene::GetDDGIProbeDataTexture() { return m_RTDDGIVolume ? m_RTDDGIVolume->GetProbeDataTexture() : g_CommonResources.BlackTexture2DArray.m_NVRHITextureHandle; }
