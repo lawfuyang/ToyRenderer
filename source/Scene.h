@@ -59,14 +59,12 @@ public:
     Matrix m_WorldToView;
     Matrix m_ViewToClip;
     Matrix m_WorldToClip;
-    Matrix m_WorldToClipWithJitter;
     Matrix m_ViewToWorld;
     Matrix m_ClipToWorld;
 
     Matrix m_PrevWorldToView;
     Matrix m_PrevViewToClip;
     Matrix m_PrevWorldToClip;
-    Matrix m_PrevWorldToClipWithJitter;
 
     Vector2 m_CurrentJitterOffset = Vector2::Zero;
 

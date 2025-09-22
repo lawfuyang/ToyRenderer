@@ -141,6 +141,7 @@ public:
         dlssCreateParams.InFeatureCreateFlags =
             NVSDK_NGX_DLSS_Feature_Flags_IsHDR |
             NVSDK_NGX_DLSS_Feature_Flags_MVLowRes |
+            NVSDK_NGX_DLSS_Feature_Flags_MVJittered |
             NVSDK_NGX_DLSS_Feature_Flags_DepthInverted;
 
         nvrhi::CommandListHandle cmdList = g_Graphic.AllocateCommandList();

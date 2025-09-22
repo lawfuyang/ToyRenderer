@@ -216,17 +216,13 @@ GBufferParams GetGBufferParams(VertexOut inVertex)
 
     result.m_Motion = float2(0.0f, 0.0f);
     
-    float4 prevClipPosition = mul(float4(inVertex.m_PrevWorldPosition, 1), g_BasePassConsts.m_PrevWorldToClipNoJitter);
+    float4 prevClipPosition = mul(float4(inVertex.m_PrevWorldPosition, 1), g_BasePassConsts.m_PrevWorldToClip);
     if (prevClipPosition.w > 0.0f)
     {
         prevClipPosition.xy /= prevClipPosition.w;
-        float2 prevWindowPos = ClipXYToUV(prevClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
+        float2 prevViewportPos = ClipXYToUV(prevClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
 
-        float4 currentClipPosition = mul(float4(inVertex.m_WorldPosition, 1), g_BasePassConsts.m_WorldToClipNoJitter);
-        currentClipPosition.xy /= currentClipPosition.w;
-        float2 currentWindowPos = ClipXYToUV(currentClipPosition.xy) * g_BasePassConsts.m_OutputResolution;
-
-        result.m_Motion = prevWindowPos - currentWindowPos;
+        result.m_Motion = prevViewportPos - inVertex.m_Position.xy;
     }
 
     return result;

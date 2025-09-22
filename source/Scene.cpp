@@ -110,11 +110,12 @@ void View::Update()
 {
     PROFILE_FUNCTION();
 
+    m_CurrentJitterOffset = g_Graphic.ComputeCurrentJitterOffset();
+
     // update prev frame matrices
     m_PrevWorldToView = m_WorldToView;
     m_PrevViewToClip = m_ViewToClip;
     m_PrevWorldToClip = m_WorldToClip;
-    m_PrevWorldToClipWithJitter = m_WorldToClipWithJitter;
 
     m_ViewToWorld = Matrix::CreateFromQuaternion(m_Orientation) * Matrix::CreateTranslation(m_Eye);
     m_WorldToView = m_ViewToWorld.Invert();
@@ -122,14 +123,14 @@ void View::Update()
     m_ViewToClip = Matrix::CreatePerspectiveFieldOfView(m_FOV, m_AspectRatio, m_ZNearP, kKindaBigNumber);
     ModifyPerspectiveMatrix(m_ViewToClip, m_ZNearP, kKindaBigNumber, GraphicConstants::kInversedDepthBuffer, GraphicConstants::kInfiniteDepthBuffer);
 
+    if (g_Scene->m_bEnableTAA)
+    {
+        const Matrix pixelOffsetMatrix = Matrix::CreateTranslation(Vector3{ 2.0f * m_CurrentJitterOffset.x / g_Graphic.m_RenderResolution.x, -2.0f * m_CurrentJitterOffset.y / g_Graphic.m_RenderResolution.y, 0.f });
+        m_ViewToClip *= pixelOffsetMatrix;
+    }
+
     m_WorldToClip = m_WorldToView * m_ViewToClip;
     m_ClipToWorld = m_WorldToClip.Invert();
-
-    m_WorldToClipWithJitter = m_WorldToClip;
-
-    m_CurrentJitterOffset = g_Graphic.ComputeCurrentJitterOffset();
-    const Vector2 subPixelJitterOffset = m_CurrentJitterOffset / Vector2{ (float)g_Graphic.m_RenderResolution.x, (float)g_Graphic.m_RenderResolution.y };
-    m_WorldToClipWithJitter.Translation(m_WorldToClipWithJitter.Translation() + Vector3{ subPixelJitterOffset.x, subPixelJitterOffset.y, 0.0f });
 
     Frustum::CreateFromMatrix(m_Frustum, m_ViewToClip);
     m_Frustum.Transform(m_Frustum, m_ViewToWorld);
