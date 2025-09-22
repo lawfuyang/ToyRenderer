@@ -94,3 +94,6 @@ Use "**--scene**" commandline argument to load a scene. Example:
     - Linear Translation & Rotation only. No bones & skinning support yet.
 - **GPU Ray-Traced Global Illumination with [Nvidia RTXGI-DDI](https://github.com/NVIDIAGameWorks/RTXGI-DDGI)**
 - **Virtual Textures (Tiled Resources) w/ [Sampler Feedback](https://microsoft.github.io/DirectX-Specs/d3d/SamplerFeedback.html) using [Nvidia Tiled Texture Manager Library](https://github.com/NVIDIA-RTX/RTXTS)**
+- **Temporal Anti-Aliasing**
+    - [DLSS](https://github.com/NVIDIA/DLSS)
+    - [FSR](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) (WIP)
