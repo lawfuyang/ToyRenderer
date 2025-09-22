@@ -182,6 +182,11 @@ public:
         {
             return false;
         }
+        else if (m_TAATechnique == TAATechnique::FSR)
+        {
+            g_Scene->m_bEnableTAA = false; // temp until start implementing FSR
+            return false;
+        }
 
         nvrhi::TextureDesc desc;
         desc.width = g_Graphic.m_RenderResolution.x;
