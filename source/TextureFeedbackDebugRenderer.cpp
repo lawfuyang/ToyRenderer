@@ -24,6 +24,8 @@ class TextureFeedbackDebugRenderer : public IRenderer
 public:
     TextureFeedbackDebugRenderer() : IRenderer{ "TextureFeedbackDebugRenderer" } {}
 
+    bool HasImguiControls() const override { return true; }
+
     void UpdateImgui() override
     {
         ImGui::Checkbox("Visualize Min Mip Tiles", &g_Scene->m_bVisualizeMinMipTilesOnAlbedoOutput);

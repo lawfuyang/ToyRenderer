@@ -301,12 +301,6 @@ tf::Task RenderGraph::AddRenderer(IRenderer* renderer)
 	return renderTask;
 }
 
-void RenderGraph::UpdateIMGUI()
-{
-	ImGui::Checkbox("Enable Pass Culling", &m_bPassCulling);
-	ImGui::Checkbox("Enable Resource Tracking", &m_bResourceAliasing);
-}
-
 template <typename ResourceDescT>
 void RenderGraph::CreateTransientResource(ResourceHandle& resourceHandle, const ResourceDescT& inputDesc)
 {

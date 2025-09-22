@@ -298,6 +298,8 @@ public:
 
     GIRenderer() : IRenderer("GIRenderer") {}
 
+    bool HasImguiControls() const override { return true; }
+
     void UpdateImgui() override
     {
         ImGui::Checkbox("Enabled", &g_Scene->m_bEnableGI);

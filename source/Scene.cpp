@@ -487,41 +487,30 @@ void Scene::Update()
     {
         PROFILE_SCOPED("Schedule Renderers");
 
-        extern IRenderer* g_ClearBuffersRenderer;
-        extern IRenderer* g_UpdateInstanceConstsRenderer;
-        extern IRenderer* g_GIRenderer;
-        extern IRenderer* g_GBufferRenderer;
-        extern IRenderer* g_ShadowMaskRenderer;
-        extern IRenderer* g_DeferredLightingRenderer;
-        extern IRenderer* g_TransparentForwardRenderer;
-        extern IRenderer* g_IMGUIRenderer;
-        extern IRenderer* g_SkyRenderer;
-        extern IRenderer* g_PostProcessRenderer;
-        extern IRenderer* g_AdaptLuminanceRenderer;
-        extern IRenderer* g_AmbientOcclusionRenderer;
-        extern IRenderer* g_BloomRenderer;
-        extern IRenderer* g_GIDebugRenderer;
-        extern IRenderer* g_TextureFeedbackDebugRenderer;
-        extern IRenderer* g_TAARenderer;
-        
-        m_RenderGraph->AddRenderer(g_ClearBuffersRenderer);
-        m_RenderGraph->AddRenderer(g_UpdateInstanceConstsRenderer);
-        m_RenderGraph->AddRenderer(g_GIRenderer);
-        m_RenderGraph->AddRenderer(g_GBufferRenderer);
-        m_RenderGraph->AddRenderer(g_AmbientOcclusionRenderer);
-        m_RenderGraph->AddRenderer(g_ShadowMaskRenderer);
-        m_RenderGraph->AddRenderer(g_DeferredLightingRenderer);
-        m_RenderGraph->AddRenderer(g_SkyRenderer);
-        m_RenderGraph->AddRenderer(g_BloomRenderer);
-        m_RenderGraph->AddRenderer(g_TransparentForwardRenderer);
-        m_RenderGraph->AddRenderer(g_AdaptLuminanceRenderer);
-        m_RenderGraph->AddRenderer(g_TAARenderer);
-        m_RenderGraph->AddRenderer(g_PostProcessRenderer);
+        #define SCHEDULE_RENDERER(name) \
+            extern IRenderer* name; \
+            m_RenderGraph->AddRenderer(name);
 
-        // DisplayResolution Debug Passes
-        m_RenderGraph->AddRenderer(g_GIDebugRenderer);
-        m_RenderGraph->AddRenderer(g_TextureFeedbackDebugRenderer);
-        m_RenderGraph->AddRenderer(g_IMGUIRenderer);
+        SCHEDULE_RENDERER(g_ClearBuffersRenderer);
+        SCHEDULE_RENDERER(g_UpdateInstanceConstsRenderer);
+        SCHEDULE_RENDERER(g_GIRenderer);
+        SCHEDULE_RENDERER(g_GBufferRenderer);
+        SCHEDULE_RENDERER(g_AmbientOcclusionRenderer);
+        SCHEDULE_RENDERER(g_ShadowMaskRenderer);
+        SCHEDULE_RENDERER(g_DeferredLightingRenderer);
+        SCHEDULE_RENDERER(g_SkyRenderer);
+        SCHEDULE_RENDERER(g_BloomRenderer);
+        SCHEDULE_RENDERER(g_TransparentForwardRenderer);
+        SCHEDULE_RENDERER(g_AdaptLuminanceRenderer);
+        SCHEDULE_RENDERER(g_TAARenderer);
+        SCHEDULE_RENDERER(g_PostProcessRenderer);
+
+        // Debug Passes
+        SCHEDULE_RENDERER(g_GIDebugRenderer);
+        SCHEDULE_RENDERER(g_TextureFeedbackDebugRenderer);
+        SCHEDULE_RENDERER(g_IMGUIRenderer);
+
+        #undef SCHEDULE_RENDERER
     }
     m_RenderGraph->Compile();
 
@@ -621,6 +610,11 @@ void Scene::UpdateIMGUI()
 
     for (IRenderer* renderer : IRenderer::ms_AllRenderers)
     {
+        if (!renderer->HasImguiControls())
+        {
+            continue;
+        }
+
         PROFILE_SCOPED(renderer->m_Name.c_str());
 
         if (ImGui::TreeNode(renderer->m_Name.c_str()))
@@ -630,14 +624,7 @@ void Scene::UpdateIMGUI()
         }
     }
 
-    if (ImGui::TreeNode("Render Graph"))
-    {
-        m_RenderGraph->UpdateIMGUI();
-
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Cameras"))
+    if (ImGui::TreeNode("Scene"))
     {
         std::string cameraComboStr;
         for (const Scene::Camera& camera : m_Cameras)
@@ -652,16 +639,11 @@ void Scene::UpdateIMGUI()
             SetCamera(cameraIdx);
         }
 
-        if (!m_Cameras.empty() && ImGui::Button("Reset"))
+        if (!m_Cameras.empty() && ImGui::Button("Reset Camera"))
         {
             SetCamera(0);
         }
 
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Lighting"))
-    {
         bool bUpdateDirection = false;
         bUpdateDirection |= ImGui::SliderFloat("Sun Orientation", &m_SunOrientation, 0.0f, 360.0f);
         bUpdateDirection |= ImGui::SliderFloat("Sun Inclination", &m_SunInclination, 0.0f, 89.0f);

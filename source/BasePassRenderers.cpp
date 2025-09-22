@@ -207,6 +207,8 @@ public:
         }
 	}
 
+    bool HasImguiControls() const override { return true; }
+
     void UpdateImgui() override
     {
         ImGui::Text("Primitives Invocations: %llu", m_LastPipelineStatistics.CInvocations);

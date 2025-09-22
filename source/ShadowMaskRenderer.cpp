@@ -173,6 +173,8 @@ public:
         }
     }
 
+    bool HasImguiControls() const override { return true; }
+
     void UpdateImgui() override
     {
         ImGui::Checkbox("Enable Shadows", &g_Scene->m_bEnableShadows);

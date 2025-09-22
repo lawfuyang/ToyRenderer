@@ -157,6 +157,8 @@ public:
         InitDLSS();
     }
 
+    bool HasImguiControls() const override { return true; }
+
     void UpdateImgui() override
     {
         ImGui::Combo("Technique", reinterpret_cast<int*>(&g_Scene->m_TAATechnique), "None\0DLSS\0FSR\0\0");

@@ -66,6 +66,8 @@ public:
             commandList->writeTexture(g_Scene->m_ExposureTexture, 0, 0, &kInitialExposure, sizeof(float));
         }
     }
+    
+    bool HasImguiControls() const override { return true; }
 
     void UpdateImgui() override
     {

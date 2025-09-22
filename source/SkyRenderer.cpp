@@ -138,6 +138,8 @@ class SkyRenderer : public IRenderer
 public:
     SkyRenderer() : IRenderer{ "SkyRenderer" } {}
 
+    bool HasImguiControls() const override { return true; }
+
     void UpdateImgui() override
     {
         ImGui::Checkbox("Enabled", &m_bEnabled);

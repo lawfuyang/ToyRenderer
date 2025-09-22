@@ -173,6 +173,7 @@ public:
     virtual ~IRenderer() = default;
     virtual void Initialize() {};
     virtual void PostSceneLoad() {};
+    virtual bool HasImguiControls() const { return false; }
     virtual void UpdateImgui() {};
     virtual void OnRenderResolutionChanged() {};
 

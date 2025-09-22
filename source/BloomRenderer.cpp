@@ -19,6 +19,8 @@ class BloomRenderer : public IRenderer
 public:
 	BloomRenderer() : IRenderer("BloomRenderer") {}
 
+	bool HasImguiControls() const override { return true; }
+
 	void UpdateImgui() override
 	{
 		const uint32_t nbMaxBloomMips = ComputeNbMips(g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y);
