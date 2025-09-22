@@ -358,10 +358,10 @@ public:
         commonSettings.resourceSize[1] = g_Graphic.m_RenderResolution.y;
         commonSettings.resourceSizePrev[0] = g_Graphic.m_RenderResolution.x;
         commonSettings.resourceSizePrev[1] = g_Graphic.m_RenderResolution.y;
-        commonSettings.rectSize[0] = g_Graphic.m_DisplayResolution.x;
-        commonSettings.rectSize[1] = g_Graphic.m_DisplayResolution.y;
-        commonSettings.rectSizePrev[0] = g_Graphic.m_DisplayResolution.x;
-        commonSettings.rectSizePrev[1] = g_Graphic.m_DisplayResolution.y;
+        commonSettings.rectSize[0] = g_Graphic.m_RenderResolution.x;
+        commonSettings.rectSize[1] = g_Graphic.m_RenderResolution.y;
+        commonSettings.rectSizePrev[0] = g_Graphic.m_RenderResolution.x;
+        commonSettings.rectSizePrev[1] = g_Graphic.m_RenderResolution.y;
         commonSettings.denoisingRange = std::max(100.0f, g_Scene->m_BoundingSphere.Radius * 2);
         commonSettings.frameIndex = g_Graphic.m_FrameCounter;
         commonSettings.accumulationMode = nrd::AccumulationMode::CONTINUE; // TODO: change when camera resets or jumps

@@ -780,7 +780,7 @@ public:
             nvrhi::GraphicsState graphicsState;
             graphicsState.pipeline = g_Graphic.GetOrCreatePSO(pipelineDesc, frameBuffer);
             graphicsState.framebuffer = frameBuffer;
-            graphicsState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)g_Graphic.m_DisplayResolution.x, (float)g_Graphic.m_DisplayResolution.y });
+            graphicsState.viewport.addViewportAndScissorRect(nvrhi::Viewport{ (float)g_Graphic.m_RenderResolution.x, (float)g_Graphic.m_RenderResolution.y });
             graphicsState.bindings = { bindingSet };
             graphicsState.vertexBuffers = { nvrhi::VertexBufferBinding{ g_CommonResources.UnitSphere.m_VertexBuffer } };
             graphicsState.indexBuffer = nvrhi::IndexBufferBinding{ g_CommonResources.UnitSphere.m_IndexBuffer, GraphicConstants::kIndexBufferFormat };

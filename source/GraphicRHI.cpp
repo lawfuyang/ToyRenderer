@@ -211,8 +211,8 @@ public:
 
         // Describe and create the swap chain.
         DXGI_SWAP_CHAIN_DESC1 SwapChainDesc = {};
-        SwapChainDesc.Width = g_Graphic.m_DisplayResolution.x;
-        SwapChainDesc.Height = g_Graphic.m_DisplayResolution.y;
+        SwapChainDesc.Width = g_Graphic.m_RenderResolution.x;
+        SwapChainDesc.Height = g_Graphic.m_RenderResolution.y;
         SwapChainDesc.Format = nvrhi::d3d12::convertFormat(nvrhi::Format::RGBA8_UNORM); // TODO: HDR display support
         SwapChainDesc.Stereo = false;
         SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;

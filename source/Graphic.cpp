@@ -611,10 +611,7 @@ void Graphic::Initialize()
 {
     PROFILE_FUNCTION();
 
-    m_DisplayResolution = g_Engine.m_WindowSize;
-
-    // TODO: upscaling stuff
-    m_RenderResolution = m_DisplayResolution;
+    m_RenderResolution = g_Engine.m_WindowSize;
 
     m_CommonResources = std::make_shared<CommonResources>();
     m_TextureFeedbackManager = std::make_shared<TextureFeedbackManager>();
@@ -996,7 +993,7 @@ Vector2 Graphic::ComputeCurrentJitterOffset()
                 return ret;
             };
 
-        const uint32_t phaseCount = GetJitterPhaseCount(m_RenderResolution.x, m_DisplayResolution.x);
+        const uint32_t phaseCount = GetJitterPhaseCount(m_RenderResolution.x, m_RenderResolution.x);
         const uint32_t index = (m_FrameCounter % phaseCount) + 1;
         return Vector2{ VanDerCorput(2, index), VanDerCorput(3, index) } - Vector2{ 0.5f, 0.5f };
     }

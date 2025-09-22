@@ -90,10 +90,10 @@ public:
             for (uint32_t mip = 0; mip < texture.m_NVRHITextureHandle->getDesc().mipLevels; mip++)
             {
                 const nvrhi::Viewport viewport{
-                    std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x),
-                    std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + size),
-                    std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - size - margin),
-                    std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - margin),
+                    std::min((float)g_Graphic.m_RenderResolution.x - 1.0f, x),
+                    std::min((float)g_Graphic.m_RenderResolution.x - 1.0f, x + size),
+                    std::min((float)g_Graphic.m_RenderResolution.y - 1.0f, g_Graphic.m_RenderResolution.y - size - margin),
+                    std::min((float)g_Graphic.m_RenderResolution.y - 1.0f, g_Graphic.m_RenderResolution.y - margin),
                     0.f, 1.f
                 };
 
@@ -134,10 +134,10 @@ public:
                     };
 
                     const nvrhi::Viewport viewport{
-                        std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x),
-                        std::min((float)g_Graphic.m_DisplayResolution.x - 1.0f, x + m_ZoomLevel),
-                        std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - m_ZoomLevel - margin),
-                        std::min((float)g_Graphic.m_DisplayResolution.y - 1.0f, g_Graphic.m_DisplayResolution.y - margin),
+                        std::min((float)g_Graphic.m_RenderResolution.x - 1.0f, x),
+                        std::min((float)g_Graphic.m_RenderResolution.x - 1.0f, x + m_ZoomLevel),
+                        std::min((float)g_Graphic.m_RenderResolution.y - 1.0f, g_Graphic.m_RenderResolution.y - m_ZoomLevel - margin),
+                        std::min((float)g_Graphic.m_RenderResolution.y - 1.0f, g_Graphic.m_RenderResolution.y - margin),
                         0.f, 1.f
                     };
 

@@ -135,8 +135,8 @@ public:
         NVSDK_NGX_DLSS_Create_Params dlssCreateParams{};
         dlssCreateParams.Feature.InWidth = m_DLSSOptimalSettings.m_RenderOptimalWidth;
         dlssCreateParams.Feature.InHeight = m_DLSSOptimalSettings.m_RenderOptimalHeight;
-        dlssCreateParams.Feature.InTargetWidth = g_Graphic.m_DisplayResolution.x;
-        dlssCreateParams.Feature.InTargetHeight = g_Graphic.m_DisplayResolution.y;
+        dlssCreateParams.Feature.InTargetWidth = g_Graphic.m_RenderResolution.x;
+        dlssCreateParams.Feature.InTargetHeight = g_Graphic.m_RenderResolution.y;
         dlssCreateParams.Feature.InPerfQualityValue = perfQualityValue;
         dlssCreateParams.InFeatureCreateFlags =
             NVSDK_NGX_DLSS_Feature_Flags_IsHDR |

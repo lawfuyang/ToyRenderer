@@ -342,7 +342,7 @@ public:
         passParameters.m_P00 = g_Scene->m_View.m_ViewToClip.m[0][0];
         passParameters.m_P11 = g_Scene->m_View.m_ViewToClip.m[1][1];
         passParameters.m_ForcedMeshLOD =  forcedMeshLOD;
-        passParameters.m_MeshLODTarget = (2.0f / g_Scene->m_View.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_DisplayResolution.y);
+        passParameters.m_MeshLODTarget = (2.0f / g_Scene->m_View.m_ViewToClip.m[1][1]) * (1.0f / (float)g_Graphic.m_RenderResolution.y);
 
         nvrhi::BufferHandle passConstantBuffer = g_Graphic.CreateConstantBuffer(commandList, passParameters);
 

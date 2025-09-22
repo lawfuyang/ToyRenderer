@@ -138,7 +138,6 @@ public:
     nvrhi::BufferHandle m_GlobalMeshletDataBuffer;
 
     Vector2U m_RenderResolution;
-    Vector2U m_DisplayResolution;
 
     uint32_t m_FrameCounter = 0;
     float m_GraphicUpdateTimerMs = 0.0f;
