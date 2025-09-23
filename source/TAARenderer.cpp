@@ -3,12 +3,16 @@
 #include "nvsdk_ngx.h"
 #include "nvsdk_ngx_helpers.h"
 
+#include "extern/amd/FidelityFX2/Kits/FidelityFX/api/include/ffx_api.hpp"
+#include "extern/amd/FidelityFX2/Kits/FidelityFX/api/include/dx12/ffx_api_dx12.hpp"
+#include "extern/amd/FidelityFX2/Kits/FidelityFX/upscalers/include/ffx_upscale.hpp"
+
+#include "extern/imgui/imgui.h"
+
 #include "Engine.h"
 #include "RenderGraph.h"
 #include "Scene.h"
 #include "Utilities.h"
-
-#include "extern/imgui/imgui.h"
 
 #define NGX_CALL(x) \
     { \
@@ -16,6 +20,16 @@
         if (NVSDK_NGX_FAILED(result)) \
         { \
             LOG_DEBUG("NGX call failed: %s", StringUtils::WideToUtf8(GetNGXResultAsString(result))); \
+            check(false); \
+        } \
+    }
+
+#define FFX_CALL(x) \
+    { \
+        const FfxApiReturnCodes result = (FfxApiReturnCodes)x; \
+        if (result != FFX_API_RETURN_OK) \
+        { \
+            LOG_DEBUG("FFX call failed: %s", EnumUtils::ToString(result)); \
             check(false); \
         } \
     }
@@ -30,16 +44,17 @@ class TAARenderer : public IRenderer
 {
     NVSDK_NGX_Parameter* m_NGXParameters = nullptr;
     NVSDK_NGX_Handle* m_NGXHandle = nullptr;
+    ffx::Context m_FSRContext = nullptr;
 
 public:
     TAARenderer() : IRenderer("TAA Renderer"){}
 
     ~TAARenderer() override
     {
-        ShutdownDLSS();
+        Shutdown();
     }
 
-    void ShutdownDLSS()
+    void Shutdown()
     {
         if (m_NGXParameters)
         {
@@ -54,6 +69,12 @@ public:
 
             ID3D12Device* nativeDevice = g_Graphic.m_NVRHIDevice->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
             NGX_CALL(NVSDK_NGX_D3D12_Shutdown1(nativeDevice));
+        }
+
+        if (m_FSRContext)
+        {
+            FFX_CALL(ffx::DestroyContext(m_FSRContext));
+            m_FSRContext = nullptr;
         }
     }
 
@@ -149,9 +170,105 @@ public:
         g_Scene->m_bDLSS_Supported = true;
     }
 
+    static void FfxMsgCallback(uint32_t type, const wchar_t* message)
+    {
+        const char* msg = StringUtils::WideToUtf8(message);
+        LOG_DEBUG("FFX %s: %s", type == FFX_API_MESSAGE_TYPE_ERROR ? "Error" : "Warning", msg);
+        check(false);
+    }
+
+    void InitFSR()
+    {
+        ID3D12Device* nativeDevice = g_Graphic.m_NVRHIDevice->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
+
+        uint64_t versionCount = 0;
+
+        ffx::QueryDescGetVersions versionQuery{};
+        versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
+        versionQuery.device = nativeDevice;
+        versionQuery.outputCount = &versionCount;
+
+        FFX_CALL(ffxQuery(nullptr, &versionQuery.header));
+
+        uint64_t FSRVersionIds[8]{};
+        const char* FSRVersionNames[8]{};
+        check(versionCount < std::size(FSRVersionIds));
+
+        versionQuery.versionIds = FSRVersionIds;
+        versionQuery.versionNames = FSRVersionNames;
+        FFX_CALL(ffxQuery(nullptr, &versionQuery.header));
+
+        std::string debugOutput;
+
+        ffx::CreateContextDescOverrideVersion versionOverride{};
+        ffx::QueryDescUpscaleGetResourceRequirements upscaleResourceRequirementsDesc{};
+        for (size_t FSRVersionIndex = 0; FSRVersionIndex < versionCount; FSRVersionIndex++)
+        {
+            versionOverride.versionId = FSRVersionIds[FSRVersionIndex];
+            FFX_CALL(ffx::Query(upscaleResourceRequirementsDesc, versionOverride));
+
+            debugOutput += StringFormat("detected available FSR Version [%s]\n", FSRVersionNames[FSRVersionIndex]);
+        }
+
+        const FfxApiDimensions2D renderResolution{ g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y };
+
+        ffx::CreateContextDescUpscale createFsr{};
+        createFsr.maxRenderSize = renderResolution;
+        createFsr.maxUpscaleSize = renderResolution;
+        createFsr.flags = 
+            FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE | 
+            FFX_UPSCALE_ENABLE_DISPLAY_RESOLUTION_MOTION_VECTORS |
+            FFX_UPSCALE_ENABLE_MOTION_VECTORS_JITTER_CANCELLATION |
+            FFX_UPSCALE_ENABLE_DEPTH_INVERTED |
+            FFX_UPSCALE_ENABLE_DEPTH_INFINITE |
+        #if 1
+            FFX_UPSCALE_ENABLE_DEBUG_CHECKING |
+            FFX_UPSCALE_ENABLE_DEBUG_VISUALIZATION;
+        #else
+            0;
+        #endif
+        createFsr.fpMessage = FfxMsgCallback;
+
+        FfxApiEffectMemoryUsage gpuMemoryUsageUpscaler{};
+        ffx::QueryDescUpscaleGetGPUMemoryUsageV2 upscalerGetGPUMemoryUsageV2{};
+        upscalerGetGPUMemoryUsageV2.device = nativeDevice;
+        upscalerGetGPUMemoryUsageV2.maxRenderSize = renderResolution;
+        upscalerGetGPUMemoryUsageV2.maxUpscaleSize = renderResolution;
+        upscalerGetGPUMemoryUsageV2.flags = createFsr.flags;
+        upscalerGetGPUMemoryUsageV2.gpuMemoryUsageUpscaler = &gpuMemoryUsageUpscaler;
+
+        ffx::CreateBackendDX12Desc backendDesc{};
+        backendDesc.device = nativeDevice;
+
+        FFX_CALL(ffx::Query(upscalerGetGPUMemoryUsageV2));
+        debugOutput += StringFormat("FSR totalUsageInBytes [%f MB] aliasableUsageInBytes [%f MB]\n", BYTES_TO_MB(gpuMemoryUsageUpscaler.totalUsageInBytes), BYTES_TO_MB(gpuMemoryUsageUpscaler.aliasableUsageInBytes));
+        FFX_CALL(ffx::CreateContext(m_FSRContext, nullptr, createFsr, backendDesc));
+
+        ffxQueryGetProviderVersion getVersion{};
+        getVersion.header.type = FFX_API_QUERY_DESC_TYPE_GET_PROVIDER_VERSION;
+
+        FFX_CALL(ffxQuery(&m_FSRContext, &getVersion.header));
+        debugOutput += StringFormat("auto-selected FSR Version: [%s]", getVersion.versionName);
+
+        LOG_DEBUG("%s", debugOutput.c_str());
+
+        ffx::ConfigureDescGlobalDebug1 globalDebugConfig{};
+        globalDebugConfig.debugLevel = 0; // not implemented. Value doesn't matter.
+        globalDebugConfig.fpMessage = FfxMsgCallback;
+
+        FFX_CALL(ffx::Configure(m_FSRContext, globalDebugConfig));
+    }
+
     void Initialize() override
     {
-        InitDLSS();
+        if (g_Scene->m_TAATechnique == TAATechnique::DLSS)
+        {
+            InitDLSS();
+        }
+        else if (g_Scene->m_TAATechnique == TAATechnique::FSR)
+        {
+            InitFSR();
+        }
     }
 
     bool HasImguiControls() const override { return true; }
@@ -162,18 +279,9 @@ public:
         {
             verify(g_Graphic.m_NVRHIDevice->waitForIdle());
 
-            ShutdownDLSS();
-
-            if (g_Scene->m_TAATechnique == TAATechnique::DLSS)
-            {
-                InitDLSS();
-            }
+            Shutdown();
+            Initialize();
         }
-    }
-
-    void OnRenderResolutionChanged() override
-    {
-        // TODO: upscaling
     }
 
     bool Setup(RenderGraph& renderGraph) override

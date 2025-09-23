@@ -175,7 +175,6 @@ public:
     virtual void PostSceneLoad() {};
     virtual bool HasImguiControls() const { return false; }
     virtual void UpdateImgui() {};
-    virtual void OnRenderResolutionChanged() {};
 
     // return false if the renderer is not going to be used
     virtual bool Setup(RenderGraph& renderGraph) { return true; }
