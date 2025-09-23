@@ -112,6 +112,7 @@ public:
     Vector3 m_DirLightVec = Vector3{ 0.5773502691896258f, 0.5773502691896258f, -0.5773502691896258f };
     float m_DirLightStrength = 1.0f;
     float m_LastFrameExposure = 1.0f;
+    float m_LastFrameLuminance = 1.0f;
 
     bool m_bEnableRayTracing = true;
     int m_DebugViewMode = 0;

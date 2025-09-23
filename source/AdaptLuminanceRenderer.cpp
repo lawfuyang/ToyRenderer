@@ -12,7 +12,8 @@ extern RenderGraph::ResourceHandle g_LightingOutputRDGTextureHandle;
 
 class AdaptLuminanceRenderer : public IRenderer
 {
-    nvrhi::BufferHandle m_ExposureReadbackBuffers[2];
+    nvrhi::BufferHandle m_LuminanceReadbackBuffers[2];
+    nvrhi::StagingTextureHandle m_ExposureReadbackTextures[2];
     RenderGraph::ResourceHandle m_LuminanceHistogramRDGBufferHandle;
 
     float m_MinimumLuminance = 0.004f;
@@ -29,15 +30,25 @@ public:
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "AdaptLuminanceRenderer Init");
 
-        for (int i = 0; i < 2; ++i)
+        for (uint32_t i = 0; i < 2; ++i)
         {
             nvrhi::BufferDesc desc;
             desc.byteSize = sizeof(float);
-            desc.debugName = "Exposure Readback Buffer";
+            desc.debugName = "Luminance Readback Buffer";
             desc.initialState = nvrhi::ResourceStates::CopyDest;
             desc.cpuAccess = nvrhi::CpuAccessMode::Read;
 
-            m_ExposureReadbackBuffers[i] = device->createBuffer(desc);
+            m_LuminanceReadbackBuffers[i] = device->createBuffer(desc);
+        }
+
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            nvrhi::TextureDesc desc;
+            desc.format = nvrhi::Format::R32_FLOAT;
+            desc.debugName = "Exposure Readback Staging Texture";
+            desc.initialState = nvrhi::ResourceStates::CopyDest;
+
+            m_ExposureReadbackTextures[i] = g_Graphic.m_NVRHIDevice->createStagingTexture(desc, nvrhi::CpuAccessMode::Read);
         }
 
         {
@@ -55,9 +66,7 @@ public:
             commandList->writeBuffer(g_Scene->m_LuminanceBuffer, &kInitialExposure, sizeof(float));
 
             nvrhi::TextureDesc textureDesc;
-            textureDesc.width = 1;
-            textureDesc.height = 1;
-            textureDesc.format = nvrhi::Format::R16_FLOAT;
+            textureDesc.format = nvrhi::Format::R32_FLOAT;
             textureDesc.initialState = nvrhi::ResourceStates::ShaderResource;
             textureDesc.isUAV = true;
             textureDesc.debugName = "Exposure Texture";
@@ -73,7 +82,8 @@ public:
     {
         bool bLuminanceDirty = false;
 
-        ImGui::Text("Scene Luminance: %f", g_Scene->m_LastFrameExposure);
+        ImGui::Text("Scene Luminance: %f", g_Scene->m_LastFrameLuminance);
+        ImGui::Text("Scene Exposure: %f", g_Scene->m_LastFrameExposure);
         ImGui::DragFloat("Manual Exposure Override", &g_Scene->m_ManualExposureOverride, 0.1f, 0.0f);
         bLuminanceDirty |= ImGui::DragFloat("Minimum Luminance", &m_MinimumLuminance, 0.01f, 0.0f);
         bLuminanceDirty |= ImGui::DragFloat("Maximum Luminance", &m_MaximumLuminance, 0.01f, 0.0f);
@@ -110,17 +120,30 @@ public:
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-        // read back previous frame's scene exposure
-        // m_ExposureReadbackBuffer.Read((void*)&g_Scene->m_LastFrameExposure);
-        const float* readbackBytes = (float*)device->mapBuffer(m_ExposureReadbackBuffers[g_Graphic.m_FrameCounter % 2], nvrhi::CpuAccessMode::Read);
-        check(readbackBytes);
-        g_Scene->m_LastFrameExposure = *readbackBytes;
-        device->unmapBuffer(m_ExposureReadbackBuffers[g_Graphic.m_FrameCounter % 2]);
+        // read back previous frame's scene luminance
+        {
+            const float* readbackBytes = (float*)device->mapBuffer(m_LuminanceReadbackBuffers[g_Graphic.m_FrameCounter % 2], nvrhi::CpuAccessMode::Read);
+            check(readbackBytes);
+            g_Scene->m_LastFrameLuminance = *readbackBytes;
+            device->unmapBuffer(m_LuminanceReadbackBuffers[g_Graphic.m_FrameCounter % 2]);
+        }
+
+        // read back previous frame's exposure value
+        {
+            nvrhi::StagingTextureHandle thisFrameExposureReadbackTexture = m_ExposureReadbackTextures[g_Graphic.m_FrameCounter % 2]; 
+
+            size_t outRowPitch;
+            const float* exposureReadback = (const float*)g_Graphic.m_NVRHIDevice->mapStagingTexture(thisFrameExposureReadbackTexture, nvrhi::TextureSlice{}, nvrhi::CpuAccessMode::Read, &outRowPitch);
+            check(exposureReadback);
+            g_Scene->m_LastFrameExposure = *exposureReadback;
+            device->unmapStagingTexture(thisFrameExposureReadbackTexture);
+        }
 
         ON_EXIT_SCOPE_LAMBDA([&]
             {
-                // copy to staging texture to be read back by CPU next frame, regardless whether manual exposure mode is enabled or not
-                commandList->copyBuffer(m_ExposureReadbackBuffers[g_Graphic.m_FrameCounter % 2], 0, g_Scene->m_LuminanceBuffer, 0, sizeof(float));
+                // copy to staging buffer/texture to be read back by CPU next frame, regardless whether manual exposure mode is enabled or not
+                commandList->copyBuffer(m_LuminanceReadbackBuffers[g_Graphic.m_FrameCounter % 2], 0, g_Scene->m_LuminanceBuffer, 0, sizeof(float));
+                commandList->copyTexture(m_ExposureReadbackTextures[g_Graphic.m_FrameCounter % 2], nvrhi::TextureSlice{}, g_Scene->m_ExposureTexture, nvrhi::TextureSlice{});
             });
 
         if (g_Scene->m_ManualExposureOverride > 0.0f)
