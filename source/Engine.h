@@ -30,9 +30,9 @@ public:
 
     uint32_t m_FPSLimit = 200;
 
-    float m_CPUFrameTimeMs = 0.0f;
-    float m_CPUCappedFrameTimeMs = 0.0f;
-    float m_GPUTimeMs = 0.0f;
+    float m_CPUFrameTimeMs = 16.6f;
+    float m_CPUCappedFrameTimeMs = 16.6f;
+    float m_GPUTimeMs = 16.6f;
 
 	struct SDL_Window* m_SDLWindow = nullptr;
     Vector2U m_WindowSize;
