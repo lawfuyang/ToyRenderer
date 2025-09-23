@@ -46,6 +46,9 @@ class TAARenderer : public IRenderer
     NVSDK_NGX_Handle* m_NGXHandle = nullptr;
     ffx::Context m_FSRContext = nullptr;
 
+    bool m_bDrawFSRDebugView = false;
+    float m_FSRSharpening = 0.0f;
+
 public:
     TAARenderer() : IRenderer("TAA Renderer"){}
 
@@ -181,35 +184,6 @@ public:
     {
         ID3D12Device* nativeDevice = g_Graphic.m_NVRHIDevice->getNativeObject(nvrhi::ObjectTypes::D3D12_Device);
 
-        uint64_t versionCount = 0;
-
-        ffx::QueryDescGetVersions versionQuery{};
-        versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
-        versionQuery.device = nativeDevice;
-        versionQuery.outputCount = &versionCount;
-
-        FFX_CALL(ffxQuery(nullptr, &versionQuery.header));
-
-        uint64_t FSRVersionIds[8]{};
-        const char* FSRVersionNames[8]{};
-        check(versionCount < std::size(FSRVersionIds));
-
-        versionQuery.versionIds = FSRVersionIds;
-        versionQuery.versionNames = FSRVersionNames;
-        FFX_CALL(ffxQuery(nullptr, &versionQuery.header));
-
-        std::string debugOutput;
-
-        ffx::CreateContextDescOverrideVersion versionOverride{};
-        ffx::QueryDescUpscaleGetResourceRequirements upscaleResourceRequirementsDesc{};
-        for (size_t FSRVersionIndex = 0; FSRVersionIndex < versionCount; FSRVersionIndex++)
-        {
-            versionOverride.versionId = FSRVersionIds[FSRVersionIndex];
-            FFX_CALL(ffx::Query(upscaleResourceRequirementsDesc, versionOverride));
-
-            debugOutput += StringFormat("detected available FSR Version [%s]\n", FSRVersionNames[FSRVersionIndex]);
-        }
-
         const FfxApiDimensions2D renderResolution{ g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y };
 
         ffx::CreateContextDescUpscale createFsr{};
@@ -229,28 +203,16 @@ public:
         #endif
         createFsr.fpMessage = FfxMsgCallback;
 
-        FfxApiEffectMemoryUsage gpuMemoryUsageUpscaler{};
-        ffx::QueryDescUpscaleGetGPUMemoryUsageV2 upscalerGetGPUMemoryUsageV2{};
-        upscalerGetGPUMemoryUsageV2.device = nativeDevice;
-        upscalerGetGPUMemoryUsageV2.maxRenderSize = renderResolution;
-        upscalerGetGPUMemoryUsageV2.maxUpscaleSize = renderResolution;
-        upscalerGetGPUMemoryUsageV2.flags = createFsr.flags;
-        upscalerGetGPUMemoryUsageV2.gpuMemoryUsageUpscaler = &gpuMemoryUsageUpscaler;
-
         ffx::CreateBackendDX12Desc backendDesc{};
         backendDesc.device = nativeDevice;
 
-        FFX_CALL(ffx::Query(upscalerGetGPUMemoryUsageV2));
-        debugOutput += StringFormat("FSR totalUsageInBytes [%f MB] aliasableUsageInBytes [%f MB]\n", BYTES_TO_MB(gpuMemoryUsageUpscaler.totalUsageInBytes), BYTES_TO_MB(gpuMemoryUsageUpscaler.aliasableUsageInBytes));
         FFX_CALL(ffx::CreateContext(m_FSRContext, nullptr, createFsr, backendDesc));
 
         ffxQueryGetProviderVersion getVersion{};
         getVersion.header.type = FFX_API_QUERY_DESC_TYPE_GET_PROVIDER_VERSION;
 
         FFX_CALL(ffxQuery(&m_FSRContext, &getVersion.header));
-        debugOutput += StringFormat("auto-selected FSR Version: [%s]", getVersion.versionName);
-
-        LOG_DEBUG("%s", debugOutput.c_str());
+        LOG_DEBUG("selected FSR Version: [%s]", getVersion.versionName);
 
         ffx::ConfigureDescGlobalDebug1 globalDebugConfig{};
         globalDebugConfig.debugLevel = 0; // not implemented. Value doesn't matter.
@@ -282,6 +244,12 @@ public:
             Shutdown();
             Initialize();
         }
+
+        if (g_Scene->m_TAATechnique == TAATechnique::FSR)
+        {
+            ImGui::Checkbox("Draw FSR Debug View", &m_bDrawFSRDebugView);
+            ImGui::SliderFloat("FSR Sharpening", &m_FSRSharpening, 0.0f, 1.0f);
+        }
     }
 
     bool Setup(RenderGraph& renderGraph) override
@@ -307,42 +275,116 @@ public:
 
         return true;
     }
+
+    struct UpscalerNativeInputResources
+    {
+        ID3D12Resource* m_InColorResource = nullptr;
+        ID3D12Resource* m_OutColorResource = nullptr;
+        ID3D12Resource* m_DepthResource = nullptr;
+        ID3D12Resource* m_MotionVectorsResource = nullptr;
+        ID3D12Resource* m_ExposureResource = nullptr;
+    };
+
+    UpscalerNativeInputResources GetUpscalerNativeInputResources(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph, bool bOutputRequiresUAVState = false)
+    {
+        UpscalerNativeInputResources resources;
+
+        nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
+        resources.m_InColorResource = lightingOutputTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        nvrhi::TextureHandle upscaledLightingOutputTexture = renderGraph.GetTexture(g_AntiAliasedLightingOutputRDGTextureHandle);
+        resources.m_OutColorResource = upscaledLightingOutputTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        nvrhi::TextureHandle depthTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
+        resources.m_DepthResource = depthTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        nvrhi::TextureHandle motionVectorsTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
+        resources.m_MotionVectorsResource = motionVectorsTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        resources.m_ExposureResource = g_Scene->m_ExposureTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+
+        if (bOutputRequiresUAVState)
+        {
+            commandList->setTextureState(upscaledLightingOutputTexture, nvrhi::AllSubresources, nvrhi::ResourceStates::UnorderedAccess);
+            commandList->commitBarriers();
+        }
+
+        return resources;
+    }
     
     void EvaluateDLSS(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
     {
         ID3D12GraphicsCommandList* nativeCommandList = commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
 
-        nvrhi::TextureHandle lightingOutputTexture = renderGraph.GetTexture(g_LightingOutputRDGTextureHandle);
-        ID3D12Resource* inColorResource = lightingOutputTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
-
-        nvrhi::TextureHandle upscaledLightingOutputTexture = renderGraph.GetTexture(g_AntiAliasedLightingOutputRDGTextureHandle);
-        ID3D12Resource* outColorResource = upscaledLightingOutputTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
-
-        // output requires UAV state
-        commandList->setTextureState(upscaledLightingOutputTexture, nvrhi::AllSubresources, nvrhi::ResourceStates::UnorderedAccess);
-        commandList->commitBarriers();
-
-        nvrhi::TextureHandle depthTexture = renderGraph.GetTexture(g_DepthBufferCopyRDGTextureHandle);
-        ID3D12Resource* inDepthResource = depthTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
-
-        nvrhi::TextureHandle motionVectorsTexture = renderGraph.GetTexture(g_GBufferMotionRDGTextureHandle);
-        ID3D12Resource* inMotionVectorsResource = motionVectorsTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
-
-        ID3D12Resource* inExposureResource = g_Scene->m_ExposureTexture->getNativeObject(nvrhi::ObjectTypes::D3D12_Resource);
+        const bool bOutputRequiresUAVState = true;
+        const UpscalerNativeInputResources resources = GetUpscalerNativeInputResources(commandList, renderGraph, bOutputRequiresUAVState);
 
         const Vector2& jitterOffset = g_Scene->m_View.m_CurrentJitterOffset;
 
         NVSDK_NGX_D3D12_DLSS_Eval_Params evalParams{};
-        evalParams.Feature.pInColor = inColorResource;
-        evalParams.Feature.pInOutput = outColorResource;
-        evalParams.pInDepth = inDepthResource;
-        evalParams.pInMotionVectors = inMotionVectorsResource;
-        evalParams.pInExposureTexture = inExposureResource;
+        evalParams.Feature.pInColor = resources.m_InColorResource;
+        evalParams.Feature.pInOutput = resources.m_OutColorResource;
+        evalParams.pInDepth = resources.m_DepthResource;
+        evalParams.pInMotionVectors = resources.m_MotionVectorsResource;
+        evalParams.pInExposureTexture = resources.m_ExposureResource;
         evalParams.InJitterOffsetX = jitterOffset.x;
         evalParams.InJitterOffsetY = jitterOffset.y;
         evalParams.InRenderSubrectDimensions = NVSDK_NGX_Dimensions{ g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y };
 
         NGX_CALL(NGX_D3D12_EVALUATE_DLSS_EXT(nativeCommandList, m_NGXHandle, m_NGXParameters, &evalParams));
+    }
+
+    void EvaluateFSR(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph)
+    {
+        ID3D12GraphicsCommandList* nativeCommandList = commandList->getNativeObject(nvrhi::ObjectTypes::D3D12_GraphicsCommandList);
+        
+        const bool bOutputRequiresUAVState = false;
+        const UpscalerNativeInputResources resources = GetUpscalerNativeInputResources(commandList, renderGraph, bOutputRequiresUAVState);
+
+        const FfxApiDimensions2D renderResolution{ g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y };
+
+        int32_t jitterPhaseCount = 0;
+        ffx::QueryDescUpscaleGetJitterPhaseCount getJitterPhaseDesc{};
+        getJitterPhaseDesc.displayWidth = g_Graphic.m_RenderResolution.x;
+        getJitterPhaseDesc.renderWidth = g_Graphic.m_RenderResolution.x;
+        getJitterPhaseDesc.pOutPhaseCount = &jitterPhaseCount;
+        FFX_CALL(ffx::Query(m_FSRContext, getJitterPhaseDesc));
+
+        FfxApiFloatCoords2D jitterOffset{};
+        ffx::QueryDescUpscaleGetJitterOffset getJitterOffsetDesc{};
+        getJitterOffsetDesc.index = g_Graphic.m_FrameCounter;
+        getJitterOffsetDesc.phaseCount = jitterPhaseCount;
+        getJitterOffsetDesc.pOutX = &jitterOffset.x;
+        getJitterOffsetDesc.pOutY = &jitterOffset.y;
+        FFX_CALL(ffx::Query(m_FSRContext, getJitterOffsetDesc));
+
+        // TODO: generate reactive mask
+
+        ffx::DispatchDescUpscale dispatchUpscale{};
+        dispatchUpscale.commandList = nativeCommandList;
+        dispatchUpscale.color = ffxApiGetResourceDX12(resources.m_InColorResource, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchUpscale.depth = ffxApiGetResourceDX12(resources.m_DepthResource, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchUpscale.motionVectors = ffxApiGetResourceDX12(resources.m_MotionVectorsResource, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchUpscale.exposure = ffxApiGetResourceDX12(resources.m_ExposureResource, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchUpscale.reactive = ffxApiGetResourceDX12(nullptr);
+        dispatchUpscale.transparencyAndComposition = ffxApiGetResourceDX12(nullptr);
+        dispatchUpscale.output = ffxApiGetResourceDX12(resources.m_OutColorResource, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchUpscale.jitterOffset = FfxApiFloatCoords2D{-jitterOffset.x, -jitterOffset.y};
+        dispatchUpscale.motionVectorScale = FfxApiFloatCoords2D{ 1.0f, 1.0f };
+        dispatchUpscale.renderSize = renderResolution;
+        dispatchUpscale.upscaleSize = renderResolution;
+        dispatchUpscale.enableSharpening = m_FSRSharpening > 0.0f;
+        dispatchUpscale.sharpness = m_FSRSharpening;
+        dispatchUpscale.frameTimeDelta = g_Engine.m_CPUCappedFrameTimeMs;
+        dispatchUpscale.preExposure = std::max(kKindaSmallNumber, g_Scene->m_LastFrameExposure);
+        dispatchUpscale.reset = false;
+        dispatchUpscale.cameraNear = FLT_MAX;
+        dispatchUpscale.cameraFar = g_Scene->m_View.m_ZNearP;
+        dispatchUpscale.cameraFovAngleVertical = g_Scene->m_View.m_FOV;
+        dispatchUpscale.viewSpaceToMetersFactor = 0.0f; // ???
+        dispatchUpscale.flags = m_bDrawFSRDebugView ? FFX_UPSCALE_FLAG_DRAW_DEBUG_VIEW : 0;
+
+        FFX_CALL(ffx::Dispatch(m_FSRContext, dispatchUpscale));
     }
 
     void Render(nvrhi::CommandListHandle commandList, const RenderGraph& renderGraph) override
@@ -353,7 +395,7 @@ public:
         }
         else
         {
-            // TODO: FSR
+            EvaluateFSR(commandList, renderGraph);
         }
     }
 };
