@@ -191,7 +191,6 @@ public:
         createFsr.maxUpscaleSize = renderResolution;
         createFsr.flags = 
             FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE | 
-            FFX_UPSCALE_ENABLE_DISPLAY_RESOLUTION_MOTION_VECTORS |
             FFX_UPSCALE_ENABLE_MOTION_VECTORS_JITTER_CANCELLATION |
             FFX_UPSCALE_ENABLE_DEPTH_INVERTED |
             FFX_UPSCALE_ENABLE_DEPTH_INFINITE |
@@ -341,22 +340,8 @@ public:
         const bool bOutputRequiresUAVState = false;
         const UpscalerNativeInputResources resources = GetUpscalerNativeInputResources(commandList, renderGraph, bOutputRequiresUAVState);
 
+        const FfxApiFloatCoords2D jitterOffset{ g_Scene->m_View.m_CurrentJitterOffset.x, g_Scene->m_View.m_CurrentJitterOffset.y };
         const FfxApiDimensions2D renderResolution{ g_Graphic.m_RenderResolution.x, g_Graphic.m_RenderResolution.y };
-
-        int32_t jitterPhaseCount = 0;
-        ffx::QueryDescUpscaleGetJitterPhaseCount getJitterPhaseDesc{};
-        getJitterPhaseDesc.displayWidth = g_Graphic.m_RenderResolution.x;
-        getJitterPhaseDesc.renderWidth = g_Graphic.m_RenderResolution.x;
-        getJitterPhaseDesc.pOutPhaseCount = &jitterPhaseCount;
-        FFX_CALL(ffx::Query(m_FSRContext, getJitterPhaseDesc));
-
-        FfxApiFloatCoords2D jitterOffset{};
-        ffx::QueryDescUpscaleGetJitterOffset getJitterOffsetDesc{};
-        getJitterOffsetDesc.index = g_Graphic.m_FrameCounter;
-        getJitterOffsetDesc.phaseCount = jitterPhaseCount;
-        getJitterOffsetDesc.pOutX = &jitterOffset.x;
-        getJitterOffsetDesc.pOutY = &jitterOffset.y;
-        FFX_CALL(ffx::Query(m_FSRContext, getJitterOffsetDesc));
 
         // TODO: generate reactive mask
 
@@ -369,7 +354,7 @@ public:
         dispatchUpscale.reactive = ffxApiGetResourceDX12(nullptr);
         dispatchUpscale.transparencyAndComposition = ffxApiGetResourceDX12(nullptr);
         dispatchUpscale.output = ffxApiGetResourceDX12(resources.m_OutColorResource, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-        dispatchUpscale.jitterOffset = FfxApiFloatCoords2D{-jitterOffset.x, -jitterOffset.y};
+        dispatchUpscale.jitterOffset = FfxApiFloatCoords2D{ jitterOffset.x, jitterOffset.y };
         dispatchUpscale.motionVectorScale = FfxApiFloatCoords2D{ 1.0f, 1.0f };
         dispatchUpscale.renderSize = renderResolution;
         dispatchUpscale.upscaleSize = renderResolution;

@@ -103,7 +103,7 @@ public:
     View m_View;
 
     GITechnique m_GITechnique = GITechnique::DDGI;
-    TAATechnique m_TAATechnique = TAATechnique::DLSS;
+    TAATechnique m_TAATechnique = TAATechnique::FSR;
     bool m_bDLSS_Supported = false;
 
     double m_AnimationTimeSeconds = 0.0;
