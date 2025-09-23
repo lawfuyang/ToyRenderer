@@ -149,6 +149,8 @@ set(TOYRENDERER_LIBRARIES
     rtxts-ttm
 	"${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.lib"
     "${EXTERN_DIR}/nvidia/DLSS/lib/Windows_x86_64/x64/nvsdk_ngx_d$<$<CONFIG:Debug>:_dbg_iterator0>.lib"
+    "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/signedbin/amd_fidelityfx_loader_dx12.lib"
+    "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/signedbin/amd_fidelityfx_upscaler_dx12.lib"
 )
 
 # libs
@@ -169,6 +171,8 @@ set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/sdl/SDL3
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/RTXGI-DDGI/rtxgi-sdk/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/agilitysdk/build/native/include")
 set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/nvidia/DLSS/include")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/api/include")
+set(TOYRENDERER_INCLUDE_DIRS ${TOYRENDERER_INCLUDE_DIRS} "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/upscalers/include")
 target_include_directories(ToyRenderer PUBLIC ${TOYRENDERER_INCLUDE_DIRS})
 
 target_compile_definitions(ToyRenderer PUBLIC _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
