@@ -96,4 +96,4 @@ Use "**--scene**" commandline argument to load a scene. Example:
 - **Virtual Textures (Tiled Resources) w/ [Sampler Feedback](https://microsoft.github.io/DirectX-Specs/d3d/SamplerFeedback.html) using [Nvidia Tiled Texture Manager Library](https://github.com/NVIDIA-RTX/RTXTS)**
 - **Temporal Anti-Aliasing**
     - [DLSS](https://github.com/NVIDIA/DLSS)
-    - [FSR](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) (WIP)
+    - [FSR](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK)
