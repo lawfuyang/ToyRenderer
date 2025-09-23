@@ -193,13 +193,12 @@ public:
             FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE | 
             FFX_UPSCALE_ENABLE_MOTION_VECTORS_JITTER_CANCELLATION |
             FFX_UPSCALE_ENABLE_DEPTH_INVERTED |
-            FFX_UPSCALE_ENABLE_DEPTH_INFINITE |
-        #if 1
-            FFX_UPSCALE_ENABLE_DEBUG_CHECKING |
-            FFX_UPSCALE_ENABLE_DEBUG_VISUALIZATION;
-        #else
-            0;
-        #endif
+            FFX_UPSCALE_ENABLE_DEPTH_INFINITE;
+
+    #if 0
+        createFsr.flags |= FFX_UPSCALE_ENABLE_DEBUG_CHECKING | FFX_UPSCALE_ENABLE_DEBUG_VISUALIZATION;
+    #endif
+
         createFsr.fpMessage = FfxMsgCallback;
 
         ffx::CreateBackendDX12Desc backendDesc{};
