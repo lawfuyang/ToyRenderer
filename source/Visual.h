@@ -24,6 +24,8 @@ struct TextureFileHeader
     nvrhi::Format m_Format;
     uint32_t m_DXGIFormat; // DXGI_FORMAT enum value
     uint32_t m_ImageDataByteOffset;
+
+    bool IsValid() const { return m_Width > 0 && m_Height > 0 && m_Format != nvrhi::Format::UNKNOWN; }
 };
 
 struct TextureMipData
@@ -46,7 +48,8 @@ class Texture
 {
 public:
     void LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& textureDesc);
-    void LoadFromFile(std::string_view filePath);
+    void PreloadImageBytes(std::string_view filePath);
+    void Initialize();
 
     bool IsValid() const;
 
@@ -72,6 +75,8 @@ public:
 
     uint32_t m_SamplerFeedbackIndexInTable = UINT_MAX;
     uint32_t m_MinMipIndexInTable = UINT_MAX;
+
+    bool m_bIsStreamableTexture = true;
 };
 
 struct MeshLOD

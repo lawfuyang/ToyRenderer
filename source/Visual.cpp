@@ -44,7 +44,7 @@ void Texture::LoadFromMemory(const void* rawData, const nvrhi::TextureDesc& text
     m_SamplerFeedbackIndexInTable = g_CommonResources.DummySamplerFeedbackIndexInTable;
 }
 
-void Texture::LoadFromFile(std::string_view filePath)
+void Texture::PreloadImageBytes(std::string_view filePath)
 {
     PROFILE_FUNCTION();
 
@@ -52,18 +52,47 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     m_ImageFilePath = filePath;
 
-    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
-
-    const std::string debugName = std::filesystem::path{ filePath }.stem().string();
-
     ScopedFile imageFile{ filePath.data(), "rb" };
 
     ReadDDSTextureFileHeader(imageFile, *this);
-    
+
     m_TextureMipDatas.resize(m_TextureFileHeader.m_MipCount);
     m_TilingsInfo.resize(m_TextureFileHeader.m_MipCount);
 
     ReadDDSMipInfos(*this);
+
+    m_bIsStreamableTexture = ((m_PackedMipDesc.numStandardMips > 0) && g_Scene->m_bEnableTextureStreaming);
+
+    // texture is very low resolution, means all packed mips, don't bother with tiling nor streaming
+    if (!m_bIsStreamableTexture)
+    {
+        for (uint32_t mip = 0; mip < m_TextureFileHeader.m_MipCount; ++mip)
+        {
+            ReadDDSMipData(*this, imageFile, mip);
+        }
+
+        return;
+    }
+
+    // read packed mip bytes
+    for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
+    {
+        const uint32_t mipToRead = m_PackedMipDesc.numStandardMips + i;
+        ReadDDSMipData(*this, imageFile, mipToRead);
+    }
+}
+
+void Texture::Initialize()
+{
+    PROFILE_FUNCTION();
+
+    check(m_TextureFileHeader.IsValid());
+
+    ScopedFile imageFile{ m_ImageFilePath.data(), "rb" };
+
+    nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
+
+    const std::string debugName = std::filesystem::path{ m_ImageFilePath }.stem().string();
 
     nvrhi::TextureDesc reservedTexDesc;
     reservedTexDesc.width = m_TextureFileHeader.m_Width;
@@ -81,8 +110,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     ON_EXIT_SCOPE_LAMBDA([this] { m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle)); } );
 
-    // texture is very low resolution, means all packed mips, don't bother with tiling nor streaming
-    if ((m_PackedMipDesc.numStandardMips == 0) || !g_Scene->m_bEnableTextureStreaming)
+    if (!m_bIsStreamableTexture)
     {
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Write texture data");
@@ -92,7 +120,6 @@ void Texture::LoadFromFile(std::string_view filePath)
 
         for (uint32_t mip = 0; mip < m_TextureFileHeader.m_MipCount; ++mip)
         {
-            ReadDDSMipData(*this, imageFile, mip);
             commandList->writeTexture(m_NVRHITextureHandle, 0, mip, m_TextureMipDatas[mip].m_Data.data(), m_TextureMipDatas[mip].m_RowPitch);
         }
 
@@ -122,13 +149,6 @@ void Texture::LoadFromFile(std::string_view filePath)
         mipData.m_ResidencyBits.Init(numTiles);
 
         tileCounter += numTiles;
-    }
-
-    // read packed mip bytes
-    for (uint32_t i = 0; i < m_PackedMipDesc.numPackedMips; ++i)
-    {
-        const uint32_t mipToRead = m_PackedMipDesc.numStandardMips + i;
-        ReadDDSMipData(*this, imageFile, mipToRead);
     }
 
     rtxts::TiledLevelDesc tiledLevelDescs[16]{};

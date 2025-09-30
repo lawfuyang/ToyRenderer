@@ -151,6 +151,8 @@ struct GLTFSceneLoader
             }
         }
 
+        PreLoadImages();
+
         if (!m_bHasValidCachedData)
         {
             {
@@ -186,7 +188,7 @@ struct GLTFSceneLoader
         ON_EXIT_SCOPE_LAMBDA([this] { cgltf_free(m_GLTFData); });
 
         LoadSamplers();
-        LoadImages();
+        InitializeTextures();
         LoadMaterials();
 
         if (m_bHasValidCachedData)
@@ -332,9 +334,9 @@ struct GLTFSceneLoader
         }
     }
 
-    void LoadImages()
+    void PreLoadImages()
     {
-        SCENE_LOAD_PROFILE("Load Images");
+        SCENE_LOAD_PROFILE("Pre Load Images");
 
         if (m_GLTFData->textures_count == 0)
         {
@@ -360,8 +362,27 @@ struct GLTFSceneLoader
                     // force DDS format for all textures
                     filePath = std::filesystem::path{filePath}.replace_extension(".dds").string();
 
-                    g_Graphic.m_Textures[i].LoadFromFile(filePath);
+                    g_Graphic.m_Textures[i].PreloadImageBytes(filePath);
                 });
+        }
+
+        g_Engine.m_Executor->corun(taskflow);
+    }
+
+    void InitializeTextures()
+    {
+        SCENE_LOAD_PROFILE("Initialize Textures");
+
+        if (m_GLTFData->textures_count == 0)
+        {
+            return;
+        }
+
+        tf::Taskflow taskflow;
+
+        for (uint32_t i = 0; i < m_GLTFData->textures_count; ++i)
+        {
+            taskflow.emplace([i]() { g_Graphic.m_Textures[i].Initialize(); });
         }
 
         g_Engine.m_Executor->corun(taskflow);
