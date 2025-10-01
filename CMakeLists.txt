@@ -117,6 +117,7 @@ set(RTXGI_BUILD_SAMPLES OFF)
 set(RTXGI_STATIC_LIB ON)
 set(SHADERMAKE_FIND_FXC OFF)
 set(SHADERMAKE_FIND_DXC OFF)
+set(D3D12MA_AGILITY_SDK_DIRECTORY "${EXTERN_DIR}/agilitysdk")
 
 add_subdirectory(extern/shadermake)
 add_subdirectory(extern/meshoptimizer)
