@@ -46,6 +46,3 @@
 [submodule "extern/nvidia/DLSS"]
 	path = extern/nvidia/DLSS
 	url = https://github.com/NVIDIA/DLSS
-[submodule "extern/nvidia/RTXDI"]
-	path = extern/nvidia/RTXDI
-	url = https://github.com/NVIDIA-RTX/RTXDI-Library
