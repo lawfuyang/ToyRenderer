@@ -34,16 +34,19 @@
 #include <windowsx.h>
 #include <wrl.h>
 
+#include "SDL3/SDL.h"
+
 #define PRAGMA_OPTIMIZE_OFF __pragma(optimize("",off))
 #define PRAGMA_OPTIMIZE_ON  __pragma(optimize("", on))
 
-#ifdef NDEBUG
-    #define verify(expr) expr
-    #define check(expr) do { if (!(expr)) { __debugbreak(); abort(); } } while (0)
+#define SDL_DEFAULT_ASSERT_LEVEL 3 // always enable asserts
+
+#if defined(_DEBUG) || defined(DEBUG)
+    #define verify(expr) SDL_assert(expr)
 #else
-    #define verify(expr) assert(expr)
-    #define check(expr) assert(expr)
+    #define verify(expr) expr
 #endif
+#define check(expr) SDL_assert(expr)
 
 using Microsoft::WRL::ComPtr;
 

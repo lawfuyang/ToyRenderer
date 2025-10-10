@@ -2,7 +2,6 @@
 
 #include "extern/microprofile/microprofile.h"
 #include "extern/taskflow/taskflow/taskflow.hpp"
-#include "SDL3/SDL.h"
 
 #include "CriticalSection.h"
 #include "MathUtilities.h"

@@ -3,8 +3,6 @@
 #include "extern/cxxopts/include/cxxopts.hpp"
 #include "extern/shadermake/ShaderMake/ShaderBlob.h"
 
-#include "SDL3/SDL.h"
-
 #include "CommonResources.h"
 #include "Engine.h"
 #include "Scene.h"

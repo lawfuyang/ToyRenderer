@@ -4,9 +4,6 @@
 #include "extern/nvrhi/include/nvrhi/d3d12.h"
 #include "extern/nvrhi/include/nvrhi/validation.h"
 
-#include "SDL3/SDL.h"
-#include "SDL3/SDL_properties.h"
-
 #include "Engine.h"
 #include "Graphic.h"
 #include "Utilities.h"
