@@ -24,8 +24,6 @@
 
 #include "extern/nvrhi/include/nvrhi/nvrhi.h"
 
-#include "CriticalSection.h"
-
 class DescriptorTableManager
 {
 protected:

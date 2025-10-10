@@ -3,10 +3,12 @@
 #include "extern/microprofile/microprofile.h"
 #include "extern/taskflow/taskflow/taskflow.hpp"
 
-#include "CriticalSection.h"
 #include "MathUtilities.h"
 
 class Graphic;
+
+#define PROFILE_LOCK(NAME) MICROPROFILE_SCOPEI("Locks", NAME, 0xFF0000)
+#define AUTO_LOCK(lck) AUTO_SCOPE( [&]{ PROFILE_LOCK(TOSTRING(lck)); lck.lock(); } , [&]{ lck.unlock(); } )
 
 #define SDL_CALL(x) if (!(x)) { SDL_Log("SDL Error: %s", SDL_GetError()); check(false); }
 
@@ -45,7 +47,7 @@ private:
     bool m_Exit = false;
     std::shared_ptr<Graphic> m_Graphic;
 
-    SpinLock m_CommandsLock;
+    std::mutex m_CommandsLock;
     std::vector<std::function<void()>> m_PendingCommands;    
 };
 #define g_Engine Engine::GetInstance()
@@ -54,6 +56,28 @@ private:
 #define PROFILE_SCOPED(NAME) MICROPROFILE_SCOPE_CSTR(NAME)
 
 #define PROFILE_FUNCTION() PROFILE_SCOPED(__FUNCTION__)
+
+class MultithreadDetector
+{
+public:
+    void Enter(std::thread::id newID)
+    {
+        if (m_CurrentID != std::thread::id{} && newID != m_CurrentID)
+            check(false); // Multi-thread detected!
+        m_CurrentID = newID;
+    }
+
+    void Exit() { m_CurrentID = std::thread::id{}; }
+
+private:
+    std::atomic<std::thread::id> m_CurrentID = {};
+};
+
+#define SCOPED_MULTITHREAD_DETECTOR(MTDetector) AUTO_SCOPE( [&]{ MTDetector.Enter(std::this_thread::get_id()); }, [&]{ MTDetector.Exit(); } );
+
+#define STATIC_MULTITHREAD_DETECTOR() \
+    static MultithreadDetector __s_MTDetector__; \
+    SCOPED_MULTITHREAD_DETECTOR(__s_MTDetector__);
 
 template <typename T>
 class CommandLineOption

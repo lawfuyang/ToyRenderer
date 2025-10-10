@@ -22,7 +22,6 @@
 
 #include <DescriptorTableManager.h>
 
-#include "CriticalSection.h"
 #include "Graphic.h"
 
 DescriptorTableManager::DescriptorTableManager(nvrhi::IBindingLayout* layout)

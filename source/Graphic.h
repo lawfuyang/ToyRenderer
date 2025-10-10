@@ -5,8 +5,8 @@
 #include "extern/nvrhi/include/nvrhi/utils.h"
 #include "extern/renderdoc/renderdoc_app.h"
 
-#include "CriticalSection.h"
 #include "DescriptorTableManager.h"
+#include "Engine.h"
 #include "GraphicConstants.h"
 #include "MathUtilities.h"
 #include "Utilities.h"
