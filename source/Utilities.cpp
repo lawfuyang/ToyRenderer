@@ -56,16 +56,16 @@ void GetFilesInDirectory(std::vector<std::string>& out, std::string_view directo
 
 void ReadDataFromFile(std::string_view filename, std::vector<std::byte>& data)
 {
-    std::ifstream ifs{ filename.data(), std::ios::binary | std::ios::ate};
+    std::ifstream ifs{ filename.data(), std::ios::binary };
     if (!ifs)
         return;
 
     PROFILE_FUNCTION();
 
-    const std::streampos fileSize = ifs.tellg();
+    const std::uintmax_t fileSize = std::filesystem::file_size(filename);
+    assert(fileSize != static_cast<std::uintmax_t>(-1));
     data.resize(fileSize);
 
-    ifs.seekg(0, std::ios::beg);
     ifs.read((char*)data.data(), fileSize);
 }
 
