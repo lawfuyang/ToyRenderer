@@ -26,7 +26,7 @@ static void DumpProfilingCapture()
     check(!gs_DumpProfilingCaptureFileName.empty());
 
     const std::string fileName = (std::filesystem::path{ GetExecutableDirectory() } / gs_DumpProfilingCaptureFileName.c_str()).string() + ".html";
-    LOG_DEBUG("Dumping profiler log: %s", fileName.c_str());
+    SDL_Log("Dumping profiler log: %s", fileName.c_str());
 
     MicroProfileDumpFileImmediately(fileName.c_str(), nullptr, nullptr);
 
@@ -80,12 +80,6 @@ static Vector2U GetBestWindowSize()
     return kSizes[std::size(kSizes) - 1];
 }
 
-std::string& Engine::GetDebugOutputStringForCurrentThread()
-{
-    thread_local std::string tl_DebugOutputString;
-    return tl_DebugOutputString;
-}
-
 void Engine::Initialize(int argc, char** argv)
 {
     SCOPED_TIMER_FUNCTION();
@@ -93,16 +87,16 @@ void Engine::Initialize(int argc, char** argv)
 
     gs_ExecutableDirectory = std::filesystem::path{ argv[0] }.parent_path().string();
 
-    LOG_DEBUG("Root Directory: %s", GetRootDirectory());
-    LOG_DEBUG("Executable Directory: %s", GetExecutableDirectory());
-    LOG_DEBUG("Application Directory: %s", GetApplicationDirectory());
+    SDL_Log("Root Directory: %s", GetRootDirectory());
+    SDL_Log("Executable Directory: %s", GetExecutableDirectory());
+    SDL_Log("Application Directory: %s", GetApplicationDirectory());
 
     ParseCommandlineArguments(argc, argv);
 
     SDL_CALL(SDL_Init(SDL_INIT_VIDEO));
 
     m_WindowSize = GetBestWindowSize();
-    LOG_DEBUG("Window Size: %d x %d", m_WindowSize.x, m_WindowSize.y);
+    SDL_Log("Window Size: %d x %d", m_WindowSize.x, m_WindowSize.y);
 
     m_SDLWindow = SDL_CreateWindow("Toy Renderer", m_WindowSize.x, m_WindowSize.y, 0);
     SDL_CALL(m_SDLWindow);
@@ -119,7 +113,7 @@ void Engine::Initialize(int argc, char** argv)
 
     // create threadpool executor
     m_Executor = std::make_shared<tf::Executor>(nbWorkerThreads);
-    LOG_DEBUG("%d Worker Threads initialized", m_Executor->num_workers());
+    SDL_Log("%d Worker Threads initialized", m_Executor->num_workers());
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -178,7 +172,7 @@ void Engine::ParseCommandlineArguments(int argc, char** argv)
     {
         printArgsStr += StringFormat("{%s : %s} ", arg.key().c_str(), arg.value().c_str());
     }
-    LOG_DEBUG(printArgsStr.c_str());
+    SDL_Log(printArgsStr.c_str());
 
     if (!parseResult.unmatched().empty())
     {
@@ -188,7 +182,7 @@ void Engine::ParseCommandlineArguments(int argc, char** argv)
             printArgsStr += StringFormat("%s ", s.data());
         }
         printArgsStr += "}";
-        LOG_DEBUG(printArgsStr.c_str());
+        SDL_Log(printArgsStr.c_str());
     }
 }
 
@@ -266,7 +260,7 @@ static void TimerSleep(double microSeconds)
 
 void Engine::MainLoop()
 {
-    LOG_DEBUG("Entering main loop");
+    SDL_Log("Entering main loop");
 
     SCOPED_TIMER_FUNCTION();
 
@@ -358,7 +352,7 @@ void Engine::MainLoop()
         MicroProfileFlip(nullptr);
     } while (!m_Exit);
 
-    LOG_DEBUG("Exiting main loop");
+    SDL_Log("Exiting main loop");
 }
 
 void Engine::ConsumeCommands()

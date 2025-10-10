@@ -54,7 +54,7 @@ public:
             check(tex->TexID == 0 && tex->BackendUserData == nullptr);
             check(tex->Format == ImTextureFormat_RGBA32);
 
-            LOG_DEBUG("Create IMGUI Texture: %dx%d", tex->Width, tex->Height);
+            SDL_Log("Create IMGUI Texture: %dx%d", tex->Width, tex->Height);
 
             const uint32_t textureIdx = m_Textures.size();
 
@@ -79,7 +79,7 @@ public:
         {
             nvrhi::TextureHandle textureHandle = m_Textures.at(tex->TexID);
 
-            LOG_DEBUG("Update IMGUI Texture %d: [x:%d, y:%d, w:%d, h:%d]", tex->GetTexID(), tex->UpdateRect.x, tex->UpdateRect.y, tex->UpdateRect.w, tex->UpdateRect.h);
+            SDL_Log("Update IMGUI Texture %d: [x:%d, y:%d, w:%d, h:%d]", tex->GetTexID(), tex->UpdateRect.x, tex->UpdateRect.y, tex->UpdateRect.w, tex->UpdateRect.h);
 
             nvrhi::TextureDesc textureDesc;
             textureDesc.width = tex->UpdateRect.w;
@@ -109,7 +109,7 @@ public:
         }
         case ImTextureStatus::ImTextureStatus_WantDestroy:
         {
-            LOG_DEBUG("Destroy IMGUI Texture %d", tex->GetTexID());
+            SDL_Log("Destroy IMGUI Texture %d", tex->GetTexID());
             check(0); // TODO
             break;
         }

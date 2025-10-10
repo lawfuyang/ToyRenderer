@@ -22,7 +22,7 @@ class NVRHIMessageCallback : public nvrhi::IMessageCallback
 {
     void message(nvrhi::MessageSeverity severity, const char* messageText) override
     {
-        LOG_DEBUG("[NVRHI]: %s", messageText);
+        SDL_Log("[NVRHI]: %s", messageText);
 
         switch (severity)
         {
@@ -85,7 +85,7 @@ public:
                 }
 
                 const char *gpuName = StringUtils::WideToUtf8(desc.Description);
-                LOG_DEBUG("Graphic Adapter: %s", gpuName);
+                SDL_Log("Graphic Adapter: %s", gpuName);
                 break;
             }
             check(m_DXGIAdapter);
@@ -101,12 +101,12 @@ public:
             HRESULT_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
 
             debugInterface->EnableDebugLayer();
-            LOG_DEBUG("D3D12 Debug Layer enabled");
+            SDL_Log("D3D12 Debug Layer enabled");
 
             if (g_CVarEnableGPUValidation.Get())
             {
                 debugInterface->SetEnableGPUBasedValidation(true);
-                LOG_DEBUG("D3D12 GPU Based Validation enabled");
+                SDL_Log("D3D12 GPU Based Validation enabled");
             }
 
             debugInterface->SetEnableAutoName(true);
@@ -118,7 +118,7 @@ public:
             static const D3D_FEATURE_LEVEL kFeatureLevel = D3D_FEATURE_LEVEL_12_2;
             HRESULT_CALL(D3D12CreateDevice(g_DXGIAdapter, kFeatureLevel, IID_PPV_ARGS(&m_D3DDevice)));
 
-            LOG_DEBUG("Initialized D3D12 Device with feature level: 0x%X", kFeatureLevel);
+            SDL_Log("Initialized D3D12 Device with feature level: 0x%X", kFeatureLevel);
 
             // break on warnings/errors
             if (g_CVarEnableGraphicRHIValidation.Get())

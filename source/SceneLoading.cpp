@@ -116,15 +116,15 @@ struct GLTFSceneLoader
 
             if (result != cgltf_result_success)
             {
-                LOG_DEBUG("GLTF - Failed to load '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
+                SDL_Log("GLTF - Failed to load '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
                 check(0);
             }
-            LOG_DEBUG("GLTF - Loaded '%s'", sceneToLoad.data());
+            SDL_Log("GLTF - Loaded '%s'", sceneToLoad.data());
 
-            LOG_DEBUG("Extensions used: ");
+            SDL_Log("Extensions used: ");
             for (uint32_t i = 0; i < m_GLTFData->extensions_used_count; ++i)
             {
-                LOG_DEBUG("\t %s", m_GLTFData->extensions_used[i]);
+                SDL_Log("\t %s", m_GLTFData->extensions_used[i]);
 
                 static const char* kUnsupportedExtensions[]
                 {
@@ -146,7 +146,7 @@ struct GLTFSceneLoader
             cgltf_result result = cgltf_validate(m_GLTFData);
             if (result != cgltf_result_success)
             {
-                LOG_DEBUG("GLTF - Failed to validate '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
+                SDL_Log("GLTF - Failed to validate '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
                 check(0);
             }
         }
@@ -159,7 +159,7 @@ struct GLTFSceneLoader
                 cgltf_result result = cgltf_load_buffers(&options, m_GLTFData, sceneToLoad.data());
                 if (result != cgltf_result_success)
                 {
-                    LOG_DEBUG("GLTF - Failed to load buffers '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
+                    SDL_Log("GLTF - Failed to load buffers '%s': [%s]", sceneToLoad.data(), EnumUtils::ToString(result));
                     check(0);
                 }
             }
@@ -524,7 +524,7 @@ struct GLTFSceneLoader
             materialData.m_ConstMetallic = sceneMaterial.m_ConstMetallic;
             materialData.m_AlphaCutoff = sceneMaterial.m_AlphaCutoff;
 
-			LOG_DEBUG("New Material: [%s]", materialName);
+			SDL_Log("New Material: [%s]", materialName);
         }
 
         MaterialData defaultMaterialData{};
@@ -915,7 +915,7 @@ struct GLTFSceneLoader
                 newNode.m_ChildrenNodeIDs.push_back(cgltf_node_index(m_GLTFData, node.children[j]));
             }
 
-			//LOG_DEBUG("New Node: [%s]", node.name ? node.name : "Un-named Node");
+			//SDL_Log("New Node: [%s]", node.name ? node.name : "Un-named Node");
         }
     }
     
@@ -947,7 +947,7 @@ struct GLTFSceneLoader
 
                 if (gltfSampler.input->count < 2)
                 {
-                    LOG_DEBUG("GLTF - Animation for node '%s' has less than 2 keyframes. Skipping", gltfAnimationChannel.target_node->name);
+                    SDL_Log("GLTF - Animation for node '%s' has less than 2 keyframes. Skipping", gltfAnimationChannel.target_node->name);
                     continue;
                 }
                 check(gltfSampler.input->count == gltfSampler.output->count);
@@ -1008,7 +1008,7 @@ struct GLTFSceneLoader
         nvrhi::CommandListHandle commandList = g_Graphic.AllocateCommandList();
         SCOPED_COMMAND_LIST_AUTO_QUEUE(commandList, "Upload Global Material Buffer");
 
-        LOG_DEBUG("Global material data = [%d] entries, [%f] MB", m_GlobalMaterialData.size(), BYTES_TO_MB(g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize));
+        SDL_Log("Global material data = [%d] entries, [%f] MB", m_GlobalMaterialData.size(), BYTES_TO_MB(g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize));
         commandList->writeBuffer(g_Graphic.m_GlobalMaterialDataBuffer, m_GlobalMaterialData.data(), g_Graphic.m_GlobalMaterialDataBuffer->getDesc().byteSize);
     }
 
@@ -1072,12 +1072,12 @@ struct GLTFSceneLoader
             g_Graphic.m_GlobalMeshletDataBuffer = g_Graphic.m_NVRHIDevice->createBuffer(desc);
         }
 
-        LOG_DEBUG("Global vertices = [%d] vertices, [%f] MB", m_GlobalVertices.size(), BYTES_TO_MB(g_Graphic.m_GlobalVertexBuffer->getDesc().byteSize));
-        LOG_DEBUG("Global indices = [%d] indices, [%f] MB", m_GlobalIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize));
-        LOG_DEBUG("Global mesh data = [%d] entries, [%f] MB", m_GlobalMeshData.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize));
-        LOG_DEBUG("Global meshlet vertex idx offsets = [%d] entries, [%f] MB", m_GlobalMeshletVertexIdxOffsets.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize));
-        LOG_DEBUG("Global meshlet indices = [%d] entries, [%f] MB", m_GlobalMeshletIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize));
-        LOG_DEBUG("Global meshlet data = [%d] entries, [%f] MB", m_GlobalMeshletDatas.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize));
+        SDL_Log("Global vertices = [%d] vertices, [%f] MB", m_GlobalVertices.size(), BYTES_TO_MB(g_Graphic.m_GlobalVertexBuffer->getDesc().byteSize));
+        SDL_Log("Global indices = [%d] indices, [%f] MB", m_GlobalIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize));
+        SDL_Log("Global mesh data = [%d] entries, [%f] MB", m_GlobalMeshData.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize));
+        SDL_Log("Global meshlet vertex idx offsets = [%d] entries, [%f] MB", m_GlobalMeshletVertexIdxOffsets.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletVertexOffsetsBuffer->getDesc().byteSize));
+        SDL_Log("Global meshlet indices = [%d] entries, [%f] MB", m_GlobalMeshletIndices.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletIndicesBuffer->getDesc().byteSize));
+        SDL_Log("Global meshlet data = [%d] entries, [%f] MB", m_GlobalMeshletDatas.size(), BYTES_TO_MB(g_Graphic.m_GlobalMeshletDataBuffer->getDesc().byteSize));
         commandList->writeBuffer(g_Graphic.m_GlobalVertexBuffer, m_GlobalVertices.data(), g_Graphic.m_GlobalVertexBuffer->getDesc().byteSize);
         commandList->writeBuffer(g_Graphic.m_GlobalIndexBuffer, m_GlobalIndices.data(), g_Graphic.m_GlobalIndexBuffer->getDesc().byteSize);
         commandList->writeBuffer(g_Graphic.m_GlobalMeshDataBuffer, m_GlobalMeshData.data(), g_Graphic.m_GlobalMeshDataBuffer->getDesc().byteSize);

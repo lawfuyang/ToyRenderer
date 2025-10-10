@@ -204,7 +204,7 @@ void RenderGraph::Compile()
 
 		if constexpr (kDoDebugLogging)
 		{
-			LOG_DEBUG("Bind Heap: resource: %s, memReq: %d, heapIdx: %d, heapOffset: %d", GetResourceName(*resource), memReq, foundHeapIdx, foundHeapOffset);
+			SDL_Log("Bind Heap: resource: %s, memReq: %d, heapIdx: %d, heapOffset: %d", GetResourceName(*resource), memReq, foundHeapIdx, foundHeapOffset);
 		}
     }
 	m_ResourcesToAlloc.clear();
@@ -213,7 +213,7 @@ void RenderGraph::Compile()
 	{
 		if constexpr (kDoDebugLogging)
 		{
-			LOG_DEBUG("Free Heap: heapIdx: %d, heapOffset: %d", elem.m_Idx, elem.m_Offset);
+			SDL_Log("Free Heap: heapIdx: %d, heapOffset: %d", elem.m_Idx, elem.m_Offset);
 		}
         m_Heaps.at(elem.m_Idx).Free(elem.m_Offset);
 	}
@@ -413,7 +413,7 @@ void RenderGraph::FreeResource(ResourceHandle& resourceHandle)
 
 		if constexpr (kDoDebugLogging)
 		{
-			LOG_DEBUG("Free resource: %s, heapOffset: %d", GetResourceName(resourceHandle), resourceHandle.m_HeapOffset);
+			SDL_Log("Free resource: %s, heapOffset: %d", GetResourceName(resourceHandle), resourceHandle.m_HeapOffset);
 		}
 	}
 
@@ -436,7 +436,7 @@ void RenderGraph::CreateNewHeap(uint64_t size)
 
 	if constexpr (kDoDebugLogging)
 	{
-		LOG_DEBUG("New Heap size: %llu", size);
+		SDL_Log("New Heap size: %llu", size);
 	}
 }
 

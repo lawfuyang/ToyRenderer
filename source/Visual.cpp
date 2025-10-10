@@ -77,7 +77,7 @@ void Texture::LoadFromFile(std::string_view filePath)
 
     device->getTextureTiling(m_NVRHITextureHandle, &m_NumTiles, &m_PackedMipDesc, &m_TileShape, &m_TextureFileHeader.m_MipCount, m_TilingsInfo.data());
 
-    LOG_DEBUG("New Texture: %s, %d x %d, %s", reservedTexDesc.debugName.c_str(), reservedTexDesc.width, reservedTexDesc.height, nvrhi::utils::FormatToString(reservedTexDesc.format));
+    SDL_Log("New Texture: %s, %d x %d, %s", reservedTexDesc.debugName.c_str(), reservedTexDesc.width, reservedTexDesc.height, nvrhi::utils::FormatToString(reservedTexDesc.format));
 
     ON_EXIT_SCOPE_LAMBDA([this] { m_SRVIndexInTable = g_Graphic.m_SrvUavCbvDescriptorTableManager->CreateDescriptorHandle(nvrhi::BindingSetItem::Texture_SRV(0, m_NVRHITextureHandle)); } );
 
@@ -503,7 +503,7 @@ void Mesh::Initialize(
         }
     }
 
-    LOG_DEBUG("%s", logStr.c_str());
+    SDL_Log("%s", logStr.c_str());
 }
 
 void Mesh::BuildBLAS(nvrhi::CommandListHandle commandList)

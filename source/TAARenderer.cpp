@@ -19,7 +19,7 @@
         const NVSDK_NGX_Result result = x; \
         if (NVSDK_NGX_FAILED(result)) \
         { \
-            LOG_DEBUG("NGX call failed: %s", StringUtils::WideToUtf8(GetNGXResultAsString(result))); \
+            SDL_Log("NGX call failed: %s", StringUtils::WideToUtf8(GetNGXResultAsString(result))); \
             check(false); \
         } \
     }
@@ -29,7 +29,7 @@
         const FfxApiReturnCodes result = (FfxApiReturnCodes)x; \
         if (result != FFX_API_RETURN_OK) \
         { \
-            LOG_DEBUG("FFX call failed: %s", EnumUtils::ToString(result)); \
+            SDL_Log("FFX call failed: %s", EnumUtils::ToString(result)); \
             check(false); \
         } \
     }
@@ -101,7 +101,7 @@ public:
             NGX_CALL(m_NGXParameters->Get(NVSDK_NGX_Parameter_SuperSampling_MinDriverVersionMajor, &minDriverVersionMajor));
             NGX_CALL(m_NGXParameters->Get(NVSDK_NGX_Parameter_SuperSampling_MinDriverVersionMinor, &minDriverVersionMinor));
 
-            LOG_DEBUG("NVIDIA driver update required for DLSS. Minimum driver version: %u.%u", minDriverVersionMajor, minDriverVersionMinor);
+            SDL_Log("NVIDIA driver update required for DLSS. Minimum driver version: %u.%u", minDriverVersionMajor, minDriverVersionMinor);
             return;
         }
 
@@ -109,7 +109,7 @@ public:
         NGX_CALL(m_NGXParameters->Get(NVSDK_NGX_Parameter_SuperSampling_Available, &bDLSS_Supported));
         if (!bDLSS_Supported)
         {
-            LOG_DEBUG("DLSS not supported on this GPU");
+            SDL_Log("DLSS not supported on this GPU");
             return;
         }
 
@@ -117,7 +117,7 @@ public:
         NGX_CALL(m_NGXParameters->Get(NVSDK_NGX_Parameter_SuperSampling_FeatureInitResult, &bDLSS_FeatureInitResult));
         if (!bDLSS_FeatureInitResult)
         {
-            LOG_DEBUG("DLSS feature init failed");
+            SDL_Log("DLSS feature init failed");
             return;
         }
 
@@ -176,7 +176,7 @@ public:
     static void FfxMsgCallback(uint32_t type, const wchar_t* message)
     {
         const char* msg = StringUtils::WideToUtf8(message);
-        LOG_DEBUG("FFX %s: %s", type == FFX_API_MESSAGE_TYPE_ERROR ? "Error" : "Warning", msg);
+        SDL_Log("FFX %s: %s", type == FFX_API_MESSAGE_TYPE_ERROR ? "Error" : "Warning", msg);
         check(false);
     }
 
@@ -210,7 +210,7 @@ public:
         getVersion.header.type = FFX_API_QUERY_DESC_TYPE_GET_PROVIDER_VERSION;
 
         FFX_CALL(ffxQuery(&m_FSRContext, &getVersion.header));
-        LOG_DEBUG("selected FSR Version: [%s]", getVersion.versionName);
+        SDL_Log("selected FSR Version: [%s]", getVersion.versionName);
 
         ffx::ConfigureDescGlobalDebug1 globalDebugConfig{};
         globalDebugConfig.debugLevel = 0; // not implemented. Value doesn't matter.

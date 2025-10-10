@@ -35,7 +35,7 @@ void Graphic::InitRenderDocAPI()
         return;
     }
 
-    LOG_DEBUG("Initializing RenderDoc API");
+    SDL_Log("Initializing RenderDoc API");
     HMODULE mod = ::LoadLibraryA("renderdoc.dll");
     check(mod);
 
@@ -58,7 +58,7 @@ void Graphic::InitDevice()
          const auto & feature : kFeatures)
     {
         const bool bFeatureSupported = m_NVRHIDevice->queryFeatureSupport(feature.first);
-        LOG_DEBUG("Feature Support for [%s]: [%d]", feature.second.data(), bFeatureSupported);
+        SDL_Log("Feature Support for [%s]: [%d]", feature.second.data(), bFeatureSupported);
 
         auto EnsureFeatureSupport = [&](nvrhi::Feature featureRequested)
             {
@@ -92,7 +92,7 @@ void Graphic::InitDevice()
             check(waveLaneCountMinMaxInfo.minWaveLaneCount == waveLaneCountMinMaxInfo.maxWaveLaneCount); // NOTE: wtf does it mean if this is not true?
             check(kNumThreadsPerWave == waveLaneCountMinMaxInfo.minWaveLaneCount);
 
-            LOG_DEBUG("Wave Lane Count: %d", waveLaneCountMinMaxInfo.minWaveLaneCount);
+            SDL_Log("Wave Lane Count: %d", waveLaneCountMinMaxInfo.minWaveLaneCount);
         }
     }
 
@@ -199,7 +199,7 @@ void Graphic::InitShaders()
 
                 m_AllShaders[shaderHash] = newShader;
 
-                LOG_DEBUG("Shader name: %s, Type: %s, Entry: %s", shaderDebugName.data(), nvrhi::utils::ShaderStageToString(shaderType), entryPoint.c_str());
+                SDL_Log("Shader name: %s, Type: %s, Entry: %s", shaderDebugName.data(), nvrhi::utils::ShaderStageToString(shaderType), entryPoint.c_str());
             };
 
         // no permutations
@@ -241,7 +241,7 @@ void Graphic::InitShaders()
                 size_t binarySize = 0;
                 if (!ShaderMake::FindPermutationInBlob(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants, &pBinary, &binarySize))
                 {
-                    LOG_DEBUG("%s", ShaderMake::FormatShaderNotFoundMessage(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants).c_str());
+                    SDL_Log("%s", ShaderMake::FormatShaderNotFoundMessage(shaderBlob.data(), shaderBlob.size(), shaderConstants, (uint32_t)nbConstants).c_str());
                     check(false);
                 }
 
@@ -318,7 +318,7 @@ nvrhi::BindingLayoutHandle Graphic::GetOrCreateBindingLayout(const nvrhi::Bindin
     if (!bindingLayout)
     {
         bindingLayout = m_NVRHIDevice->createBindingLayout(layoutDesc);
-        //LOG_DEBUG("New Binding Layout: [%zx]", layoutHash);
+        //SDL_Log("New Binding Layout: [%zx]", layoutHash);
     }
     return bindingLayout;
 }
@@ -334,7 +334,7 @@ nvrhi::BindingLayoutHandle Graphic::GetOrCreateBindingLayout(const nvrhi::Bindle
     if (!bindingLayout)
     {
         bindingLayout = m_NVRHIDevice->createBindlessLayout(layoutDesc);
-        //LOG_DEBUG("New Bindless Layout: [%zx]", layoutHash);
+        //SDL_Log("New Bindless Layout: [%zx]", layoutHash);
     }
     return bindingLayout;
 }
@@ -421,7 +421,7 @@ nvrhi::GraphicsPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::GraphicsPipel
     if (!graphicsPipeline)
     {
         PROFILE_SCOPED("createGraphicsPipeline");
-        //LOG_DEBUG("New Graphic PSO: [%zx]", psoHash);
+        //SDL_Log("New Graphic PSO: [%zx]", psoHash);
         graphicsPipeline = m_NVRHIDevice->createGraphicsPipeline(psoDesc, frameBuffer->getFramebufferInfo());
     }
     return graphicsPipeline;
@@ -445,7 +445,7 @@ nvrhi::MeshletPipelineHandle Graphic::GetOrCreatePSO(const nvrhi::MeshletPipelin
     if (!pipeline)
     {
         PROFILE_SCOPED("createMeshletPipeline");
-        //LOG_DEBUG("New Meshlet PSO: [%zx]", psoHash);
+        //SDL_Log("New Meshlet PSO: [%zx]", psoHash);
         pipeline = m_NVRHIDevice->createMeshletPipeline(psoDesc, frameBuffer->getFramebufferInfo());
     }
     return pipeline;
@@ -468,7 +468,7 @@ nvrhi::ComputePipelineHandle Graphic::GetOrCreatePSO(const nvrhi::ComputePipelin
     if (!computePipeline)
     {
         PROFILE_SCOPED("createComputePipeline");
-        //LOG_DEBUG("New Compute PSO: [%zx]", psoHash);
+        //SDL_Log("New Compute PSO: [%zx]", psoHash);
         computePipeline = m_NVRHIDevice->createComputePipeline(psoDesc);
     }
     return computePipeline;
@@ -634,7 +634,7 @@ void Graphic::Initialize()
         tf.emplace([this, renderer]
                    {
                        PROFILE_SCOPED(renderer->m_Name.c_str());
-                       LOG_DEBUG("Init Renderer: %s", renderer->m_Name.c_str());
+                       SDL_Log("Init Renderer: %s", renderer->m_Name.c_str());
                        renderer->Initialize();
                    }).succeed(initCommonResources);
     }
@@ -658,7 +658,7 @@ void Graphic::PostSceneLoad()
     for (IRenderer* renderer : IRenderer::ms_AllRenderers)
     {
         PROFILE_SCOPED(renderer->m_Name.c_str());
-        LOG_DEBUG("Post Scene Load for Renderer: %s", renderer->m_Name.c_str());
+        SDL_Log("Post Scene Load for Renderer: %s", renderer->m_Name.c_str());
         renderer->PostSceneLoad();
     }
 }
@@ -709,7 +709,7 @@ void Graphic::Update()
     {
         PROFILE_SCOPED("Reload Shaders");
 
-        LOG_DEBUG("Reloading all Shaders...");
+        SDL_Log("Reloading all Shaders...");
 
         verify(m_NVRHIDevice->waitForIdle());
         m_NVRHIDevice->runGarbageCollection();

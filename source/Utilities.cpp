@@ -184,7 +184,7 @@ uint32_t RandomUInt(uint32_t min, uint32_t max)
 
 ScopedTimer::~ScopedTimer()
 {
-    LOG_DEBUG("ScopedTimer: [%s] took %f seconds", m_Name, m_Timer.GetElapsedSeconds());
+    SDL_Log("ScopedTimer: [%s] took %f seconds", m_Name, m_Timer.GetElapsedSeconds());
 }
 
 ScopedFile::ScopedFile(std::string_view filePath, const char* mode)

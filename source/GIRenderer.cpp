@@ -122,7 +122,7 @@ public:
 
             check(GetNumProbes() > 0);
 
-            LOG_DEBUG("Creating GI volume, origin: [%.1f, %.1f, %.1f], num probes: [%u, %u, %u]",
+            SDL_Log("Creating GI volume, origin: [%.1f, %.1f, %.1f], num probes: [%u, %u, %u]",
                 m_desc.origin.x, m_desc.origin.y, m_desc.origin.z,
                 m_desc.probeCounts.x, m_desc.probeCounts.y, m_desc.probeCounts.z);
 
@@ -280,7 +280,7 @@ private:
             desc.setClearValue(nvrhi::Color{ 0.0f, 0.0f, 0.0f, 1.0f });
         }
 
-        //LOG_DEBUG("DDGI volume texture: %s, %ux%u, %u slices, format: %s", desc.debugName.c_str(), desc.width, desc.height, desc.arraySize, nvrhi::utils::FormatToString(desc.format));
+        //SDL_Log("DDGI volume texture: %s, %ux%u, %u slices, format: %s", desc.debugName.c_str(), desc.width, desc.height, desc.arraySize, nvrhi::utils::FormatToString(desc.format));
 
         return desc;
     }

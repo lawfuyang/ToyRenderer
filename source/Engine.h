@@ -9,7 +9,7 @@
 
 class Graphic;
 
-#define SDL_CALL(x) if (!(x)) { LOG_DEBUG("SDL Error: %s", SDL_GetError()); check(false); }
+#define SDL_CALL(x) if (!(x)) { SDL_Log("SDL Error: %s", SDL_GetError()); check(false); }
 
 // forward declare 'StringFormat' here so that logging macros can compile without including Utilities.h
 const char* StringFormat(const char* format, ...);
@@ -25,8 +25,6 @@ public:
 
     template <typename Lambda> void AddCommand(Lambda&& lambda) { AUTO_LOCK(m_CommandsLock); m_PendingCommands.push_back(lambda); }
     template <typename Lambda> void AddCommand(Lambda& lambda) { static_assert(sizeof(Lambda) == 0); /* enforce use of rvalue and therefore move to avoid an extra copy of the Lambda */ }
-
-    static std::string& GetDebugOutputStringForCurrentThread();
 
     uint32_t m_FPSLimit = 200;
 
@@ -57,8 +55,6 @@ private:
 #define PROFILE_SCOPED(NAME) MICROPROFILE_SCOPE_CSTR(NAME)
 
 #define PROFILE_FUNCTION() PROFILE_SCOPED(__FUNCTION__)
-
-#define LOG_DEBUG(FORMAT, ...) { std::string& s = Engine::GetDebugOutputStringForCurrentThread(); s = StringFormat(FORMAT, __VA_ARGS__); s += '\n'; OutputDebugStringA(s.c_str()); }
 
 template <typename T>
 class CommandLineOption

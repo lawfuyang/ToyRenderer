@@ -11,7 +11,7 @@
 
 #include "shaders/ShaderInterop.h"
 
-#define NRD_FUNC_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { LOG_DEBUG("NRD call failed: %s", EnumUtils::ToString(result)); check(0); }
+#define NRD_FUNC_CALL(fn) if (nrd::Result result = fn; result != nrd::Result::SUCCESS) { SDL_Log("NRD call failed: %s", EnumUtils::ToString(result)); check(0); }
 #define NRD_ID(x) nrd::Identifier(nrd::Denoiser::x)
 
 RenderGraph::ResourceHandle g_ShadowMaskRDGTextureHandle;

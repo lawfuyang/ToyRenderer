@@ -231,7 +231,7 @@ void Scene::UpdateMainViewCameraControls()
     {
         s_CameraMoveSpeed *= (g_Engine.m_MouseWheelY > 0.0f) ? 2.0f : 0.5f;
         s_CameraMoveSpeed = std::max(kKindaSmallNumber, s_CameraMoveSpeed);
-        //LOG_DEBUG("CameraMoveSpeed is now: %f", s_CameraMoveSpeed);
+        //SDL_Log("CameraMoveSpeed is now: %f", s_CameraMoveSpeed);
     }
 
     m_MouseLastPos = m_CurrentMousePos;
@@ -665,9 +665,9 @@ void Scene::PostSceneLoad()
     // empirically set camera near plane based on scene BS radius
     m_View.m_ZNearP = std::max(0.1f, std::min(m_BoundingSphere.Radius * 0.01f, 0.1f));
 
-    LOG_DEBUG("Scene AABB: c:[%f, %f, %f] e:[%f, %f, %f]", m_AABB.Center.x, m_AABB.Center.y, m_AABB.Center.z, m_AABB.Extents.x, m_AABB.Extents.y, m_AABB.Extents.z);
-    LOG_DEBUG("Scene Bounding Sphere: [%f, %f, %f][r: %f]", m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius);
-    LOG_DEBUG("Camera Near Plane: %f", m_View.m_ZNearP);
+    SDL_Log("Scene AABB: c:[%f, %f, %f] e:[%f, %f, %f]", m_AABB.Center.x, m_AABB.Center.y, m_AABB.Center.z, m_AABB.Extents.x, m_AABB.Extents.y, m_AABB.Extents.z);
+    SDL_Log("Scene Bounding Sphere: [%f, %f, %f][r: %f]", m_BoundingSphere.Center.x, m_BoundingSphere.Center.y, m_BoundingSphere.Center.z, m_BoundingSphere.Radius);
+    SDL_Log("Camera Near Plane: %f", m_View.m_ZNearP);
 
     // set to first camera if any
     if (!m_Cameras.empty())
