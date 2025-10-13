@@ -39,14 +39,13 @@
 #define PRAGMA_OPTIMIZE_OFF __pragma(optimize("",off))
 #define PRAGMA_OPTIMIZE_ON  __pragma(optimize("", on))
 
-#define SDL_DEFAULT_ASSERT_LEVEL 3 // always enable asserts
+#define check(expr) SDL_assert(expr)
 
 #if defined(_DEBUG) || defined(DEBUG)
-    #define verify(expr) SDL_assert(expr)
+    #define verify(expr) do { if (!(expr)) { check(0); } } while(0)
 #else
-    #define verify(expr) expr
+    #define verify(expr) (expr)
 #endif
-#define check(expr) SDL_assert(expr)
 
 using Microsoft::WRL::ComPtr;
 
