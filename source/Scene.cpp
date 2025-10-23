@@ -110,6 +110,7 @@ void View::Update()
 {
     PROFILE_FUNCTION();
 
+    m_PrevJitterOffset = m_CurrentJitterOffset;
     m_CurrentJitterOffset = g_Graphic.ComputeCurrentJitterOffset();
 
     // update prev frame matrices

@@ -353,10 +353,10 @@ public:
         memcpy(commonSettings.worldToViewMatrixPrev, &g_Scene->m_View.m_PrevWorldToView, sizeof(commonSettings.worldToViewMatrixPrev));
         commonSettings.motionVectorScale[0] = 1.0f / g_Graphic.m_RenderResolution.x;
         commonSettings.motionVectorScale[1] = 1.0f / g_Graphic.m_RenderResolution.y;
-        commonSettings.cameraJitter[0] = 0.0f; // TODO: jitter stuff
-        commonSettings.cameraJitter[1] = 0.0f;
-        commonSettings.cameraJitterPrev[0] = 0.0f;
-        commonSettings.cameraJitterPrev[1] = 0.0f;
+        commonSettings.cameraJitter[0] = g_Scene->m_View.m_CurrentJitterOffset.x;
+        commonSettings.cameraJitter[1] = g_Scene->m_View.m_CurrentJitterOffset.y;
+        commonSettings.cameraJitterPrev[0] = g_Scene->m_View.m_PrevJitterOffset.x;
+        commonSettings.cameraJitterPrev[1] = g_Scene->m_View.m_PrevJitterOffset.y;
         commonSettings.resourceSize[0] = g_Graphic.m_RenderResolution.x;
         commonSettings.resourceSize[1] = g_Graphic.m_RenderResolution.y;
         commonSettings.resourceSizePrev[0] = g_Graphic.m_RenderResolution.x;

@@ -68,6 +68,7 @@ public:
     Matrix m_PrevWorldToClip;
 
     Vector2 m_CurrentJitterOffset = Vector2::Zero;
+    Vector2 m_PrevJitterOffset = Vector2::Zero;
 
     Frustum m_Frustum;
 };
