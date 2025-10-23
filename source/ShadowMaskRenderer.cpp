@@ -1,6 +1,7 @@
 #include "Graphic.h"
 
 #include "extern/nvidia/NRD/Include/NRD.h"
+#include "extern/nvidia/NRD/Shaders/Include/NRD.hlsli"
 #include "extern/imgui/imgui.h"
 
 #include "CommonResources.h"
@@ -103,7 +104,7 @@ public:
     {
         nvrhi::DeviceHandle device = g_Graphic.m_NVRHIDevice;
 
-        const nrd::LibraryDesc& libraryDesc = nrd::GetLibraryDesc();
+        const nrd::LibraryDesc* libraryDesc = nrd::GetLibraryDesc();
         // TODO: LOG
 
         const nrd::DenoiserDesc denoiserDescs[] = { NRD_ID(SIGMA_SHADOW), nrd::Denoiser::SIGMA_SHADOW };
@@ -114,15 +115,15 @@ public:
 
         NRD_FUNC_CALL(nrd::CreateInstance(instanceCreationDesc, m_NRDInstance));
 
-        const nrd::InstanceDesc& instanceDesc = nrd::GetInstanceDesc(*m_NRDInstance);
+        const nrd::InstanceDesc* instanceDesc = nrd::GetInstanceDesc(*m_NRDInstance);
 
-        const nvrhi::BufferDesc constantBufferDesc = nvrhi::utils::CreateVolatileConstantBufferDesc(instanceDesc.constantBufferMaxDataSize, "NrdConstantBuffer", 1);
+        const nvrhi::BufferDesc constantBufferDesc = nvrhi::utils::CreateVolatileConstantBufferDesc(instanceDesc->constantBufferMaxDataSize, "NrdConstantBuffer", 1);
         m_NRDConstantBuffer = device->createBuffer(constantBufferDesc);
 
-        check(instanceDesc.samplersNum == std::size(m_NRDSamplers));
+        check(instanceDesc->samplersNum == std::size(m_NRDSamplers));
         for (uint32_t i = 0; i < std::size(m_NRDSamplers); ++i)
         {
-            const nrd::Sampler& samplerMode = instanceDesc.samplers[i];
+            const nrd::Sampler& samplerMode = instanceDesc->samplers[i];
 
             switch (samplerMode)
             {
@@ -138,17 +139,17 @@ public:
             }
         }
 
-        m_NRDTemporaryTextureHandles.resize(instanceDesc.transientPoolSize);
+        m_NRDTemporaryTextureHandles.resize(instanceDesc->transientPoolSize);
 
-        const uint32_t poolSize = instanceDesc.permanentPoolSize + instanceDesc.transientPoolSize;
+        const uint32_t poolSize = instanceDesc->permanentPoolSize + instanceDesc->transientPoolSize;
 
         for (uint32_t i = 0; i < poolSize; i++)
         {
-            const bool bIsPermanent = (i < instanceDesc.permanentPoolSize);
+            const bool bIsPermanent = (i < instanceDesc->permanentPoolSize);
 
             const nrd::TextureDesc& nrdTextureDesc = bIsPermanent
-                ? instanceDesc.permanentPool[i]
-                : instanceDesc.transientPool[i - instanceDesc.permanentPoolSize];
+                ? instanceDesc->permanentPool[i]
+                : instanceDesc->transientPool[i - instanceDesc->permanentPoolSize];
 
             const nvrhi::Format format = GetNVRHIFormat(nrdTextureDesc.format);
             check(format != nvrhi::Format::UNKNOWN);
@@ -391,12 +392,12 @@ public:
         nvrhi::TextureHandle normalRoughnessTexture = renderGraph.GetTexture(m_NormalRoughnessRDGTextureHandle);
         nvrhi::TextureHandle shadowTranslucencyTexture = renderGraph.GetTexture(g_ShadowMaskRDGTextureHandle);
 
-        const nrd::InstanceDesc& instanceDesc = nrd::GetInstanceDesc(*m_NRDInstance);
+        const nrd::InstanceDesc* instanceDesc = nrd::GetInstanceDesc(*m_NRDInstance);
 
         // NVRHI will check that volatile buffers be written to first before being bound
         {
             std::vector<std::byte> dummyConstantBufferBytes;
-            dummyConstantBufferBytes.resize(instanceDesc.constantBufferMaxDataSize);
+            dummyConstantBufferBytes.resize(instanceDesc->constantBufferMaxDataSize);
 
             commandList->writeBuffer(m_NRDConstantBuffer, dummyConstantBufferBytes.data(), dummyConstantBufferBytes.size());
         }
@@ -404,15 +405,10 @@ public:
         for (uint32_t dispatchIndex = 0; dispatchIndex < dispatchDescNum; dispatchIndex++)
         {
             const nrd::DispatchDesc& dispatchDesc = dispatchDescs[dispatchIndex];
-            const nrd::PipelineDesc& nrdPipelineDesc = instanceDesc.pipelines[dispatchDesc.pipelineIndex];
-
-            if (dispatchDesc.constantBufferDataSize)
-            {
-                commandList->writeBuffer(m_NRDConstantBuffer, dispatchDesc.constantBufferData, dispatchDesc.constantBufferDataSize);
-            }
+            const nrd::PipelineDesc& nrdPipelineDesc = instanceDesc->pipelines[dispatchDesc.pipelineIndex];
 
             nvrhi::BindingSetDesc bindingSetDesc;
-            bindingSetDesc.addItem(nvrhi::BindingSetItem::ConstantBuffer(instanceDesc.constantBufferRegisterIndex, m_NRDConstantBuffer));
+            //bindingSetDesc.addItem(nvrhi::BindingSetItem::ConstantBuffer(instanceDesc->constantBufferRegisterIndex, m_NRDConstantBuffer));
 
             uint32_t resourceIndex = 0;
             for (uint32_t resourceRangeIndex = 0; resourceRangeIndex < nrdPipelineDesc.resourceRangesNum; resourceRangeIndex++)
@@ -461,7 +457,7 @@ public:
 
                     nvrhi::BindingSetItem setItem = nvrhi::BindingSetItem::None();
                     setItem.resourceHandle = texture;
-                    setItem.slot = instanceDesc.resourcesBaseRegisterIndex + descriptorOffset;
+                    setItem.slot = instanceDesc->resourcesBaseRegisterIndex + descriptorOffset;
                     setItem.subresources = subresources;
                     setItem.type = (nrdDescriptorRange.descriptorType == nrd::DescriptorType::TEXTURE)
                         ? nvrhi::ResourceType::Texture_SRV
@@ -474,27 +470,62 @@ public:
             }
             check(resourceIndex == dispatchDesc.resourcesNum);
 
+            // Format: "fileName|macro1=value1|macro2=value2..."
+            // ex: input: "Clear.cs.hlsl|FLOAT=1"
+            //     output: "Clear.cs FLOAT=0"
+            std::string shaderIdentifierStr = nrdPipelineDesc.shaderIdentifier;
+
+            // get initial Shader name first. Since all NRD shader files use NRD_CS_MAIN, which is a macro defined as "main", the file name itself is used.
+            std::string shaderName = shaderIdentifierStr.substr(0, shaderIdentifierStr.find(".hlsl"));
+
+            // now parse permutations
+            std::vector<std::string> shaderPermutations;
+            while (shaderIdentifierStr.find("|") != std::string::npos)
+            {
+                shaderIdentifierStr = shaderIdentifierStr.substr(shaderIdentifierStr.find("|") + 1);
+                shaderPermutations.push_back(shaderIdentifierStr.substr(0, shaderIdentifierStr.find("|")));
+            }
+
+            // 'ShaderMake::EnumeratePermutationsInBlob' always retrieves the permutation strings in a sorted manner, so we need to sort them here as well to match.
+            std::ranges::sort(shaderPermutations);
+
+            for (const std::string& permutation : shaderPermutations)
+            {
+                shaderName += " " + permutation;
+            }
+
             Graphic::ComputePassParams computePassParams;
             computePassParams.m_CommandList = commandList;
-            computePassParams.m_ShaderName = nrdPipelineDesc.shaderFileName;
+            computePassParams.m_ShaderName = shaderName;
             computePassParams.m_BindingSetDesc = bindingSetDesc;
             computePassParams.m_DispatchGroupSize = {dispatchDesc.gridWidth, dispatchDesc.gridHeight, 1};
 
-            if (instanceDesc.samplersNum > 0)
+            nvrhi::BindingSetDesc register1BindingSetDesc;
+
+            if (dispatchDesc.constantBufferDataSize)
             {
-                nvrhi::BindingSetDesc samplersBindingSetDesc;
-                check(instanceDesc.samplersNum <= std::size(m_NRDSamplers));
-                for (uint32_t samplerIndex = 0; samplerIndex < instanceDesc.samplersNum; samplerIndex++)
+                commandList->writeBuffer(m_NRDConstantBuffer, dispatchDesc.constantBufferData, dispatchDesc.constantBufferDataSize);
+
+                register1BindingSetDesc.addItem(nvrhi::BindingSetItem::ConstantBuffer(instanceDesc->constantBufferRegisterIndex, m_NRDConstantBuffer));
+            }
+
+            if (instanceDesc->samplersNum > 0)
+            {
+                check(instanceDesc->samplersNum <= std::size(m_NRDSamplers));
+                for (uint32_t samplerIndex = 0; samplerIndex < instanceDesc->samplersNum; samplerIndex++)
                 {
-                    samplersBindingSetDesc.bindings.push_back(nvrhi::BindingSetItem::Sampler(instanceDesc.samplersBaseRegisterIndex + samplerIndex, m_NRDSamplers[samplerIndex]));
+                    register1BindingSetDesc.addItem(nvrhi::BindingSetItem::Sampler(instanceDesc->samplersBaseRegisterIndex + samplerIndex, m_NRDSamplers[samplerIndex]));
                 }
+            }
 
-                nvrhi::BindingSetHandle samplersBindingSet;
-                nvrhi::BindingLayoutHandle samplersBindingLayout;
-                g_Graphic.CreateBindingSetAndLayout(samplersBindingSetDesc, samplersBindingSet, samplersBindingLayout, 1); // NOTE: samplers are in register space 1, as of NRD 4.15
+            if (!register1BindingSetDesc.bindings.empty())
+            {
+                nvrhi::BindingSetHandle register1BindingSet;
+                nvrhi::BindingLayoutHandle register1BindingLayout;
+                g_Graphic.CreateBindingSetAndLayout(register1BindingSetDesc, register1BindingSet, register1BindingLayout, NRD_CONSTANT_BUFFER_AND_SAMPLERS_SPACE_INDEX);
 
-                computePassParams.m_ExtraBindingSets = { samplersBindingSet };
-                computePassParams.m_ExtraBindingLayouts = { samplersBindingLayout };
+                computePassParams.m_ExtraBindingSets = { register1BindingSet };
+                computePassParams.m_ExtraBindingLayouts = { register1BindingLayout };
             }
 
             g_Graphic.AddComputePass(computePassParams);

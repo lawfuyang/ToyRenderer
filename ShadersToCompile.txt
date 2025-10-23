@@ -32,15 +32,13 @@ source/shaders/visualizeminmip.hlsl -T ps -E PS_VisualizeMinMip
 
 extern/amd/FidelityFX/sdk/src/backends/dx12/shaders/spd/ffx_spd_downsample_pass.hlsl -T cs -E CS -D FFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}
 
-extern/nvidia/NRD/Shaders/Source/Clear_Float.cs.hlsl -T cs -E main
-extern/nvidia/NRD/Shaders/Source/Clear_Uint.cs.hlsl -T cs -E main
-extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_ClassifyTiles.cs.hlsl -T cs -E main
-extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_PostBlur.cs.hlsl -T cs -E main
-extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_SplitScreen.cs.hlsl -T cs -E main
-extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_TemporalStabilization.cs.hlsl -T cs -E main
-extern/nvidia/NRD/Shaders/Source/SIGMA_SmoothTiles.cs.hlsl -T cs -E main
-extern/nvidia/NRD/Shaders/Source/SIGMA_Copy.cs.hlsl -T cs -E main
-extern/nvidia/NRD/Shaders/Source/SIGMA_Shadow_Blur.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/Clear.cs.hlsl -T cs -E main -D FLOAT={0,1}
+extern/nvidia/NRD/Shaders/SIGMA_ClassifyTiles.cs.hlsl -T cs -E main -D TRANSLUCENCY={0,1}
+extern/nvidia/NRD/Shaders/SIGMA_Blur.cs.hlsl -T cs -E main -D TRANSLUCENCY={0,1} -D FIRST_PASS={0,1}
+extern/nvidia/NRD/Shaders/SIGMA_SplitScreen.cs.hlsl -T cs -E main -D TRANSLUCENCY={0,1}
+extern/nvidia/NRD/Shaders/SIGMA_TemporalStabilization.cs.hlsl -T cs -E main -D TRANSLUCENCY={0,1}
+extern/nvidia/NRD/Shaders/SIGMA_SmoothTiles.cs.hlsl -T cs -E main
+extern/nvidia/NRD/Shaders/SIGMA_Copy.cs.hlsl -T cs -E main
 
 extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeBlendingCS.hlsl -T cs -E DDGIProbeBlendingCS -D RTXGI_DDGI_BLEND_RADIANCE={0,1}
 extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/ProbeRelocationCS.hlsl -T cs -E DDGIProbeRelocationCS
