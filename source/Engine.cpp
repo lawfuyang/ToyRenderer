@@ -332,22 +332,21 @@ void Engine::MainLoop()
             DumpProfilingCapture();
         }
 
-        m_CPUFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
+        m_CPUFrameTimeMs = frameTimer.GetElapsedMilliseconds();
 
 		if (m_FPSLimit != 0)
 		{
             PROFILE_SCOPED("Busy Wait Until FPS Limit");
 
-			const std::chrono::microseconds frameDuration{ 1000000 / m_FPSLimit };
-            const auto timeLeft = frameDuration - std::chrono::microseconds{ frameTimer.GetElapsedMicroSeconds() };
-
-            if (timeLeft.count() > 0)
+            const uint64_t frameDurationNanoSeconds = 1000000.0f / m_FPSLimit;
+            if (frameTimer.GetElapsedNanoseconds() < frameDurationNanoSeconds)
             {
-                TimerSleep(timeLeft.count());
+                const uint64_t timeLeftNanoSeconds = frameDurationNanoSeconds - frameTimer.GetElapsedNanoseconds();
+                SDL_DelayPrecise(timeLeftNanoSeconds);
             }
 		}
 
-        m_CPUCappedFrameTimeMs = frameTimer.GetElapsedMilliSeconds();
+        m_CPUCappedFrameTimeMs = frameTimer.GetElapsedMilliseconds();
 
         MicroProfileFlip(nullptr);
     } while (!m_Exit);

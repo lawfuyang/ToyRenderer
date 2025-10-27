@@ -774,7 +774,7 @@ void Graphic::Update()
         commandList->endTimerQuery(m_FrameTimerQuery[m_FrameCounter % 2]);
     }
 
-    m_GraphicUpdateTimerMs = updateTimer.GetElapsedMilliSeconds();
+    m_GraphicUpdateTimerMs = updateTimer.GetElapsedMilliseconds();
 
     // execute all cmd lists for this frame
     ExecuteAllCommandLists();

@@ -282,7 +282,7 @@ tf::Task RenderGraph::AddRenderer(IRenderer* renderer)
 
 			pass.m_CommandList->endTimerQuery(rendererTimerQuery);
 
-			renderer->m_CPUFrameTime = passTimer.GetElapsedMilliSeconds();
+			renderer->m_CPUFrameTime = passTimer.GetElapsedMilliseconds();
 
 			tl_CurrentThreadPassID = RenderGraph::kInvalidPassID;
 		});
