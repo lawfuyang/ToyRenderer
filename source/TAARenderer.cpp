@@ -19,7 +19,9 @@
         const NVSDK_NGX_Result result = x; \
         if (NVSDK_NGX_FAILED(result)) \
         { \
-            SDL_Log("NGX call failed: %s", StringUtils::WideToUtf8(GetNGXResultAsString(result))); \
+            const char* errorMessage = StringUtils::WideToUtf8(GetNGXResultAsString(result)); \
+            SDL_Log("NGX call failed: %s", errorMessage); \
+            SDL_free((void*)errorMessage); \
             check(false); \
         } \
     }
@@ -177,6 +179,7 @@ public:
     {
         const char* msg = StringUtils::WideToUtf8(message);
         SDL_Log("FFX %s: %s", type == FFX_API_MESSAGE_TYPE_ERROR ? "Error" : "Warning", msg);
+        SDL_free((void*)msg);
         check(false);
     }
 

@@ -23,8 +23,15 @@ namespace EnumUtils
 
 namespace StringUtils
 {
-    const wchar_t* Utf8ToWide(std::string_view strView);
-    const char* WideToUtf8(std::wstring_view strView);
+    inline const wchar_t* Utf8ToWide(std::string_view strView)
+    {
+        return SDL_reinterpret_cast(const wchar_t*, (SDL_iconv_string("WCHAR_T", "UTF-8", strView.data(), (strView.length() + 1))));
+    }
+
+    inline const char* WideToUtf8(std::wstring_view strView)
+    {
+        return SDL_iconv_wchar_utf8(strView.data());
+    }
 
     // TODO: wstrings
     inline void TransformStrInplace(std::string& str, int (*transformFunc)(int)) { std::transform(str.begin(), str.end(), str.begin(), [transformFunc](char c) { return static_cast<char>(transformFunc(static_cast<int>(c))); }); }

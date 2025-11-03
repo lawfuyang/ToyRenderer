@@ -188,8 +188,6 @@ void Engine::ParseCommandlineArguments(int argc, char** argv)
 
 void Engine::Shutdown()
 {
-	SCOPED_TIMER_FUNCTION();
-
 	// recurssive consume all commands until empty
 	while (!m_PendingCommands.empty())
 	{

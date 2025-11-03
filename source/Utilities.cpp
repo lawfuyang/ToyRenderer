@@ -107,37 +107,6 @@ void TokenizeLine(char* in, std::vector<const char*>& tokens)
         tokens.push_back(token);
 }
 
-namespace StringUtils
-{
-    const wchar_t* Utf8ToWide(std::string_view str)
-    {
-        thread_local std::wstring wstr;
-        wstr.clear();
-
-        if (int num_chars = ::MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.length(), NULL, 0))
-        {
-            wstr.resize(num_chars);
-            ::MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.length(), &wstr[0], num_chars);
-        }
-
-        return wstr.c_str();
-    }
-
-    const char* WideToUtf8(std::wstring_view wstr)
-    {
-        thread_local std::string str;
-        str.clear();
-
-        if (int num_chars = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), (int)wstr.length(), NULL, 0, NULL, NULL))
-        {
-            str.resize(num_chars);
-            WideCharToMultiByte(CP_UTF8, 0, wstr.data(), (int)wstr.length(), &str[0], num_chars, NULL, NULL);
-        }
-
-        return str.c_str();
-    }
-}
-
 class RandomNumberGenerator
 {
 public:

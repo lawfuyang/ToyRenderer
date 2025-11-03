@@ -81,8 +81,9 @@ public:
                     continue;
                 }
 
-                const char *gpuName = StringUtils::WideToUtf8(desc.Description);
+                const char* gpuName = StringUtils::WideToUtf8(desc.Description);
                 SDL_Log("Graphic Adapter: %s", gpuName);
+                SDL_free((void*)gpuName);
                 break;
             }
             check(m_DXGIAdapter);
