@@ -1,20 +1,11 @@
 {
-  "version": 2,
+  "version": 6,
   "configurePresets": [
     {
       "name": "base",
       "generator": "Visual Studio 17 2022",
       "hidden": true,
       "binaryDir": "${sourceDir}/build"
-    },
-
-    {
-      "name": "x64",
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      },
-      "hidden": true
     },
 
     {
@@ -53,11 +44,11 @@
       }
     },
 
-    { "name": "x64-MSVC-Debug", "description": "MSVC for x64 (Debug)", "inherits": [ "base", "x64", "Debug", "MSVC" ] },
-    { "name": "x64-MSVC-Release", "description": "MSVC for x64 (Release)", "inherits": [ "base", "x64", "Release", "MSVC" ] },
-    { "name": "x64-ClangCL-Debug", "description": "ClangCL for x64 (Debug)", "inherits": [ "base", "x64", "Debug", "Clang CL" ] },
-    { "name": "x64-ClangCL-Release", "description": "ClangCL for x64 (Release)", "inherits": [ "base", "x64", "Release", "Clang CL" ] },
-    { "name": "x64-Clang-Debug", "description": "Clang LLVM for x64 (Debug)", "inherits": [ "base", "x64", "Debug", "Clang LLVM" ] },
-    { "name": "x64-Clang-Release", "description": "Clang LLVM for x64 (Release)", "inherits": [ "base", "x64", "Release", "Clang LLVM" ] }
+    { "name": "MSVC-Debug", "inherits": [ "base", "Debug", "MSVC" ] },
+    { "name": "MSVC-Release", "inherits": [ "base", "Release", "MSVC" ] },
+    { "name": "ClangCL-Debug", "inherits": [ "base", "Debug", "Clang CL" ] },
+    { "name": "ClangCL-Release", "inherits": [ "base", "Release", "Clang CL" ] },
+    { "name": "Clang-Debug", "inherits": [ "base", "Debug", "Clang LLVM" ] },
+    { "name": "Clang-Release", "inherits": [ "base", "Release", "Clang LLVM" ] }
   ]
 }
