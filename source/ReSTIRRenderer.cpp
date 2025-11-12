@@ -2,17 +2,17 @@
 
 #include "Rtxdi/ImportanceSamplingContext.h"
 
-class ImportanceSamplingRenderer : public IRenderer
+class ReSTIRRenderer : public IRenderer
 {
     std::unique_ptr<rtxdi::ImportanceSamplingContext> m_ImportanceSamplingContext;
 
 public:
-    ImportanceSamplingRenderer()
+    ReSTIRRenderer()
         : IRenderer("Importance Sampling Renderer")
     {
     }
 
-    ~ImportanceSamplingRenderer() override
+    ~ReSTIRRenderer() override
     {
         m_ImportanceSamplingContext.reset();
     }
@@ -44,4 +44,4 @@ public:
     }
 };
 
-DEFINE_RENDERER(ImportanceSamplingRenderer);
+DEFINE_RENDERER(ReSTIRRenderer);

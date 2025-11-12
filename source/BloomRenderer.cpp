@@ -141,5 +141,4 @@ public:
 	}
 };
 
-static BloomRenderer gs_BloomRenderer;
-IRenderer* g_BloomRenderer = &gs_BloomRenderer;
+DEFINE_RENDERER(BloomRenderer);

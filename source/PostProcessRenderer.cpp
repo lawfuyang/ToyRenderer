@@ -74,5 +74,4 @@ public:
     }
 };
 
-static PostProcessRenderer gs_PostProcessRenderer;
-IRenderer* g_PostProcessRenderer = &gs_PostProcessRenderer;
+DEFINE_RENDERER(PostProcessRenderer);

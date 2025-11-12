@@ -248,5 +248,4 @@ public:
     }
 };
 
-static AmbientOcclusionRenderer gs_AmbientOcclusionRenderer;
-IRenderer* g_AmbientOcclusionRenderer = &gs_AmbientOcclusionRenderer;
+DEFINE_RENDERER(AmbientOcclusionRenderer);

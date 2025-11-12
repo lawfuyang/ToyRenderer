@@ -387,5 +387,4 @@ public:
     }
 };
 
-static TAARenderer gs_TAARenderer;
-IRenderer* g_TAARenderer = &gs_TAARenderer;
+DEFINE_RENDERER(TAARenderer);

@@ -183,5 +183,4 @@ public:
         }
     }
 };
-static TextureFeedbackDebugRenderer gs_TextureFeedbackDebugRenderer;
-IRenderer* g_TextureFeedbackDebugRenderer = &gs_TextureFeedbackDebugRenderer;
+DEFINE_RENDERER(TextureFeedbackDebugRenderer);

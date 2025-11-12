@@ -120,5 +120,4 @@ public:
 	}
 };
 
-static DeferredLightingRenderer gs_DeferredLightingRenderer;
-IRenderer* g_DeferredLightingRenderer = &gs_DeferredLightingRenderer;
+DEFINE_RENDERER(DeferredLightingRenderer);

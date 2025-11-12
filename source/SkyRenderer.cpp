@@ -208,5 +208,4 @@ public:
     }
 };
 
-static SkyRenderer gs_SkyRenderer;
-IRenderer* g_SkyRenderer = &gs_SkyRenderer;
+DEFINE_RENDERER(SkyRenderer);

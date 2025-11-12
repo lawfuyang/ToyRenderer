@@ -215,5 +215,4 @@ public:
     }
 };
 
-static AdaptLuminanceRenderer gs_AdaptLuminanceRenderer;
-IRenderer* g_AdaptLuminanceRenderer = &gs_AdaptLuminanceRenderer;
+DEFINE_RENDERER(AdaptLuminanceRenderer);

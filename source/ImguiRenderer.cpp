@@ -308,5 +308,4 @@ public:
     }
 };
 
-static IMGUIRenderer gs_IMGUIRenderer;
-IRenderer* g_IMGUIRenderer = &gs_IMGUIRenderer;
+DEFINE_RENDERER(IMGUIRenderer);

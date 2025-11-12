@@ -593,8 +593,7 @@ public:
         };
     }
 };
-static GIRenderer gs_GIRenderer;
-IRenderer* g_GIRenderer = &gs_GIRenderer;
+DEFINE_RENDERER(GIRenderer);
 
 class GIDebugRenderer : public IRenderer
 {
@@ -806,5 +805,4 @@ public:
         }
     }
 };
-static GIDebugRenderer gs_GIDebugRenderer;
-IRenderer* g_GIDebugRenderer = &gs_GIDebugRenderer;
+DEFINE_RENDERER(GIDebugRenderer);

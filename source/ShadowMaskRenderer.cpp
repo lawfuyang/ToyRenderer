@@ -539,5 +539,4 @@ public:
     }
 };
 
-static ShadowMaskRenderer gs_ShadowMaskRenderer;
-IRenderer* g_ShadowMaskRenderer = &gs_ShadowMaskRenderer;
+DEFINE_RENDERER(ShadowMaskRenderer);

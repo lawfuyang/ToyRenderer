@@ -191,8 +191,8 @@ public:
 };
 
 #define DEFINE_RENDERER(name) \
-    static name gs_##name##Renderer; \
-    IRenderer* g_##name##Renderer = &gs_##name##Renderer;
+    static name gs_##name; \
+    IRenderer* g_##name = &gs_##name;
 
 struct ScopedCommandList
 {

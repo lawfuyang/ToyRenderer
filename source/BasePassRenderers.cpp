@@ -161,8 +161,8 @@ public:
         }
     }
 };
-static UpdateInstanceConstsRenderer gs_UpdateInstanceConstsRenderer;
-IRenderer* g_UpdateInstanceConstsRenderer = &gs_UpdateInstanceConstsRenderer;
+
+DEFINE_RENDERER(UpdateInstanceConstsRenderer);
 
 class BasePassRenderer : public IRenderer
 {
@@ -738,8 +738,5 @@ public:
     }
 };
 
-static GBufferRenderer gs_GBufferRenderer;
-IRenderer* g_GBufferRenderer = &gs_GBufferRenderer;
-
-static TransparentForwardRenderer gs_TransparentForwardRenderer;
-IRenderer* g_TransparentForwardRenderer = &gs_TransparentForwardRenderer;
+DEFINE_RENDERER(GBufferRenderer);
+DEFINE_RENDERER(TransparentForwardRenderer);
