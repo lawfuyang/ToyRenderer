@@ -190,6 +190,10 @@ public:
     inline static std::vector<IRenderer*> ms_AllRenderers;
 };
 
+#define DEFINE_RENDERER(name) \
+    static name gs_##name##Renderer; \
+    IRenderer* g_##name##Renderer = &gs_##name##Renderer;
+
 struct ScopedCommandList
 {
     ScopedCommandList(nvrhi::CommandListHandle cmdList, std::string_view name, bool bAutoQueue, bool bImmediateExecute)
