@@ -10,6 +10,8 @@
 
 #include "ShaderInterop.h"
 
+static const float kMinRoughness = 0.05f;
+
 struct GBufferParams
 {
     float4 m_Albedo;
@@ -72,6 +74,11 @@ float3 ComputeF0(float specular, float3 baseColor, float metalness)
 float3 ComputeDiffuseColor(float3 baseColor, float metalness)
 {
     return baseColor * (1.0f - metalness);
+}
+
+float Lambert(float3 normal, float3 lightIncident)
+{
+    return max(0, -dot(normal, lightIncident)) / M_PI;
 }
 
 float3 Diffuse_Lambert(float3 diffuseColor)
@@ -151,6 +158,112 @@ float3 F_Schlick(float3 f0, float VdotH)
 {
     float Fc = Pow5(1.0f - VdotH);
     return Fc + (1.0f - Fc) * f0;
+}
+
+// Returns the sampled H vector in tangent space, assuming N = (0, 0, 1).
+// Ve is in the same tangent space.
+float3 ImportanceSampleGGX_VNDF(float2 random, float roughness, float3 Ve, float ndf_trim)
+{
+    float a = roughness * roughness;
+
+    float3 Vh = normalize(float3(a * Ve.x, a * Ve.y, Ve.z));
+
+    float lensq = Vh.x * Vh.x + Vh.y * Vh.y;
+    float3 T1 = lensq > 0.0 ? float3(-Vh.y, Vh.x, 0.0) * (1 / sqrt(lensq)) : float3(1.0, 0.0, 0.0);
+    float3 T2 = cross(Vh, T1);
+
+    float r = sqrt(random.x * ndf_trim);
+    float phi = 2.0 * M_PI * random.y;
+    float t1 = r * cos(phi);
+    float t2 = r * sin(phi);
+    float s = 0.5 * (1.0 + Vh.z);
+    t2 = (1.0 - s) * sqrt(1.0 - t1 * t1) + s * t2;
+
+    float3 Nh = t1 * T1 + t2 * T2 + sqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
+
+    float3 H;
+    H.x = a * Nh.x;
+    H.y = a * Nh.y;
+    H.z = max(0.0, Nh.z);
+
+    return H;
+}
+
+float ImportanceSampleGGX_VNDF_PDF(float roughness, float3 N, float3 V, float3 L)
+{
+    float3 H = normalize(L + V);
+    float NoH = saturate(dot(N, H));
+    float NoH2 = NoH * NoH;
+    float VoH = saturate(dot(V, H));
+
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float x = (NoH2 * a2 + (1.0f - NoH2));
+    float x2 = x * x;
+    float D = a2 / (M_PI * x2);
+    return (VoH > 0.0) ? D / (4.0 * VoH) : 0.0;
+}
+
+float G_Smith_over_NdotV(float roughness, float NdotV, float NdotL)
+{
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float g1 = NdotV * sqrt(a2 + (1.0 - a2) * NdotL * NdotL);
+    float g2 = NdotL * sqrt(a2 + (1.0 - a2) * NdotV * NdotV);
+    return 2.0 * NdotL / (g1 + g2);
+}
+
+float3 GGX_times_NdotL(float3 V, float3 L, float3 N, float roughness, float3 F0)
+{
+    float3 H = normalize(L + V);
+
+    float NoL = saturate(dot(N, L));
+    float VoH = saturate(dot(V, H));
+    float NoV = saturate(dot(N, V));
+    float NoH = saturate(dot(N, H));
+
+    if (NoL > 0)
+    {
+        float G = G_Smith_over_NdotV(roughness, NoV, NoL);
+        float a = roughness * roughness;
+        float a2 = a * a;
+        float NoH2 = NoH * NoH;
+        float x = (NoH2 * a2 + (1.0f - NoH2));
+        float x2 = x * x;
+        float D = a2 / (M_PI * x2);
+
+        float3 F = F_Schlick(F0, VoH);
+
+        return F * (D * G / 4);
+    }
+    return 0;
+}
+
+float2 SampleDisk(float2 random)
+{
+    float angle = 2 * M_PI * random.x;
+    return float2(cos(angle), sin(angle)) * sqrt(random.y);
+}
+
+float3 SampleCosHemisphere(float2 random, out float solidAnglePdf)
+{
+    float2 tangential = SampleDisk(random);
+    float elevation = sqrt(saturate(1.0 - random.y));
+
+    solidAnglePdf = elevation / M_PI;
+
+    return float3(tangential.xy, elevation);
+}
+
+// Constructs an orthonormal basis based on the provided normal.
+// https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+void ConstructONB(float3 normal, out float3 tangent, out float3 bitangent)
+{
+    float sign = (normal.z >= 0) ? 1 : -1;
+    float a = -1.0 / (sign + normal.z);
+    float b = normal.x * normal.y * a;
+    tangent = float3(1.0f + sign * normal.x * normal.x * a, sign * b, -sign * normal.x);
+    bitangent = float3(b, sign + normal.y * normal.y * a, -normal.y);
 }
 
 float3 DefaultLitBxDF(float3 specularColor, float roughness, float3 albedo, float3 N, float3 V, float3 L)

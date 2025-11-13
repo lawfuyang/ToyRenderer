@@ -245,3 +245,44 @@ float3x3 CalculateTBNWithoutTangent(float3 p, float3 n, float2 tex)
     float3 b = normalize(mul(float2(duv1.y, duv2.y), inverseM));
     return float3x3(t, b, n);
 }
+
+uint MurMur3(inout uint RNGSeed, inout uint RNGIndex)
+{
+#define ROT32(x, y) ((x << y) | (x >> (32 - y)))
+
+    // https://en.wikipedia.org/wiki/MurmurHash
+    uint c1 = 0xcc9e2d51;
+    uint c2 = 0x1b873593;
+    uint r1 = 15;
+    uint r2 = 13;
+    uint m = 5;
+    uint n = 0xe6546b64;
+
+    uint hash = RNGSeed;
+    uint k = RNGIndex++;
+    k *= c1;
+    k = ROT32(k, r1);
+    k *= c2;
+
+    hash ^= k;
+    hash = ROT32(hash, r2) * m + n;
+
+    hash ^= 4;
+    hash ^= (hash >> 16);
+    hash *= 0x85ebca6b;
+    hash ^= (hash >> 13);
+    hash *= 0xc2b2ae35;
+    hash ^= (hash >> 16);
+
+#undef ROT32
+
+    return hash;
+}
+
+float SampleUniformRng(inout uint RNGSeed, inout uint RNGIndex)
+{
+    uint v = MurMur3(RNGSeed, RNGIndex);
+    const uint one = asuint(1.f);
+    const uint mask = (1 << 23) - 1;
+    return asfloat((mask & v) | one) - 1.f;
+}

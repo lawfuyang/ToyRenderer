@@ -38,6 +38,7 @@ SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/build/_deps/mathlib-src"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/RTXGI-DDGI/rtxgi-sdk/include"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/RTXGI-DDGI/rtxgi-sdk/shaders/ddgi/include"
 SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/MathLib/"
+SET INCLUDE_DIRS=%INCLUDE_DIRS% --include="%cd%/extern/nvidia/RTXDI/include/"
 
 :: SET COMPILER_OPTIONS="-Wconversion -Wdouble-promotion -Whlsl-legacy-literal"
 :: SET COMPILER_OPTIONS="-HV 202x"
