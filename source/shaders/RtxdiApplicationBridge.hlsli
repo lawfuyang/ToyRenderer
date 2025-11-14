@@ -7,6 +7,10 @@
 #include "Rtxdi/Utils/Math.hlsli"
 #include "lightingcommon.hlsli"
 
+#include "ShaderInterop.h"
+
+typedef ReSTIRLightInfo RAB_LightInfo;
+
 struct RAB_RandomSamplerState
 {
     uint seed;
@@ -31,15 +35,6 @@ struct RAB_Surface
     RAB_Material m_Material;
 };
 
-// simple directional light only for now
-// TODO: pack & compress
-struct RAB_LightInfo
-{
-    float3 m_Direction;
-    float3 m_Radiance;
-    // TODO: add solid angle for dir light
-};
-
 struct RAB_LightSample
 {
     float3 m_Position;
@@ -48,11 +43,24 @@ struct RAB_LightSample
     float m_SolidAnglePdf;
 };
 
-StructuredBuffer<RAB_LightInfo> t_LightDataBuffer : register(t0);
-RaytracingAccelerationStructure g_SceneTLAS : register(t1);
-RWStructuredBuffer<RTXDI_PackedDIReservoir> u_LightReservoirs : register(u0);
+// these global resources will be assigned by the Shader itself
+static StructuredBuffer<RAB_LightInfo> g_RAB_LightInfoBuffer;
+static RaytracingAccelerationStructure g_RAB_SceneTLAS;
+static RWStructuredBuffer<RTXDI_PackedDIReservoir> g_RAB_LightReservoirs;
+#define RTXDI_LIGHT_RESERVOIR_BUFFER g_RAB_LightReservoirs
 
-#define RTXDI_LIGHT_RESERVOIR_BUFFER u_LightReservoirs
+// Returns an empty RAB_Surface object. It is expected that RAB_IsSurfaceValid returns false when such object is passed to it.
+RAB_Surface RAB_EmptySurface()
+{
+    RAB_Surface surface = (RAB_Surface)0;
+    surface.m_ViewDepth = kKindaBigNumber;
+    return surface;
+}
+
+bool RAB_IsSurfaceValid(RAB_Surface surface)
+{
+    return surface.m_ViewDepth != kKindaBigNumber;
+}
 
 // Initialized the random sampler for a given pixel or tile index.
 // The 'rngSequenceOffset' parameter is provided to help generate different RNG sequences for different resampling passes, which is important for image quality.
@@ -80,7 +88,7 @@ float RAB_GetNextRandom(inout RAB_RandomSamplerState rng)
 // Ignore the previousFrame parameter as all lights are always loaded
 RAB_LightInfo RAB_LoadLightInfo(uint index, bool previousFrame)
 {
-    return t_LightDataBuffer[index];
+    return g_RAB_LightInfoBuffer[index];
 }
 
 // Returns an empty RAB_LightSample object.
@@ -277,8 +285,8 @@ bool RAB_TraceRayForLocalLight(float3 origin, float3 direction, float tMin, floa
     // ray.TMin = tMin;
     // ray.TMax = tMax;
 
-    // RayQuery<RAY_FLAG_CULL_NON_OPAQUE | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> rayQuery;
-    // rayQuery.TraceRayInline(g_SceneTLAS, RAY_FLAG_NONE, 0xFF, ray);
+    // RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> rayQuery;
+    // rayQuery.TraceRayInline(g_RAB_SceneTLAS, RAY_FLAG_NONE, 0xFF, ray);
     // rayQuery.Proceed();
 
     // bool hitAnything = rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
@@ -312,5 +320,7 @@ float RAB_EvaluateEnvironmentMapSamplingPdf(float3 L)
 {
     return 0.0f; // TODO: environment light not supported yet
 }
+
+#include "Rtxdi/DI/InitialSampling.hlsli"
 
 #endif // RTXDI_APPLICATION_BRIDGE_HLSLI

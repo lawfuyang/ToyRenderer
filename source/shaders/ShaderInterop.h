@@ -360,4 +360,13 @@ struct VisualizeMinMipParameters
     uint32_t m_bVisualizeWithColorOnly;
 };
 
+// simple directional light only for now
+// TODO: pack & compress
+struct ReSTIRLightInfo
+{
+    Vector3 m_Direction;
+    Vector3 m_Radiance;
+    // TODO: add solid angle for dir light
+};
+
 #endif // #define _SHADER_INTEROP_H_

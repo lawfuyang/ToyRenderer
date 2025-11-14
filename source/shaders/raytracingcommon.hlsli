@@ -5,6 +5,22 @@
 
 #include "ShaderInterop.h"
 
+RayDesc SetupScreenspaceRay(uint2 pixelPosition, float2 viewportSizeInv, float4x4 clipToWorld, float3 rayOrigin, float tMin = 0.0f, float tMax = 1000.0f)
+{
+    float2 uv = (float2(pixelPosition) + 0.5) * viewportSizeInv;
+    const float kDepth = 0.5f; // depth input doesnt matter for screenspace Ray. We just need to construct a ray direction.
+    float4 clipPos = float4(UVToClipXY(uv), kDepth, 1);
+    float4 worldPos = mul(clipPos, clipToWorld);
+    worldPos.xyz /= worldPos.w;
+
+    RayDesc ray;
+    ray.Origin = rayOrigin;
+    ray.Direction = normalize(worldPos.xyz - ray.Origin);
+    ray.TMin = tMin;
+    ray.TMax = tMax;
+    return ray;
+}
+
 UncompressedRawVertexFormat InterpolateVertex(RawVertexFormat vertices[3], float3 barycentrics)
 {
     UncompressedRawVertexFormat v = (UncompressedRawVertexFormat)0;
