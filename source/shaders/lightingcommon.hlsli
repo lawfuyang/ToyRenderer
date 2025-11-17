@@ -16,6 +16,7 @@ struct GBufferParams
 {
     float4 m_Albedo;
     float3 m_Emissive;
+    float3 m_GeometryNormal;
     float3 m_Normal;
     float m_Roughness;
     float m_Metallic;
@@ -69,6 +70,12 @@ float DielectricSpecularToF0(float specular)
 float3 ComputeF0(float specular, float3 baseColor, float metalness)
 {
     return lerp(DielectricSpecularToF0(specular).xxx, baseColor, metalness);
+}
+
+float3 ComputeF0(float3 baseColor, float metalness)
+{
+    const float kMaterialSpecular = 0.5f;
+    return lerp(DielectricSpecularToF0(kMaterialSpecular).xxx, baseColor, metalness);
 }
 
 float3 ComputeDiffuseColor(float3 baseColor, float metalness)
@@ -472,7 +479,7 @@ GBufferParams GetCommonGBufferParams(GetCommonGBufferParamsArguments inArgs)
     result.m_Metallic = metalRoughnessSample.b;
     result.m_Emissive = inArgs.m_MaterialData.m_ConstEmissive * emissiveSample.rgb;
 
-    result.m_Normal = inArgs.m_Normal;
+    result.m_Normal = result.m_GeometryNormal = inArgs.m_Normal;
     if (inArgs.m_MaterialData.m_MaterialFlags & MaterialFlag_UseNormalTexture)
     {
         float3 unpackedNormal = TwoChannelNormalX2(normalSample.xy);

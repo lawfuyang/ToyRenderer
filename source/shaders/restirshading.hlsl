@@ -2,56 +2,14 @@
 
 #include "RtxdiApplicationBridge.hlsli"
 
-#include "raytracingcommon.hlsli"
-
-#include "shaderinterop.h"
-
-struct ReSTIRLightingConstants
-{
-    RTXDI_LightBufferParameters m_LightBufferParams;
-    RTXDI_ReservoirBufferParameters m_ReservoirBufferParams;
-    Matrix m_ClipToWorld;
-    Vector3 m_CameraPosition;
-    uint32_t pad0;
-    Vector2 m_OutputResolutionInv;
-};
-
 cbuffer g_ReSTIRLightingConstantsBuffer : register(b0) { ReSTIRLightingConstants g_ReSTIRLightingConstants; }
 RaytracingAccelerationStructure g_SceneTLAS : register(t0);
 StructuredBuffer<RAB_LightInfo> g_LightInfoBuffer : register(t1);
+Texture2D<uint4> g_GBufferA : register(t2);
+Texture2D g_GBufferMotion : register(t3);
+Texture2D g_DepthBuffer : register(t4);
 RWStructuredBuffer<RTXDI_PackedDIReservoir> g_LightReservoirs : register(u0);
-
-struct PrimarySurfaceOutput
-{
-    RAB_Surface m_Surface;
-    float3 m_MotionVector;
-    float3 m_EmissiveColor;
-};
-
-PrimarySurfaceOutput TracePrimaryRay(int2 pixelPosition)
-{
-    RayDesc rayDesc = SetupScreenspaceRay(
-        pixelPosition,
-        g_ReSTIRLightingConstants.m_OutputResolutionInv,
-        g_ReSTIRLightingConstants.m_ClipToWorld,
-        g_ReSTIRLightingConstants.m_CameraPosition);
-
-    RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> rayQuery;
-    rayQuery.TraceRayInline(g_SceneTLAS, RAY_FLAG_NONE, 0xFF, rayDesc);
-    rayQuery.Proceed();
-
-    PrimarySurfaceOutput result;
-    result.m_Surface = RAB_EmptySurface();
-    result.m_MotionVector = 0;
-    result.m_EmissiveColor = 0;
-
-    if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-    {
-
-    }
-
-    return result;
-}
+RWTexture2D<float4> g_ReSTIRShadingOutput : register(u1);
 
 [numthreads(8, 8, 1)]
 void CS_Main(
@@ -65,5 +23,58 @@ void CS_Main(
     g_RAB_LightInfoBuffer = g_LightInfoBuffer;
     g_RAB_LightReservoirs = g_LightReservoirs;
 
-    PrimarySurfaceOutput primary = TracePrimaryRay(dispatchThreadID.xy);
+    GBufferParams gbufferParams;
+    UnpackGBuffer(g_GBufferA[dispatchThreadID.xy], g_GBufferMotion[dispatchThreadID.xy], gbufferParams);
+
+    float depthBufferValue = g_DepthBuffer[dispatchThreadID.xy].x;
+    float3 worldPosition = ScreenUVToWorldPosition(dispatchThreadID.xy, depthBufferValue, g_ReSTIRLightingConstants.m_ClipToWorld);
+
+    RAB_Surface surface;
+    surface.m_WorldPos = worldPosition;
+    surface.m_ViewDir = normalize(worldPosition - g_ReSTIRLightingConstants.m_CameraPosition);
+    surface.m_ViewDepth = (depthBufferValue == 0.0f) ? length(worldPosition - g_ReSTIRLightingConstants.m_CameraPosition) : kKindaBigNumber;
+    surface.m_Normal = gbufferParams.m_Normal;
+    surface.m_GeometryNormal = gbufferParams.m_GeometryNormal;
+    surface.m_DiffuseAlbedo = gbufferParams.m_Albedo.rgb;
+    surface.m_SpecularF0 = ComputeF0(gbufferParams.m_Albedo.rgb, gbufferParams.m_Metallic);
+    surface.m_Roughness = gbufferParams.m_Roughness;
+    surface.m_DiffuseProbability = GetSurfaceDiffuseProbability(surface);
+
+    float4 ReSTIRShadingOutput = float4(0, 0, 0, 1);
+    RTXDI_DIReservoir reservoir = RTXDI_EmptyDIReservoir();
+
+    if (RAB_IsSurfaceValid(surface))
+    {
+        RAB_RandomSamplerState rng = RAB_InitRandomSampler(dispatchThreadID.xy, 1);
+        RAB_RandomSamplerState coherentRng = RAB_InitRandomSampler(dispatchThreadID.xy / RTXDI_TILE_SIZE_IN_PIXELS, 1);
+        
+        const uint kNumLocalLightSamples = 0;
+        const uint kInfiniteLightSamples = 1;
+        const uint kEnvMapSamples = 0;
+        const uint kNumInitialBRDFSamples = 1;
+        RTXDI_SampleParameters sampleParams = RTXDI_InitSampleParameters(kNumLocalLightSamples, kInfiniteLightSamples, kEnvMapSamples, kNumInitialBRDFSamples);
+        
+        const ReSTIRDI_LocalLightSamplingMode kLocalLightSamplingMode = ReSTIRDI_LocalLightSamplingMode_UNIFORM;
+
+        RAB_LightSample lightSample;
+        RTXDI_DIReservoir reservoir = RTXDI_SampleLightsForSurface(rng, coherentRng, surface, sampleParams, g_ReSTIRLightingConstants.m_LightBufferParams, kLocalLightSamplingMode, lightSample);
+
+        const bool kEnableInitialVisibility = true;
+        if (kEnableInitialVisibility && RTXDI_IsValidDIReservoir(reservoir))
+        {
+            if (RAB_GetConservativeVisibility(surface, lightSample))
+            {
+                // TODO: only dir light for now
+                float3 dirLightShading = EvaluateDirectionalLight(gbufferParams, g_ReSTIRLightingConstants.m_CameraPosition, worldPosition, lightSample.m_Normal, lightSample.m_Radiance.x);
+                ReSTIRShadingOutput.rgb = dirLightShading * RTXDI_GetDIReservoirInvPdf(reservoir);
+            }
+            else
+            {
+                RTXDI_StoreVisibilityInDIReservoir(reservoir, 0, true);
+            }
+        }
+    }
+
+    g_ReSTIRShadingOutput[dispatchThreadID.xy] = ReSTIRShadingOutput;
+    RTXDI_StoreDIReservoir(reservoir, g_ReSTIRLightingConstants.m_ReservoirBufferParams, dispatchThreadID.xy, g_ReSTIRLightingConstants.m_OutputBufferIndex);
 }

@@ -2,6 +2,8 @@
 
 #include "Rtxdi/ImportanceSamplingContext.h"
 
+#include "shaders/RtxdiShaderInterop.h"
+
 class ReSTIRRenderer : public IRenderer
 {
     std::unique_ptr<rtxdi::ImportanceSamplingContext> m_ImportanceSamplingContext;

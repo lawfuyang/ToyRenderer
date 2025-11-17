@@ -7,7 +7,7 @@
 #include "Rtxdi/Utils/Math.hlsli"
 #include "lightingcommon.hlsli"
 
-#include "ShaderInterop.h"
+#include "RtxdiShaderInterop.h"
 
 typedef ReSTIRLightInfo RAB_LightInfo;
 
@@ -17,22 +17,17 @@ struct RAB_RandomSamplerState
     uint index;
 };
 
-struct RAB_Material
-{
-    float3 m_DiffuseAlbedo;
-    float3 m_SpecularF0;
-    float m_Roughness;
-};
-
 struct RAB_Surface
 {
     float3 m_WorldPos;
     float3 m_ViewDir;
     float m_ViewDepth;
     float3 m_Normal;
-    float3 m_GeoNormal;
+    float3 m_GeometryNormal;
+    float3 m_DiffuseAlbedo;
+    float3 m_SpecularF0;
+    float m_Roughness;
     float m_DiffuseProbability;
-    RAB_Material m_Material;
 };
 
 struct RAB_LightSample
@@ -48,6 +43,22 @@ static StructuredBuffer<RAB_LightInfo> g_RAB_LightInfoBuffer;
 static RaytracingAccelerationStructure g_RAB_SceneTLAS;
 static RWStructuredBuffer<RTXDI_PackedDIReservoir> g_RAB_LightReservoirs;
 #define RTXDI_LIGHT_RESERVOIR_BUFFER g_RAB_LightReservoirs
+
+float GetSurfaceDiffuseProbability(RAB_Surface surface)
+{
+    float diffuseWeight = RGBToLuminance(surface.m_DiffuseAlbedo);
+    float specularWeight = RGBToLuminance(F_Schlick(surface.m_SpecularF0, dot(surface.m_ViewDir, surface.m_Normal)));
+    float sumWeights = diffuseWeight + specularWeight;
+    return sumWeights < kKindaSmallNumber ? 1.f : (diffuseWeight / sumWeights);
+}
+
+// Translate the light index between the current and previous frame.
+// Do nothing as our lights are static
+int RAB_TranslateLightIndex(uint lightIndex, bool currentToPrevious)
+{
+    return int(lightIndex);
+}
+
 
 // Returns an empty RAB_Surface object. It is expected that RAB_IsSurfaceValid returns false when such object is passed to it.
 RAB_Surface RAB_EmptySurface()
@@ -169,19 +180,19 @@ float3 RAB_GetReflectedRadianceForSurface(float3 incomingRadianceLocation, float
     float3 N = surface.m_Normal;
     float3 V = surface.m_ViewDir;
 
-    if (dot(L, surface.m_GeoNormal) <= 0)
+    if (dot(L, surface.m_GeometryNormal) <= 0)
         return 0;
 
     float d = Lambert(N, -L);
     float3 s = float3(0, 0, 0);
 
     // TODO: add specular radiance
-    // if (surface.m_Material.m_Roughness == 0)
+    // if (surface.m_Roughness == 0)
     //     s = 0;
     // else
-    //     s = GGX_times_NdotL(V, L, N, max(surface.m_Material.m_Roughness, kMinRoughness), surface.m_Material.m_SpecularF0);
+    //     s = GGX_times_NdotL(V, L, N, max(surface.m_Roughness, kMinRoughness), surface.m_SpecularF0);
 
-    return incomingRadiance * (d * surface.m_Material.m_DiffuseAlbedo + s);
+    return incomingRadiance * (d * surface.m_DiffuseAlbedo + s);
 }
 
 float RAB_GetReflectedLuminanceForSurface(float3 incomingRadianceLocation, float3 incomingRadiance, RAB_Surface surface)
@@ -319,6 +330,32 @@ float2 RAB_GetEnvironmentMapRandXYFromDir(float3 worldDir)
 float RAB_EvaluateEnvironmentMapSamplingPdf(float3 L)
 {
     return 0.0f; // TODO: environment light not supported yet
+}
+
+// Traces a cheap visibility ray that returns approximate, conservative visibility between the surface and the light sample.
+// Conservative means if unsure, assume the light is visible.
+// Significant differences between this conservative visibility and the final one will result in more noise.
+// This function is used in the spatial resampling functions for ray traced bias correction.
+bool RAB_GetConservativeVisibility(RAB_Surface surface, RAB_LightSample lightSample)
+{
+    float3 L = lightSample.m_Position - surface.m_WorldPos;
+
+    const float kRayOffset = 0.001f;
+
+    RayDesc ray;
+    ray.TMin = kRayOffset;
+    ray.TMax = max(kRayOffset, length(L) - kRayOffset * 2);
+    ray.Direction = normalize(L);
+    ray.Origin = surface.m_WorldPos;
+
+    RayQuery<RAY_FLAG_CULL_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> rayQuery;
+
+    rayQuery.TraceRayInline(g_RAB_SceneTLAS, RAY_FLAG_NONE, 0xFF, ray);
+    rayQuery.Proceed();
+
+    bool visible = (rayQuery.CommittedStatus() == COMMITTED_NOTHING);
+
+    return visible;
 }
 
 #include "Rtxdi/DI/InitialSampling.hlsli"
