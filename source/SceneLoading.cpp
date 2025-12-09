@@ -61,6 +61,7 @@ struct GLTFSceneLoader
         struct Header
         {
             uint32_t m_Version = kCurrentVersion;
+            uint32_t m_MeshOptVersion = MESHOPTIMIZER_VERSION;
             uint32_t m_NumVertices = 0;
             uint32_t m_NumIndices = 0;
             uint32_t m_NumMeshes = 0;
@@ -104,7 +105,7 @@ struct GLTFSceneLoader
             size_t objectsRead = fread(&header, sizeof(header), 1, cachedDataFile);
             check(objectsRead == 1);
 
-            m_bHasValidCachedData = (header.m_Version == CachedData::kCurrentVersion);
+            m_bHasValidCachedData = (header.m_Version == CachedData::kCurrentVersion) && (header.m_MeshOptVersion == MESHOPTIMIZER_VERSION);
         }
 
         cgltf_options options{};
