@@ -49,7 +49,10 @@ file(CREATE_LINK "${EXTERN_DIR}/sdl/SDL3-${SDL3_VERSION}/lib/x64/SDL3.dll" "${BI
 file(CREATE_LINK "${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc.dll" "${BIN_DIR}/renderdoc.dll" SYMBOLIC)
 file(CREATE_LINK "${EXTERN_DIR}/renderdoc/RenderDoc_${RENDERDOC_VERSION}_64/renderdoc_app.h" "${EXTERN_DIR}/renderdoc/renderdoc_app.h" SYMBOLIC)
 file(CREATE_LINK "${EXTERN_DIR}/Nvidia/DLSS/lib/Windows_x86_64/rel/nvngx_dlss.dll" "${BIN_DIR}/nvngx_dlss.dll" SYMBOLIC)
+file(CREATE_LINK "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll" "${BIN_DIR}/amd_fidelityfx_denoiser_dx12.dll" SYMBOLIC)
+file(CREATE_LINK "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/signedbin/amd_fidelityfx_framegeneration_dx12.dll" "${BIN_DIR}/amd_fidelityfx_framegeneration_dx12.dll" SYMBOLIC)
 file(CREATE_LINK "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/signedbin/amd_fidelityfx_loader_dx12.dll" "${BIN_DIR}/amd_fidelityfx_loader_dx12.dll" SYMBOLIC)
+file(CREATE_LINK "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/signedbin/amd_fidelityfx_radiancecache_dx12.dll" "${BIN_DIR}/amd_fidelityfx_radiancecache_dx12.dll" SYMBOLIC)
 file(CREATE_LINK "${EXTERN_DIR}/amd/FidelityFX2/Kits/FidelityFX/signedbin/amd_fidelityfx_upscaler_dx12.dll" "${BIN_DIR}/amd_fidelityfx_upscaler_dx12.dll" SYMBOLIC)
 
 # i need to do this because shadermake manually & retardedly sets 'CMAKE_MSVC_RUNTIME_LIBRARY'
